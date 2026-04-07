@@ -362,13 +362,15 @@ export default function Home() {
             <div className="h-full rounded-full transition-all duration-300" style={{ width: `${((currentIndex+1)/ALL_CARDS.length)*100}%`, background: color }} />
           </div>
         </div>
-        <div className="flex gap-1 mt-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+        {/* ▼▼▼ 수정된 부분: 16개 챕터 동그라미 모두 표시 ▼▼▼ */}
+        <div className="flex gap-0.5 mt-2 flex-wrap pb-1">
           {TOPICS.map((t, i) => (
             <button key={t.id} onClick={() => goTo(ALL_CARDS.findIndex(c => c.data.id === t.id))}
-              className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold transition-all"
+              className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold transition-all"
               style={{ background: currentTopicIdx === i ? CARD_COLORS[t.id].bg : 'rgba(255,255,255,0.08)', border: currentTopicIdx === i ? `2px solid ${CARD_COLORS[t.id].bg}` : '1px solid rgba(255,255,255,0.1)', color: currentTopicIdx === i ? '#fff' : '#888' }}>{t.id}</button>
           ))}
         </div>
+        {/* ▲▲▲ 수정 끝 ▲▲▲ */}
       </div>
 
       {/* Time warning + AI auto banner */}
