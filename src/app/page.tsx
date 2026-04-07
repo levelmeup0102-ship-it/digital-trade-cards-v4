@@ -437,8 +437,8 @@ export default function Home() {
         )}
         <div className="w-full h-full relative card-flip"
           style={{ transform: `rotateY(${isFlipped ? 180 : 0}deg) translateX(${swipeOffset*0.3}px)`, transition: touchStart ? 'none' : undefined }}>
-          <div className="card-face cursor-pointer" onClick={() => !isCardLocked && setIsFlipped(true)}><CardFront card={card} /></div>
-          <div className="card-face card-face-back">
+<div className="card-face cursor-pointer" style={{ pointerEvents: isFlipped ? 'none' : 'auto' }} onClick={() => !isCardLocked && setIsFlipped(true)}><CardFront card={card} /></div>
+          <div className="card-face card-face-back" style={{ pointerEvents: isFlipped ? 'auto' : 'none' }}>
             <CardBack card={card} checkStates={currentChecks} onCheck={handleCheck}
               onOpenActivity={isLeader && !isCardLocked ? () => setShowActivity(true) : undefined}
               hasResponse={hasResponse(card.data.id)} />
