@@ -5,7 +5,9 @@
     "buildCommand": "npm run build"
   },
   "deploy": {
-    "startCommand": "npx serve out -s -l ${PORT:-3000}",
-    "healthcheckPath": "/"
+    "startCommand": "npm run start",
+    "healthcheckPath": "/",
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
   }
 }
