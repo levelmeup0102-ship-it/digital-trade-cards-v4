@@ -416,9 +416,8 @@ export default function Home() {
       )}
 
       {/* Card */}
-      <div className="w-full max-w-[340px] relative z-10 cursor-pointer"
+      <div className="w-full max-w-[340px] relative z-10"
         style={{ aspectRatio: '70/95', perspective: 1200 }}
-        onClick={() => !showActivity && !isCardLocked && !showDraftEditor && setIsFlipped(f => !f)}
         onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
         {[2,1].map(offset => (
           <div key={offset} className="absolute rounded-2xl border border-white/5"
@@ -438,11 +437,12 @@ export default function Home() {
         )}
         <div className="w-full h-full relative card-flip"
           style={{ transform: `rotateY(${isFlipped ? 180 : 0}deg) translateX(${swipeOffset*0.3}px)`, transition: touchStart ? 'none' : undefined }}>
-          <div className="card-face"><CardFront card={card} /></div>
+          <div className="card-face cursor-pointer" onClick={() => !isCardLocked && setIsFlipped(true)}><CardFront card={card} /></div>
           <div className="card-face card-face-back">
             <CardBack card={card} checkStates={currentChecks} onCheck={handleCheck}
               onOpenActivity={isLeader && !isCardLocked ? () => setShowActivity(true) : undefined}
               hasResponse={hasResponse(card.data.id)} />
+            <button onClick={() => setIsFlipped(false)} className="absolute bottom-2 right-2 bg-gray-800/80 text-white text-[10px] px-3 py-1.5 rounded-lg z-10 hover:bg-gray-700 transition">↩ 앞면 보기</button>
           </div>
         </div>
       </div>
@@ -450,7 +450,7 @@ export default function Home() {
       {/* Action buttons area */}
       <div className="flex flex-col items-center gap-2 mt-2.5 relative z-10 w-full max-w-[340px]">
         <p className="text-[11px] text-gray-600 text-center">
-          {isCardLocked ? '🔒 이전 카드를 완료하세요' : isFlipped ? (card.type === 'question' && isLeader ? '전략 작성하기 클릭' : '뒷면') : '탭하여 뒤집기'} · 스와이프 이동
+          {isCardLocked ? '🔒 이전 카드를 완료하세요' : isFlipped ? '체크리스트 확인 · 앞면 보기 버튼으로 돌아가기' : '카드를 탭하여 뒤집기'} · 스와이프 이동
         </p>
 
         {/* AI Feedback button */}
