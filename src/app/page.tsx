@@ -237,6 +237,24 @@ export default function Home() {
     } catch (e) { setJoinError('오류가 발생했어요. 다시 시도해주세요.'); } finally { setJoining(false); }
   };
 
+  // 다시 설정하기 (세션 초기화)
+  const resetSession = () => {
+    localStorage.removeItem('dtc_session_token');
+    setSession(null);
+    setTeamId(null);
+    setResponses({});
+    setCheckStates({});
+    setCompletedCards(new Set());
+    setJoinCode('');
+    setPlayerName('');
+    setItem('');
+    setCurrentIndex(0);
+    setIsFlipped(false);
+    if (timerRef.current) clearInterval(timerRef.current);
+    setTimerActive(false);
+    setScreen('onboarding');
+  };
+
   // ─── LANDING ───
   if (screen === 'landing') return (
     <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center p-6 relative overflow-hidden">
@@ -276,7 +294,7 @@ export default function Home() {
             <p className="text-sm font-bold text-white mb-1">① 수업 코드 입력</p>
             <p className="text-[11px] text-gray-500 mb-2">선생님이 알려준 코드를 입력하세요</p>
             <input value={joinCode} onChange={e => { setJoinCode(e.target.value.toUpperCase()); setJoinError(''); }}
-              placeholder="예) ABC123" maxLength={10}
+              placeholder="예) TEAM01" maxLength={10}
               className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-xl text-white text-base font-bold tracking-widest focus:border-cyan-400 transition uppercase" />
             {joinError && <p className="text-red-400 text-[11px] mt-1">⚠ {joinError}</p>}
           </div>
@@ -567,9 +585,13 @@ export default function Home() {
         </>)}
       </div>
 
+      {/* 하단 버튼 */}
       <div className="mt-4 text-[10px] text-gray-700 text-center relative z-10">
         © 2025 CONNECT AI
-        <button onClick={() => { setScreen('landing'); if(timerRef.current) clearInterval(timerRef.current); setTimerActive(false); }} className="ml-3 text-gray-600 underline hover:text-gray-400 transition">나가기</button>
+        <button onClick={() => { setScreen('landing'); if(timerRef.current) clearInterval(timerRef.current); setTimerActive(false); }}
+          className="ml-3 text-gray-600 underline hover:text-gray-400 transition">나가기</button>
+        <button onClick={resetSession}
+          className="ml-3 text-gray-600 underline hover:text-red-400 transition">다시 설정</button>
       </div>
 
       {showActivity && card.type === 'question' && isLeader && (
