@@ -271,7 +271,7 @@ export default function Home() {
         </div>
         <button onClick={() => setScreen('onboarding')} className="w-full py-4 bg-cyan-500 text-white font-bold rounded-2xl text-base shadow-lg shadow-cyan-500/25 transition hover:bg-cyan-600 mb-3">시작하기</button>
         <button onClick={() => setScreen('guide')} className="w-full py-3 bg-gray-800 text-gray-400 rounded-2xl text-sm border border-gray-700 transition hover:bg-gray-700">📋 퍼실리테이터 가이드</button>
-        <p className="text-gray-600 text-[10px] mt-8">© 2025 CONNECT AI · 동구고등학교</p>
+        <p className="text-gray-600 text-[10px] mt-8">© 2025 CONNECT AI</p>
       </div>
     </div>
   );
