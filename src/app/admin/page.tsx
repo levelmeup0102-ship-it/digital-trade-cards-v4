@@ -382,7 +382,7 @@ export default function AdminPage() {
           </>
         )}
 
-        <p className="text-center text-gray-700 text-[10px] mt-8">© 2025 CONNECT AI</p>
+        <p className="text-center text-gray-700 text-[10px] mt-8">© 2026 CONNECT AI</p>
       </div>
     </div>
   );
