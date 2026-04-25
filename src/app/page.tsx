@@ -41,6 +41,7 @@ export default function Home() {
   const [showList, setShowList] = useState(false);
   const [showActivity, setShowActivity] = useState(false);
   const [savedToast, setSavedToast] = useState(false);
+  const [showPdfToast, setShowPdfToast] = useState(false);
   const [checkStates, setCheckStates] = useState<Record<string, Record<number, boolean>>>({});
   const [responses, setResponses] = useState<Record<string, any>>({});
   const [completedCards, setCompletedCards] = useState<Set<string>>(new Set());
@@ -527,6 +528,12 @@ export default function Home() {
             ✅ 이 카드 완료하기
           </button>
         )}
+        {isLeader && completedCards.size === 48 && (
+          <button onClick={() => { setShowPdfToast(true); setTimeout(() => setShowPdfToast(false), 3000); }}
+            className="w-full py-2 bg-gray-800/80 border border-gray-700 text-gray-400 font-bold rounded-xl text-[12px] transition hover:bg-gray-700 hover:text-gray-200">
+            📄 PDF 리포트 저장 (준비 중)
+          </button>
+        )}
         {!isLeader && card.type === 'question' && !isCardLocked && (
           <div className="w-full px-4 py-2 bg-cyan-500/10 border border-cyan-500/20 rounded-xl text-[11px] text-cyan-400 text-center">
             💬 팀원 모드 · 체크리스트 확인 가능 · 결론은 팀장만
@@ -622,6 +629,15 @@ export default function Home() {
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-[#1a1a2e] border border-white/15 rounded-xl px-5 py-2.5 z-[300] flex items-center gap-2 backdrop-blur-sm" style={{ animation: 'fadeIn 0.3s ease-out' }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4CAF50" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
           <span className="text-[13px] text-white font-semibold">저장 완료!</span>
+        </div>
+      )}
+      {showPdfToast && (
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-[#1a1a2e] border border-amber-500/30 rounded-xl px-5 py-3 z-[300] flex items-center gap-3 backdrop-blur-sm max-w-[320px]" style={{ animation: 'fadeIn 0.3s ease-out' }}>
+          <span className="text-xl">📄</span>
+          <div>
+            <div className="text-[13px] text-white font-semibold">PDF 리포트 준비 중</div>
+            <div className="text-[11px] text-amber-400">AI 전략 내러티브 완성 후 활성화됩니다</div>
+          </div>
         </div>
       )}
     </div>
