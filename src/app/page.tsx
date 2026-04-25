@@ -528,10 +528,10 @@ export default function Home() {
             ✅ 이 카드 완료하기
           </button>
         )}
-        {isLeader && completedCards.size === 48 && (
+        {isLeader && card.data.id === '16-3' && (
           <button onClick={() => { setShowPdfToast(true); setTimeout(() => setShowPdfToast(false), 3000); }}
-            className="w-full py-2 bg-gray-800/80 border border-gray-700 text-gray-400 font-bold rounded-xl text-[12px] transition hover:bg-gray-700 hover:text-gray-200">
-            📄 PDF 리포트 저장 (준비 중)
+            className={`w-full py-2.5 font-bold rounded-xl text-[13px] transition border ${completedCards.size === 48 ? 'bg-[#1565C0] text-white border-[#1565C0] hover:bg-[#1976D2] shadow-lg shadow-blue-900/30' : 'bg-gray-800/80 border-gray-700 text-gray-400 hover:bg-gray-700'}`}>
+            📄 PDF 전략 리포트 생성 {completedCards.size === 48 ? '' : `(${completedCards.size}/48 완료)`}
           </button>
         )}
         {!isLeader && card.type === 'question' && !isCardLocked && (
@@ -633,10 +633,19 @@ export default function Home() {
       )}
       {showPdfToast && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-[#1a1a2e] border border-amber-500/30 rounded-xl px-5 py-3 z-[300] flex items-center gap-3 backdrop-blur-sm max-w-[320px]" style={{ animation: 'fadeIn 0.3s ease-out' }}>
-          <span className="text-xl">📄</span>
+          <span className="text-xl">{completedCards.size === 48 ? '📄' : '🔒'}</span>
           <div>
-            <div className="text-[13px] text-white font-semibold">PDF 리포트 준비 중</div>
-            <div className="text-[11px] text-amber-400">AI 전략 내러티브 완성 후 활성화됩니다</div>
+            {completedCards.size === 48 ? (
+              <>
+                <div className="text-[13px] text-white font-semibold">PDF 리포트 준비 중</div>
+                <div className="text-[11px] text-amber-400">AI 전략 내러티브 완성 후 활성화됩니다</div>
+              </>
+            ) : (
+              <>
+                <div className="text-[13px] text-white font-semibold">아직 완료되지 않은 카드가 있어요</div>
+                <div className="text-[11px] text-amber-400">16개 주제 전부 완료해야 생성 가능합니다 ({completedCards.size}/48)</div>
+              </>
+            )}
           </div>
         </div>
       )}
