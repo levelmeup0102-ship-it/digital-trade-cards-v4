@@ -93,12 +93,11 @@ export default function SignalCard({
       <div className="relative mb-4" style={{ aspectRatio: '70/45', perspective: 1200 }}>
         {/* 그림자 카드 */}
         {[2, 1].map(offset => (
-          <div key={offset} className="absolute rounded-2xl"
-            style={{ top: offset * 4, left: offset * 3, right: -offset * 3, bottom: -offset * 4, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', transform: `rotate(${offset * 1.5}deg)` }} />
+          <div key={offset} className="absolute rounded-2xl border border-gray-200"
+            style={{ top: offset * 4, left: offset * 3, right: -offset * 3, bottom: -offset * 4, background: '#f0f0f0', transform: `rotate(${offset * 1.5}deg)` }} />
         ))}
-        {/* 메인 카드 */}
-        <div className="absolute inset-0 rounded-2xl overflow-hidden"
-          style={{ background: `linear-gradient(135deg, ${color}ee, ${color}99)`, boxShadow: `0 8px 32px ${color}33` }}>
+        {/* 메인 카드 — 기존 CardFront 디자인 */}
+        <div className="absolute inset-0 rounded-2xl overflow-hidden bg-white border border-gray-200 shadow-lg">
           {/* 완료 뱃지 */}
           {isCardCompleted && (
             <div className="absolute top-2 right-2 z-10 flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full"
@@ -106,27 +105,30 @@ export default function SignalCard({
               {aiUsed.has(topic.id) && '🤖 '}✓ 완료
             </div>
           )}
-          <div className="p-4 h-full flex flex-col justify-between">
-            {/* 카드 상단 */}
-            <div className="flex items-start justify-between">
-              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[12px] font-black font-mono"
-                style={{ background: 'rgba(0,0,0,0.25)' }}>{topic.id}</div>
-              <div className="text-right">
-                <div className="text-white/50 text-[8px] font-mono tracking-widest">SIGNAL CARD</div>
-                <div className="text-white/70 text-[10px]">{'★'.repeat(topic.difficulty)}{'☆'.repeat(5 - topic.difficulty)}</div>
+          <div className="p-5 h-full flex flex-col justify-between">
+            {/* 카드 상단: 뱃지 + 그리드 */}
+            <div className="relative">
+              <div className="absolute -top-1 -left-1 w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-base z-[2]"
+                style={{ background: color, boxShadow: `0 4px 12px ${color}66` }}>
+                {topic.id}
+              </div>
+              <div className="ml-11">
+                <div className="grid grid-cols-4 gap-1 w-full">
+                  {Array.from({ length: 16 }).map((_, i) => (
+                    <div key={i} className="aspect-square rounded"
+                      style={{ background: color, opacity: 0.85 }} />
+                  ))}
+                </div>
               </div>
             </div>
-            {/* 4×4 그리드 */}
-            <div className="grid grid-cols-4 gap-0.5 my-2">
-              {Array.from({ length: 16 }).map((_, i) => (
-                <div key={i} className="h-3 rounded-sm"
-                  style={{ background: i === 0 ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.18)' }} />
-              ))}
-            </div>
-            {/* 카드 하단 */}
-            <div>
-              <h2 className="text-white font-black text-base leading-tight">{topic.title}</h2>
-              <p className="text-white/60 text-[10px] mt-0.5">{topic.titleEn}</p>
+            {/* 카드 하단: 라벨 + 제목 */}
+            <div className="mt-3">
+              <span className="inline-block px-3 py-1 rounded-full text-[11px] font-semibold mb-2"
+                style={{ border: `1.5px solid ${color}`, color }}>
+                {topic.id}. 주제카드
+              </span>
+              <h3 className="text-lg font-black text-gray-900 leading-tight">{topic.title}</h3>
+              <p className="text-[13px] font-extrabold text-gray-400 leading-tight">{topic.titleEn}</p>
             </div>
           </div>
         </div>
