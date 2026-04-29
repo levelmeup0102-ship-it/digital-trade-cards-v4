@@ -78,10 +78,11 @@ export default function Home() {
   const currentLeaderConclusion = leaderConclusions[topic.id] || defaultLeaderConclusion();
   const isCardCompleted = completedCards.has(topic.id);
 
-  // 세션 복원
+  // 세션 복원 (v1: 옛날 흐름 / v2: /student/join 흐름 둘 다 지원)
   useEffect(() => {
     (async () => {
       try {
+        // 1) 옛날 v1 세션 (수업 코드 + 이름 직접 입력 흐름)
         const saved = await restoreSession();
         if (saved) {
           setSession(saved); setTeamId(saved.team_id);
@@ -91,6 +92,32 @@ export default function Home() {
           setResponses(resps); setCheckStates(prog.checkStates); setCompletedCards(prog.completedCards);
           setTimer(LEVELS[saved.level]?.timer || 1200);
           setScreen('game');
+          return;
+        }
+
+        // 2) 새 v2 세션 (/student/join 흐름) — 선생님이 만든 팀에 학생이 명단으로 입장한 경우
+        const v2Raw = typeof window !== 'undefined' ? localStorage.getItem('dtc_session_token_v2') : null;
+        if (v2Raw) {
+          const v2 = JSON.parse(v2Raw);
+          const v2Role: 'leader' | 'member' = v2.isLeader ? 'leader' : 'member';
+          const v2Level = v2.level || 'standard';
+          const sess = await getOrCreateSession({
+            playerName: v2.memberName,
+            teamId: v2.teamId,
+            role: v2Role,
+            level: v2Level,
+            item: v2.item || '',
+          });
+          if (sess) {
+            setSession(sess); setTeamId(v2.teamId);
+            setPlayerName(v2.memberName); setRole(v2Role);
+            setLevel(v2Level); setItem(v2.item || '');
+            setJoinCode(v2.joinCode || '');
+            const [resps, prog] = await Promise.all([loadCardResponses(v2.teamId), loadCardProgress(v2.teamId)]);
+            setResponses(resps); setCheckStates(prog.checkStates); setCompletedCards(prog.completedCards);
+            setTimer(LEVELS[v2Level]?.timer || 1200);
+            setScreen('game');
+          }
         }
       } catch (e) {}
     })();
@@ -226,11 +253,12 @@ export default function Home() {
 
   const resetSession = () => {
     localStorage.removeItem('dtc_session_token');
+    localStorage.removeItem('dtc_session_token_v2');
     setSession(null); setTeamId(null); setResponses({}); setCheckStates({});
     setCompletedCards(new Set()); setJoinCode(''); setPlayerName(''); setItem('');
     setCurrentCardIdx(0); setCurrentTab('주제');
     if (timerRef.current) clearInterval(timerRef.current);
-    setTimerActive(false); setScreen('onboarding');
+    setTimerActive(false); setScreen('landing');
   };
 
   // ─── LANDING ───
