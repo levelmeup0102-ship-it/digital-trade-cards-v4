@@ -151,11 +151,11 @@ export async function getClass(classId: string): Promise<Class | null> {
 // ── 팀 ──────────────────────────────────────────────────
 
 function generateTeamCode(idx: number): string {
-  const year = new Date().getFullYear();
-  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const a = letters[Math.floor(idx / 26) % 26];
-  const b = letters[idx % 26];
-  return `DT-${year}-${a}${b}`;
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const a = letters[Math.floor(idx / 36) % 36];
+  const b = letters[idx % 36];
+  const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+  return `DT-${a}${b}-${rand}`;
 }
 
 export async function createTeams(classId: string, teamCount: number): Promise<Team[]> {
