@@ -100,17 +100,15 @@ export default function SignalCard({
   const canComplete = isLeader && !isCardCompleted && Boolean(leaderConclusion.oneSentence?.trim()) && allQsDone;
 
   return (
-    <div className="w-full max-w-[400px] relative" style={{ perspective: 1200 }}>
+    <div className="w-full max-w-[400px] relative" style={{ paddingBottom: '12px', paddingRight: '8px' }}>
       {/* 뒤쪽 그림자 카드 */}
-      {[2,1].map(offset => (
-        <div key={offset} className="absolute rounded-2xl"
-          style={{ top: offset*4, left: offset*3, right: -offset*3, bottom: -offset*4,
-            background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)',
-            transform: `rotate(${offset*1.2}deg)`, borderRadius: '20px' }} />
-      ))}
+      <div className="absolute rounded-2xl"
+        style={{ top: 8, left: 6, right: -6, bottom: -4, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', transform: 'rotate(2.5deg)' }} />
+      <div className="absolute rounded-2xl"
+        style={{ top: 4, left: 3, right: -3, bottom: -2, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', transform: 'rotate(1.2deg)' }} />
       {/* 실제 카드 */}
       <div className="relative flex flex-col rounded-2xl overflow-hidden"
-        style={{ minHeight: '560px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', boxShadow: `0 8px 40px ${color}22, 0 2px 8px rgba(0,0,0,0.4)` }}>
+        style={{ minHeight: '560px', background: 'rgba(20,20,30,0.95)', border: `1px solid ${color}44`, boxShadow: `0 8px 40px ${color}22, 0 2px 12px rgba(0,0,0,0.6)` }}>
       {/* 탭 헤더 */}
       <div className="flex mb-0 relative">
         {TABS.map((tab, i) => {
