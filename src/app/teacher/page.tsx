@@ -17,22 +17,18 @@ export default function TeacherAuthPage() {
   const handleSubmit = async () => {
     setError(''); setLoading(true);
     try {
-      if (mode === 'login') {
-        if (!name.trim() || !school.trim() || !password) {
-          setError('이름, 학교, 비밀번호를 모두 입력해주세요.'); setLoading(false); return;
-        }
-        await signIn(name, school, password);
-        router.push('/teacher/dashboard');
-      } else {
-        if (!name.trim() || !school.trim() || !password) {
-          setError('이름, 학교, 비밀번호를 모두 입력해주세요.'); setLoading(false); return;
-        }
-        if (password.length < 6) {
-          setError('비밀번호는 6자 이상이어야 합니다.'); setLoading(false); return;
-        }
-        await signUp(name, school, password);
-        router.push('/teacher/dashboard');
+      if (!name.trim() || !school.trim() || !password) {
+        setError('이름, 학교, 비밀번호를 모두 입력해주세요.'); setLoading(false); return;
       }
+      if (password.length < 6) {
+        setError('비밀번호는 6자 이상이어야 합니다.'); setLoading(false); return;
+      }
+      if (mode === 'login') {
+        await signIn(name, school, password);
+      } else {
+        await signUp(name, school, password);
+      }
+      router.push('/teacher/dashboard');
     } catch (e: any) {
       setError(e.message || '오류가 발생했습니다.');
     } finally { setLoading(false); }
