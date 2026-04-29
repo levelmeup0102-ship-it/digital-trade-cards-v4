@@ -42,7 +42,7 @@ export type TeamMember = {
 function nameToFakeEmail(name: string, school: string): string {
   const cleaned = name.trim().replace(/\s+/g, '').toLowerCase();
   const schoolCleaned = school.trim().replace(/\s+/g, '').toLowerCase().slice(0, 10);
-  return `${cleaned}_${schoolCleaned}@signal.local`;
+  return `${cleaned}_${schoolCleaned}@signal-teacher.com`;
 }
 
 // ── 인증 ──────────────────────────────────────────────────
