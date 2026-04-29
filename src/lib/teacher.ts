@@ -37,40 +37,61 @@ export type TeamMember = {
   joined_at: string | null;
 };
 
+// ── 이름 → 가짜 이메일 변환 ────────────────────────────────
+// 이메일 발송 없이 Supabase Auth 사용하기 위한 내부 처리
+function nameToFakeEmail(name: string, school: string): string {
+  const cleaned = name.trim().replace(/\s+/g, '').toLowerCase();
+  const schoolCleaned = school.trim().replace(/\s+/g, '').toLowerCase().slice(0, 10);
+  return `${cleaned}_${schoolCleaned}@signal.local`;
+}
+
 // ── 인증 ──────────────────────────────────────────────────
 
-// 회원가입 (가입 후 바로 로그인 처리 — 이메일 인증 우회)
-export async function signUp(email: string, password: string, name: string, school: string) {
+// 회원가입 (이름 + 비밀번호만 — 이메일 발송 없음)
+export async function signUp(name: string, school: string, password: string) {
+  const fakeEmail = nameToFakeEmail(name, school);
+
   const { data, error } = await supabase.auth.signUp({
-    email,
+    email: fakeEmail,
     password,
     options: {
       data: { name, school },
     },
   });
-  if (error) throw error;
+  if (error) {
+    if (error.message?.includes('already registered')) {
+      throw new Error('이미 가입된 이름입니다. 다른 이름을 사용하거나 로그인해주세요.');
+    }
+    throw error;
+  }
 
   // profiles 테이블에 저장
   if (data.user) {
     await supabase.from('profiles').upsert({
       id: data.user.id,
-      email,
+      email: fakeEmail,
       name,
       school,
       role: 'teacher',
     });
   }
 
-  // 가입 후 바로 로그인 처리 (이메일 인증 우회)
-  await supabase.auth.signInWithPassword({ email, password });
+  // 가입 후 바로 로그인
+  await supabase.auth.signInWithPassword({ email: fakeEmail, password });
 
   return data;
 }
 
-// 로그인
-export async function signIn(email: string, password: string) {
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw error;
+// 로그인 (이름 + 학교 + 비밀번호)
+export async function signIn(name: string, school: string, password: string) {
+  const fakeEmail = nameToFakeEmail(name, school);
+  const { data, error } = await supabase.auth.signInWithPassword({ email: fakeEmail, password });
+  if (error) {
+    if (error.message?.includes('Invalid login')) {
+      throw new Error('이름, 학교 또는 비밀번호가 틀렸습니다.');
+    }
+    throw error;
+  }
   return data;
 }
 
@@ -95,7 +116,6 @@ export async function getCurrentTeacher(): Promise<Teacher | null> {
 
 // ── 수업 ──────────────────────────────────────────────────
 
-// 수업 생성
 export async function createClass(teacherId: string, { name, school, schedule, description }: {
   name: string; school: string; schedule: string; description: string;
 }) {
@@ -108,7 +128,6 @@ export async function createClass(teacherId: string, { name, school, schedule, d
   return data as Class;
 }
 
-// 수업 목록 조회
 export async function getClasses(teacherId: string): Promise<Class[]> {
   const { data, error } = await supabase
     .from('classes')
@@ -119,7 +138,6 @@ export async function getClasses(teacherId: string): Promise<Class[]> {
   return (data || []) as Class[];
 }
 
-// 수업 상세 조회
 export async function getClass(classId: string): Promise<Class | null> {
   const { data } = await supabase
     .from('classes')
@@ -131,7 +149,6 @@ export async function getClass(classId: string): Promise<Class | null> {
 
 // ── 팀 ──────────────────────────────────────────────────
 
-// 팀 코드 자동 생성 (DT-YYYY-AB 형식)
 function generateTeamCode(idx: number): string {
   const year = new Date().getFullYear();
   const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -140,7 +157,6 @@ function generateTeamCode(idx: number): string {
   return `DT-${year}-${a}${b}`;
 }
 
-// 팀 일괄 생성
 export async function createTeams(classId: string, teamCount: number): Promise<Team[]> {
   const teams = Array.from({ length: teamCount }, (_, i) => ({
     class_id: classId,
@@ -156,7 +172,6 @@ export async function createTeams(classId: string, teamCount: number): Promise<T
   return (data || []) as Team[];
 }
 
-// 팀 목록 조회 (수업별)
 export async function getTeamsByClass(classId: string): Promise<Team[]> {
   const { data: teams, error } = await supabase
     .from('teams')
@@ -194,10 +209,8 @@ export async function getTeamsByClass(classId: string): Promise<Team[]> {
 
 // ── 학생 명단 ──────────────────────────────────────────────
 
-// 학생 명단 저장 (기존 삭제 후 재입력)
 export async function saveTeamMembers(teamId: string, names: string[]): Promise<TeamMember[]> {
   await supabase.from('team_members').delete().eq('team_id', teamId);
-
   if (names.length === 0) return [];
 
   const members = names
@@ -217,7 +230,6 @@ export async function saveTeamMembers(teamId: string, names: string[]): Promise<
   return (data || []) as TeamMember[];
 }
 
-// 팀 학생 명단 조회
 export async function getTeamMembers(teamId: string): Promise<TeamMember[]> {
   const { data } = await supabase
     .from('team_members')
@@ -228,7 +240,6 @@ export async function getTeamMembers(teamId: string): Promise<TeamMember[]> {
   return (data || []) as TeamMember[];
 }
 
-// 수업 코드로 팀 + 명단 조회 (학생 입장용)
 export async function getTeamWithMembersByCode(joinCode: string): Promise<{ team: Team; members: TeamMember[] } | null> {
   const { data: team } = await supabase
     .from('teams')
@@ -242,7 +253,6 @@ export async function getTeamWithMembersByCode(joinCode: string): Promise<{ team
   return { team: team as Team, members };
 }
 
-// 학생 입장 처리 (명단에서 이름 선택 후)
 export async function joinAsStudent(teamId: string, memberId: string) {
   await supabase
     .from('team_members')
