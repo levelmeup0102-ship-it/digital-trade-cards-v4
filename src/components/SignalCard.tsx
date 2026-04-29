@@ -100,7 +100,17 @@ export default function SignalCard({
   const canComplete = isLeader && !isCardCompleted && Boolean(leaderConclusion.oneSentence?.trim()) && allQsDone;
 
   return (
-    <div className="w-full max-w-[400px] flex flex-col" style={{ minHeight: '560px' }}>
+    <div className="w-full max-w-[400px] relative" style={{ perspective: 1200 }}>
+      {/* 뒤쪽 그림자 카드 */}
+      {[2,1].map(offset => (
+        <div key={offset} className="absolute rounded-2xl"
+          style={{ top: offset*4, left: offset*3, right: -offset*3, bottom: -offset*4,
+            background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)',
+            transform: `rotate(${offset*1.2}deg)`, borderRadius: '20px' }} />
+      ))}
+      {/* 실제 카드 */}
+      <div className="relative flex flex-col rounded-2xl overflow-hidden"
+        style={{ minHeight: '560px', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', boxShadow: `0 8px 40px ${color}22, 0 2px 8px rgba(0,0,0,0.4)` }}>
       {/* 탭 헤더 */}
       <div className="flex mb-0 relative">
         {TABS.map((tab, i) => {
@@ -420,6 +430,7 @@ export default function SignalCard({
             )}
           </div>
         )}
+      </div>
       </div>
     </div>
   );
