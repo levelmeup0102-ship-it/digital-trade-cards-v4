@@ -23,6 +23,8 @@ export type Team = {
   class_id: string;
   name: string;
   join_code: string;
+  item?: string;
+  level?: string;
   created_at: string;
   member_count?: number;
   completed_count?: number;
