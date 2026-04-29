@@ -3,7 +3,6 @@ import { supabase } from './supabase';
 // ── 타입 ──────────────────────────────────────────────────
 export type Teacher = {
   id: string;
-  email: string;
   name: string;
   school: string;
 };
@@ -37,81 +36,83 @@ export type TeamMember = {
   joined_at: string | null;
 };
 
-// ── 이름 → 가짜 이메일 변환 ────────────────────────────────
-// 이메일 발송 없이 Supabase Auth 사용하기 위한 내부 처리
-function nameToFakeEmail(name: string, school: string): string {
-  const cleaned = name.trim().replace(/\s+/g, '').toLowerCase();
-  const schoolCleaned = school.trim().replace(/\s+/g, '').toLowerCase().slice(0, 10);
-  return `${cleaned}_${schoolCleaned}@signal-teacher.com`;
+// ── 간단한 비밀번호 해싱 (btoa 기반) ────────────────────────
+// 실제 서비스에서는 bcrypt를 쓰는 게 좋지만,
+// 학교 수업용으로는 이 정도로 충분합니다.
+function hashPassword(password: string, salt: string): string {
+  return btoa(unescape(encodeURIComponent(password + salt + 'signal2026')));
+}
+
+const SALT = 'signal_connectai_2026';
+
+// ── localStorage 기반 세션 ────────────────────────────────
+const SESSION_KEY = 'signal_teacher_session';
+
+export function saveTeacherSession(teacher: Teacher) {
+  localStorage.setItem(SESSION_KEY, JSON.stringify(teacher));
+}
+
+export function clearTeacherSession() {
+  localStorage.removeItem(SESSION_KEY);
+}
+
+export function getTeacherFromSession(): Teacher | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as Teacher;
+  } catch { return null; }
 }
 
 // ── 인증 ──────────────────────────────────────────────────
 
-// 회원가입 (이름 + 비밀번호만 — 이메일 발송 없음)
-export async function signUp(name: string, school: string, password: string) {
-  const fakeEmail = nameToFakeEmail(name, school);
+// 회원가입 (이름 + 학교 + 비밀번호)
+export async function signUp(name: string, school: string, password: string): Promise<Teacher> {
+  const passwordHash = hashPassword(password, SALT);
 
-  const { data, error } = await supabase.auth.signUp({
-    email: fakeEmail,
-    password,
-    options: {
-      data: { name, school },
-    },
-  });
+  const { data, error } = await supabase
+    .from('teachers')
+    .insert({ name: name.trim(), school: school.trim(), password_hash: passwordHash })
+    .select('id, name, school')
+    .single();
+
   if (error) {
-    if (error.message?.includes('already registered')) {
-      throw new Error('이미 가입된 이름입니다. 다른 이름을 사용하거나 로그인해주세요.');
-    }
-    throw error;
+    if (error.code === '23505') throw new Error('이미 가입된 이름+학교 조합입니다.');
+    throw new Error('가입 중 오류가 발생했습니다.');
   }
 
-  // profiles 테이블에 저장
-  if (data.user) {
-    await supabase.from('profiles').upsert({
-      id: data.user.id,
-      email: fakeEmail,
-      name,
-      school,
-      role: 'teacher',
-    });
-  }
-
-  // 가입 후 바로 로그인
-  await supabase.auth.signInWithPassword({ email: fakeEmail, password });
-
-  return data;
+  const teacher = data as Teacher;
+  saveTeacherSession(teacher);
+  return teacher;
 }
 
 // 로그인 (이름 + 학교 + 비밀번호)
-export async function signIn(name: string, school: string, password: string) {
-  const fakeEmail = nameToFakeEmail(name, school);
-  const { data, error } = await supabase.auth.signInWithPassword({ email: fakeEmail, password });
-  if (error) {
-    if (error.message?.includes('Invalid login')) {
-      throw new Error('이름, 학교 또는 비밀번호가 틀렸습니다.');
-    }
-    throw error;
-  }
-  return data;
+export async function signIn(name: string, school: string, password: string): Promise<Teacher> {
+  const passwordHash = hashPassword(password, SALT);
+
+  const { data } = await supabase
+    .from('teachers')
+    .select('id, name, school, password_hash')
+    .eq('name', name.trim())
+    .eq('school', school.trim())
+    .single();
+
+  if (!data) throw new Error('이름 또는 학교가 틀렸습니다.');
+  if (data.password_hash !== passwordHash) throw new Error('비밀번호가 틀렸습니다.');
+
+  const teacher: Teacher = { id: data.id, name: data.name, school: data.school };
+  saveTeacherSession(teacher);
+  return teacher;
 }
 
 // 로그아웃
-export async function signOut() {
-  await supabase.auth.signOut();
+export function signOut() {
+  clearTeacherSession();
 }
 
 // 현재 로그인한 선생님 정보
 export async function getCurrentTeacher(): Promise<Teacher | null> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const { data } = await supabase
-    .from('profiles')
-    .select('id, email, name, school')
-    .eq('id', user.id)
-    .single();
-
-  return data as Teacher | null;
+  return getTeacherFromSession();
 }
 
 // ── 수업 ──────────────────────────────────────────────────
