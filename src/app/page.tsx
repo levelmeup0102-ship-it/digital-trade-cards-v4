@@ -20,7 +20,6 @@ const S = { green: '#E7FE55', aqua: '#C1E8EB', navy: '#111111', bg: '#0A0A0A' };
 const TABS = ['주제', 'Q1', 'Q2', 'Q3', '결론'] as const;
 type TabType = typeof TABS[number];
 
-// PDF 버튼 표시 여부 (미팅 후 재논의 예정 — true로 바꾸면 부활)
 const SHOW_PDF_BUTTON = false;
 
 function fmt(s: number) { return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`; }
@@ -215,7 +214,7 @@ export default function Home() {
 
   // ─── LANDING ───
   if (screen === 'landing') return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden" style={{ background: S.bg }}>
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden">
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full pointer-events-none"
         style={{ background: `radial-gradient(circle, ${S.green}08 0%, transparent 70%)` }} />
       <div className="relative z-10 text-center max-w-md">
@@ -231,9 +230,14 @@ export default function Home() {
               style={{ background: CARD_COLORS[id].bg, transform: `rotate(${(i-2)*6}deg)`, boxShadow: `0 4px 20px ${CARD_COLORS[id].bg}55` }}>{id}</div>
           ))}
         </div>
+        {/* ✨ 시작하기 버튼 - 광택 효과 추가 */}
         <button onClick={() => setScreen('onboarding')}
-          className="w-full py-4 font-black rounded-2xl text-base mb-3 transition-all hover:scale-[1.02]"
-          style={{ background: S.green, color: S.navy }}>시작하기 →</button>
+          className="relative w-full py-4 font-black rounded-2xl text-base mb-3 transition-all hover:scale-[1.02] overflow-hidden group"
+          style={{ background: S.green, color: S.navy, boxShadow: `0 10px 30px -5px ${S.green}66` }}>
+          <span className="relative z-10">시작하기 →</span>
+          <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700"
+            style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)' }} />
+        </button>
         <button onClick={() => setScreen('guide')}
           className="w-full py-3 rounded-2xl text-sm text-gray-500 transition hover:text-gray-300"
           style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -248,7 +252,7 @@ export default function Home() {
   if (screen === 'onboarding') {
     const canStart = item && (item !== '✏️ 직접 입력' || customItem.trim()) && playerName.trim() && joinCode.trim().length >= 4 && !joining;
     return (
-      <div className="min-h-screen flex flex-col items-center px-4 py-6 overflow-auto" style={{ background: S.bg }}>
+      <div className="min-h-screen flex flex-col items-center px-4 py-6 overflow-auto">
         <div className="w-full max-w-md">
           <button onClick={() => setScreen('landing')} className="text-gray-600 text-sm mb-4 hover:text-gray-400 transition">← 돌아가기</button>
           <div className="rounded-2xl p-5 mb-6" style={{ background: `${S.green}08`, border: `1px solid ${S.green}20` }}>
@@ -313,10 +317,15 @@ export default function Home() {
             ))}
           </div>
 
+          {/* ✨ 시작하기 버튼 - 광택 효과 */}
           <button onClick={startGame} disabled={!canStart}
-            className="w-full py-4 font-black rounded-2xl transition-all disabled:opacity-30"
-            style={{ background: canStart ? S.green : 'rgba(255,255,255,0.1)', color: canStart ? S.navy : '#666' }}>
-            {joining ? '⏳ 접속 중...' : '시작하기 →'}
+            className="relative w-full py-4 font-black rounded-2xl transition-all disabled:opacity-30 overflow-hidden group"
+            style={{ background: canStart ? S.green : 'rgba(255,255,255,0.1)', color: canStart ? S.navy : '#666', boxShadow: canStart ? `0 10px 30px -5px ${S.green}55` : 'none' }}>
+            <span className="relative z-10">{joining ? '⏳ 접속 중...' : '시작하기 →'}</span>
+            {canStart && (
+              <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700"
+                style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)' }} />
+            )}
           </button>
         </div>
       </div>
@@ -325,7 +334,7 @@ export default function Home() {
 
   // ─── GUIDE ───
   if (screen === 'guide') return (
-    <div className="min-h-screen px-4 py-6 overflow-auto" style={{ background: S.bg }}>
+    <div className="min-h-screen px-4 py-6 overflow-auto">
       <div className="max-w-2xl mx-auto">
         <button onClick={() => setScreen('landing')} className="text-gray-600 text-sm mb-4">← 돌아가기</button>
         <div className="rounded-2xl p-6 mb-6" style={{ background: `${S.green}08`, border: `1px solid ${S.green}20` }}>
@@ -359,7 +368,7 @@ export default function Home() {
 
   // ─── GAME ───
   return (
-    <div className="min-h-screen flex flex-col items-center px-4 py-4 relative overflow-hidden" style={{ background: S.bg }}>
+    <div className="min-h-screen flex flex-col items-center px-4 py-4 relative overflow-hidden">
       <div className="fixed top-[20%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full pointer-events-none"
         style={{ background: `radial-gradient(circle, ${color}15 0%, transparent 70%)` }} />
 
@@ -395,11 +404,24 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 진행 바 */}
+        {/* ✨ 진행 바 - shimmer 효과 추가 */}
         <div className="flex items-center gap-2 mb-2">
           <span className="text-[11px] text-gray-600 font-mono min-w-[50px]">{currentCardIdx + 1} / {TOPICS.length}</span>
-          <div className="flex-1 h-[3px] rounded-full" style={{ background: 'rgba(255,255,255,0.08)' }}>
-            <div className="h-full rounded-full transition-all" style={{ width: `${((currentCardIdx+1)/TOPICS.length)*100}%`, background: color }} />
+          <div className="flex-1 h-[4px] rounded-full overflow-hidden relative" style={{ background: 'rgba(255,255,255,0.08)' }}>
+            <div className="h-full rounded-full transition-all relative overflow-hidden"
+              style={{
+                width: `${((currentCardIdx+1)/TOPICS.length)*100}%`,
+                background: color,
+                boxShadow: `0 0 12px ${color}88`
+              }}>
+              {/* Shimmer 빛 흐름 */}
+              <div className="absolute inset-0"
+                style={{
+                  background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.5) 50%, transparent 100%)',
+                  animation: 'shimmer 2.5s ease-in-out infinite',
+                }}
+              />
+            </div>
           </div>
         </div>
 
@@ -407,8 +429,13 @@ export default function Home() {
         <div className="flex gap-0.5 flex-wrap">
           {TOPICS.map((t, i) => (
             <button key={t.id} onClick={() => goToCard(i)}
-              className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold font-mono transition-all"
-              style={{ background: currentCardIdx === i ? CARD_COLORS[t.id].bg : completedCards.has(t.id) ? CARD_COLORS[t.id].bg + '44' : 'rgba(255,255,255,0.06)', border: currentCardIdx === i ? `2px solid ${CARD_COLORS[t.id].bg}` : '1px solid rgba(255,255,255,0.08)', color: currentCardIdx === i ? '#fff' : completedCards.has(t.id) ? CARD_COLORS[t.id].bg : '#555' }}>
+              className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold font-mono transition-all hover:scale-110"
+              style={{
+                background: currentCardIdx === i ? CARD_COLORS[t.id].bg : completedCards.has(t.id) ? CARD_COLORS[t.id].bg + '44' : 'rgba(255,255,255,0.06)',
+                border: currentCardIdx === i ? `2px solid ${CARD_COLORS[t.id].bg}` : '1px solid rgba(255,255,255,0.08)',
+                color: currentCardIdx === i ? '#fff' : completedCards.has(t.id) ? CARD_COLORS[t.id].bg : '#555',
+                boxShadow: currentCardIdx === i ? `0 4px 12px ${CARD_COLORS[t.id].bg}66` : 'none',
+              }}>
               {completedCards.has(t.id) && currentCardIdx !== i ? '✓' : t.id}
             </button>
           ))}
@@ -440,8 +467,8 @@ export default function Home() {
         </div>
       )}
 
-      {/* 5탭 카드 플레이어 */}
-      <div className="w-full max-w-[420px] relative z-10"
+      {/* ✨ 5탭 카드 플레이어 - 진입 애니메이션 추가 (key로 카드 변경 시 재실행) */}
+      <div key={topic.id} className="w-full max-w-[420px] relative z-10 card-enter"
         onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
         <SignalCard
           topic={topic}
@@ -468,18 +495,23 @@ export default function Home() {
       {/* 카드 네비게이션 */}
       <div className="flex gap-3 items-center mt-4 relative z-10">
         <button onClick={() => goToCard(currentCardIdx - 1)} disabled={currentCardIdx === 0}
-          className="w-11 h-11 rounded-full flex items-center justify-center text-lg transition disabled:opacity-20"
+          className="w-11 h-11 rounded-full flex items-center justify-center text-lg transition-all disabled:opacity-20 hover:scale-110"
           style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>‹</button>
         <div className="text-center min-w-[160px]">
           <div className="text-[13px] font-bold text-white">{topic.title}</div>
           <div className="text-[10px] text-gray-600 font-mono mt-0.5">카드 {currentCardIdx + 1}/16 · {'★'.repeat(topic.difficulty)}{'☆'.repeat(5-topic.difficulty)}</div>
         </div>
+        {/* ✨ 다음 버튼 - 호버 시 글로우 강화 */}
         <button onClick={() => goToCard(currentCardIdx + 1)} disabled={currentCardIdx === TOPICS.length - 1}
-          className="w-11 h-11 rounded-full flex items-center justify-center text-lg font-bold transition disabled:opacity-20"
-          style={{ background: currentCardIdx === TOPICS.length - 1 ? 'rgba(255,255,255,0.06)' : color, color: '#fff' }}>›</button>
+          className="w-11 h-11 rounded-full flex items-center justify-center text-lg font-bold transition-all disabled:opacity-20 hover:scale-110"
+          style={{
+            background: currentCardIdx === TOPICS.length - 1 ? 'rgba(255,255,255,0.06)' : color,
+            color: '#fff',
+            boxShadow: currentCardIdx === TOPICS.length - 1 ? 'none' : `0 6px 20px -5px ${color}88`,
+          }}>›</button>
       </div>
 
-      {/* PDF 버튼 — 미팅 후 재논의 예정 (SHOW_PDF_BUTTON=true 시 부활) */}
+      {/* PDF 버튼 (숨김) */}
       {SHOW_PDF_BUTTON && currentCardIdx === 15 && isLeader && (
         <div className="mt-3 w-full max-w-[420px] relative z-10">
           <button onClick={() => { setShowPdfToast(true); setTimeout(() => setShowPdfToast(false), 3000); }}
