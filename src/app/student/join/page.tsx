@@ -20,7 +20,6 @@ const LEVELS: Record<string, { label: string; emoji: string; timer: number; minC
   advanced: { label: '심화', emoji: '🚀', timer: 900,  minChars: 100, color: '#582C83' },
 };
 
-// 응원 메시지 (대기실에서 슬라이드)
 const WAITING_MESSAGES = [
   '✨ 잠시만 기다려주세요...',
   '🎯 팀장이 전략을 짜고 있어요',
@@ -31,12 +30,36 @@ const WAITING_MESSAGES = [
   '💼 당신의 직무가 배정될 거예요',
 ];
 
-// 카드 색상 (셔플 애니메이션용)
 const CARD_COLORS_LIST = [
   '#4FB0C6', '#1A237E', '#009688', '#6A1B9A', '#F9A825',
   '#546E7A', '#4CAF50', '#880E4F', '#E53935', '#00838F',
   '#00695C', '#4E342E', '#E64A19', '#1565C0', '#2E7D32', '#1976D2',
 ];
+
+// 떠다니는 카드 데이터 (8장)
+const FLOATING_CARDS = Array.from({ length: 8 }, (_, i) => ({
+  id: i,
+  color: CARD_COLORS_LIST[i * 2],
+  cardNum: String((i * 2) + 1).padStart(2, '0'),
+  // 위치 / 크기 / 속도 다양화
+  left: [10, 85, 20, 75, 5, 90, 30, 65][i],
+  top: [15, 20, 75, 80, 50, 55, 5, 90][i],
+  size: [40, 50, 35, 45, 50, 40, 45, 38][i],
+  duration: [12, 14, 10, 15, 13, 11, 16, 12][i],
+  delay: [0, 1.5, 0.8, 2.2, 0.4, 1.8, 1.2, 2.6][i],
+  rotate: [-15, 12, -8, 20, -22, 10, 18, -12][i],
+}));
+
+// 빛나는 입자 (15개)
+const PARTICLES = Array.from({ length: 15 }, (_, i) => ({
+  id: i,
+  left: Math.random() * 100,
+  top: Math.random() * 100,
+  size: 1.5 + Math.random() * 2,
+  duration: 6 + Math.random() * 6,
+  delay: Math.random() * 5,
+  color: i % 3 === 0 ? S.green : i % 3 === 1 ? S.aqua : '#C1A8F0',
+}));
 
 type Step = 'code' | 'confirm' | 'select' | 'leader-setup' | 'waiting' | 'welcome';
 
@@ -51,22 +74,16 @@ export default function StudentJoin() {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
 
-  // 팀장 설정
   const [item, setItem] = useState('');
   const [customItem, setCustomItem] = useState('');
   const [level, setLevel] = useState('standard');
 
-  // ⭐ 직무 배정 (팀장이 설정)
   const [roleAssignments, setRoleAssignments] = useState<Record<string, RoleCode>>({});
 
-  // 대기실 — 응원 메시지 슬라이드
   const [waitingMsgIdx, setWaitingMsgIdx] = useState(0);
-
-  // 대기실 — 새로 입장한 팀원 알림
   const [recentJoiners, setRecentJoiners] = useState<TeamMember[]>([]);
   const previousMembersRef = useRef<Set<string>>(new Set());
 
-  // 응원 메시지 자동 슬라이드 (대기실에서만)
   useEffect(() => {
     if (step !== 'waiting') return;
     const interval = setInterval(() => {
@@ -75,16 +92,13 @@ export default function StudentJoin() {
     return () => clearInterval(interval);
   }, [step]);
 
-  // Realtime: 게임 시작 신호 구독 (대기실에서만)
   useEffect(() => {
     if (step !== 'waiting' || !team) return;
 
     const unsubscribe = subscribeToTeamStart(team.id, () => {
-      // 팀장이 게임 시작 누름 → 자동으로 게임 화면으로
       handleGameStart();
     });
 
-    // 처음 진입 시 한 번 체크 (혹시 이미 시작됐을 수도)
     (async () => {
       const isStarted = await getTeamGameStatus(team.id);
       if (isStarted) handleGameStart();
@@ -93,18 +107,15 @@ export default function StudentJoin() {
     return () => unsubscribe();
   }, [step, team]);
 
-  // Realtime: 팀원 명단 구독 (대기실 + 팀장 설정 화면에서)
   useEffect(() => {
     if ((step !== 'waiting' && step !== 'leader-setup') || !team) return;
 
     const unsubscribe = subscribeToTeamMembers(team.id, (newMembers) => {
-      // 새로 입장한 사람 찾기 (joined_at이 새로 생긴 사람)
       const prevSet = previousMembersRef.current;
       const newJoiners = newMembers.filter(m =>
         m.joined_at && !prevSet.has(m.id)
       );
 
-      // 알림 표시 (3초간)
       if (newJoiners.length > 0 && step === 'waiting') {
         setRecentJoiners(prev => [...prev, ...newJoiners]);
         newJoiners.forEach(joiner => {
@@ -114,7 +125,6 @@ export default function StudentJoin() {
         });
       }
 
-      // 현재 입장한 사람 추적
       newMembers.forEach(m => {
         if (m.joined_at) prevSet.add(m.id);
       });
@@ -122,7 +132,6 @@ export default function StudentJoin() {
       setMembers(newMembers);
     });
 
-    // 초기 입장자 추적
     members.forEach(m => {
       if (m.joined_at) previousMembersRef.current.add(m.id);
     });
@@ -130,7 +139,6 @@ export default function StudentJoin() {
     return () => unsubscribe();
   }, [step, team]);
 
-  // 팀 코드 확인
   const handleCodeSubmit = async () => {
     if (joinCode.trim().length < 4) { setCodeError('올바른 코드를 입력해주세요.'); return; }
     setLoading(true); setCodeError('');
@@ -138,11 +146,10 @@ export default function StudentJoin() {
       const result = await getTeamWithMembersByCode(joinCode);
       if (!result) { setCodeError('팀 코드를 찾을 수 없어요. 관리자에게 확인하세요.'); setLoading(false); return; }
 
-      // 이미 게임 시작된 팀 — 바로 게임으로
       if (result.team.game_started) {
         setTeam(result.team);
         setMembers(result.members);
-        setStep('select'); // 이름 선택만 하고 바로 게임 진입
+        setStep('select');
         setLoading(false);
         return;
       }
@@ -157,27 +164,22 @@ export default function StudentJoin() {
     } finally { setLoading(false); }
   };
 
-  // 이름 선택 후 입장
   const handleJoin = async () => {
     if (!selectedMember || !team) return;
     setLoading(true);
     await joinAsStudent(team.id, selectedMember.id);
 
-    // 이미 게임 시작된 팀이면 바로 게임으로
     if (team.game_started) {
       finalizeAndStart();
       return;
     }
 
     if (selectedMember.is_leader) {
-      // 팀장이면 설정 단계로
       setStep('leader-setup');
 
-      // 팀원 명단 새로고침 (다른 팀원 입장 상태 확인)
       const updatedMembers = await getTeamMembers(team.id);
       setMembers(updatedMembers);
 
-      // 직무 추천 자동 채우기
       const nonLeaderMembers = updatedMembers.filter(m => !m.is_leader);
       const recommended = getRecommendedRoles(nonLeaderMembers.length);
       const initial: Record<string, RoleCode> = {};
@@ -188,23 +190,19 @@ export default function StudentJoin() {
 
       setLoading(false);
     } else {
-      // 팀원 → 대기실로
       setStep('waiting');
       setLoading(false);
     }
   };
 
-  // 팀장 설정 완료 → 게임 시작 신호
   const handleLeaderSetup = async () => {
     if (!item || !team || !selectedMember) return;
     setLoading(true);
     const finalItem = item === '✏️ 직접 입력' ? customItem : item;
 
     try {
-      // 팀에 아이템/수준 저장
       await supabase.from('teams').update({ item: finalItem, level }).eq('id', team.id);
 
-      // 직무 배정 — 팀장은 CEO, 팀원들은 선택한 직무
       const assignments: Array<{ memberId: string; roleCode: string }> = [];
       members.forEach(m => {
         if (m.is_leader) {
@@ -215,10 +213,8 @@ export default function StudentJoin() {
       });
       await assignRoles(team.id, assignments);
 
-      // 게임 시작 신호 — Realtime이 모든 팀원에게 자동 broadcast
       await startTeamGame(team.id);
 
-      // 팀장도 게임으로 진입
       finalizeAndStart(finalItem, level);
     } catch (e) {
       setLoading(false);
@@ -226,13 +222,11 @@ export default function StudentJoin() {
     }
   };
 
-  // 게임 진입 시 세션 저장
   const finalizeAndStart = (finalItem?: string, finalLevel?: string) => {
     if (!selectedMember || !team) return;
     const useItem = finalItem || team.item || '';
     const useLevel = finalLevel || team.level || 'standard';
 
-    // 본인 직무 코드 (DB에서 가져온 거 있으면 우선)
     const myMember = members.find(m => m.id === selectedMember.id);
     const myRole = myMember?.role_code || (selectedMember.is_leader ? 'ceo' : roleAssignments[selectedMember.id]);
 
@@ -251,17 +245,14 @@ export default function StudentJoin() {
     setLoading(false);
   };
 
-  // 대기실에서 게임 시작 신호 받음 → 환영 화면 거쳐서 게임으로
   const handleGameStart = async () => {
     if (!team || !selectedMember) return;
-    // 최신 멤버 정보 가져옴 (직무 배정 정보 포함)
     const latestMembers = await getTeamMembers(team.id);
     setMembers(latestMembers);
 
     const myMember = latestMembers.find(m => m.id === selectedMember.id);
     const myRole = myMember?.role_code || null;
 
-    // 최신 팀 정보 가져옴
     const { data: latestTeam } = await supabase
       .from('teams')
       .select('item, level')
@@ -284,29 +275,25 @@ export default function StudentJoin() {
 
   const handleStart = () => router.push('/');
 
-  // 직무 배정 가능한지 체크
   const allRolesAssigned = (() => {
     const nonLeaderCount = members.filter(m => !m.is_leader).length;
     const assignedCount = Object.keys(roleAssignments).length;
-    if (nonLeaderCount === 0) return true; // 팀원 없으면 OK
+    if (nonLeaderCount === 0) return true;
     if (assignedCount !== nonLeaderCount) return false;
-    // 중복 직무 체크
     const codes = Object.values(roleAssignments);
     return new Set(codes).size === codes.length;
   })();
 
-  // 사용 가능한 직무 목록 (CEO 제외)
   const availableRoles = (Object.keys(ROLES) as RoleCode[]).filter(c => c !== 'ceo');
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8 relative">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8 relative overflow-hidden">
       <div className="w-full max-w-sm relative z-10">
 
-        {/* 로고 — 가독성 개선 */}
+        {/* 로고 */}
         <div className="text-center mb-8">
           <p className="text-[11px] tracking-[6px] text-gray-600 font-mono mb-1">ConnectAI</p>
           <h1 className="text-4xl font-black text-white tracking-tight">SIGNAL</h1>
-          {/* 가독성 개선: 더 밝게 + 굵게 + 자간 */}
           <p className="text-[13px] mt-2 font-bold tracking-wide" style={{ color: 'rgba(255,255,255,0.85)' }}>
             디지털 무역 전략카드
           </p>
@@ -426,7 +413,7 @@ export default function StudentJoin() {
           </div>
         )}
 
-        {/* ── Step 3.5: 팀장 설정 (아이템 + 수준 + 직무) ── */}
+        {/* ── Step 3.5: 팀장 설정 ── */}
         {step === 'leader-setup' && (
           <div>
             <div className="rounded-2xl p-5 mb-4" style={{ background: `${S.green}08`, border: `1px solid ${S.green}20` }}>
@@ -435,7 +422,7 @@ export default function StudentJoin() {
               <p className="text-[12px] text-gray-500">팀장만 설정할 수 있어요. 팀원들에게도 적용됩니다.</p>
             </div>
 
-            {/* ① 아이템 선택 */}
+            {/* ① 아이템 */}
             <div className="mb-5">
               <p className="text-sm font-bold text-white mb-2">① 팀 아이템 선택</p>
               <div className="grid grid-cols-2 gap-2">
@@ -455,7 +442,7 @@ export default function StudentJoin() {
               )}
             </div>
 
-            {/* ② 수업 수준 */}
+            {/* ② 수준 */}
             <div className="mb-5">
               <p className="text-sm font-bold text-white mb-2">② 수업 수준</p>
               {Object.entries(LEVELS).map(([k, v]) => (
@@ -469,12 +456,11 @@ export default function StudentJoin() {
               ))}
             </div>
 
-            {/* ⭐ ③ 직무 배정 (NEW!) */}
+            {/* ③ 직무 */}
             <div className="mb-6">
               <p className="text-sm font-bold text-white mb-1">③ 팀원 직무 배정</p>
               <p className="text-[11px] text-gray-500 mb-3">팀장은 자동으로 CEO입니다. 팀원들의 직무를 정해주세요.</p>
 
-              {/* 팀장 (CEO 고정) */}
               {members.filter(m => m.is_leader).map(m => (
                 <div key={m.id} className="rounded-xl p-3 mb-2 flex items-center gap-3"
                   style={{ background: `${S.green}10`, border: `1px solid ${S.green}40` }}>
@@ -487,7 +473,6 @@ export default function StudentJoin() {
                 </div>
               ))}
 
-              {/* 팀원들 — 드롭다운으로 직무 선택 */}
               {members.filter(m => !m.is_leader).map(m => (
                 <div key={m.id} className="rounded-xl p-3 mb-2"
                   style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -545,20 +530,32 @@ export default function StudentJoin() {
           </div>
         )}
 
-        {/* ── ⭐ Step: 대기실 (팀원용) — 애니메이션 + Realtime ── */}
+        {/* ⭐ 대기실 (팀원용) — 풍성한 애니메이션 ⭐ */}
         {step === 'waiting' && team && selectedMember && (
-          <div className="text-center">
-            {/* 카드 셔플 애니메이션 */}
-            <div className="relative h-48 mb-6 flex items-center justify-center">
+          <div className="text-center relative">
+
+            {/* 펄스 글로우 헤일로 (배경) */}
+            <div className="absolute top-12 left-1/2 -translate-x-1/2 pointer-events-none">
+              <div className="halo-pulse"
+                style={{
+                  width: '280px',
+                  height: '280px',
+                  borderRadius: '50%',
+                  background: `radial-gradient(circle, ${S.green}25 0%, ${S.aqua}15 40%, transparent 70%)`,
+                }} />
+            </div>
+
+            {/* 카드 셔플 애니메이션 (메인) */}
+            <div className="relative h-48 mb-6 flex items-center justify-center z-10">
               {[0, 1, 2, 3, 4].map((i) => {
                 const cardColor = CARD_COLORS_LIST[i * 3];
                 return (
                   <div
                     key={i}
-                    className="absolute w-16 h-22 rounded-xl flex items-center justify-center text-white font-black text-sm font-mono"
+                    className="absolute rounded-xl flex items-center justify-center text-white font-black text-sm font-mono"
                     style={{
                       background: cardColor,
-                      boxShadow: `0 8px 24px ${cardColor}66`,
+                      boxShadow: `0 8px 24px ${cardColor}66, 0 0 20px ${cardColor}44`,
                       animation: `cardShuffle 3s cubic-bezier(0.4, 0, 0.2, 1) infinite`,
                       animationDelay: `${i * 0.15}s`,
                       width: '60px',
@@ -572,7 +569,7 @@ export default function StudentJoin() {
             </div>
 
             {/* 메인 메시지 */}
-            <div className="rounded-2xl p-5 mb-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div className="rounded-2xl p-5 mb-4 relative z-10" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
               <p className="text-[10px] font-mono tracking-widest mb-1" style={{ color: S.green }}>WAITING ROOM</p>
               <h2 className="text-lg font-black text-white mb-1">
                 {team.name} · {selectedMember.name}님
@@ -581,7 +578,7 @@ export default function StudentJoin() {
             </div>
 
             {/* 응원 메시지 슬라이드 */}
-            <div className="rounded-xl p-4 mb-4 min-h-[60px] flex items-center justify-center"
+            <div className="rounded-xl p-4 mb-4 min-h-[60px] flex items-center justify-center relative z-10"
               style={{ background: `${S.green}08`, border: `1px solid ${S.green}20` }}>
               <p key={waitingMsgIdx} className="text-[13px] font-bold text-white"
                 style={{ animation: 'fadeIn 0.5s ease-out' }}>
@@ -589,8 +586,8 @@ export default function StudentJoin() {
               </p>
             </div>
 
-            {/* 입장한 팀원 명단 */}
-            <div className="rounded-xl p-4 mb-4 text-left"
+            {/* 입장 현황 */}
+            <div className="rounded-xl p-4 mb-4 text-left relative z-10"
               style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
               <p className="text-[10px] font-mono tracking-widest text-gray-500 mb-2">
                 입장 현황 ({members.filter(m => m.joined_at).length} / {members.length})
@@ -612,11 +609,11 @@ export default function StudentJoin() {
               </div>
             </div>
 
-            <p className="text-[10px] text-gray-600 font-mono">
+            <p className="text-[10px] text-gray-600 font-mono relative z-10">
               ⚡ 게임이 시작되면 자동으로 화면이 전환됩니다
             </p>
 
-            {/* 새 팀원 입장 알림 (3초간 표시) */}
+            {/* 새 팀원 입장 알림 */}
             <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] flex flex-col gap-2 pointer-events-none">
               {recentJoiners.map(joiner => (
                 <div key={joiner.id}
@@ -646,7 +643,6 @@ export default function StudentJoin() {
             <h2 className="text-2xl font-black text-white mb-2">환영해요, {selectedMember.name}!</h2>
             <p className="text-[13px] text-gray-400 mb-1">{team.name} · {selectedMember.is_leader ? '팀장' : '팀원'}</p>
 
-            {/* 본인 직무 표시 */}
             {(() => {
               const myMember = members.find(m => m.id === selectedMember.id);
               const myRoleCode = myMember?.role_code || (selectedMember.is_leader ? 'ceo' : null);
@@ -676,10 +672,55 @@ export default function StudentJoin() {
           </div>
         )}
 
-        <p className="text-center text-gray-700 text-[10px] mt-8 font-mono">© 2026 SIGNAL — ConnectAI</p>
+        <p className="text-center text-gray-700 text-[10px] mt-8 font-mono relative z-10">© 2026 SIGNAL — ConnectAI</p>
       </div>
 
-      {/* 카드 셔플 + 알림 슬라이드 애니메이션 키프레임 */}
+      {/* ⭐ 대기실 전용 배경 효과 — 떠다니는 카드 + 입자 ⭐ */}
+      {step === 'waiting' && (
+        <>
+          {/* 떠다니는 카드 (배경) */}
+          <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+            {FLOATING_CARDS.map(card => (
+              <div
+                key={card.id}
+                className="absolute rounded-lg flex items-center justify-center text-white font-mono font-black opacity-20"
+                style={{
+                  left: `${card.left}%`,
+                  top: `${card.top}%`,
+                  width: `${card.size}px`,
+                  height: `${card.size * 1.4}px`,
+                  background: card.color,
+                  boxShadow: `0 4px 20px ${card.color}40`,
+                  fontSize: `${card.size * 0.3}px`,
+                  animation: `floatCard ${card.duration}s ease-in-out ${card.delay}s infinite`,
+                  transform: `rotate(${card.rotate}deg)`,
+                }}>
+                {card.cardNum}
+              </div>
+            ))}
+          </div>
+
+          {/* 빛나는 입자 */}
+          <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+            {PARTICLES.map(p => (
+              <div
+                key={p.id}
+                className="absolute rounded-full"
+                style={{
+                  left: `${p.left}%`,
+                  top: `${p.top}%`,
+                  width: `${p.size}px`,
+                  height: `${p.size}px`,
+                  background: p.color,
+                  boxShadow: `0 0 ${p.size * 4}px ${p.color}`,
+                  animation: `particleFloat ${p.duration}s ease-in-out ${p.delay}s infinite`,
+                }} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* 키프레임 */}
       <style jsx>{`
         @keyframes cardShuffle {
           0% {
@@ -720,6 +761,55 @@ export default function StudentJoin() {
           100% {
             opacity: 0;
             transform: translateY(-20px);
+          }
+        }
+
+        @keyframes floatCard {
+          0%, 100% {
+            transform: translateY(0) translateX(0) rotate(var(--rotate, 0deg));
+          }
+          25% {
+            transform: translateY(-30px) translateX(15px) rotate(calc(var(--rotate, 0deg) + 8deg));
+          }
+          50% {
+            transform: translateY(-15px) translateX(-20px) rotate(calc(var(--rotate, 0deg) - 5deg));
+          }
+          75% {
+            transform: translateY(-25px) translateX(10px) rotate(calc(var(--rotate, 0deg) + 5deg));
+          }
+        }
+
+        @keyframes particleFloat {
+          0%, 100% {
+            transform: translateY(0) translateX(0);
+            opacity: 0.4;
+          }
+          25% {
+            transform: translateY(-40px) translateX(20px);
+            opacity: 1;
+          }
+          50% {
+            transform: translateY(-80px) translateX(-15px);
+            opacity: 0.7;
+          }
+          75% {
+            transform: translateY(-50px) translateX(25px);
+            opacity: 1;
+          }
+        }
+
+        .halo-pulse {
+          animation: haloPulse 4s ease-in-out infinite;
+        }
+
+        @keyframes haloPulse {
+          0%, 100% {
+            opacity: 0.5;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.9;
+            transform: scale(1.15);
           }
         }
       `}</style>
