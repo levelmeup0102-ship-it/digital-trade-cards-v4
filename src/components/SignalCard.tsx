@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import type { TopicCard, SubCard } from '@/types';
 import { CARD_COLORS } from '@/data/cardData';
+import { getCardTemplate } from '@/data/cardTemplates';
 
 const S = { green: '#E7FE55', aqua: '#C1E8EB', navy: '#111111' };
 const TABS = ['주제', 'Q1', 'Q2', 'Q3', '결론'] as const;
@@ -47,6 +48,9 @@ export default function SignalCard({
 }: SignalCardProps) {
   const color = CARD_COLORS[topic.id].bg;
 
+  // ⭐ 카드별 템플릿 가져오기
+  const template = getCardTemplate(topic.id);
+
   const getSubForTab = (tab: TabType): SubCard | null => {
     if (tab === '주제' || tab === '결론') return null;
     const qIdx = TABS.indexOf(tab) - 1;
@@ -64,7 +68,15 @@ export default function SignalCard({
     return r && Object.values(r.texts || {}).some((t: any) => t?.trim());
   };
   const allQsDone = topic.subs.every(s => hasResponse(s.id));
-  const oneSentenceSynthesis = `우리는 ${leaderConclusion.fields[0] || '[산업]'}에서 ${leaderConclusion.fields[1] || '[고객]'}을 대상으로 ${leaderConclusion.fields[2] || '[문제]'}를 해결하며 ${leaderConclusion.fields[3] || '[채널]'}을 통해 시장에 진입한다`;
+
+  // ⭐ 카드별 템플릿으로 한 문장 합성
+  const oneSentenceSynthesis = template.buildSentence(
+    leaderConclusion.fields[0] || '',
+    leaderConclusion.fields[1] || '',
+    leaderConclusion.fields[2] || '',
+    leaderConclusion.fields[3] || '',
+  );
+
   const canComplete = isLeader && !isCardCompleted && Boolean(leaderConclusion.oneSentence?.trim()) && allQsDone;
 
   return (
@@ -72,14 +84,11 @@ export default function SignalCard({
 
       {/* ── 카드 비주얼 (기존 디자인 유지) ── */}
       <div className="relative mb-4" style={{ aspectRatio: '70/45', perspective: 1200 }}>
-        {/* 그림자 카드 */}
         {[2, 1].map(offset => (
           <div key={offset} className="absolute rounded-2xl border border-gray-200"
             style={{ top: offset * 4, left: offset * 3, right: -offset * 3, bottom: -offset * 4, background: '#f0f0f0', transform: `rotate(${offset * 1.5}deg)` }} />
         ))}
-        {/* 메인 카드 — 기존 CardFront 디자인 */}
         <div className="absolute inset-0 rounded-2xl overflow-hidden bg-white border border-gray-200 shadow-lg">
-          {/* 완료 뱃지 */}
           {isCardCompleted && (
             <div className="absolute top-2 right-2 z-10 flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full"
               style={{ background: S.green, color: S.navy }}>
@@ -87,7 +96,6 @@ export default function SignalCard({
             </div>
           )}
           <div className="p-5 h-full flex flex-col justify-between">
-            {/* 카드 상단: 뱃지 + 그리드 */}
             <div className="relative">
               <div className="absolute -top-1 -left-1 w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-base z-[2]"
                 style={{ background: color, boxShadow: `0 4px 12px ${color}66` }}>
@@ -102,7 +110,6 @@ export default function SignalCard({
                 </div>
               </div>
             </div>
-            {/* 카드 하단: 라벨 + 제목 */}
             <div className="mt-3">
               <span className="inline-block px-3 py-1 rounded-full text-[11px] font-semibold mb-2"
                 style={{ border: `1.5px solid ${color}`, color }}>
@@ -160,7 +167,6 @@ export default function SignalCard({
         {/* Q1 / Q2 / Q3 탭 */}
         {sub && (currentTab === 'Q1' || currentTab === 'Q2' || currentTab === 'Q3') && (
           <div className="p-4">
-            {/* 탭 역할 표시 */}
             <div className="flex items-center gap-2 mb-3">
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full"
                 style={{ background: `${color}22`, color: color }}>{sub.id}</span>
@@ -169,12 +175,10 @@ export default function SignalCard({
               </span>
             </div>
 
-            {/* 메인 질문 */}
             <div className="rounded-xl p-3 mb-4" style={{ background: `${color}10`, border: `1px solid ${color}25` }}>
               <p className="text-[13px] text-white font-bold leading-relaxed">{sub.question}</p>
             </div>
 
-            {/* 체크리스트 */}
             <div className="mb-4">
               <p className="text-[10px] font-bold mb-2 font-mono tracking-widest text-gray-500">체크리스트</p>
               <div className="space-y-2">
@@ -197,7 +201,6 @@ export default function SignalCard({
               </div>
             </div>
 
-            {/* 답변 입력 */}
             <div className="mb-4">
               <p className="text-[10px] font-bold mb-2 font-mono tracking-widest text-gray-500">팀 답변</p>
               <textarea
@@ -214,7 +217,6 @@ export default function SignalCard({
               </div>
             </div>
 
-            {/* 중간 결론 */}
             <div className="mb-4">
               <p className="text-[10px] font-bold mb-1.5 font-mono tracking-widest text-gray-500">중간 결론</p>
               <div className="rounded-xl p-3" style={{ background: `${color}08`, border: `1px solid ${color}20` }}>
@@ -229,7 +231,6 @@ export default function SignalCard({
               </div>
             </div>
 
-            {/* 다음 탭 버튼 */}
             <button
               onClick={() => onTabChange(currentTab === 'Q1' ? 'Q2' : currentTab === 'Q2' ? 'Q3' : '결론')}
               className="w-full py-2.5 font-bold rounded-xl text-[13px] transition-all mt-3"
@@ -266,11 +267,11 @@ export default function SignalCard({
 
             {isLeader ? (
               <>
-                {/* 4필드 입력 */}
+                {/* ⭐ 4필드 입력 — 카드별 템플릿 적용 */}
                 <div className="mb-4">
                   <p className="text-[10px] font-bold mb-2 font-mono tracking-widest text-gray-500">한 문장 전략 재료</p>
                   <div className="grid grid-cols-2 gap-2">
-                    {['산업', '고객', '해결할 문제', '진입 채널'].map((label, i) => (
+                    {template.fieldLabels.map((label, i) => (
                       <div key={i} className="rounded-lg p-2.5"
                         style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${leaderConclusion.fields[i] ? color + '50' : 'rgba(255,255,255,0.06)'}` }}>
                         <p className="text-[9px] font-mono text-gray-600 mb-1">{label}</p>
@@ -281,7 +282,7 @@ export default function SignalCard({
                             f[i] = e.target.value;
                             onLeaderConclusionChange('fields', f);
                           }}
-                          placeholder={['K-뷰티', '20대 여성', '가격 장벽', '올리브영'][i]}
+                          placeholder={template.placeholders[i]}
                           className="w-full bg-transparent text-[12px] text-white outline-none"
                         />
                       </div>
@@ -289,7 +290,7 @@ export default function SignalCard({
                   </div>
                 </div>
 
-                {/* 한 문장 전략 */}
+                {/* ⭐ 한 문장 전략 — 카드별 템플릿으로 합성 */}
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-1.5">
                     <p className="text-[10px] font-bold font-mono tracking-widest text-gray-500">한 문장 전략</p>
