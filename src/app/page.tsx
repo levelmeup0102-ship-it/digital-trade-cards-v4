@@ -9,6 +9,7 @@ import {
   saveCardResponse, loadCardResponses, saveCardProgress, loadCardProgress,
 } from '@/lib/session';
 import type { Session } from '@/lib/supabase';
+import { getRole, type RoleCode } from '@/data/roleData';
 
 const LEVELS: Record<string, { label: string; emoji: string; timer: number; minChars: number; color: string }> = {
   basic:    { label: '초급', emoji: '🌱', timer: 1800, minChars: 20,  color: '#059669' },
@@ -34,16 +35,15 @@ const defaultLeaderConclusion = (): LeaderConclusionState => ({
 export default function Home() {
   const router = useRouter();
 
-  // 화면 상태: 'landing' (안내) | 'guide' (퍼실리테이터 가이드) | 'game' (카드 게임)
   const [screen, setScreen] = useState<'landing'|'guide'|'game'>('landing');
   const [sessionLoading, setSessionLoading] = useState(true);
 
-  // 게임 화면용 상태
   const [item, setItem] = useState('');
   const [customItem, setCustomItem] = useState('');
   const [role, setRole] = useState<'leader'|'member'>('leader');
   const [playerName, setPlayerName] = useState('');
   const [level, setLevel] = useState('standard');
+  const [roleCode, setRoleCode] = useState<RoleCode | null>(null); // ⭐ NEW: 본인 직무 코드
 
   const [session, setSession] = useState<Session | null>(null);
   const [teamId, setTeamId] = useState<string | null>(null);
@@ -74,11 +74,12 @@ export default function Home() {
   const currentLeaderConclusion = leaderConclusions[topic.id] || defaultLeaderConclusion();
   const isCardCompleted = completedCards.has(topic.id);
 
-  // 세션 복원 — v1 또는 v2 세션 있으면 자동으로 게임 화면으로
+  // ⭐ 본인 직무 정보
+  const myRole = roleCode ? getRole(roleCode) : null;
+
   useEffect(() => {
     (async () => {
       try {
-        // v1 세션 (옛날)
         const saved = await restoreSession();
         if (saved) {
           setSession(saved); setTeamId(saved.team_id);
@@ -92,7 +93,6 @@ export default function Home() {
           return;
         }
 
-        // v2 세션 (학생 명단 입장 흐름)
         const v2Raw = typeof window !== 'undefined' ? localStorage.getItem('dtc_session_token_v2') : null;
         if (v2Raw) {
           const v2 = JSON.parse(v2Raw);
@@ -109,6 +109,8 @@ export default function Home() {
             setSession(sess); setTeamId(v2.teamId);
             setPlayerName(v2.memberName); setRole(v2Role);
             setLevel(v2Level); setItem(v2.item || '');
+            // ⭐ NEW: 직무 코드 세션에서 읽기
+            if (v2.roleCode) setRoleCode(v2.roleCode as RoleCode);
             const [resps, prog] = await Promise.all([loadCardResponses(v2.teamId), loadCardProgress(v2.teamId)]);
             setResponses(resps); setCheckStates(prog.checkStates); setCompletedCards(prog.completedCards);
             setTimer(LEVELS[v2Level]?.timer || 1200);
@@ -118,7 +120,6 @@ export default function Home() {
           }
         }
 
-        // 세션 없으면 그냥 안내 화면
         setSessionLoading(false);
       } catch (e) {
         setSessionLoading(false);
@@ -200,7 +201,6 @@ export default function Home() {
     return () => window.removeEventListener('keydown', handler);
   }, [currentCardIdx, goToCard, screen]);
 
-  // 게임 종료 — 세션 끊고 학생 입장 화면으로
   const exitGame = () => {
     localStorage.removeItem('dtc_session_token');
     localStorage.removeItem('dtc_session_token_v2');
@@ -216,7 +216,7 @@ export default function Home() {
     </div>
   );
 
-  // ─── LANDING (메인 안내 페이지) ───
+  // ─── LANDING ───
   if (screen === 'landing') return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden">
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full pointer-events-none"
@@ -230,7 +230,6 @@ export default function Home() {
           디지털 무역 전략을 직접 만들어보는<br />체험형 카드게임 학습 플랫폼
         </p>
 
-        {/* 카드 데모 */}
         <div className="flex justify-center gap-3 mb-10">
           {['01','02','03','04','05'].map((id, i) => (
             <div key={id} className="w-12 h-16 rounded-xl flex items-center justify-center text-white text-[11px] font-black font-mono"
@@ -238,7 +237,6 @@ export default function Home() {
           ))}
         </div>
 
-        {/* 학생 입장 버튼 — 메인 CTA */}
         <button onClick={() => router.push('/student/join')}
           className="relative w-full py-4 font-black rounded-2xl text-base mb-3 transition-all hover:scale-[1.02] overflow-hidden group"
           style={{ background: S.green, color: S.navy, boxShadow: `0 10px 30px -5px ${S.green}66` }}>
@@ -247,14 +245,12 @@ export default function Home() {
             style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)' }} />
         </button>
 
-        {/* 관리자 로그인 버튼 */}
         <button onClick={() => router.push('/teacher')}
           className="w-full py-3.5 font-bold rounded-2xl text-[14px] transition-all hover:scale-[1.01] mb-3"
           style={{ background: 'rgba(193,232,235,0.08)', border: `1px solid ${S.aqua}33`, color: S.aqua }}>
           💼 관리자 로그인
         </button>
 
-        {/* 가이드 버튼 */}
         <button onClick={() => setScreen('guide')}
           className="w-full py-3 rounded-2xl text-sm text-gray-500 transition hover:text-gray-300"
           style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -315,7 +311,6 @@ export default function Home() {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[9px] px-2 py-1 rounded-md font-bold" style={{ background: lv.color + '22', color: lv.color }}>{lv.emoji} {lv.label}</span>
-            <span className="text-[9px] text-gray-600 px-2 py-1 rounded-md" style={{ background: 'rgba(255,255,255,0.05)' }}>{isLeader ? '👑' : '💬'} {playerName}</span>
             <button onClick={() => setShowList(!showList)}
               className="rounded-lg px-2.5 py-1 text-[11px] text-gray-400 transition"
               style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
@@ -324,10 +319,28 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 타이머 + 아이템 */}
+        {/* ⭐ 본인 정보 + 직무 배지 */}
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-[10px] px-2 py-0.5 rounded-md truncate max-w-[130px]"
+          {myRole ? (
+            <div className="flex items-center gap-1.5 rounded-lg px-2 py-1"
+              style={{ background: `${myRole.color}18`, border: `1px solid ${myRole.color}40` }}>
+              <span className="text-[14px]">{myRole.icon}</span>
+              <div className="flex flex-col leading-tight">
+                <span className="text-[11px] font-bold text-white">{playerName}</span>
+                <span className="text-[9px] font-mono" style={{ color: myRole.color }}>{myRole.nameKr}</span>
+              </div>
+            </div>
+          ) : (
+            <span className="text-[10px] text-gray-400 px-2 py-1 rounded-md" style={{ background: 'rgba(255,255,255,0.05)' }}>
+              {isLeader ? '👑' : '💬'} {playerName}
+            </span>
+          )}
+          <span className="text-[10px] px-2 py-0.5 rounded-md truncate flex-1"
             style={{ color: S.green, background: `${S.green}10` }}>{displayItem}</span>
+        </div>
+
+        {/* 타이머 */}
+        <div className="flex items-center gap-2 mb-2">
           <div className="flex-1" />
           <div className="flex items-center gap-1.5 rounded-lg px-2 py-1" style={{ background: 'rgba(255,255,255,0.06)' }}>
             <span className={`text-[12px] font-mono font-bold ${timer <= 60 ? 'text-red-400' : 'text-white'}`}>{fmt(timer)}</span>
@@ -338,7 +351,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 진행 바 — shimmer 효과 */}
+        {/* 진행 바 */}
         <div className="flex items-center gap-2 mb-2">
           <span className="text-[11px] text-gray-600 font-mono min-w-[50px]">{currentCardIdx + 1} / {TOPICS.length}</span>
           <div className="flex-1 h-[4px] rounded-full overflow-hidden relative" style={{ background: 'rgba(255,255,255,0.08)' }}>
@@ -375,6 +388,24 @@ export default function Home() {
         </div>
       </div>
 
+      {/* ⭐ 직무 미션 표시 — 현재 카드가 본인 담당이면 */}
+      {myRole && myRole.primaryCards.includes(topic.id) && (
+        <div className="w-full max-w-md mb-3 relative z-10">
+          <div className="rounded-xl px-3 py-2 flex items-center gap-2 backdrop-blur-sm"
+            style={{
+              background: `${myRole.color}15`,
+              border: `1px solid ${myRole.color}40`,
+              boxShadow: `0 4px 20px ${myRole.color}22`,
+            }}>
+            <span className="text-base">{myRole.icon}</span>
+            <div className="flex-1">
+              <p className="text-[10px] font-mono tracking-widest" style={{ color: myRole.color }}>YOUR MISSION</p>
+              <p className="text-[12px] font-bold text-white">이 카드는 {myRole.nameKr}님이 주도해주세요!</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 카드 목록 오버레이 */}
       {showList && (
         <div className="fixed inset-0 backdrop-blur-xl z-[100] overflow-y-auto p-4 pt-14" style={{ background: 'rgba(0,0,0,0.92)' }}>
@@ -383,10 +414,17 @@ export default function Home() {
           <div className="grid grid-cols-2 gap-2">
             {TOPICS.map((t, i) => {
               const done = completedCards.has(t.id);
+              const myCard = myRole && myRole.primaryCards.includes(t.id);
               return (
                 <button key={t.id} onClick={() => { goToCard(i); setShowList(false); }}
-                  className="text-left rounded-xl p-3 transition"
+                  className="text-left rounded-xl p-3 transition relative"
                   style={{ background: done ? `${CARD_COLORS[t.id].bg}22` : 'rgba(255,255,255,0.04)', border: `1px solid ${done ? CARD_COLORS[t.id].bg + '55' : 'rgba(255,255,255,0.08)'}` }}>
+                  {/* 본인 담당 카드 표시 */}
+                  {myCard && (
+                    <div className="absolute top-2 right-2 text-[12px]" title={`${myRole?.nameKr} 담당 카드`}>
+                      {myRole?.icon}
+                    </div>
+                  )}
                   <div className="flex items-center gap-2 mb-1">
                     <span className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-black font-mono flex-shrink-0" style={{ background: CARD_COLORS[t.id].bg }}>{t.id}</span>
                     {done && <span className="text-[10px]" style={{ color: CARD_COLORS[t.id].bg }}>✓ 완료</span>}
@@ -400,7 +438,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* 5탭 카드 플레이어 — 진입 애니메이션 */}
+      {/* 5탭 카드 플레이어 */}
       <div key={topic.id} className="w-full max-w-[420px] relative z-10 card-enter"
         onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
         <SignalCard
@@ -443,7 +481,6 @@ export default function Home() {
           }}>›</button>
       </div>
 
-      {/* PDF 버튼 (숨김) */}
       {SHOW_PDF_BUTTON && currentCardIdx === 15 && isLeader && (
         <div className="mt-3 w-full max-w-[420px] relative z-10">
           <button onClick={() => { setShowPdfToast(true); setTimeout(() => setShowPdfToast(false), 3000); }}
@@ -456,14 +493,12 @@ export default function Home() {
         </div>
       )}
 
-      {/* 하단 — "다시 설정" 제거, "나가기"만 유지 */}
       <div className="mt-4 text-[10px] text-gray-700 text-center relative z-10 font-mono">
         © 2026 SIGNAL — ConnectAI
         <button onClick={exitGame}
           className="ml-3 text-gray-700 underline hover:text-gray-500">나가기</button>
       </div>
 
-      {/* Toast */}
       {savedToast && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 rounded-xl px-5 py-2.5 z-[300] flex items-center gap-2 backdrop-blur-sm"
           style={{ background: 'rgba(10,10,10,0.95)', border: '1px solid rgba(255,255,255,0.1)', animation: 'fadeIn 0.3s ease-out' }}>
