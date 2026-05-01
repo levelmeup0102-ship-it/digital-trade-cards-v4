@@ -23,12 +23,6 @@ interface SignalCardProps {
   onComplete: () => void;
   isCardCompleted: boolean;
   isLeader: boolean;
-  aiLoading: boolean;
-  aiDraftLoading: string | null;
-  onRequestFeedback: (cardId: string) => void;
-  onRequestDraft: (cardId: string) => void;
-  aiFeedbacks: Record<string, any>;
-  aiUsed: Set<string>;
   displayItem: string;
   level: string;
   minChars: number;
@@ -48,8 +42,7 @@ export default function SignalCard({
   interimConclusions, onSaveInterim,
   leaderConclusion, onLeaderConclusionChange,
   completedCards, onComplete, isCardCompleted,
-  isLeader, aiLoading, aiDraftLoading,
-  onRequestFeedback, onRequestDraft, aiFeedbacks, aiUsed,
+  isLeader,
   displayItem, level, minChars,
 }: SignalCardProps) {
   const color = CARD_COLORS[topic.id].bg;
@@ -70,18 +63,6 @@ export default function SignalCard({
     const r = responses[cardId];
     return r && Object.values(r.texts || {}).some((t: any) => t?.trim());
   };
-  const getLen = (cardId: string) => {
-    const r = responses[cardId];
-    if (!r) return 0;
-    return Object.values(r.texts || {}).reduce((s: number, t: any) => s + (t?.trim()?.length || 0), 0);
-  };
-  const isCheckDone = (cardId: string) => {
-    const c = checkStates[cardId];
-    if (!c) return false;
-    const s = topic.subs.find(x => x.id === cardId);
-    return s?.checklist.every((_, i) => c[i]) || false;
-  };
-  const canFeedback = (cardId: string) => hasResponse(cardId) && isCheckDone(cardId) && getLen(cardId) >= minChars;
   const allQsDone = topic.subs.every(s => hasResponse(s.id));
   const oneSentenceSynthesis = `우리는 ${leaderConclusion.fields[0] || '[산업]'}에서 ${leaderConclusion.fields[1] || '[고객]'}을 대상으로 ${leaderConclusion.fields[2] || '[문제]'}를 해결하며 ${leaderConclusion.fields[3] || '[채널]'}을 통해 시장에 진입한다`;
   const canComplete = isLeader && !isCardCompleted && Boolean(leaderConclusion.oneSentence?.trim()) && allQsDone;
@@ -102,7 +83,7 @@ export default function SignalCard({
           {isCardCompleted && (
             <div className="absolute top-2 right-2 z-10 flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full"
               style={{ background: S.green, color: S.navy }}>
-              {aiUsed.has(topic.id) && '🤖 '}✓ 완료
+              ✓ 완료
             </div>
           )}
           <div className="p-5 h-full flex flex-col justify-between">
@@ -248,39 +229,6 @@ export default function SignalCard({
               </div>
             </div>
 
-            {/* AI 버튼 */}
-            {isLeader && !completedCards.has(subId) && (
-              <div className="space-y-2">
-                {canFeedback(subId) && (
-                  <button onClick={() => onRequestFeedback(subId)} disabled={aiLoading}
-                    className="w-full py-2 font-bold rounded-xl text-[12px] transition disabled:opacity-50"
-                    style={{ background: 'rgba(0,118,129,0.25)', border: '1px solid rgba(79,176,198,0.4)', color: S.aqua }}>
-                    {aiLoading ? '🤖 AI 분석 중...' : '🤖 AI 피드백 받기'}
-                  </button>
-                )}
-                {!hasResponse(subId) && (
-                  <button onClick={() => onRequestDraft(subId)} disabled={!!aiDraftLoading}
-                    className="w-full py-2 font-bold rounded-xl text-[12px] transition disabled:opacity-50"
-                    style={{ background: 'rgba(255,199,44,0.12)', border: '1px solid rgba(255,199,44,0.25)', color: '#FFC72C' }}>
-                    {aiDraftLoading === subId ? '⚡ 생성 중...' : '⚡ AI 초안 생성 (팀장)'}
-                  </button>
-                )}
-                {aiFeedbacks[subId] && (
-                  <div className="rounded-xl p-3 space-y-1.5" style={{ background: 'rgba(79,176,198,0.08)', border: '1px solid rgba(79,176,198,0.2)' }}>
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg font-black" style={{ color: S.aqua }}>{aiFeedbacks[subId].score}</span>
-                      <span className="text-[10px] text-gray-600">/5점</span>
-                      <div className="flex-1 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                        <div className="h-full rounded-full" style={{ width: `${aiFeedbacks[subId].score * 20}%`, background: S.green }} />
-                      </div>
-                    </div>
-                    <p className="text-[11px] text-gray-400">✅ {aiFeedbacks[subId].highlight}</p>
-                    <p className="text-[11px] text-gray-400">💡 {aiFeedbacks[subId].improve}</p>
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* 다음 탭 버튼 */}
             <button
               onClick={() => onTabChange(currentTab === 'Q1' ? 'Q2' : currentTab === 'Q2' ? 'Q3' : '결론')}
@@ -397,7 +345,7 @@ export default function SignalCard({
                 {isCardCompleted ? (
                   <div className="w-full py-3 rounded-xl text-center font-bold text-[13px]"
                     style={{ background: `${S.green}20`, color: S.green }}>
-                    {aiUsed.has(topic.id) ? '🤖 ' : ''}✓ 완료된 카드
+                    ✓ 완료된 카드
                   </div>
                 ) : (
                   <button onClick={onComplete} disabled={!canComplete}
