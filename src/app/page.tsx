@@ -1,15 +1,15 @@
 'use client';
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { ALL_CARDS, CARD_COLORS, TOPICS } from '@/data/cardData';
 import SignalCard, { type LeaderConclusionState } from '@/components/SignalCard';
 import type { SubCard } from '@/types';
 import {
-  findTeamByCode, getOrCreateSession, restoreSession,
+  getOrCreateSession, restoreSession,
   saveCardResponse, loadCardResponses, saveCardProgress, loadCardProgress,
 } from '@/lib/session';
 import type { Session } from '@/lib/supabase';
 
-const ITEMS = ['💄 K-뷰티 (스킨케어)','🍜 K-푸드 (라면·스낵)','🧬 바이오/디지털 헬스케어','🎮 디지털 콘텐츠 (웹툰·게임)','📱 스마트 기기 (IoT)','✏️ 직접 입력'];
 const LEVELS: Record<string, { label: string; emoji: string; timer: number; minChars: number; color: string }> = {
   basic:    { label: '초급', emoji: '🌱', timer: 1800, minChars: 20,  color: '#059669' },
   standard: { label: '표준', emoji: '📘', timer: 1200, minChars: 50,  color: '#4FB0C6' },
@@ -32,15 +32,18 @@ const defaultLeaderConclusion = (): LeaderConclusionState => ({
 });
 
 export default function Home() {
-  const [screen, setScreen] = useState<'landing'|'onboarding'|'game'|'guide'>('landing');
+  const router = useRouter();
+
+  // 화면 상태: 'landing' (안내) | 'guide' (퍼실리테이터 가이드) | 'game' (카드 게임)
+  const [screen, setScreen] = useState<'landing'|'guide'|'game'>('landing');
+  const [sessionLoading, setSessionLoading] = useState(true);
+
+  // 게임 화면용 상태
   const [item, setItem] = useState('');
   const [customItem, setCustomItem] = useState('');
   const [role, setRole] = useState<'leader'|'member'>('leader');
   const [playerName, setPlayerName] = useState('');
-  const [joinCode, setJoinCode] = useState('');
   const [level, setLevel] = useState('standard');
-  const [joinError, setJoinError] = useState('');
-  const [joining, setJoining] = useState(false);
 
   const [session, setSession] = useState<Session | null>(null);
   const [teamId, setTeamId] = useState<string | null>(null);
@@ -71,9 +74,11 @@ export default function Home() {
   const currentLeaderConclusion = leaderConclusions[topic.id] || defaultLeaderConclusion();
   const isCardCompleted = completedCards.has(topic.id);
 
+  // 세션 복원 — v1 또는 v2 세션 있으면 자동으로 게임 화면으로
   useEffect(() => {
     (async () => {
       try {
+        // v1 세션 (옛날)
         const saved = await restoreSession();
         if (saved) {
           setSession(saved); setTeamId(saved.team_id);
@@ -83,9 +88,11 @@ export default function Home() {
           setResponses(resps); setCheckStates(prog.checkStates); setCompletedCards(prog.completedCards);
           setTimer(LEVELS[saved.level]?.timer || 1200);
           setScreen('game');
+          setSessionLoading(false);
           return;
         }
 
+        // v2 세션 (학생 명단 입장 흐름)
         const v2Raw = typeof window !== 'undefined' ? localStorage.getItem('dtc_session_token_v2') : null;
         if (v2Raw) {
           const v2 = JSON.parse(v2Raw);
@@ -102,14 +109,20 @@ export default function Home() {
             setSession(sess); setTeamId(v2.teamId);
             setPlayerName(v2.memberName); setRole(v2Role);
             setLevel(v2Level); setItem(v2.item || '');
-            setJoinCode(v2.joinCode || '');
             const [resps, prog] = await Promise.all([loadCardResponses(v2.teamId), loadCardProgress(v2.teamId)]);
             setResponses(resps); setCheckStates(prog.checkStates); setCompletedCards(prog.completedCards);
             setTimer(LEVELS[v2Level]?.timer || 1200);
             setScreen('game');
+            setSessionLoading(false);
+            return;
           }
         }
-      } catch (e) {}
+
+        // 세션 없으면 그냥 안내 화면
+        setSessionLoading(false);
+      } catch (e) {
+        setSessionLoading(false);
+      }
     })();
   }, []);
 
@@ -187,150 +200,71 @@ export default function Home() {
     return () => window.removeEventListener('keydown', handler);
   }, [currentCardIdx, goToCard, screen]);
 
-  const startGame = async () => {
-    setJoinError(''); setJoining(true);
-    try {
-      const team = await findTeamByCode(joinCode);
-      if (!team) { setJoinError('수업 코드를 찾을 수 없어요.'); setJoining(false); return; }
-      const finalItem = item === '✏️ 직접 입력' ? customItem : item;
-      const sess = await getOrCreateSession({ playerName, teamId: team.id, role, level, item: finalItem });
-      if (!sess) { setJoinError('접속 오류. 다시 시도해주세요.'); setJoining(false); return; }
-      setSession(sess); setTeamId(team.id);
-      const [resps, prog] = await Promise.all([loadCardResponses(team.id), loadCardProgress(team.id)]);
-      setResponses(resps); setCheckStates(prog.checkStates); setCompletedCards(prog.completedCards);
-      setTimer(LEVELS[level].timer); setTimerActive(false); setScreen('game');
-    } catch (e) { setJoinError('오류가 발생했어요.'); } finally { setJoining(false); }
-  };
-
-  const resetSession = () => {
+  // 게임 종료 — 세션 끊고 학생 입장 화면으로
+  const exitGame = () => {
     localStorage.removeItem('dtc_session_token');
     localStorage.removeItem('dtc_session_token_v2');
-    setSession(null); setTeamId(null); setResponses({}); setCheckStates({});
-    setCompletedCards(new Set()); setJoinCode(''); setPlayerName(''); setItem('');
-    setCurrentCardIdx(0); setCurrentTab('주제');
     if (timerRef.current) clearInterval(timerRef.current);
-    setTimerActive(false); setScreen('landing');
+    setTimerActive(false);
+    router.push('/student/join');
   };
 
-  // ─── LANDING ───
+  // ─── 로딩 ───
+  if (sessionLoading) return (
+    <div className="min-h-screen flex items-center justify-center">
+      <p className="text-gray-500 font-mono text-sm">불러오는 중...</p>
+    </div>
+  );
+
+  // ─── LANDING (메인 안내 페이지) ───
   if (screen === 'landing') return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden">
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full pointer-events-none"
         style={{ background: `radial-gradient(circle, ${S.green}08 0%, transparent 70%)` }} />
-      <div className="relative z-10 text-center max-w-md">
+
+      <div className="relative z-10 text-center max-w-md w-full">
         <p className="text-[11px] tracking-[6px] text-gray-600 uppercase mb-4 font-mono">ConnectAI</p>
         <h1 className="text-6xl font-black text-white mb-2 tracking-tight">SIGNAL</h1>
         <p className="text-gray-500 text-sm mb-2 font-mono">디지털 무역 전략카드</p>
-        <p className="text-gray-600 text-[13px] mb-10 leading-relaxed">
+        <p className="text-gray-600 text-[13px] mb-8 leading-relaxed">
           디지털 무역 전략을 직접 만들어보는<br />체험형 카드게임 학습 플랫폼
         </p>
+
+        {/* 카드 데모 */}
         <div className="flex justify-center gap-3 mb-10">
           {['01','02','03','04','05'].map((id, i) => (
             <div key={id} className="w-12 h-16 rounded-xl flex items-center justify-center text-white text-[11px] font-black font-mono"
               style={{ background: CARD_COLORS[id].bg, transform: `rotate(${(i-2)*6}deg)`, boxShadow: `0 4px 20px ${CARD_COLORS[id].bg}55` }}>{id}</div>
           ))}
         </div>
-        {/* ✨ 시작하기 버튼 - 광택 효과 추가 */}
-        <button onClick={() => setScreen('onboarding')}
+
+        {/* 학생 입장 버튼 — 메인 CTA */}
+        <button onClick={() => router.push('/student/join')}
           className="relative w-full py-4 font-black rounded-2xl text-base mb-3 transition-all hover:scale-[1.02] overflow-hidden group"
           style={{ background: S.green, color: S.navy, boxShadow: `0 10px 30px -5px ${S.green}66` }}>
-          <span className="relative z-10">시작하기 →</span>
+          <span className="relative z-10">🎓 학생으로 입장 →</span>
           <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700"
             style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)' }} />
         </button>
+
+        {/* 관리자 로그인 버튼 */}
+        <button onClick={() => router.push('/teacher')}
+          className="w-full py-3.5 font-bold rounded-2xl text-[14px] transition-all hover:scale-[1.01] mb-3"
+          style={{ background: 'rgba(193,232,235,0.08)', border: `1px solid ${S.aqua}33`, color: S.aqua }}>
+          💼 관리자 로그인
+        </button>
+
+        {/* 가이드 버튼 */}
         <button onClick={() => setScreen('guide')}
           className="w-full py-3 rounded-2xl text-sm text-gray-500 transition hover:text-gray-300"
           style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
           📋 퍼실리테이터 가이드
         </button>
+
         <p className="text-gray-700 text-[10px] mt-8 font-mono">© 2026 SIGNAL — ConnectAI</p>
       </div>
     </div>
   );
-
-  // ─── ONBOARDING ───
-  if (screen === 'onboarding') {
-    const canStart = item && (item !== '✏️ 직접 입력' || customItem.trim()) && playerName.trim() && joinCode.trim().length >= 4 && !joining;
-    return (
-      <div className="min-h-screen flex flex-col items-center px-4 py-6 overflow-auto">
-        <div className="w-full max-w-md">
-          <button onClick={() => setScreen('landing')} className="text-gray-600 text-sm mb-4 hover:text-gray-400 transition">← 돌아가기</button>
-          <div className="rounded-2xl p-5 mb-6" style={{ background: `${S.green}08`, border: `1px solid ${S.green}20` }}>
-            <p className="text-[10px] font-mono tracking-widest mb-1" style={{ color: S.green }}>SIGNAL · CARD GAME</p>
-            <h2 className="text-xl font-black text-white mb-1">나의 첫 <span style={{ color: S.green }}>디지털 무역 전략</span></h2>
-            <p className="text-[11px] text-gray-500">팀의 제품을 선택하고 글로벌 수출 전략을 설계하세요.</p>
-          </div>
-
-          <div className="mb-5">
-            <p className="text-sm font-bold text-white mb-1">① 수업 코드</p>
-            <input value={joinCode} onChange={e => { setJoinCode(e.target.value.toUpperCase()); setJoinError(''); }}
-              placeholder="예) TEAM01" maxLength={10}
-              className="w-full px-4 py-3 rounded-xl text-white text-base font-bold tracking-widest uppercase transition"
-              style={{ background: 'rgba(255,255,255,0.05)', border: joinCode ? `1px solid ${S.green}` : '1px solid rgba(255,255,255,0.1)', outline: 'none' }} />
-            {joinError && <p className="text-red-400 text-[11px] mt-1">⚠ {joinError}</p>}
-          </div>
-
-          <div className="mb-5">
-            <p className="text-sm font-bold text-white mb-1">② 팀 아이템</p>
-            <div className="grid grid-cols-2 gap-2">
-              {ITEMS.map(it => (
-                <button key={it} onClick={() => setItem(it)}
-                  className="px-3 py-2.5 rounded-xl text-left text-[12px] transition"
-                  style={{ background: item === it ? `${S.green}15` : 'rgba(255,255,255,0.04)', border: item === it ? `1px solid ${S.green}` : '1px solid rgba(255,255,255,0.08)', color: item === it ? S.green : '#9ca3af', fontWeight: item === it ? 700 : 400 }}>
-                  {it}
-                </button>
-              ))}
-            </div>
-            {item === '✏️ 직접 입력' && (
-              <input value={customItem} onChange={e => setCustomItem(e.target.value)} placeholder="예) 제주 감귤 주스"
-                className="w-full mt-2 px-3 py-2.5 rounded-xl text-white text-sm"
-                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', outline: 'none' }} />
-            )}
-          </div>
-
-          <div className="mb-5">
-            <p className="text-sm font-bold text-white mb-1">③ 역할 · 이름</p>
-            <div className="flex gap-2 mb-2">
-              {([['leader','👑 팀장','결론 작성'],['member','💬 팀원','토론 · 카드 열람']] as const).map(([k,l,d]) => (
-                <button key={k} onClick={() => setRole(k)} className="flex-1 px-3 py-2.5 rounded-xl text-left transition"
-                  style={{ background: role === k ? `${S.green}10` : 'rgba(255,255,255,0.04)', border: role === k ? `1px solid ${S.green}` : '1px solid rgba(255,255,255,0.08)' }}>
-                  <div className="text-[13px] font-bold" style={{ color: role === k ? S.green : '#fff' }}>{l}</div>
-                  <div className="text-[10px] text-gray-600">{d}</div>
-                </button>
-              ))}
-            </div>
-            <input value={playerName} onChange={e => setPlayerName(e.target.value)} placeholder="이름 (예: 이서연)"
-              className="w-full px-3 py-2.5 rounded-xl text-white text-sm"
-              style={{ background: 'rgba(255,255,255,0.05)', border: playerName ? `1px solid ${S.green}` : '1px solid rgba(255,255,255,0.1)', outline: 'none' }} />
-          </div>
-
-          <div className="mb-6">
-            <p className="text-sm font-bold text-white mb-1">④ 수업 수준</p>
-            {Object.entries(LEVELS).map(([k, v]) => (
-              <button key={k} onClick={() => setLevel(k)}
-                className="w-full mb-2 px-4 py-3 rounded-xl flex items-center gap-3 transition"
-                style={{ background: level === k ? v.color + '22' : 'rgba(255,255,255,0.04)', border: level === k ? `1px solid ${v.color}` : '1px solid rgba(255,255,255,0.08)' }}>
-                <span className="text-xl">{v.emoji}</span>
-                <div className="flex-1 text-left text-[13px] font-bold text-white">{v.label}</div>
-                <span className="text-[11px] text-gray-500">{Math.floor(v.timer/60)}분 · {v.minChars}자</span>
-              </button>
-            ))}
-          </div>
-
-          {/* ✨ 시작하기 버튼 - 광택 효과 */}
-          <button onClick={startGame} disabled={!canStart}
-            className="relative w-full py-4 font-black rounded-2xl transition-all disabled:opacity-30 overflow-hidden group"
-            style={{ background: canStart ? S.green : 'rgba(255,255,255,0.1)', color: canStart ? S.navy : '#666', boxShadow: canStart ? `0 10px 30px -5px ${S.green}55` : 'none' }}>
-            <span className="relative z-10">{joining ? '⏳ 접속 중...' : '시작하기 →'}</span>
-            {canStart && (
-              <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700"
-                style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)' }} />
-            )}
-          </button>
-        </div>
-      </div>
-    );
-  }
 
   // ─── GUIDE ───
   if (screen === 'guide') return (
@@ -404,7 +338,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ✨ 진행 바 - shimmer 효과 추가 */}
+        {/* 진행 바 — shimmer 효과 */}
         <div className="flex items-center gap-2 mb-2">
           <span className="text-[11px] text-gray-600 font-mono min-w-[50px]">{currentCardIdx + 1} / {TOPICS.length}</span>
           <div className="flex-1 h-[4px] rounded-full overflow-hidden relative" style={{ background: 'rgba(255,255,255,0.08)' }}>
@@ -414,7 +348,6 @@ export default function Home() {
                 background: color,
                 boxShadow: `0 0 12px ${color}88`
               }}>
-              {/* Shimmer 빛 흐름 */}
               <div className="absolute inset-0"
                 style={{
                   background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.5) 50%, transparent 100%)',
@@ -467,7 +400,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* ✨ 5탭 카드 플레이어 - 진입 애니메이션 추가 (key로 카드 변경 시 재실행) */}
+      {/* 5탭 카드 플레이어 — 진입 애니메이션 */}
       <div key={topic.id} className="w-full max-w-[420px] relative z-10 card-enter"
         onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
         <SignalCard
@@ -501,7 +434,6 @@ export default function Home() {
           <div className="text-[13px] font-bold text-white">{topic.title}</div>
           <div className="text-[10px] text-gray-600 font-mono mt-0.5">카드 {currentCardIdx + 1}/16 · {'★'.repeat(topic.difficulty)}{'☆'.repeat(5-topic.difficulty)}</div>
         </div>
-        {/* ✨ 다음 버튼 - 호버 시 글로우 강화 */}
         <button onClick={() => goToCard(currentCardIdx + 1)} disabled={currentCardIdx === TOPICS.length - 1}
           className="w-11 h-11 rounded-full flex items-center justify-center text-lg font-bold transition-all disabled:opacity-20 hover:scale-110"
           style={{
@@ -524,12 +456,11 @@ export default function Home() {
         </div>
       )}
 
-      {/* 하단 */}
+      {/* 하단 — "다시 설정" 제거, "나가기"만 유지 */}
       <div className="mt-4 text-[10px] text-gray-700 text-center relative z-10 font-mono">
         © 2026 SIGNAL — ConnectAI
-        <button onClick={() => { setScreen('landing'); if(timerRef.current) clearInterval(timerRef.current); setTimerActive(false); }}
+        <button onClick={exitGame}
           className="ml-3 text-gray-700 underline hover:text-gray-500">나가기</button>
-        <button onClick={resetSession} className="ml-3 text-gray-700 underline hover:text-red-400">다시 설정</button>
       </div>
 
       {/* Toast */}
