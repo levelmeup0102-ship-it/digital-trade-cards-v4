@@ -25,6 +25,8 @@ export type Team = {
   join_code: string;
   item?: string;
   level?: string;
+  game_started?: boolean;
+  game_started_at?: string | null;
   created_at: string;
   member_count?: number;
   completed_count?: number;
@@ -36,11 +38,11 @@ export type TeamMember = {
   name: string;
   is_leader: boolean;
   joined_at: string | null;
+  role_code?: string | null;
+  role_assigned_at?: string | null;
 };
 
 // ── 간단한 비밀번호 해싱 (btoa 기반) ────────────────────────
-// 실제 서비스에서는 bcrypt를 쓰는 게 좋지만,
-// 학교 수업용으로는 이 정도로 충분합니다.
 function hashPassword(password: string, salt: string): string {
   return btoa(unescape(encodeURIComponent(password + salt + 'signal2026')));
 }
@@ -67,58 +69,46 @@ export function getTeacherFromSession(): Teacher | null {
 }
 
 // ── 인증 ──────────────────────────────────────────────────
-
-// 회원가입 (이름 + 학교 + 비밀번호)
 export async function signUp(name: string, school: string, password: string): Promise<Teacher> {
   const passwordHash = hashPassword(password, SALT);
-
   const { data, error } = await supabase
     .from('teachers')
     .insert({ name: name.trim(), school: school.trim(), password_hash: passwordHash })
     .select('id, name, school')
     .single();
-
   if (error) {
-    if (error.code === '23505') throw new Error('이미 가입된 이름+학교 조합입니다.');
+    if (error.code === '23505') throw new Error('이미 가입된 이름+소속 조합입니다.');
     throw new Error('가입 중 오류가 발생했습니다.');
   }
-
   const teacher = data as Teacher;
   saveTeacherSession(teacher);
   return teacher;
 }
 
-// 로그인 (이름 + 학교 + 비밀번호)
 export async function signIn(name: string, school: string, password: string): Promise<Teacher> {
   const passwordHash = hashPassword(password, SALT);
-
   const { data } = await supabase
     .from('teachers')
     .select('id, name, school, password_hash')
     .eq('name', name.trim())
     .eq('school', school.trim())
     .single();
-
-  if (!data) throw new Error('이름 또는 학교가 틀렸습니다.');
+  if (!data) throw new Error('이름 또는 소속이 틀렸습니다.');
   if (data.password_hash !== passwordHash) throw new Error('비밀번호가 틀렸습니다.');
-
   const teacher: Teacher = { id: data.id, name: data.name, school: data.school };
   saveTeacherSession(teacher);
   return teacher;
 }
 
-// 로그아웃
 export function signOut() {
   clearTeacherSession();
 }
 
-// 현재 로그인한 선생님 정보
 export async function getCurrentTeacher(): Promise<Teacher | null> {
   return getTeacherFromSession();
 }
 
 // ── 수업 ──────────────────────────────────────────────────
-
 export async function createClass(teacherId: string, { name, school, schedule, description }: {
   name: string; school: string; schedule: string; description: string;
 }) {
@@ -151,7 +141,6 @@ export async function getClass(classId: string): Promise<Class | null> {
 }
 
 // ── 팀 ──────────────────────────────────────────────────
-
 function generateTeamCode(idx: number): string {
   const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   const a = letters[Math.floor(idx / 36) % 36];
@@ -166,7 +155,6 @@ export async function createTeams(classId: string, teamCount: number): Promise<T
     name: `${i + 1}팀`,
     join_code: generateTeamCode(i),
   }));
-
   const { data, error } = await supabase
     .from('teams')
     .insert(teams)
@@ -211,7 +199,6 @@ export async function getTeamsByClass(classId: string): Promise<Team[]> {
 }
 
 // ── 학생 명단 ──────────────────────────────────────────────
-
 export async function saveTeamMembers(teamId: string, names: string[]): Promise<TeamMember[]> {
   await supabase.from('team_members').delete().eq('team_id', teamId);
   if (names.length === 0) return [];
@@ -261,4 +248,112 @@ export async function joinAsStudent(teamId: string, memberId: string) {
     .from('team_members')
     .update({ joined_at: new Date().toISOString() })
     .eq('id', memberId);
+}
+
+// ─────────────────────────────────────────────────────────────
+// ⭐ NEW: 직무 배정 + 게임 시작 + Realtime
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * 팀원에게 직무 배정 (팀장은 자동으로 'ceo')
+ */
+export async function assignRoles(
+  teamId: string,
+  assignments: Array<{ memberId: string; roleCode: string }>
+) {
+  const now = new Date().toISOString();
+  for (const a of assignments) {
+    await supabase
+      .from('team_members')
+      .update({ role_code: a.roleCode, role_assigned_at: now })
+      .eq('id', a.memberId);
+  }
+}
+
+/**
+ * 게임 시작 신호 — Realtime으로 모든 팀원에게 broadcast됨
+ */
+export async function startTeamGame(teamId: string) {
+  const { error } = await supabase
+    .from('teams')
+    .update({
+      game_started: true,
+      game_started_at: new Date().toISOString(),
+    })
+    .eq('id', teamId);
+  if (error) throw error;
+}
+
+/**
+ * Realtime: 팀의 game_started 상태 변경 구독
+ * @returns unsubscribe 함수
+ */
+export function subscribeToTeamStart(
+  teamId: string,
+  onGameStart: () => void
+): () => void {
+  const channel = supabase
+    .channel(`team-start-${teamId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'teams',
+        filter: `id=eq.${teamId}`,
+      },
+      (payload: any) => {
+        if (payload.new?.game_started === true) {
+          onGameStart();
+        }
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
+/**
+ * Realtime: 팀원 입장 상태 구독 (대기실에서 사용)
+ * @returns unsubscribe 함수
+ */
+export function subscribeToTeamMembers(
+  teamId: string,
+  onMemberUpdate: (members: TeamMember[]) => void
+): () => void {
+  const channel = supabase
+    .channel(`team-members-${teamId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'team_members',
+        filter: `team_id=eq.${teamId}`,
+      },
+      async () => {
+        // 변경 감지 시 최신 명단 다시 가져옴
+        const members = await getTeamMembers(teamId);
+        onMemberUpdate(members);
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
+/**
+ * 팀의 현재 game_started 상태 조회
+ */
+export async function getTeamGameStatus(teamId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('teams')
+    .select('game_started')
+    .eq('id', teamId)
+    .single();
+  return data?.game_started === true;
 }
