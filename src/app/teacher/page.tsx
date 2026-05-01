@@ -18,7 +18,7 @@ export default function TeacherAuthPage() {
     setError(''); setLoading(true);
     try {
       if (!name.trim() || !school.trim() || !password) {
-        setError('이름, 학교, 비밀번호를 모두 입력해주세요.'); setLoading(false); return;
+        setError('이름, 소속, 비밀번호를 모두 입력해주세요.'); setLoading(false); return;
       }
       if (password.length < 6) {
         setError('비밀번호는 6자 이상이어야 합니다.'); setLoading(false); return;
@@ -42,7 +42,7 @@ export default function TeacherAuthPage() {
         <div className="text-center mb-8">
           <p className="text-[11px] tracking-[6px] text-gray-600 font-mono mb-2">ConnectAI</p>
           <h1 className="text-4xl font-black text-white mb-1">SIGNAL</h1>
-          <p className="text-gray-500 text-sm">선생님 포털</p>
+          <p className="text-gray-500 text-sm">관리자 포털</p>
         </div>
 
         {/* 탭 */}
@@ -62,7 +62,7 @@ export default function TeacherAuthPage() {
           style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
           <p className="text-[11px] text-gray-500 leading-relaxed">
             {mode === 'login'
-              ? '💡 가입 시 입력한 이름·학교·비밀번호로 로그인하세요'
+              ? '💡 가입 시 입력한 이름·소속·비밀번호로 로그인하세요'
               : '💡 이메일 없이 이름과 비밀번호만으로 가입합니다'}
           </p>
         </div>
@@ -79,7 +79,7 @@ export default function TeacherAuthPage() {
           </div>
 
           <div>
-            <p className="text-[11px] text-gray-500 mb-1">학교 / 기관</p>
+            <p className="text-[11px] text-gray-500 mb-1">소속 (학교 / 기관 / 회사)</p>
             <input value={school} onChange={e => setSchool(e.target.value)}
               placeholder="예) 인천대학교"
               onKeyDown={e => e.key === 'Enter' && handleSubmit()}
