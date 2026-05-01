@@ -73,7 +73,7 @@ export default function TeacherDashboard() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <p className="text-[11px] tracking-[4px] text-gray-600 font-mono">SIGNAL</p>
-            <h1 className="text-xl font-black text-white">선생님 대시보드</h1>
+            <h1 className="text-xl font-black text-white">관리자 대시보드</h1>
             <p className="text-[12px] text-gray-500">{teacher?.name} · {teacher?.school}</p>
           </div>
           <button onClick={handleSignOut}
@@ -109,9 +109,9 @@ export default function TeacherDashboard() {
                   style={{ background: 'rgba(255,255,255,0.06)', border: form.name ? `1px solid ${S.green}` : '1px solid rgba(255,255,255,0.1)', outline: 'none' }} />
               </div>
               <div>
-                <p className="text-[11px] text-gray-500 mb-1">학교/기관</p>
+                <p className="text-[11px] text-gray-500 mb-1">소속 (학교 / 기관 / 회사)</p>
                 <input value={form.school} onChange={e => setForm(f => ({ ...f, school: e.target.value }))}
-                  placeholder={teacher?.school || '학교명'}
+                  placeholder={teacher?.school || '소속'}
                   className="w-full px-3 py-2.5 rounded-xl text-white text-sm"
                   style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', outline: 'none' }} />
               </div>
