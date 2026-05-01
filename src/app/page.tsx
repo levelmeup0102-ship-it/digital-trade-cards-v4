@@ -20,8 +20,10 @@ const S = { green: '#E7FE55', aqua: '#C1E8EB', navy: '#111111', bg: '#0A0A0A' };
 const TABS = ['주제', 'Q1', 'Q2', 'Q3', '결론'] as const;
 type TabType = typeof TABS[number];
 
+// PDF 버튼 표시 여부 (미팅 후 재논의 예정 — true로 바꾸면 부활)
+const SHOW_PDF_BUTTON = false;
+
 function fmt(s: number) { return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`; }
-type AIFeedback = { score: number; highlight: string; improve: string; next: string };
 
 const defaultLeaderConclusion = (): LeaderConclusionState => ({
   fields: ['', '', '', ''],
@@ -44,8 +46,7 @@ export default function Home() {
   const [session, setSession] = useState<Session | null>(null);
   const [teamId, setTeamId] = useState<string | null>(null);
 
-  // 현재 카드 세트 (0~15) + 탭
-  const [currentCardIdx, setCurrentCardIdx] = useState(0); // TOPICS 인덱스
+  const [currentCardIdx, setCurrentCardIdx] = useState(0);
   const [currentTab, setCurrentTab] = useState<TabType>('주제');
 
   const [showList, setShowList] = useState(false);
@@ -63,13 +64,6 @@ export default function Home() {
   const [timerActive, setTimerActive] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const [aiFeedbacks, setAiFeedbacks] = useState<Record<string, AIFeedback>>({});
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiDraftLoading, setAiDraftLoading] = useState<string | null>(null);
-  const [showDraftEditor, setShowDraftEditor] = useState<string | null>(null);
-  const [draftText, setDraftText] = useState('');
-  const [aiUsed, setAiUsed] = useState<Set<string>>(new Set());
-
   const topic = TOPICS[currentCardIdx];
   const color = CARD_COLORS[topic.id].bg;
   const lv = LEVELS[level];
@@ -78,11 +72,9 @@ export default function Home() {
   const currentLeaderConclusion = leaderConclusions[topic.id] || defaultLeaderConclusion();
   const isCardCompleted = completedCards.has(topic.id);
 
-  // 세션 복원 (v1: 옛날 흐름 / v2: /student/join 흐름 둘 다 지원)
   useEffect(() => {
     (async () => {
       try {
-        // 1) 옛날 v1 세션 (수업 코드 + 이름 직접 입력 흐름)
         const saved = await restoreSession();
         if (saved) {
           setSession(saved); setTeamId(saved.team_id);
@@ -95,7 +87,6 @@ export default function Home() {
           return;
         }
 
-        // 2) 새 v2 세션 (/student/join 흐름) — 선생님이 만든 팀에 학생이 명단으로 입장한 경우
         const v2Raw = typeof window !== 'undefined' ? localStorage.getItem('dtc_session_token_v2') : null;
         if (v2Raw) {
           const v2 = JSON.parse(v2Raw);
@@ -172,48 +163,9 @@ export default function Home() {
     if (session && teamId) {
       await saveCardProgress({ teamId, sessionId: session.id, cardId: topic.id, checklistStatus: {}, completed: true });
     }
-    // 다음 카드로 자동 이동
     if (currentCardIdx < TOPICS.length - 1) {
       setTimeout(() => goToCard(currentCardIdx + 1), 1000);
     }
-  };
-
-  const requestFeedback = async (cardId: string) => {
-    const topicData = TOPICS.find(t => t.subs.some(s => s.id === cardId));
-    const sub = topicData?.subs.find(s => s.id === cardId) as SubCard;
-    if (!sub) return;
-    const r = responses[cardId];
-    const responseText = Object.values(r?.texts || {}).filter((t: any) => t?.trim()).join('\n');
-    setAiLoading(true);
-    try {
-      const res = await fetch('/api/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'feedback', cardId: sub.id, question: sub.question, checklist: sub.checklist, response: responseText, item: displayItem, level }) });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      setAiFeedbacks(prev => ({ ...prev, [cardId]: data }));
-    } catch (e) {
-      setAiFeedbacks(prev => ({ ...prev, [cardId]: { score: 3, highlight: '네트워크 오류가 발생했습니다.', improve: '연결을 확인해주세요.', next: '직접 완료를 사용하세요.' } }));
-    } finally { setAiLoading(false); }
-  };
-
-  const requestDraft = async (cardId: string) => {
-    const topicData = TOPICS.find(t => t.subs.some(s => s.id === cardId));
-    const sub = topicData?.subs.find(s => s.id === cardId) as SubCard;
-    if (!sub) return;
-    setAiDraftLoading(cardId);
-    try {
-      const res = await fetch('/api/ai', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'draft', cardId: sub.id, question: sub.question, checklist: sub.checklist, item: displayItem, level }) });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      setDraftText(data.draft); setShowDraftEditor(cardId);
-    } catch (e) {} finally { setAiDraftLoading(null); }
-  };
-
-  const confirmDraft = async (cardId: string) => {
-    await handleSaveResponse(cardId, draftText);
-    setAiUsed(prev => new Set([...prev, cardId]));
-    setShowDraftEditor(null);
   };
 
   const onTouchStart = (e: React.TouchEvent) => setTouchStart(e.touches[0].clientX);
@@ -228,13 +180,13 @@ export default function Home() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (showDraftEditor || screen !== 'game') return;
+      if (screen !== 'game') return;
       if (e.key === 'ArrowRight') goToCard(currentCardIdx + 1);
       if (e.key === 'ArrowLeft') goToCard(currentCardIdx - 1);
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [currentCardIdx, goToCard, showDraftEditor, screen]);
+  }, [currentCardIdx, goToCard, screen]);
 
   const startGame = async () => {
     setJoinError(''); setJoining(true);
@@ -335,7 +287,7 @@ export default function Home() {
           <div className="mb-5">
             <p className="text-sm font-bold text-white mb-1">③ 역할 · 이름</p>
             <div className="flex gap-2 mb-2">
-              {([['leader','👑 팀장','결론 작성 · AI'],['member','💬 팀원','토론 · 카드 열람']] as const).map(([k,l,d]) => (
+              {([['leader','👑 팀장','결론 작성'],['member','💬 팀원','토론 · 카드 열람']] as const).map(([k,l,d]) => (
                 <button key={k} onClick={() => setRole(k)} className="flex-1 px-3 py-2.5 rounded-xl text-left transition"
                   style={{ background: role === k ? `${S.green}10` : 'rgba(255,255,255,0.04)', border: role === k ? `1px solid ${S.green}` : '1px solid rgba(255,255,255,0.08)' }}>
                   <div className="text-[13px] font-bold" style={{ color: role === k ? S.green : '#fff' }}>{l}</div>
@@ -385,7 +337,7 @@ export default function Home() {
           { time: '0–5분',   step: '주제 탭 — 카드 개념 확인', icon: '🎯', color: '#534AB7', tip: '주제 탭을 프로젝터에 띄워 핵심 통찰 질문을 함께 읽으세요.' },
           { time: '5–25분',  step: 'Q1~Q3 탭 — 팀 토론 + 답변', icon: '💬', color: '#00B5AD', tip: '각 Q탭마다 10분씩. 중간 결론 빈칸을 꼭 채우게 하세요.' },
           { time: '25–40분', step: '결론 탭 — 한 문장 전략', icon: '✏️', color: '#78BE20', tip: '4필드 입력 → 자동 합성 → 팀과 함께 다듬기 순서로 진행하세요.' },
-          { time: '40–50분', step: 'AI 피드백 → 카드 완료', icon: '🤖', color: '#4FB0C6', tip: 'Q탭에서 체크리스트 + 최소 글자수 충족 시 AI 피드백 활성화.' },
+          { time: '40–50분', step: '카드 완료 → 다음 카드', icon: '✅', color: '#4FB0C6', tip: 'Q1~Q3 답변 + 한 문장 전략 작성 후 카드 완료.' },
           { time: '50–60분', step: '팀별 발표', icon: '📌', color: '#FF6F61', tip: '각 팀의 한 문장 전략을 발표하고 강사가 피드백합니다.' },
         ].map((f, i) => (
           <div key={i} className="flex gap-3 mb-4">
@@ -507,12 +459,6 @@ export default function Home() {
           onComplete={handleComplete}
           isCardCompleted={isCardCompleted}
           isLeader={isLeader}
-          aiLoading={aiLoading}
-          aiDraftLoading={aiDraftLoading}
-          onRequestFeedback={requestFeedback}
-          onRequestDraft={requestDraft}
-          aiFeedbacks={aiFeedbacks}
-          aiUsed={aiUsed}
           displayItem={displayItem}
           level={level}
           minChars={lv.minChars}
@@ -533,8 +479,8 @@ export default function Home() {
           style={{ background: currentCardIdx === TOPICS.length - 1 ? 'rgba(255,255,255,0.06)' : color, color: '#fff' }}>›</button>
       </div>
 
-      {/* PDF 버튼 (16번 카드에서만) */}
-      {currentCardIdx === 15 && isLeader && (
+      {/* PDF 버튼 — 미팅 후 재논의 예정 (SHOW_PDF_BUTTON=true 시 부활) */}
+      {SHOW_PDF_BUTTON && currentCardIdx === 15 && isLeader && (
         <div className="mt-3 w-full max-w-[420px] relative z-10">
           <button onClick={() => { setShowPdfToast(true); setTimeout(() => setShowPdfToast(false), 3000); }}
             className="w-full py-2.5 font-bold rounded-xl text-[13px] transition"
@@ -553,26 +499,6 @@ export default function Home() {
           className="ml-3 text-gray-700 underline hover:text-gray-500">나가기</button>
         <button onClick={resetSession} className="ml-3 text-gray-700 underline hover:text-red-400">다시 설정</button>
       </div>
-
-      {/* AI Draft Editor */}
-      {showDraftEditor && (
-        <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex justify-center items-end" onClick={e => { if (e.target === e.currentTarget) setShowDraftEditor(null); }}>
-          <div className="w-full max-w-lg max-h-[80vh] bg-white rounded-t-2xl flex flex-col" style={{ animation: 'slideUp 0.35s ease-out' }}>
-            <div className="px-5 pt-4 pb-3 border-b border-gray-100 flex items-center justify-between">
-              <div><div className="text-sm font-extrabold text-gray-900">🤖 AI 자동 초안</div><div className="text-[11px] text-amber-600">수정 후 컨펌해야 저장됩니다</div></div>
-              <button onClick={() => setShowDraftEditor(null)} className="bg-gray-100 px-3 py-1.5 rounded-lg text-xs text-gray-500">닫기</button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-5">
-              <textarea value={draftText} onChange={e => setDraftText(e.target.value)}
-                className="w-full min-h-[200px] px-4 py-3 border-2 border-amber-300 rounded-xl text-[13px] text-gray-800 leading-relaxed resize-y bg-amber-50 focus:border-amber-500 focus:outline-none" rows={6} />
-            </div>
-            <div className="p-4 border-t border-gray-100 flex gap-2">
-              <button onClick={() => setShowDraftEditor(null)} className="flex-1 py-3 bg-gray-100 text-gray-500 font-bold rounded-xl text-sm">취소</button>
-              <button onClick={() => confirmDraft(showDraftEditor!)} className="flex-[2] py-3 bg-amber-500 text-white font-bold rounded-xl text-sm">🤖 수정 완료 · 컨펌</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Toast */}
       {savedToast && (
