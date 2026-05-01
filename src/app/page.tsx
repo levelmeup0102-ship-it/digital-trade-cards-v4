@@ -32,18 +32,34 @@ const defaultLeaderConclusion = (): LeaderConclusionState => ({
   judgments: [false, false, false, false],
 });
 
+// ⭐ 인트로용 16장 카드 데이터 — 부채꼴 펼침 각도 계산
+const INTRO_CARDS = Array.from({ length: 16 }, (_, i) => {
+  const id = String(i + 1).padStart(2, '0');
+  // 부채꼴 펼침: -45도 ~ +45도, 16장이 균등 분포
+  const totalAngle = 90; // 전체 부채꼴 각도
+  const angle = -totalAngle / 2 + (totalAngle / 15) * i;
+  return {
+    id,
+    color: CARD_COLORS[id]?.bg || '#4FB0C6',
+    angle,
+    delay: i * 0.06, // 한 장씩 0.06초 간격으로 등장 (총 ~1초)
+  };
+});
+
 export default function Home() {
   const router = useRouter();
 
-  const [screen, setScreen] = useState<'landing'|'guide'|'game'>('landing');
+  const [screen, setScreen] = useState<'intro'|'landing'|'guide'|'game'>('intro'); // ⭐ intro 추가
   const [sessionLoading, setSessionLoading] = useState(true);
+  const [introDone, setIntroDone] = useState(false); // ⭐ 인트로 완료 여부
+  const [exiting, setExiting] = useState(false); // ⭐ 페이지 전환 효과
 
   const [item, setItem] = useState('');
   const [customItem, setCustomItem] = useState('');
   const [role, setRole] = useState<'leader'|'member'>('leader');
   const [playerName, setPlayerName] = useState('');
   const [level, setLevel] = useState('standard');
-  const [roleCode, setRoleCode] = useState<RoleCode | null>(null); // ⭐ NEW: 본인 직무 코드
+  const [roleCode, setRoleCode] = useState<RoleCode | null>(null);
 
   const [session, setSession] = useState<Session | null>(null);
   const [teamId, setTeamId] = useState<string | null>(null);
@@ -74,8 +90,18 @@ export default function Home() {
   const currentLeaderConclusion = leaderConclusions[topic.id] || defaultLeaderConclusion();
   const isCardCompleted = completedCards.has(topic.id);
 
-  // ⭐ 본인 직무 정보
   const myRole = roleCode ? getRole(roleCode) : null;
+
+  // ⭐ 인트로 자동 종료 (3.5초 후)
+  useEffect(() => {
+    if (screen !== 'intro') return;
+    const timer = setTimeout(() => {
+      setIntroDone(true);
+      // 약간의 페이드 후 landing으로
+      setTimeout(() => setScreen('landing'), 300);
+    }, 3200);
+    return () => clearTimeout(timer);
+  }, [screen]);
 
   useEffect(() => {
     (async () => {
@@ -88,7 +114,7 @@ export default function Home() {
           const [resps, prog] = await Promise.all([loadCardResponses(saved.team_id), loadCardProgress(saved.team_id)]);
           setResponses(resps); setCheckStates(prog.checkStates); setCompletedCards(prog.completedCards);
           setTimer(LEVELS[saved.level]?.timer || 1200);
-          setScreen('game');
+          setScreen('game'); // 세션 있으면 인트로 스킵
           setSessionLoading(false);
           return;
         }
@@ -109,7 +135,6 @@ export default function Home() {
             setSession(sess); setTeamId(v2.teamId);
             setPlayerName(v2.memberName); setRole(v2Role);
             setLevel(v2Level); setItem(v2.item || '');
-            // ⭐ NEW: 직무 코드 세션에서 읽기
             if (v2.roleCode) setRoleCode(v2.roleCode as RoleCode);
             const [resps, prog] = await Promise.all([loadCardResponses(v2.teamId), loadCardProgress(v2.teamId)]);
             setResponses(resps); setCheckStates(prog.checkStates); setCompletedCards(prog.completedCards);
@@ -209,6 +234,12 @@ export default function Home() {
     router.push('/student/join');
   };
 
+  // ⭐ 시작하기 버튼 — 클릭 시 화면 빨려들어가는 효과
+  const handleStartClick = (path: string) => {
+    setExiting(true);
+    setTimeout(() => router.push(path), 600);
+  };
+
   // ─── 로딩 ───
   if (sessionLoading) return (
     <div className="min-h-screen flex items-center justify-center">
@@ -216,13 +247,109 @@ export default function Home() {
     </div>
   );
 
+  // ─── ⭐ INTRO (카드 셔플 인트로) ⭐ ───
+  if (screen === 'intro') return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden"
+      style={{
+        opacity: introDone ? 0 : 1,
+        transition: 'opacity 0.3s ease-out',
+      }}>
+
+      {/* 배경 플래시 */}
+      <div className="fixed inset-0 pointer-events-none"
+        style={{
+          background: `radial-gradient(circle at center, ${S.green}10 0%, transparent 60%)`,
+          animation: 'introFlash 3.2s ease-out forwards',
+        }} />
+
+      {/* 16장 카드 셔플 영역 */}
+      <div className="relative w-full max-w-md h-80 flex items-center justify-center mb-6">
+        {INTRO_CARDS.map((card, i) => (
+          <div
+            key={card.id}
+            className="absolute rounded-xl flex flex-col items-center justify-center text-white font-black"
+            style={{
+              width: '60px',
+              height: '84px',
+              background: card.color,
+              boxShadow: `0 8px 24px ${card.color}66, 0 0 20px ${card.color}33`,
+              animation: `introCardEnter 1.8s cubic-bezier(0.16, 1, 0.3, 1) ${card.delay}s forwards`,
+              transformOrigin: 'bottom center',
+              opacity: 0,
+              '--final-angle': `${card.angle}deg`,
+              '--final-y': `${Math.abs(card.angle) * 0.5}px`,
+            } as React.CSSProperties}
+          >
+            <span className="text-[10px] font-mono opacity-80">CARD</span>
+            <span className="text-base font-mono">{card.id}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* 로고 (인트로 후반부 등장) */}
+      <div className="text-center"
+        style={{
+          opacity: 0,
+          animation: 'introLogoFade 1.2s ease-out 2s forwards',
+        }}>
+        <p className="text-[11px] tracking-[6px] text-gray-600 uppercase mb-2 font-mono">ConnectAI</p>
+        <h1 className="text-5xl font-black text-white tracking-tight mb-2">SIGNAL</h1>
+        <p className="text-gray-400 text-sm font-bold">디지털 무역 전략카드</p>
+      </div>
+
+      <style jsx>{`
+        @keyframes introCardEnter {
+          0% {
+            opacity: 0;
+            transform: translateX(300px) translateY(-50px) rotate(45deg) scale(0.5);
+          }
+          40% {
+            opacity: 1;
+            transform: translateX(0) translateY(-10px) rotate(0deg) scale(1);
+          }
+          100% {
+            opacity: 1;
+            transform: translateX(0) translateY(var(--final-y, 0)) rotate(var(--final-angle, 0deg)) scale(1);
+          }
+        }
+
+        @keyframes introFlash {
+          0%, 100% { opacity: 0; }
+          5% { opacity: 1; }
+          15% { opacity: 0.3; }
+          50% { opacity: 0.5; }
+          100% { opacity: 0.2; }
+        }
+
+        @keyframes introLogoFade {
+          0% {
+            opacity: 0;
+            transform: translateY(20px) scale(0.95);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+      `}</style>
+    </div>
+  );
+
   // ─── LANDING ───
   if (screen === 'landing') return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden"
+      style={{
+        opacity: exiting ? 0 : 1,
+        transform: exiting ? 'scale(1.5)' : 'scale(1)',
+        transition: 'all 0.6s cubic-bezier(0.7, 0, 0.84, 0)',
+        filter: exiting ? 'blur(8px)' : 'blur(0)',
+      }}>
+
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full pointer-events-none"
         style={{ background: `radial-gradient(circle, ${S.green}08 0%, transparent 70%)` }} />
 
-      <div className="relative z-10 text-center max-w-md w-full">
+      <div className="relative z-10 text-center max-w-md w-full"
+        style={{ animation: 'fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}>
         <p className="text-[11px] tracking-[6px] text-gray-600 uppercase mb-4 font-mono">ConnectAI</p>
         <h1 className="text-6xl font-black text-white mb-2 tracking-tight">SIGNAL</h1>
         <p className="text-gray-500 text-sm mb-2 font-mono">디지털 무역 전략카드</p>
@@ -232,23 +359,26 @@ export default function Home() {
 
         <div className="flex justify-center gap-3 mb-10">
           {['01','02','03','04','05'].map((id, i) => (
-            <div key={id} className="w-12 h-16 rounded-xl flex items-center justify-center text-white text-[11px] font-black font-mono"
+            <div key={id} className="w-12 h-16 rounded-xl flex items-center justify-center text-white text-[11px] font-black font-mono hover-lift"
               style={{ background: CARD_COLORS[id].bg, transform: `rotate(${(i-2)*6}deg)`, boxShadow: `0 4px 20px ${CARD_COLORS[id].bg}55` }}>{id}</div>
           ))}
         </div>
 
-        <button onClick={() => router.push('/student/join')}
-          className="relative w-full py-4 font-black rounded-2xl text-base mb-3 transition-all hover:scale-[1.02] overflow-hidden group"
+        {/* ⭐ 학생 버튼 - 빛 한 바퀴 + 광택 */}
+        <button onClick={() => handleStartClick('/student/join')}
+          className="btn-orbit relative w-full py-4 font-black rounded-2xl text-base mb-3 transition-all hover:scale-[1.02] overflow-hidden group"
           style={{ background: S.green, color: S.navy, boxShadow: `0 10px 30px -5px ${S.green}66` }}>
           <span className="relative z-10">🎓 학생으로 입장 →</span>
+          {/* 광택 (호버 시) */}
           <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700"
             style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)' }} />
         </button>
 
-        <button onClick={() => router.push('/teacher')}
-          className="w-full py-3.5 font-bold rounded-2xl text-[14px] transition-all hover:scale-[1.01] mb-3"
+        {/* ⭐ 관리자 버튼 - 빛 한 바퀴 효과 */}
+        <button onClick={() => handleStartClick('/teacher')}
+          className="btn-orbit-aqua relative w-full py-3.5 font-bold rounded-2xl text-[14px] transition-all hover:scale-[1.01] mb-3 overflow-hidden"
           style={{ background: 'rgba(193,232,235,0.08)', border: `1px solid ${S.aqua}33`, color: S.aqua }}>
-          💼 관리자 로그인
+          <span className="relative z-10">💼 관리자 로그인</span>
         </button>
 
         <button onClick={() => setScreen('guide')}
@@ -259,6 +389,72 @@ export default function Home() {
 
         <p className="text-gray-700 text-[10px] mt-8 font-mono">© 2026 SIGNAL — ConnectAI</p>
       </div>
+
+      <style jsx>{`
+        /* 메인 버튼 — 빛이 테두리를 한 바퀴 도는 효과 */
+        .btn-orbit::before {
+          content: '';
+          position: absolute;
+          top: -2px;
+          left: -2px;
+          right: -2px;
+          bottom: -2px;
+          border-radius: 16px;
+          background: conic-gradient(
+            from 0deg,
+            transparent 0deg,
+            rgba(255, 255, 255, 0.6) 30deg,
+            transparent 60deg,
+            transparent 360deg
+          );
+          animation: btnOrbit 3s linear infinite;
+          z-index: 0;
+          opacity: 0;
+          transition: opacity 0.3s;
+        }
+        .btn-orbit:hover::before {
+          opacity: 1;
+        }
+        .btn-orbit::after {
+          content: '';
+          position: absolute;
+          inset: 2px;
+          border-radius: 14px;
+          background: ${S.green};
+          z-index: 1;
+        }
+        .btn-orbit > * {
+          position: relative;
+          z-index: 2;
+        }
+
+        /* 관리자 버튼 — 아쿠아 톤 빛 */
+        .btn-orbit-aqua::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: 16px;
+          background: conic-gradient(
+            from 0deg,
+            transparent 0deg,
+            ${S.aqua}55 30deg,
+            transparent 60deg,
+            transparent 360deg
+          );
+          animation: btnOrbit 4s linear infinite;
+          opacity: 0;
+          transition: opacity 0.3s;
+          z-index: 0;
+        }
+        .btn-orbit-aqua:hover::before {
+          opacity: 1;
+        }
+
+        @keyframes btnOrbit {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 
@@ -302,7 +498,6 @@ export default function Home() {
       <div className="fixed top-[20%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full pointer-events-none"
         style={{ background: `radial-gradient(circle, ${color}15 0%, transparent 70%)` }} />
 
-      {/* Header */}
       <div className="w-full max-w-md mb-3 relative z-10">
         <div className="flex items-center justify-between mb-2">
           <div>
@@ -319,7 +514,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ⭐ 본인 정보 + 직무 배지 */}
         <div className="flex items-center gap-2 mb-2">
           {myRole ? (
             <div className="flex items-center gap-1.5 rounded-lg px-2 py-1"
@@ -339,7 +533,6 @@ export default function Home() {
             style={{ color: S.green, background: `${S.green}10` }}>{displayItem}</span>
         </div>
 
-        {/* 타이머 */}
         <div className="flex items-center gap-2 mb-2">
           <div className="flex-1" />
           <div className="flex items-center gap-1.5 rounded-lg px-2 py-1" style={{ background: 'rgba(255,255,255,0.06)' }}>
@@ -351,7 +544,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 진행 바 */}
         <div className="flex items-center gap-2 mb-2">
           <span className="text-[11px] text-gray-600 font-mono min-w-[50px]">{currentCardIdx + 1} / {TOPICS.length}</span>
           <div className="flex-1 h-[4px] rounded-full overflow-hidden relative" style={{ background: 'rgba(255,255,255,0.08)' }}>
@@ -371,7 +563,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 챕터 동그라미 */}
         <div className="flex gap-0.5 flex-wrap">
           {TOPICS.map((t, i) => (
             <button key={t.id} onClick={() => goToCard(i)}
@@ -388,7 +579,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ⭐ 직무 미션 표시 — 현재 카드가 본인 담당이면 */}
       {myRole && myRole.primaryCards.includes(topic.id) && (
         <div className="w-full max-w-md mb-3 relative z-10">
           <div className="rounded-xl px-3 py-2 flex items-center gap-2 backdrop-blur-sm"
@@ -406,7 +596,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* 카드 목록 오버레이 */}
       {showList && (
         <div className="fixed inset-0 backdrop-blur-xl z-[100] overflow-y-auto p-4 pt-14" style={{ background: 'rgba(0,0,0,0.92)' }}>
           <button onClick={() => setShowList(false)} className="fixed top-4 right-4 rounded-lg px-4 py-2 text-white text-sm z-10" style={{ background: 'rgba(255,255,255,0.1)' }}>닫기</button>
@@ -419,7 +608,6 @@ export default function Home() {
                 <button key={t.id} onClick={() => { goToCard(i); setShowList(false); }}
                   className="text-left rounded-xl p-3 transition relative"
                   style={{ background: done ? `${CARD_COLORS[t.id].bg}22` : 'rgba(255,255,255,0.04)', border: `1px solid ${done ? CARD_COLORS[t.id].bg + '55' : 'rgba(255,255,255,0.08)'}` }}>
-                  {/* 본인 담당 카드 표시 */}
                   {myCard && (
                     <div className="absolute top-2 right-2 text-[12px]" title={`${myRole?.nameKr} 담당 카드`}>
                       {myRole?.icon}
@@ -438,7 +626,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* 5탭 카드 플레이어 */}
       <div key={topic.id} className="w-full max-w-[420px] relative z-10 card-enter"
         onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
         <SignalCard
@@ -463,7 +650,6 @@ export default function Home() {
         />
       </div>
 
-      {/* 카드 네비게이션 */}
       <div className="flex gap-3 items-center mt-4 relative z-10">
         <button onClick={() => goToCard(currentCardIdx - 1)} disabled={currentCardIdx === 0}
           className="w-11 h-11 rounded-full flex items-center justify-center text-lg transition-all disabled:opacity-20 hover:scale-110"
