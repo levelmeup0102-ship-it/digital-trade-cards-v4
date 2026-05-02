@@ -106,11 +106,11 @@ function InteractiveButton({
 
       {/* ⭐ 오로라 파동 (한 번만, 잔잔히 좌→우 흐름) */}
       {auroraWave && (
-        <span className="absolute inset-0 pointer-events-none aurora-wave"
+        <div className="absolute inset-0 pointer-events-none aurora-wave"
           style={{
-            background: 'linear-gradient(110deg, transparent 30%, #06B6D4 42%, #8B5CF6 50%, #3B82F6 58%, transparent 70%)',
-            backgroundSize: '300% 100%',
-            isolation: 'isolate',
+            background: 'linear-gradient(110deg, transparent 20%, #06B6D4 35%, #8B5CF6 50%, #3B82F6 65%, transparent 80%)',
+            backgroundSize: '250% 100%',
+            mixBlendMode: 'screen',
           }} />
       )}
 
@@ -1122,33 +1122,34 @@ export default function StudentJoin() {
         /* ⭐⭐⭐ 오로라 파동 (background-position으로 안전하게) ⭐⭐⭐ */
         .aurora-wave {
           animation: auroraSweep 2s ease-in-out forwards;
-          background-position: -50% 50%;
+          background-position: -150% 50%;
+          opacity: 0;
         }
         @keyframes auroraSweep {
           0% {
-            background-position: -50% 50%;
+            background-position: -150% 50%;
             opacity: 0;
           }
           15% {
-            opacity: 0.85;
+            opacity: 0.9;
           }
           35% {
-            background-position: 30% 30%;
-            opacity: 0.95;
+            background-position: 0% 30%;
+            opacity: 1;
           }
           50% {
             background-position: 50% 70%;
             opacity: 1;
           }
           65% {
-            background-position: 75% 30%;
+            background-position: 100% 30%;
             opacity: 0.95;
           }
           85% {
-            opacity: 0.7;
+            opacity: 0.6;
           }
           100% {
-            background-position: 150% 50%;
+            background-position: 250% 50%;
             opacity: 0;
           }
         }
