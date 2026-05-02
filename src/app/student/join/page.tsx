@@ -104,14 +104,19 @@ function InteractiveButton({
           background: `linear-gradient(90deg, transparent 0%, ${color}55 50%, transparent 100%)`,
         }} />
 
-      {/* ⭐ 오로라 파동 (박스 전체에 깔리고 물결처럼 흐름) */}
+      {/* ⭐ 오로라 파동 (transform으로 좌→우 슬라이드) */}
       {auroraWave && (
-        <div className="absolute inset-0 pointer-events-none aurora-wave"
-          style={{
-            background: 'linear-gradient(110deg, #06B6D4 0%, #8B5CF6 25%, #3B82F6 50%, #8B5CF6 75%, #06B6D4 100%)',
-            backgroundSize: '200% 200%',
-            mixBlendMode: 'screen',
-          }} />
+        <div className="absolute inset-0 overflow-hidden pointer-events-none"
+          style={{ borderRadius: 'inherit' }}>
+          <div className="aurora-wave absolute top-0 bottom-0"
+            style={{
+              width: '200%',
+              left: '-100%',
+              background: 'linear-gradient(110deg, transparent 0%, #06B6D4 20%, #8B5CF6 35%, #3B82F6 50%, #8B5CF6 65%, #06B6D4 80%, transparent 100%)',
+              mixBlendMode: 'screen',
+              opacity: 0.9,
+            }} />
+        </div>
       )}
 
       <span className="relative z-10">{children}</span>
@@ -1098,37 +1103,33 @@ export default function StudentJoin() {
           }
         }
 
-        /* ⭐⭐⭐ 오로라 파동 (물결처럼 흐름 - X+Y 같이 변동) ⭐⭐⭐ */
+        /* ⭐⭐⭐ 오로라 파동 (transform translateX로 확실히 움직임) ⭐⭐⭐ */
         .aurora-wave {
-          animation: auroraSweep 2.5s ease-in-out forwards;
-          background-position: 0% 0%;
-          opacity: 0;
+          animation: auroraSlide 2.5s ease-in-out forwards;
         }
-        @keyframes auroraSweep {
+        @keyframes auroraSlide {
           0% {
-            background-position: 0% 0%;
+            transform: translateX(0%) translateY(0px);
             opacity: 0;
           }
-          12% {
-            opacity: 0.85;
+          15% {
+            opacity: 0.9;
           }
           25% {
-            background-position: 25% 100%;
-            opacity: 0.95;
+            transform: translateX(20%) translateY(-4px);
           }
           50% {
-            background-position: 50% 0%;
+            transform: translateX(40%) translateY(3px);
             opacity: 1;
           }
           75% {
-            background-position: 75% 100%;
-            opacity: 0.95;
+            transform: translateX(60%) translateY(-3px);
           }
-          88% {
-            opacity: 0.6;
+          85% {
+            opacity: 0.7;
           }
           100% {
-            background-position: 100% 0%;
+            transform: translateX(75%) translateY(0px);
             opacity: 0;
           }
         }
