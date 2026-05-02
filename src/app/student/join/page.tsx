@@ -87,9 +87,9 @@ function InteractiveButton({
   const [auroraWave, setAuroraWave] = useState(false);
 
   const handleClick = () => {
-    // 오로라 파동 한 번 (잔잔히)
+    // 오로라 파동 한 번 (잔잔히 좌→우)
     setAuroraWave(true);
-    setTimeout(() => setAuroraWave(false), 1600);
+    setTimeout(() => setAuroraWave(false), 2000);
 
     onClick();
   };
@@ -108,10 +108,9 @@ function InteractiveButton({
       {auroraWave && (
         <span className="absolute inset-0 pointer-events-none aurora-wave"
           style={{
-            background: 'linear-gradient(110deg, transparent 0%, transparent 20%, #06B6D4 35%, #3B82F6 50%, #8B5CF6 65%, transparent 80%, transparent 100%)',
+            background: 'linear-gradient(110deg, transparent 35%, #06B6D4 45%, #8B5CF6 50%, #3B82F6 55%, transparent 65%)',
+            backgroundSize: '300% 100%',
             mixBlendMode: 'screen',
-            opacity: 0.55,
-            filter: 'blur(8px)',
           }} />
       )}
 
@@ -1034,31 +1033,37 @@ export default function StudentJoin() {
           50% { filter: brightness(1.1); }
         }
 
-        /* ⭐⭐⭐ 오로라 파동 (잔잔하게 흐름, 살짝 움직임) ⭐⭐⭐ */
+        /* ⭐⭐⭐ 오로라 파동 (background-position으로 안전하게) ⭐⭐⭐ */
         .aurora-wave {
-          animation: auroraWaveAnim 1.6s ease-in-out forwards;
-          transform: translateX(-100%);
+          animation: auroraSweep 2s ease-in-out forwards;
+          background-position: -50% 50%;
         }
-        @keyframes auroraWaveAnim {
+        @keyframes auroraSweep {
           0% {
-            transform: translateX(-100%) translateY(0) scale(1);
-            filter: blur(8px) hue-rotate(0deg);
+            background-position: -50% 50%;
+            opacity: 0;
           }
-          25% {
-            transform: translateX(-50%) translateY(-3px) scale(1.05);
-            filter: blur(10px) hue-rotate(-10deg);
+          15% {
+            opacity: 0.85;
+          }
+          35% {
+            background-position: 30% 30%;
+            opacity: 0.95;
           }
           50% {
-            transform: translateX(0) translateY(2px) scale(1.1);
-            filter: blur(8px) hue-rotate(0deg);
+            background-position: 50% 70%;
+            opacity: 1;
           }
-          75% {
-            transform: translateX(50%) translateY(-2px) scale(1.05);
-            filter: blur(10px) hue-rotate(10deg);
+          65% {
+            background-position: 75% 30%;
+            opacity: 0.95;
+          }
+          85% {
+            opacity: 0.7;
           }
           100% {
-            transform: translateX(100%) translateY(0) scale(1);
-            filter: blur(8px) hue-rotate(0deg);
+            background-position: 150% 50%;
+            opacity: 0;
           }
         }
 
