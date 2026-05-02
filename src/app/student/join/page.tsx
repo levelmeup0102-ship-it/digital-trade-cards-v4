@@ -108,9 +108,9 @@ function InteractiveButton({
       {auroraWave && (
         <span className="absolute inset-0 pointer-events-none aurora-wave"
           style={{
-            background: 'linear-gradient(110deg, transparent 35%, #06B6D4 45%, #8B5CF6 50%, #3B82F6 55%, transparent 65%)',
+            background: 'linear-gradient(110deg, transparent 30%, #06B6D4 42%, #8B5CF6 50%, #3B82F6 58%, transparent 70%)',
             backgroundSize: '300% 100%',
-            mixBlendMode: 'screen',
+            isolation: 'isolate',
           }} />
       )}
 
@@ -347,15 +347,101 @@ export default function StudentJoin() {
 
       {/* ⭐⭐⭐ 사이버틱 배경 효과 ⭐⭐⭐ */}
 
-      {/* 그리드 패턴 */}
-      <div className="fixed inset-0 pointer-events-none opacity-[0.07]"
-        style={{
-          backgroundImage: `
-            linear-gradient(${S.green} 1px, transparent 1px),
-            linear-gradient(90deg, ${S.green} 1px, transparent 1px)
-          `,
-          backgroundSize: '60px 60px',
-        }} />
+      {/* ⭐ 회로 패턴 (Circuit Lines) */}
+      <svg className="fixed inset-0 pointer-events-none w-full h-full"
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ opacity: 0.18, zIndex: 0 }}>
+        <defs>
+          {/* 회로 패턴 정의 - 200x200 타일이 반복됨 */}
+          <pattern id="circuit-pattern" x="0" y="0" width="200" height="200" patternUnits="userSpaceOnUse">
+            {/* 가로 라인 */}
+            <line x1="0" y1="40" x2="80" y2="40" stroke={S.green} strokeWidth="1" />
+            <line x1="120" y1="40" x2="200" y2="40" stroke={S.green} strokeWidth="1" />
+            <line x1="0" y1="120" x2="160" y2="120" stroke={S.aqua} strokeWidth="1" />
+
+            {/* 세로 라인 */}
+            <line x1="80" y1="40" x2="80" y2="100" stroke={S.green} strokeWidth="1" />
+            <line x1="160" y1="120" x2="160" y2="200" stroke={S.aqua} strokeWidth="1" />
+            <line x1="40" y1="0" x2="40" y2="80" stroke={S.green} strokeWidth="1" />
+
+            {/* 꺾이는 라인 */}
+            <path d="M 80 100 L 120 100 L 120 40" stroke={S.green} strokeWidth="1" fill="none" />
+            <path d="M 40 80 L 80 80" stroke={S.aqua} strokeWidth="1" fill="none" />
+            <path d="M 0 160 L 60 160 L 60 200" stroke={S.green} strokeWidth="1" fill="none" />
+            <path d="M 100 160 L 140 160 L 140 120" stroke={S.aqua} strokeWidth="1" fill="none" />
+
+            {/* 노드 (점 - 회로 연결점) */}
+            <circle cx="80" cy="40" r="3" fill={S.green} />
+            <circle cx="120" cy="40" r="3" fill={S.green} />
+            <circle cx="40" cy="80" r="3" fill={S.aqua} />
+            <circle cx="80" cy="100" r="3" fill={S.green} />
+            <circle cx="160" cy="120" r="3" fill={S.aqua} />
+            <circle cx="60" cy="160" r="3" fill={S.green} />
+            <circle cx="140" cy="160" r="3" fill={S.aqua} />
+            <circle cx="100" cy="160" r="2" fill={S.green} />
+
+            {/* 작은 사각형 (회로 부품) */}
+            <rect x="76" y="36" width="8" height="8" fill="none" stroke={S.green} strokeWidth="0.5" />
+            <rect x="156" y="116" width="8" height="8" fill="none" stroke={S.aqua} strokeWidth="0.5" />
+          </pattern>
+
+          {/* 발광 노드 글로우 */}
+          <filter id="circuit-glow">
+            <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+            <feMerge>
+              <feMergeNode in="coloredBlur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
+        {/* 회로 패턴 적용 */}
+        <rect width="100%" height="100%" fill="url(#circuit-pattern)" />
+      </svg>
+
+      {/* ⭐ 빛나며 흐르는 회로 신호 (펄스 - 가로 방향) */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
+        {/* 신호 1 — 위쪽 */}
+        <div className="absolute circuit-signal-1"
+          style={{
+            top: '15%',
+            left: 0,
+            width: '80px',
+            height: '2px',
+            background: `linear-gradient(90deg, transparent, ${S.green}, transparent)`,
+            boxShadow: `0 0 12px ${S.green}, 0 0 20px ${S.green}66`,
+          }} />
+        {/* 신호 2 — 중간 */}
+        <div className="absolute circuit-signal-2"
+          style={{
+            top: '50%',
+            right: 0,
+            width: '100px',
+            height: '2px',
+            background: `linear-gradient(90deg, transparent, ${S.aqua}, transparent)`,
+            boxShadow: `0 0 12px ${S.aqua}, 0 0 20px ${S.aqua}66`,
+          }} />
+        {/* 신호 3 — 아래 */}
+        <div className="absolute circuit-signal-3"
+          style={{
+            top: '80%',
+            left: 0,
+            width: '60px',
+            height: '2px',
+            background: `linear-gradient(90deg, transparent, ${S.green}, transparent)`,
+            boxShadow: `0 0 12px ${S.green}, 0 0 20px ${S.green}66`,
+          }} />
+        {/* 신호 4 — 세로 방향 */}
+        <div className="absolute circuit-signal-vertical"
+          style={{
+            left: '20%',
+            top: 0,
+            width: '2px',
+            height: '60px',
+            background: `linear-gradient(180deg, transparent, ${S.aqua}, transparent)`,
+            boxShadow: `0 0 12px ${S.aqua}, 0 0 20px ${S.aqua}66`,
+          }} />
+      </div>
 
       {/* 메시 그라디언트 */}
       <div className="fixed inset-0 pointer-events-none"
@@ -1065,6 +1151,46 @@ export default function StudentJoin() {
             background-position: 150% 50%;
             opacity: 0;
           }
+        }
+
+        /* ⭐⭐⭐ 회로 신호 (라인을 따라 빛이 흐름) ⭐⭐⭐ */
+
+        /* 신호 1 - 좌→우 (위쪽) */
+        .circuit-signal-1 {
+          animation: signalRight 4s linear infinite;
+        }
+        @keyframes signalRight {
+          0% { transform: translateX(-80px); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { transform: translateX(100vw); opacity: 0; }
+        }
+
+        /* 신호 2 - 우→좌 (중간) */
+        .circuit-signal-2 {
+          animation: signalLeft 5s linear infinite 1s;
+        }
+        @keyframes signalLeft {
+          0% { transform: translateX(100px); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { transform: translateX(-100vw); opacity: 0; }
+        }
+
+        /* 신호 3 - 좌→우 (아래) */
+        .circuit-signal-3 {
+          animation: signalRight 6s linear infinite 2s;
+        }
+
+        /* 세로 신호 - 위→아래 */
+        .circuit-signal-vertical {
+          animation: signalDown 5s linear infinite 0.5s;
+        }
+        @keyframes signalDown {
+          0% { transform: translateY(-60px); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { transform: translateY(100vh); opacity: 0; }
         }
 
         /* ⭐⭐⭐ 사이버틱 효과 ⭐⭐⭐ */
