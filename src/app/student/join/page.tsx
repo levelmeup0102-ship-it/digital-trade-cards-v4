@@ -85,10 +85,20 @@ function InteractiveButton({
   uniqueKey: string;
 }) {
   const [auroraWave, setAuroraWave] = useState(false);
+  const [auroraOpacity, setAuroraOpacity] = useState(0);
 
   const handleClick = () => {
-    // 오로라 파동 한 번 (물결처럼 흐름)
+    // 오로라 펄스 (JS로 직접 opacity 제어 - CSS 의존 없음)
     setAuroraWave(true);
+    setAuroraOpacity(0);
+
+    // 진해짐 (transition으로 1초간)
+    setTimeout(() => setAuroraOpacity(1), 50);
+
+    // 사라짐 (transition으로 1초간)
+    setTimeout(() => setAuroraOpacity(0), 1500);
+
+    // div 제거
     setTimeout(() => setAuroraWave(false), 2500);
 
     onClick();
@@ -104,13 +114,15 @@ function InteractiveButton({
           background: `linear-gradient(90deg, transparent 0%, ${color}55 50%, transparent 100%)`,
         }} />
 
-      {/* ⭐ 오로라 펄스 (숨쉬듯 깜빡임) */}
+      {/* ⭐ 오로라 펄스 (JS state로 opacity 직접 제어) */}
       {auroraWave && (
-        <div className="absolute inset-0 pointer-events-none aurora-wave"
+        <div className="absolute inset-0 pointer-events-none"
           style={{
             background: 'linear-gradient(110deg, #06B6D4 0%, #8B5CF6 25%, #3B82F6 50%, #8B5CF6 75%, #06B6D4 100%)',
             mixBlendMode: 'screen',
             borderRadius: 'inherit',
+            opacity: auroraOpacity,
+            transition: 'opacity 1s ease-in-out',
           }} />
       )}
 
