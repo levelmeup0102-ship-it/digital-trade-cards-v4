@@ -32,15 +32,15 @@ const defaultLeaderConclusion = (): LeaderConclusionState => ({
   judgments: [false, false, false, false],
 });
 
-// ⭐ 인트로용 16장 카드 — 우아한 방사형 흩어짐 (시계 방향 균등 분포)
+// ⭐ 인트로용 16장 카드 — 완벽한 원형 정렬 (시계 방향 균등 분포)
 const INTRO_CARDS = Array.from({ length: 16 }, (_, i) => {
   const id = String(i + 1).padStart(2, '0');
-  // 360°를 16등분 → 각 카드가 균등하게 사방으로
+  // 360°를 16등분 → 22.5° 간격으로 균등 분포
   const angle = (360 / 16) * i - 90; // -90도부터 시작 (위쪽부터)
-  // 거리는 약간만 다르게 (자연스러운 변화)
-  const distance = 220 + (i % 2) * 20; // 짝수/홀수 번갈아 다른 거리
-  // 카드 회전 (날아가면서 살짝 돌도록)
-  const finalRotate = angle + 90; // 카드가 바깥쪽을 향하도록
+  // ⭐ 거리는 모두 동일 → 완벽한 원
+  const distance = 240;
+  // 카드 회전 (바깥쪽을 향하도록)
+  const finalRotate = angle + 90;
   
   return {
     id,
@@ -50,7 +50,7 @@ const INTRO_CARDS = Array.from({ length: 16 }, (_, i) => {
     x: Math.cos((angle * Math.PI) / 180) * distance,
     y: Math.sin((angle * Math.PI) / 180) * distance,
     finalRotate,
-    delay: 1.4 + i * 0.03, // 가방 열린 후 빠르게 차례로
+    delay: 1.4 + i * 0.03,
   };
 });
 
@@ -439,16 +439,18 @@ export default function Home() {
         ))}
       </div>
 
-      {/* 로고 */}
-      <div className="text-center mt-4 absolute bottom-12 left-1/2 -translate-x-1/2"
+      {/* 로고 — 화면 정가운데 하단 정렬 */}
+      <div className="absolute bottom-12 left-0 right-0 flex justify-center"
         style={{
           opacity: 0,
           animation: 'introLogoFade 1s ease-out 3.3s forwards',
           zIndex: 30,
         }}>
-        <p className="text-[11px] tracking-[6px] text-gray-600 uppercase mb-2 font-mono">ConnectAI</p>
-        <h1 className="text-5xl font-black text-white tracking-tight mb-2">SIGNAL</h1>
-        <p className="text-gray-400 text-sm font-bold">디지털 무역 전략카드</p>
+        <div className="text-center">
+          <p className="text-[11px] tracking-[6px] text-gray-600 uppercase mb-2 font-mono">ConnectAI</p>
+          <h1 className="text-5xl font-black text-white tracking-tight mb-2">SIGNAL</h1>
+          <p className="text-gray-400 text-sm font-bold">디지털 무역 전략카드</p>
+        </div>
       </div>
 
       <style jsx>{`
