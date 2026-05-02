@@ -7,7 +7,15 @@ import {
 } from '@/lib/teacher';
 import type { Teacher, Class, Team } from '@/lib/teacher';
 
-const S = { green: '#E7FE55', aqua: '#C1E8EB', navy: '#111111', bg: '#0A0A0A', gold: '#FFD700' };
+const S = {
+  green: '#E7FE55',
+  aqua: '#C1E8EB',
+  navy: '#111111',
+  bg: '#0A0A0A',
+  gold: '#FFD700',
+  silver: '#C0C0C0',
+  bronze: '#CD7F32',
+};
 
 const CARD_NAMES: Record<string, string> = {
   '01': '시장 개요', '02': '시장 분석', '03': '세분화', '04': '경쟁 분석',
@@ -44,7 +52,6 @@ export default function RankingPage() {
     teamsRef.current = teams;
   }, [teams]);
 
-  // 현재 시간 업데이트
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
@@ -71,7 +78,6 @@ export default function RankingPage() {
     })();
   }, [classId, router]);
 
-  // Realtime 구독
   useEffect(() => {
     if (loading || teams.length === 0) return;
     const teamIds = teams.map(t => t.id);
@@ -85,7 +91,6 @@ export default function RankingPage() {
         const team = teamsRef.current.find(t => t.id === event.teamId);
         if (!team) return;
 
-        // toast 추가
         const id = ++toastIdRef.current;
         const cardName = CARD_NAMES[event.cardId] || `카드 ${event.cardId}`;
         setCompletionToasts(prev => [
@@ -96,15 +101,12 @@ export default function RankingPage() {
           setCompletionToasts(prev => prev.filter(t => t.id !== id));
         }, 5000);
 
-        // 화면 전체 플래시
         setScreenFlash(true);
         setTimeout(() => setScreenFlash(false), 800);
 
-        // 깜빡임 효과
         setRecentlyUpdatedTeam(event.teamId);
         setTimeout(() => setRecentlyUpdatedTeam(null), 2000);
 
-        // 랭킹 다시 가져오기
         const newRankings = await getTeamRankings(classId);
         setTeams(newRankings);
       }
@@ -124,11 +126,12 @@ export default function RankingPage() {
   const totalCards = sortedTeams.length * 16;
   const overallProgress = totalCards > 0 ? Math.round((totalCompleted / totalCards) * 100) : 0;
 
-  const getMedal = (rank: number) => {
-    if (rank === 0) return { icon: '👑', color: S.gold };
-    if (rank === 1) return { icon: '🥈', color: '#C0C0C0' };
-    if (rank === 2) return { icon: '🥉', color: '#CD7F32' };
-    return { icon: `${rank + 1}`, color: '#666' };
+  // 메달 + 테두리 색상 정보
+  const getMedalInfo = (rank: number) => {
+    if (rank === 0) return { icon: '👑', color: S.gold, label: '1위', glow: S.gold };
+    if (rank === 1) return { icon: '🥈', color: S.silver, label: '2위', glow: S.silver };
+    if (rank === 2) return { icon: '🥉', color: S.bronze, label: '3위', glow: S.bronze };
+    return { icon: `${rank + 1}`, color: '#666', label: `${rank + 1}위`, glow: '#666' };
   };
 
   return (
@@ -143,7 +146,7 @@ export default function RankingPage() {
           `,
         }} />
 
-      {/* 화면 전체 플래시 (카드 완료 시) */}
+      {/* 화면 전체 플래시 */}
       {screenFlash && (
         <div className="fixed inset-0 pointer-events-none z-[100]"
           style={{
@@ -157,15 +160,13 @@ export default function RankingPage() {
         {/* 헤더 */}
         <div className="flex items-center justify-between mb-8">
           <button onClick={() => router.push(`/teacher/class/${classId}`)}
-            className="flex items-center gap-2 text-gray-500 hover:text-gray-300 transition text-sm">
+            className="flex items-center gap-2 text-gray-400 hover:text-white transition text-sm font-bold">
             <span>←</span>
             <span>수업 상세로</span>
           </button>
 
           <div className="flex items-center gap-4">
-            {/* 시계 */}
-            <div className="text-[15px] font-mono text-gray-400 font-bold">{currentTime}</div>
-            {/* Live */}
+            <div className="text-[15px] font-mono text-white font-bold">{currentTime}</div>
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full"
               style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.5)' }}>
               <div className="w-2.5 h-2.5 rounded-full live-pulse" style={{ background: '#EF4444' }} />
@@ -176,79 +177,120 @@ export default function RankingPage() {
 
         {/* 타이틀 */}
         <div className="text-center mb-8">
-          <p className="text-[12px] tracking-[8px] font-mono mb-2" style={{ color: S.green }}>
+          <p className="text-[12px] tracking-[8px] font-mono mb-2 font-bold" style={{ color: S.green }}>
             REAL-TIME LEADERBOARD
           </p>
           <h1 className="text-5xl md:text-6xl font-black text-white mb-2 tracking-tight">
             🏆 SIGNAL <span style={{ color: S.green }}>랭킹</span>
           </h1>
-          <p className="text-base text-gray-400">{cls?.name}</p>
+          <p className="text-base text-gray-300 font-bold">{cls?.name}</p>
         </div>
 
-        {/* 전체 진행률 (요약 카드) */}
-        <div className="rounded-2xl p-5 mb-8"
-          style={{
-            background: `linear-gradient(135deg, ${S.green}10 0%, ${S.aqua}05 100%)`,
-            border: `1px solid ${S.green}30`,
-          }}>
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <p className="text-[10px] font-mono tracking-widest mb-1" style={{ color: S.green }}>OVERALL PROGRESS</p>
-              <p className="text-[15px] font-bold text-white">전체 진행 상황</p>
+        {/* ⭐ 전체 진행률 카드 — 네온 오로라 효과 ⭐ */}
+        <div className="aurora-card rounded-2xl p-6 mb-8 relative overflow-hidden">
+          {/* 오로라 레이어 1 */}
+          <div className="aurora-layer aurora-1" />
+          {/* 오로라 레이어 2 */}
+          <div className="aurora-layer aurora-2" />
+          {/* 오로라 레이어 3 */}
+          <div className="aurora-layer aurora-3" />
+
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-[11px] font-mono tracking-widest mb-1 font-bold"
+                  style={{ color: S.green, textShadow: `0 0 8px ${S.green}88` }}>
+                  OVERALL PROGRESS
+                </p>
+                <p className="text-[18px] font-black text-white"
+                  style={{ textShadow: '0 2px 8px rgba(0,0,0,0.8)' }}>
+                  전체 진행 상황
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-4xl font-black font-mono"
+                  style={{
+                    color: S.green,
+                    textShadow: `0 0 16px ${S.green}AA, 0 2px 4px rgba(0,0,0,0.8)`,
+                  }}>
+                  {overallProgress}<span className="text-xl text-gray-300">%</span>
+                </p>
+                <p className="text-[12px] text-gray-200 font-mono font-bold"
+                  style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
+                  {totalCompleted} / {totalCards} 카드
+                </p>
+              </div>
             </div>
-            <div className="text-right">
-              <p className="text-3xl font-black font-mono" style={{ color: S.green }}>
-                {overallProgress}<span className="text-lg text-gray-500">%</span>
-              </p>
-              <p className="text-[11px] text-gray-500 font-mono">{totalCompleted} / {totalCards} 카드</p>
-            </div>
-          </div>
-          {/* 큰 진행률 바 */}
-          <div className="h-3 rounded-full overflow-hidden relative" style={{ background: 'rgba(255,255,255,0.06)' }}>
-            <div className="h-full rounded-full transition-all duration-700 relative overflow-hidden"
-              style={{
-                width: `${overallProgress}%`,
-                background: `linear-gradient(90deg, ${S.gold} 0%, ${S.green} 100%)`,
-                boxShadow: `0 0 16px ${S.green}88`,
-              }}>
-              <div className="absolute inset-0"
+            {/* 큰 진행률 바 */}
+            <div className="h-3 rounded-full overflow-hidden relative" style={{ background: 'rgba(0,0,0,0.4)' }}>
+              <div className="h-full rounded-full transition-all duration-700 relative overflow-hidden"
                 style={{
-                  background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.5) 50%, transparent 100%)',
-                  animation: 'shimmerRank 2s ease-in-out infinite',
-                }} />
+                  width: `${overallProgress}%`,
+                  background: `linear-gradient(90deg, ${S.gold} 0%, ${S.green} 100%)`,
+                  boxShadow: `0 0 20px ${S.green}AA`,
+                }}>
+                <div className="absolute inset-0"
+                  style={{
+                    background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.6) 50%, transparent 100%)',
+                    animation: 'shimmerRank 2s ease-in-out infinite',
+                  }} />
+              </div>
             </div>
+            <p className="text-[12px] text-gray-200 mt-2 font-mono font-bold"
+              style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
+              참여 팀 {sortedTeams.length}개
+            </p>
           </div>
-          <p className="text-[11px] text-gray-500 mt-2 font-mono">참여 팀 {sortedTeams.length}개</p>
         </div>
 
         {/* 랭킹 목록 */}
         {sortedTeams.length === 0 ? (
           <div className="text-center py-20">
             <p className="text-6xl mb-4">🎴</p>
-            <p className="text-gray-500 text-lg">아직 팀이 없어요</p>
+            <p className="text-gray-300 text-lg font-bold">아직 팀이 없어요</p>
           </div>
         ) : (
           <div className="space-y-4">
             {sortedTeams.map((team, rank) => {
-              const medal = getMedal(rank);
+              const medal = getMedalInfo(rank);
               const completed = team.completed_count || 0;
               const progress = (completed / 16) * 100;
-              const isFirst = rank === 0 && completed > 0;
+              const isFirst = rank === 0;
+              const isSecond = rank === 1;
+              const isThird = rank === 2;
+              const isMedalist = rank < 3;
               const isUpdated = recentlyUpdatedTeam === team.id;
+
+              // 메달별 테두리 + 글로우 스타일
+              let borderColor = 'rgba(255,255,255,0.08)';
+              let borderWidth = '1px';
+              let boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+              let bgGradient = 'rgba(255,255,255,0.04)';
+
+              if (isFirst) {
+                borderColor = S.gold;
+                borderWidth = '3px';
+                boxShadow = `0 0 30px ${S.gold}66, 0 8px 40px ${S.gold}40, inset 0 0 30px ${S.gold}15`;
+                bgGradient = `linear-gradient(135deg, ${S.gold}20 0%, ${S.green}15 100%)`;
+              } else if (isSecond) {
+                borderColor = S.silver;
+                borderWidth = '2.5px';
+                boxShadow = `0 0 24px ${S.silver}55, 0 6px 24px ${S.silver}33`;
+                bgGradient = `linear-gradient(135deg, ${S.silver}15 0%, rgba(255,255,255,0.04) 100%)`;
+              } else if (isThird) {
+                borderColor = S.bronze;
+                borderWidth = '2.5px';
+                boxShadow = `0 0 24px ${S.bronze}55, 0 6px 24px ${S.bronze}33`;
+                bgGradient = `linear-gradient(135deg, ${S.bronze}18 0%, rgba(255,255,255,0.04) 100%)`;
+              }
 
               return (
                 <div key={team.id}
-                  className={`rounded-2xl p-5 transition-all duration-500 ${isUpdated ? 'rank-flash' : ''}`}
+                  className={`rounded-2xl p-5 transition-all duration-500 ${isUpdated ? 'rank-flash' : ''} ${isMedalist ? 'medal-card' : ''}`}
                   style={{
-                    background: isFirst
-                      ? `linear-gradient(135deg, ${S.gold}20 0%, ${S.green}15 100%)`
-                      : 'rgba(255,255,255,0.04)',
-                    border: isFirst
-                      ? `2px solid ${S.gold}66`
-                      : '1px solid rgba(255,255,255,0.08)',
-                    boxShadow: isFirst
-                      ? `0 8px 40px ${S.gold}40, inset 0 0 30px ${S.gold}15`
-                      : '0 4px 12px rgba(0,0,0,0.3)',
+                    background: bgGradient,
+                    border: `${borderWidth} solid ${borderColor}`,
+                    boxShadow: boxShadow,
                     transform: isFirst ? 'scale(1.02)' : 'scale(1)',
                   }}>
                   <div className="flex items-center gap-5">
@@ -261,15 +303,18 @@ export default function RankingPage() {
                           fontSize: isFirst ? '40px' : '28px',
                           background: isFirst
                             ? `radial-gradient(circle, ${S.gold} 0%, ${S.gold}AA 100%)`
-                            : rank < 3
-                              ? `${medal.color}22`
-                              : 'rgba(255,255,255,0.06)',
-                          color: isFirst ? '#000' : rank < 3 ? medal.color : '#888',
+                            : isSecond
+                              ? `radial-gradient(circle, ${S.silver}33 0%, ${S.silver}11 100%)`
+                              : isThird
+                                ? `radial-gradient(circle, ${S.bronze}33 0%, ${S.bronze}11 100%)`
+                                : 'rgba(255,255,255,0.06)',
+                          color: isFirst ? '#000' : isMedalist ? medal.color : '#888',
                           boxShadow: isFirst
                             ? `0 0 30px ${S.gold}AA, 0 8px 20px ${S.gold}66`
-                            : rank < 3
-                              ? `0 4px 16px ${medal.color}33`
+                            : isMedalist
+                              ? `0 0 20px ${medal.glow}66, 0 4px 16px ${medal.color}33`
                               : 'none',
+                          border: isMedalist && !isFirst ? `2px solid ${medal.color}66` : 'none',
                         }}>
                         {medal.icon}
                       </div>
@@ -278,46 +323,60 @@ export default function RankingPage() {
                     {/* 팀 정보 + 진행률 */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 flex-wrap">
                           <h3 className="font-black text-white"
-                            style={{ fontSize: isFirst ? '32px' : '24px' }}>
+                            style={{
+                              fontSize: isFirst ? '32px' : '24px',
+                              textShadow: '0 2px 8px rgba(0,0,0,0.8)',
+                            }}>
                             {team.name}
                           </h3>
                           {team.item && (
                             <span className="text-[14px] px-3 py-1 rounded-full font-bold"
-                              style={{ color: S.aqua, background: `${S.aqua}10`, border: `1px solid ${S.aqua}30` }}>
+                              style={{
+                                color: S.aqua,
+                                background: `${S.aqua}15`,
+                                border: `1px solid ${S.aqua}40`,
+                                textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+                              }}>
                               {team.item}
                             </span>
                           )}
                         </div>
                         {/* 완료 카드 수 */}
-                        <div className="text-right">
-                          <p className="text-[10px] font-mono text-gray-500 mb-1">COMPLETED</p>
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-[10px] font-mono text-gray-300 mb-1 font-bold"
+                            style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
+                            COMPLETED
+                          </p>
                           <p className="font-black font-mono leading-none"
                             style={{
                               fontSize: isFirst ? '36px' : '28px',
-                              color: isFirst ? S.gold : completed > 0 ? S.green : '#555',
+                              color: isFirst ? S.gold : completed > 0 ? S.green : '#888',
+                              textShadow: completed > 0
+                                ? `0 0 12px ${isFirst ? S.gold : S.green}AA, 0 2px 4px rgba(0,0,0,0.8)`
+                                : '0 2px 4px rgba(0,0,0,0.8)',
                             }}>
-                            {completed}<span className="text-lg text-gray-600">/16</span>
+                            {completed}<span className="text-lg text-gray-400">/16</span>
                           </p>
                         </div>
                       </div>
 
-                      {/* 진행률 바 — 큰 사이즈 */}
+                      {/* 진행률 바 */}
                       <div className="h-3 rounded-full overflow-hidden relative mb-2"
-                        style={{ background: 'rgba(255,255,255,0.06)' }}>
+                        style={{ background: 'rgba(0,0,0,0.4)' }}>
                         <div className="h-full rounded-full transition-all duration-700 relative overflow-hidden"
                           style={{
                             width: `${progress}%`,
                             background: isFirst
                               ? `linear-gradient(90deg, ${S.gold} 0%, ${S.green} 100%)`
                               : completed > 0 ? S.green : 'transparent',
-                            boxShadow: completed > 0 ? `0 0 16px ${isFirst ? S.gold : S.green}88` : 'none',
+                            boxShadow: completed > 0 ? `0 0 16px ${isFirst ? S.gold : S.green}AA` : 'none',
                           }}>
                           {completed > 0 && (
                             <div className="absolute inset-0"
                               style={{
-                                background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.5) 50%, transparent 100%)',
+                                background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.6) 50%, transparent 100%)',
                                 animation: 'shimmerRank 2s ease-in-out infinite',
                               }} />
                           )}
@@ -326,22 +385,28 @@ export default function RankingPage() {
 
                       {/* 진행률 % + 팀원 수 */}
                       <div className="flex items-center justify-between">
-                        <p className="text-[12px] text-gray-500 font-mono">
+                        <p className="text-[13px] text-gray-200 font-mono font-bold"
+                          style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
                           {team.member_count ? `👥 ${team.member_count}명` : '-'}
                         </p>
-                        <p className="font-bold font-mono"
+                        <p className="font-black font-mono"
                           style={{
                             fontSize: isFirst ? '20px' : '16px',
-                            color: isFirst ? S.gold : '#888',
+                            color: isFirst ? S.gold : isMedalist ? medal.color : '#aaa',
+                            textShadow: '0 1px 4px rgba(0,0,0,0.8)',
                           }}>
                           {Math.round(progress)}%
                         </p>
                       </div>
 
-                      {/* 1등에게 추가 메시지 */}
+                      {/* 1등 메시지 */}
                       {isFirst && completed > 0 && (
-                        <div className="mt-3 pt-3 border-t" style={{ borderColor: `${S.gold}30` }}>
-                          <p className="text-[12px] font-bold text-center" style={{ color: S.gold }}>
+                        <div className="mt-3 pt-3 border-t" style={{ borderColor: `${S.gold}40` }}>
+                          <p className="text-[13px] font-black text-center"
+                            style={{
+                              color: S.gold,
+                              textShadow: `0 0 8px ${S.gold}66, 0 1px 2px rgba(0,0,0,0.8)`,
+                            }}>
                             ⭐ 현재 1위 · {completed === 16 ? '🎉 완주!' : `${16 - completed}장 남음`}
                           </p>
                         </div>
@@ -356,7 +421,7 @@ export default function RankingPage() {
 
         {/* 푸터 */}
         <div className="text-center mt-12 mb-6">
-          <p className="text-[10px] text-gray-700 font-mono">
+          <p className="text-[11px] text-gray-500 font-mono font-bold">
             © 2026 SIGNAL — ConnectAI · 자동 새로고침 활성화됨
           </p>
         </div>
@@ -368,18 +433,25 @@ export default function RankingPage() {
           <div key={toast.id}
             className="rounded-2xl px-6 py-4 flex items-center gap-4 backdrop-blur-md toast-slide-big"
             style={{
-              background: `linear-gradient(135deg, ${S.green}25 0%, ${S.aqua}15 100%)`,
-              border: `2px solid ${S.green}66`,
-              boxShadow: `0 12px 48px ${S.green}55`,
+              background: `linear-gradient(135deg, ${S.green}30 0%, ${S.aqua}20 100%)`,
+              border: `2px solid ${S.green}88`,
+              boxShadow: `0 12px 48px ${S.green}66`,
               minWidth: '420px',
             }}>
             <span className="text-4xl">🎉</span>
             <div className="flex-1">
-              <p className="text-[11px] text-gray-400 font-mono mb-0.5">CARD COMPLETED</p>
-              <p className="text-lg font-black text-white">
-                <span style={{ color: S.green }}>{toast.teamName}</span>이 카드 {toast.cardId}을(를) 완료!
+              <p className="text-[11px] text-gray-200 font-mono mb-0.5 font-bold"
+                style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
+                CARD COMPLETED
               </p>
-              <p className="text-[12px] text-gray-400 mt-0.5">{toast.cardName}</p>
+              <p className="text-lg font-black text-white"
+                style={{ textShadow: '0 2px 4px rgba(0,0,0,0.9)' }}>
+                <span style={{ color: S.green, textShadow: `0 0 8px ${S.green}88` }}>{toast.teamName}</span>이 카드 {toast.cardId}을(를) 완료!
+              </p>
+              <p className="text-[13px] text-gray-200 mt-0.5 font-bold"
+                style={{ textShadow: '0 1px 2px rgba(0,0,0,0.8)' }}>
+                {toast.cardName}
+              </p>
             </div>
           </div>
         ))}
@@ -415,18 +487,9 @@ export default function RankingPage() {
         }
 
         @keyframes rankFlash {
-          0% {
-            background: rgba(255, 215, 0, 0.04);
-            transform: scale(1);
-          }
-          30% {
-            background: rgba(231, 254, 85, 0.3);
-            transform: scale(1.02);
-          }
-          100% {
-            background: rgba(255, 215, 0, 0.04);
-            transform: scale(1);
-          }
+          0% { transform: scale(1); }
+          30% { transform: scale(1.03); }
+          100% { transform: scale(1); }
         }
         .rank-flash {
           animation: rankFlash 2s ease-out;
@@ -439,25 +502,93 @@ export default function RankingPage() {
         }
 
         @keyframes toastSlideBig {
-          0% {
-            opacity: 0;
-            transform: translateY(-30px) scale(0.9);
-          }
-          15% {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-          85% {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-          100% {
-            opacity: 0;
-            transform: translateY(-15px) scale(0.95);
-          }
+          0% { opacity: 0; transform: translateY(-30px) scale(0.9); }
+          15% { opacity: 1; transform: translateY(0) scale(1); }
+          85% { opacity: 1; transform: translateY(0) scale(1); }
+          100% { opacity: 0; transform: translateY(-15px) scale(0.95); }
         }
         .toast-slide-big {
           animation: toastSlideBig 5s ease-out forwards;
+        }
+
+        /* ⭐ 메달 카드 글로우 효과 ⭐ */
+        @keyframes medalCardGlow {
+          0%, 100% { filter: brightness(1); }
+          50% { filter: brightness(1.05); }
+        }
+        .medal-card {
+          animation: medalCardGlow 3s ease-in-out infinite;
+        }
+
+        /* ⭐⭐⭐ 네온 오로라 효과 ⭐⭐⭐ */
+        .aurora-card {
+          background: rgba(10, 10, 10, 0.7);
+          border: 1px solid rgba(231, 254, 85, 0.3);
+        }
+
+        .aurora-layer {
+          position: absolute;
+          inset: 0;
+          pointer-events: none;
+          opacity: 0.6;
+          filter: blur(40px);
+          mix-blend-mode: screen;
+        }
+
+        .aurora-1 {
+          background: radial-gradient(ellipse at 20% 50%, ${S.green} 0%, transparent 50%);
+          animation: aurora1 8s ease-in-out infinite;
+        }
+
+        .aurora-2 {
+          background: radial-gradient(ellipse at 80% 30%, ${S.aqua} 0%, transparent 50%);
+          animation: aurora2 10s ease-in-out infinite;
+        }
+
+        .aurora-3 {
+          background: radial-gradient(ellipse at 50% 70%, #C1A8F0 0%, transparent 50%);
+          animation: aurora3 12s ease-in-out infinite;
+        }
+
+        @keyframes aurora1 {
+          0%, 100% {
+            transform: translate(0%, 0%) scale(1);
+            opacity: 0.5;
+          }
+          33% {
+            transform: translate(30%, -20%) scale(1.2);
+            opacity: 0.7;
+          }
+          66% {
+            transform: translate(-20%, 30%) scale(0.9);
+            opacity: 0.6;
+          }
+        }
+
+        @keyframes aurora2 {
+          0%, 100% {
+            transform: translate(0%, 0%) scale(1);
+            opacity: 0.4;
+          }
+          50% {
+            transform: translate(-40%, 20%) scale(1.3);
+            opacity: 0.6;
+          }
+        }
+
+        @keyframes aurora3 {
+          0%, 100% {
+            transform: translate(0%, 0%) scale(1);
+            opacity: 0.3;
+          }
+          25% {
+            transform: translate(20%, -30%) scale(1.1);
+            opacity: 0.5;
+          }
+          75% {
+            transform: translate(-30%, 10%) scale(0.95);
+            opacity: 0.4;
+          }
         }
       `}</style>
     </div>
