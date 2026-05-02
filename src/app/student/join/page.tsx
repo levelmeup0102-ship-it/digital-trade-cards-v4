@@ -137,28 +137,25 @@ function InteractiveButton({
           }} />
       ))}
 
-      {/* ⭐ 네온 폭발 효과 — 미니멀 (네온 링만) */}
+      {/* ⭐ 네온 폭발 효과 — 미니멀 (네온 링만, 글로우 줄임) */}
       {neonBlast && (
         <>
           {/* 네온 링 1 (큰 거) */}
           <span className="absolute inset-0 rounded-2xl pointer-events-none neon-ring-1"
             style={{
               border: `3px solid ${color}`,
-              boxShadow: `0 0 40px ${color}, inset 0 0 40px ${color}66`,
             }} />
 
           {/* 네온 링 2 (중간) */}
           <span className="absolute inset-0 rounded-2xl pointer-events-none neon-ring-2"
             style={{
               border: `2px solid ${color}`,
-              boxShadow: `0 0 30px ${color}AA`,
             }} />
 
           {/* 네온 링 3 (작은 거, 빠르게) */}
           <span className="absolute inset-0 rounded-2xl pointer-events-none neon-ring-3"
             style={{
               border: `2px solid ${color}`,
-              boxShadow: `0 0 20px ${color}`,
             }} />
         </>
       )}
@@ -1201,7 +1198,7 @@ export default function StudentJoin() {
 
         /* 네온 링 1 (큰 거, 천천히) */
         .neon-ring-1 {
-          animation: neonRing1 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          animation: neonRing1 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
         @keyframes neonRing1 {
           0% {
@@ -1210,13 +1207,13 @@ export default function StudentJoin() {
           }
           100% {
             opacity: 0;
-            transform: scale(1.4);
+            transform: scale(1.08);
           }
         }
 
         /* 네온 링 2 (중간 속도) */
         .neon-ring-2 {
-          animation: neonRing2 0.9s ease-out 0.1s forwards;
+          animation: neonRing2 0.6s ease-out 0.1s forwards;
           opacity: 0;
         }
         @keyframes neonRing2 {
@@ -1226,13 +1223,13 @@ export default function StudentJoin() {
           }
           100% {
             opacity: 0;
-            transform: scale(1.3);
+            transform: scale(1.06);
           }
         }
 
         /* 네온 링 3 (빠르게) */
         .neon-ring-3 {
-          animation: neonRing3 0.6s ease-out 0.2s forwards;
+          animation: neonRing3 0.4s ease-out 0.2s forwards;
           opacity: 0;
         }
         @keyframes neonRing3 {
@@ -1242,7 +1239,7 @@ export default function StudentJoin() {
           }
           100% {
             opacity: 0;
-            transform: scale(1.2);
+            transform: scale(1.04);
           }
         }
       `}</style>
