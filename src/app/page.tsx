@@ -32,16 +32,41 @@ const defaultLeaderConclusion = (): LeaderConclusionState => ({
   judgments: [false, false, false, false],
 });
 
-// ⭐ 인트로용 16장 카드 — 부채꼴 펼침 각도 90° → 160° (더 넓게)
+// ⭐ 인트로용 16장 카드 — 부채꼴 펼침 (160°)
 const INTRO_CARDS = Array.from({ length: 16 }, (_, i) => {
   const id = String(i + 1).padStart(2, '0');
-  const totalAngle = 160; // 90 → 160으로 확대
+  const totalAngle = 160;
   const angle = -totalAngle / 2 + (totalAngle / 15) * i;
+  // 분출 시 랜덤한 방향 (각 카드마다 다르게)
+  const burstAngle = -180 + (360 / 15) * i + (Math.random() * 30 - 15);
+  const burstDistance = 200 + Math.random() * 100;
   return {
     id,
     color: CARD_COLORS[id]?.bg || '#4FB0C6',
     angle,
-    delay: i * 0.06,
+    delay: 1.4 + i * 0.04, // 가방 열린 후 등장
+    burstAngle,
+    burstDistance,
+    burstX: Math.cos((burstAngle * Math.PI) / 180) * burstDistance,
+    burstY: Math.sin((burstAngle * Math.PI) / 180) * burstDistance,
+    burstRotate: Math.random() * 720 - 360,
+  };
+});
+
+// ⭐ 폭죽 입자 데이터 (24개)
+const FIREWORK_PARTICLES = Array.from({ length: 24 }, (_, i) => {
+  const angle = (360 / 24) * i;
+  const distance = 200 + Math.random() * 100;
+  const colors = [S.green, S.aqua, '#FFC72C', '#FF6F61', '#C1A8F0', '#4FB0C6', '#FF671F'];
+  return {
+    id: i,
+    angle,
+    distance,
+    x: Math.cos((angle * Math.PI) / 180) * distance,
+    y: Math.sin((angle * Math.PI) / 180) * distance,
+    color: colors[i % colors.length],
+    size: 4 + Math.random() * 4,
+    delay: Math.random() * 0.1,
   };
 });
 
@@ -91,12 +116,13 @@ export default function Home() {
 
   const myRole = roleCode ? getRole(roleCode) : null;
 
+  // 인트로 자동 종료 (5초로 늘림 — 가방 + 분출 + 폭죽 + 부채꼴 + 로고)
   useEffect(() => {
     if (screen !== 'intro') return;
     const timer = setTimeout(() => {
       setIntroDone(true);
       setTimeout(() => setScreen('landing'), 300);
-    }, 3200);
+    }, 5000);
     return () => clearTimeout(timer);
   }, [screen]);
 
@@ -242,7 +268,7 @@ export default function Home() {
     </div>
   );
 
-  // ─── ⭐ INTRO (카드 셔플 인트로 — 더 넓은 부채꼴) ⭐ ───
+  // ─── ⭐⭐⭐ INTRO (서류가방 + 카드 분출 + 폭죽) ⭐⭐⭐ ───
   if (screen === 'intro') return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden"
       style={{
@@ -250,14 +276,94 @@ export default function Home() {
         transition: 'opacity 0.3s ease-out',
       }}>
 
+      {/* 배경 플래시 */}
       <div className="fixed inset-0 pointer-events-none"
         style={{
           background: `radial-gradient(circle at center, ${S.green}10 0%, transparent 60%)`,
-          animation: 'introFlash 3.2s ease-out forwards',
+          animation: 'introFlash 5s ease-out forwards',
         }} />
 
-      {/* 16장 카드 — 더 넓은 부채꼴 (160°) */}
-      <div className="relative w-full max-w-3xl h-[420px] flex items-center justify-center mb-6">
+      {/* 메인 인트로 영역 */}
+      <div className="relative w-full max-w-3xl h-[500px] flex items-center justify-center">
+
+        {/* 💼 서류 가방 (SVG) */}
+        <div className="absolute"
+          style={{
+            animation: 'briefcaseEnter 1.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards',
+            transformOrigin: 'center',
+          }}>
+          <svg width="180" height="140" viewBox="0 0 180 140" className="briefcase-svg">
+            {/* 가방 그림자 */}
+            <ellipse cx="90" cy="135" rx="70" ry="6" fill="rgba(0,0,0,0.4)" />
+
+            {/* 손잡이 */}
+            <rect className="handle" x="75" y="10" width="30" height="20" rx="4" fill="none"
+              stroke="#3a2418" strokeWidth="3" />
+            <rect className="handle" x="78" y="13" width="24" height="14" rx="3" fill="none"
+              stroke="#5C3A24" strokeWidth="2" />
+
+            {/* 가방 본체 (아래 부분) */}
+            <rect x="20" y="55" width="140" height="75" rx="6" fill="#5C3A24" />
+            <rect x="20" y="55" width="140" height="75" rx="6" fill="url(#leatherGradient)" />
+
+            {/* 가방 뚜껑 (열림 애니메이션 적용) */}
+            <g className="briefcase-lid" style={{ transformOrigin: '90px 55px' }}>
+              <rect x="20" y="30" width="140" height="30" rx="6" fill="#6B4226" />
+              <rect x="20" y="30" width="140" height="30" rx="6" fill="url(#leatherGradient2)" />
+              {/* 자물쇠 */}
+              <rect x="80" y="48" width="20" height="12" rx="2" fill="#FFC72C" />
+              <rect x="84" y="51" width="12" height="6" rx="1" fill="#B8860B" />
+              <circle cx="90" cy="54" r="1.5" fill="#3a2418" />
+            </g>
+
+            {/* 가방 내부에서 빛이 새어나옴 */}
+            <rect className="briefcase-glow" x="22" y="55" width="136" height="6" fill={S.green} opacity="0" />
+
+            {/* 박음질 디테일 */}
+            <line x1="22" y1="60" x2="158" y2="60" stroke="#3a2418" strokeWidth="0.5" strokeDasharray="3,2" opacity="0.6" />
+            <line x1="22" y1="125" x2="158" y2="125" stroke="#3a2418" strokeWidth="0.5" strokeDasharray="3,2" opacity="0.6" />
+
+            {/* 텍스트 라벨 */}
+            <text x="90" y="100" textAnchor="middle" fontSize="9" fontFamily="monospace" fill="#FFC72C" fontWeight="bold" opacity="0.7">
+              SIGNAL
+            </text>
+
+            {/* 그라디언트 정의 */}
+            <defs>
+              <linearGradient id="leatherGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#7A4F2E" />
+                <stop offset="50%" stopColor="#5C3A24" />
+                <stop offset="100%" stopColor="#3a2418" />
+              </linearGradient>
+              <linearGradient id="leatherGradient2" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#8B5A38" />
+                <stop offset="100%" stopColor="#6B4226" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+
+        {/* 💥 폭죽 입자 (가방 열릴 때 터짐) */}
+        <div className="absolute" style={{ animation: 'fireworkBurst 0s linear 1.4s forwards', opacity: 0 }}>
+          {FIREWORK_PARTICLES.map(p => (
+            <div
+              key={p.id}
+              className="absolute rounded-full"
+              style={{
+                width: `${p.size}px`,
+                height: `${p.size}px`,
+                background: p.color,
+                boxShadow: `0 0 ${p.size * 3}px ${p.color}`,
+                animation: `particleBurst 1.5s cubic-bezier(0.16, 1, 0.3, 1) ${1.4 + p.delay}s forwards`,
+                opacity: 0,
+                '--burst-x': `${p.x}px`,
+                '--burst-y': `${p.y}px`,
+              } as React.CSSProperties}
+            />
+          ))}
+        </div>
+
+        {/* 🎴 16장 카드 — 가방에서 분출 → 부채꼴 정렬 */}
         {INTRO_CARDS.map((card, i) => (
           <div
             key={card.id}
@@ -267,9 +373,12 @@ export default function Home() {
               height: '98px',
               background: card.color,
               boxShadow: `0 8px 24px ${card.color}66, 0 0 20px ${card.color}33`,
-              animation: `introCardEnter 1.8s cubic-bezier(0.16, 1, 0.3, 1) ${card.delay}s forwards`,
+              animation: `cardBurstAndSettle 2.6s cubic-bezier(0.16, 1, 0.3, 1) ${card.delay}s forwards`,
               transformOrigin: 'bottom center',
               opacity: 0,
+              '--burst-x': `${card.burstX}px`,
+              '--burst-y': `${card.burstY}px`,
+              '--burst-rotate': `${card.burstRotate}deg`,
               '--final-angle': `${card.angle}deg`,
               '--final-y': `${Math.abs(card.angle) * 0.4}px`,
             } as React.CSSProperties}
@@ -280,10 +389,11 @@ export default function Home() {
         ))}
       </div>
 
-      <div className="text-center"
+      {/* 로고 (인트로 후반부 등장) */}
+      <div className="text-center mt-4"
         style={{
           opacity: 0,
-          animation: 'introLogoFade 1.2s ease-out 2s forwards',
+          animation: 'introLogoFade 1s ease-out 4s forwards',
         }}>
         <p className="text-[11px] tracking-[6px] text-gray-600 uppercase mb-2 font-mono">ConnectAI</p>
         <h1 className="text-5xl font-black text-white tracking-tight mb-2">SIGNAL</h1>
@@ -291,26 +401,96 @@ export default function Home() {
       </div>
 
       <style jsx>{`
-        @keyframes introCardEnter {
+        /* 가방 등장 — 위에서 떨어지면서 살짝 바운스 */
+        @keyframes briefcaseEnter {
           0% {
             opacity: 0;
-            transform: translateX(300px) translateY(-50px) rotate(45deg) scale(0.5);
+            transform: translateY(-200px) scale(0.5) rotate(-10deg);
           }
-          40% {
+          60% {
             opacity: 1;
-            transform: translateX(0) translateY(-10px) rotate(0deg) scale(1);
+            transform: translateY(20px) scale(1.05) rotate(2deg);
+          }
+          80% {
+            transform: translateY(-5px) scale(0.98) rotate(-1deg);
           }
           100% {
             opacity: 1;
-            transform: translateX(0) translateY(var(--final-y, 0)) rotate(var(--final-angle, 0deg)) scale(1);
+            transform: translateY(0) scale(1) rotate(0deg);
           }
         }
 
+        /* 가방 뚜껑 열림 (1.4초 시점에 시작) */
+        .briefcase-svg .briefcase-lid {
+          animation: lidOpen 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 1.3s forwards;
+        }
+        @keyframes lidOpen {
+          0% { transform: rotateX(0deg); }
+          100% { transform: rotateX(-160deg); }
+        }
+
+        /* 가방에서 빛 새어나옴 */
+        .briefcase-svg .briefcase-glow {
+          animation: glowPulse 0.8s ease-out 1.4s forwards;
+        }
+        @keyframes glowPulse {
+          0% { opacity: 0; }
+          50% { opacity: 1; }
+          100% { opacity: 0; }
+        }
+
+        /* 카드 분출 → 부채꼴 정렬 */
+        @keyframes cardBurstAndSettle {
+          /* 0%: 가방 안에 숨겨짐 */
+          0% {
+            opacity: 0;
+            transform: translate(0, 0) rotate(0deg) scale(0.3);
+          }
+          /* 10%: 가방에서 나옴 */
+          10% {
+            opacity: 1;
+            transform: translate(0, -20px) rotate(0deg) scale(0.7);
+          }
+          /* 40%: 사방으로 튀어나감 (절정) */
+          40% {
+            opacity: 1;
+            transform: translate(var(--burst-x, 0), var(--burst-y, 0)) rotate(var(--burst-rotate, 0deg)) scale(1);
+          }
+          /* 70~80%: 부채꼴 위치로 이동 시작 */
+          80% {
+            opacity: 1;
+            transform: translate(0, calc(var(--final-y, 0px) - 30px)) rotate(calc(var(--final-angle, 0deg) - 5deg)) scale(1.05);
+          }
+          /* 100%: 최종 부채꼴 정렬 */
+          100% {
+            opacity: 1;
+            transform: translate(0, var(--final-y, 0)) rotate(var(--final-angle, 0deg)) scale(1);
+          }
+        }
+
+        /* 폭죽 입자 분출 */
+        @keyframes particleBurst {
+          0% {
+            opacity: 1;
+            transform: translate(0, 0) scale(1);
+          }
+          20% {
+            opacity: 1;
+            transform: translate(calc(var(--burst-x, 0) * 0.3), calc(var(--burst-y, 0) * 0.3)) scale(1.5);
+          }
+          100% {
+            opacity: 0;
+            transform: translate(var(--burst-x, 0), var(--burst-y, 0)) scale(0.3);
+          }
+        }
+
+        /* 배경 플래시 */
         @keyframes introFlash {
           0%, 100% { opacity: 0; }
-          5% { opacity: 1; }
-          15% { opacity: 0.3; }
-          50% { opacity: 0.5; }
+          25% { opacity: 0; }
+          30% { opacity: 0.8; }
+          40% { opacity: 0.3; }
+          70% { opacity: 0.4; }
           100% { opacity: 0.2; }
         }
 
