@@ -114,12 +114,16 @@ function InteractiveButton({
 
   return (
     <button onClick={handleClick}
-      className={`relative overflow-hidden interactive-btn ${isSelected ? 'is-selected' : ''} ${className || ''}`}
-      style={style}>
+      className={`relative interactive-btn ${isSelected ? 'is-selected' : ''} ${isGlitching ? 'btn-glitch-shake' : ''} ${className || ''}`}
+      style={{
+        ...style,
+        overflow: neonBlast ? 'visible' : 'hidden',
+      }}>
       {/* 호버 시 빛 흐름 (광택) */}
       <span className="absolute inset-0 -translate-x-full hover-shine pointer-events-none"
         style={{
           background: `linear-gradient(90deg, transparent 0%, ${color}55 50%, transparent 100%)`,
+          overflow: 'hidden',
         }} />
 
       {/* 리플 효과 */}
@@ -136,6 +140,13 @@ function InteractiveButton({
       {/* ⭐ 네온 폭발 효과 — 화려하게 */}
       {neonBlast && (
         <>
+          {/* 화면 전체 플래시 (fixed) */}
+          <span className="fixed inset-0 pointer-events-none screen-flash-overlay"
+            style={{
+              background: `radial-gradient(circle at center, ${color}33 0%, transparent 60%)`,
+              zIndex: 9999,
+            }} />
+
           {/* 큰 빛 플래시 (가운데서 폭발) */}
           <span className="absolute pointer-events-none neon-flash-big"
             style={{
@@ -169,6 +180,22 @@ function InteractiveButton({
               border: `2px solid ${color}`,
               boxShadow: `0 0 20px ${color}`,
             }} />
+
+          {/* 빛 입자 8개 (사방으로) */}
+          {[0, 45, 90, 135, 180, 225, 270, 315].map((angle, i) => (
+            <span key={i} className="absolute pointer-events-none light-particle"
+              style={{
+                top: '50%',
+                left: '50%',
+                width: '8px',
+                height: '8px',
+                background: color,
+                borderRadius: '50%',
+                boxShadow: `0 0 16px ${color}`,
+                transform: 'translate(-50%, -50%)',
+                '--particle-angle': `${angle}deg`,
+              } as React.CSSProperties} />
+          ))}
 
           {/* 위/아래 빛줄기 */}
           <span className="absolute pointer-events-none neon-beam-top"
@@ -1213,105 +1240,50 @@ export default function StudentJoin() {
           50% { box-shadow: 0 0 40px rgba(231, 254, 85, 0.7), 0 10px 40px -5px rgba(231, 254, 85, 0.8); }
         }
 
-        /* ⭐⭐⭐ 글리치 효과 — 강화된 버전 (1초) ⭐⭐⭐ */
-        .glitch-active {
-          animation: textGlitchStrong 1s linear 1;
+        /* ⭐⭐⭐ 버튼 자체 흔들기 (강력한 글리치) ⭐⭐⭐ */
+        .btn-glitch-shake {
+          animation: btnShake 0.6s linear;
         }
-        @keyframes textGlitchStrong {
+        @keyframes btnShake {
+          0%, 100% { transform: translate(0, 0); }
+          10% { transform: translate(-6px, -2px); filter: hue-rotate(0deg) brightness(1.2); }
+          20% { transform: translate(6px, 2px); filter: hue-rotate(90deg) brightness(1.3); }
+          30% { transform: translate(-5px, 1px); filter: hue-rotate(180deg) brightness(1.1); }
+          40% { transform: translate(5px, -1px); filter: hue-rotate(270deg) brightness(1.4); }
+          50% { transform: translate(-3px, 0); filter: hue-rotate(0deg) brightness(1.2); }
+          60% { transform: translate(3px, 0); filter: brightness(1.5); }
+          70% { transform: translate(-2px, -1px); filter: brightness(1.2); }
+          80% { transform: translate(2px, 1px); filter: brightness(1.3); }
+          90% { transform: translate(-1px, 0); filter: brightness(1.1); }
+        }
+
+        /* ⭐⭐⭐ 화면 전체 플래시 ⭐⭐⭐ */
+        .screen-flash-overlay {
+          animation: screenFlashAnim 0.6s ease-out forwards;
+        }
+        @keyframes screenFlashAnim {
+          0% { opacity: 0; }
+          15% { opacity: 1; }
+          100% { opacity: 0; }
+        }
+
+        /* ⭐ 빛 입자 8개 (사방으로 폭발) ⭐ */
+        .light-particle {
+          animation: particleExplode 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes particleExplode {
           0% {
-            transform: translate(0, 0) skewX(0deg);
-            text-shadow: none;
             opacity: 1;
-          }
-          5% {
-            transform: translate(-4px, 2px) skewX(-3deg);
-            text-shadow:
-              -3px 0 0 #FF00C8,
-              3px 0 0 #00E5FF,
-              0 0 16px var(--glitch-color-1, #E7FE55);
-            opacity: 0.9;
-          }
-          10% {
-            transform: translate(4px, -2px) skewX(3deg);
-            text-shadow:
-              3px 0 0 #FF00C8,
-              -3px 0 0 #00E5FF,
-              0 0 16px var(--glitch-color-1, #E7FE55);
-          }
-          15% {
-            transform: translate(-3px, 1px) skewX(-2deg);
-            text-shadow:
-              -2px 0 0 #FF00C8,
-              2px 0 0 #00E5FF,
-              0 0 12px var(--glitch-color-1, #E7FE55);
-          }
-          20% {
-            transform: translate(3px, -1px) skewX(2deg);
-            text-shadow:
-              2px 0 0 #FF00C8,
-              -2px 0 0 #00E5FF,
-              0 0 20px var(--glitch-color-1, #E7FE55);
-            opacity: 1;
-          }
-          25% {
-            transform: translate(0, 0) skewX(0);
-            text-shadow:
-              0 0 0 transparent,
-              0 0 24px var(--glitch-color-1, #E7FE55);
-          }
-          30% {
-            transform: translate(-2px, 0) skewX(-1deg);
-            text-shadow:
-              -2px 0 0 #FF00C8,
-              2px 0 0 #00E5FF;
-            opacity: 0.85;
-          }
-          35% {
-            transform: translate(5px, 2px) skewX(4deg);
-            text-shadow:
-              4px 0 0 #FF00C8,
-              -4px 0 0 #00E5FF,
-              0 0 20px var(--glitch-color-1, #E7FE55);
-          }
-          40% {
-            transform: translate(-5px, -1px) skewX(-3deg);
-            text-shadow:
-              -3px 0 0 #FF00C8,
-              3px 0 0 #00E5FF;
-          }
-          50% {
-            transform: translate(0, 0) skewX(0);
-            text-shadow:
-              0 0 32px var(--glitch-color-1, #E7FE55);
-            opacity: 1;
-          }
-          60% {
-            transform: translate(-2px, 1px) skewX(-2deg);
-            text-shadow:
-              -2px 0 0 #FF00C8,
-              2px 0 0 #00E5FF;
-          }
-          70% {
-            transform: translate(2px, -1px) skewX(2deg);
-            text-shadow:
-              2px 0 0 #FF00C8,
-              -2px 0 0 #00E5FF;
-          }
-          80% {
-            transform: translate(-1px, 0);
-            text-shadow:
-              -1px 0 0 #FF00C8,
-              1px 0 0 #00E5FF,
-              0 0 16px var(--glitch-color-1, #E7FE55);
-          }
-          90% {
-            transform: translate(1px, 0);
-            text-shadow: 0 0 12px var(--glitch-color-1, #E7FE55);
+            transform: translate(-50%, -50%) scale(1);
           }
           100% {
-            transform: translate(0, 0) skewX(0);
-            text-shadow: none;
-            opacity: 1;
+            opacity: 0;
+            transform:
+              rotate(var(--particle-angle, 0deg))
+              translateX(80px)
+              rotate(calc(-1 * var(--particle-angle, 0deg)))
+              translate(-50%, -50%)
+              scale(0.3);
           }
         }
 
