@@ -212,7 +212,12 @@ export default function SignalCard({
                 placeholder={`${displayItem}를 기준으로 팀의 답변을 작성하세요...`}
                 className="w-full px-3 py-2.5 rounded-xl text-[13px] text-white leading-relaxed resize-none transition"
                 rows={4}
-                style={{ background: 'rgba(255,255,255,0.05)', border: currentResponse ? `1px solid ${color}` : '1px solid rgba(255,255,255,0.08)', outline: 'none' }}
+                style={{
+                  background: currentResponse ? `${color}10` : `${color}06`,
+                  border: `1.5px solid ${currentResponse ? color : color + '40'}`,
+                  outline: 'none',
+                  boxShadow: currentResponse ? `0 0 12px ${color}30` : 'none',
+                }}
               />
               <div className="flex justify-between mt-1">
                 <span className="text-[10px] text-gray-600">{currentResponse.length}자 / 최소 {minChars}자</span>
@@ -222,14 +227,19 @@ export default function SignalCard({
 
             <div className="mb-4">
               <p className="text-[10px] font-bold mb-1.5 font-mono tracking-widest text-gray-500">중간 결론</p>
-              <div className="rounded-xl p-3" style={{ background: `${color}08`, border: `1px solid ${color}20` }}>
-                <p className="text-[10px] text-gray-600 mb-1.5">→ 이 질문에서 우리가 내린 결론:</p>
+              <div className="rounded-xl p-3 transition-all"
+                style={{
+                  background: currentInterim ? `${color}12` : `${color}06`,
+                  border: `1.5px solid ${currentInterim ? color + '88' : color + '40'}`,
+                  boxShadow: currentInterim ? `0 0 12px ${color}25` : 'none',
+                }}>
+                <p className="text-[10px] mb-1.5" style={{ color: `${color}DD` }}>→ 이 질문에서 우리가 내린 결론:</p>
                 <input
                   value={currentInterim}
                   onChange={e => onSaveInterim(subId, e.target.value)}
                   placeholder="한 문장으로 정리하세요..."
                   className="w-full bg-transparent text-[13px] text-white outline-none border-b pb-1"
-                  style={{ borderColor: `${color}40` }}
+                  style={{ borderColor: `${color}66` }}
                 />
               </div>
             </div>
@@ -252,9 +262,14 @@ export default function SignalCard({
                 {topic.subs.map((s, i) => {
                   const interim = interimConclusions[s.id] || '';
                   const r = responses[s.id]?.texts?.['0'] || '';
+                  const filled = hasResponse(s.id);
                   return (
-                    <div key={s.id} className="rounded-lg p-2.5"
-                      style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${hasResponse(s.id) ? color + '30' : 'rgba(255,255,255,0.06)'}` }}>
+                    <div key={s.id} className="rounded-lg p-2.5 transition-all"
+                      style={{
+                        background: filled ? `${color}12` : `${color}06`,
+                        border: `1.5px solid ${filled ? color + '80' : color + '40'}`,
+                        boxShadow: filled ? `0 0 12px ${color}25` : 'none',
+                      }}>
                       <p className="text-[10px] font-bold font-mono mb-1" style={{ color: color }}>Q{i + 1}</p>
                       {interim
                         ? <p className="text-[12px] text-gray-300">→ {interim}</p>
@@ -273,9 +288,13 @@ export default function SignalCard({
                   <p className="text-[10px] font-bold mb-2 font-mono tracking-widest text-gray-500">한 문장 전략 재료</p>
                   <div className="grid grid-cols-2 gap-2">
                     {template.fieldLabels.map((label, i) => (
-                      <div key={i} className="rounded-lg p-2.5"
-                        style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${leaderConclusion.fields[i] ? color + '50' : 'rgba(255,255,255,0.06)'}` }}>
-                        <p className="text-[9px] font-mono text-gray-600 mb-1">{label}</p>
+                      <div key={i} className="rounded-lg p-2.5 transition-all"
+                        style={{
+                          background: leaderConclusion.fields[i] ? `${color}12` : `${color}06`,
+                          border: `1.5px solid ${leaderConclusion.fields[i] ? color + '88' : color + '40'}`,
+                          boxShadow: leaderConclusion.fields[i] ? `0 0 12px ${color}30` : 'none',
+                        }}>
+                        <p className="text-[9px] font-mono mb-1" style={{ color: `${color}DD` }}>{label}</p>
                         <input
                           value={leaderConclusion.fields[i] || ''}
                           onChange={e => {
@@ -306,8 +325,13 @@ export default function SignalCard({
                     )}
                   </div>
                   {!leaderConclusion.isEditing ? (
-                    <div className="rounded-xl p-3" style={{ background: `${color}12`, border: `1px solid ${color}30` }}>
-                      <p className="text-[13px] text-gray-300 leading-relaxed">{oneSentenceSynthesis}</p>
+                    <div className="rounded-xl p-3"
+                      style={{
+                        background: `${color}15`,
+                        border: `1.5px solid ${color}80`,
+                        boxShadow: `0 0 16px ${color}25`,
+                      }}>
+                      <p className="text-[13px] text-gray-200 leading-relaxed font-medium">{oneSentenceSynthesis}</p>
                     </div>
                   ) : (
                     <textarea
