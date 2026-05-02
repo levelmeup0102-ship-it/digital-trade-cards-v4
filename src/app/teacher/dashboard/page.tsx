@@ -39,12 +39,10 @@ export default function TeacherDashboard() {
         schedule: form.schedule,
         description: form.description,
       });
-      // 팀 자동 생성
       await createTeams(newClass.id, form.teamCount);
       setClasses(prev => [newClass, ...prev]);
       setShowCreate(false);
       setForm({ name: '', school: '', schedule: '', description: '', teamCount: 3 });
-      // 수업 상세로 이동
       router.push(`/teacher/class/${newClass.id}`);
     } catch (e: any) {
       setCreateError(e.message || '오류가 발생했습니다.');
@@ -66,18 +64,18 @@ export default function TeacherDashboard() {
   );
 
   return (
-    <div className="min-h-screen px-4 py-6" style={{ background: S.bg }}>
+    <div className="min-h-screen px-3 md:px-4 py-4 md:py-6" style={{ background: S.bg }}>
       <div className="max-w-lg mx-auto">
 
         {/* 헤더 */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <p className="text-[11px] tracking-[4px] text-gray-600 font-mono">SIGNAL</p>
-            <h1 className="text-xl font-black text-white">관리자 대시보드</h1>
-            <p className="text-[12px] text-gray-500">{teacher?.name} · {teacher?.school}</p>
+        <div className="flex items-center justify-between mb-5 md:mb-6 gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] md:text-[11px] tracking-[3px] md:tracking-[4px] text-gray-600 font-mono">SIGNAL</p>
+            <h1 className="text-lg md:text-xl font-black text-white">관리자 대시보드</h1>
+            <p className="text-[11px] md:text-[12px] text-gray-500 truncate">{teacher?.name} · {teacher?.school}</p>
           </div>
           <button onClick={handleSignOut}
-            className="text-[12px] text-gray-600 hover:text-gray-400 transition">
+            className="text-[11px] md:text-[12px] text-gray-600 hover:text-gray-400 transition flex-shrink-0 px-2 py-1">
             로그아웃
           </button>
         </div>
@@ -85,58 +83,58 @@ export default function TeacherDashboard() {
         {/* 새 수업 만들기 버튼 */}
         {!showCreate && (
           <button onClick={() => setShowCreate(true)}
-            className="w-full py-4 font-black rounded-2xl text-[14px] mb-6 transition-all hover:scale-[1.02]"
-            style={{ background: S.green, color: S.navy }}>
+            className="w-full py-3.5 md:py-4 font-black rounded-2xl text-[13px] md:text-[14px] mb-5 md:mb-6 transition-all hover:scale-[1.02]"
+            style={{ background: S.green, color: S.navy, boxShadow: `0 8px 24px -8px ${S.green}55` }}>
             + 새 수업 만들기
           </button>
         )}
 
         {/* 수업 생성 폼 */}
         {showCreate && (
-          <div className="rounded-2xl p-5 mb-6"
+          <div className="rounded-2xl p-4 md:p-5 mb-5 md:mb-6"
             style={{ background: `${S.green}08`, border: `1px solid ${S.green}20` }}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-black text-white">새 수업 만들기</h2>
+            <div className="flex items-center justify-between mb-3 md:mb-4">
+              <h2 className="text-[15px] md:text-base font-black text-white">새 수업 만들기</h2>
               <button onClick={() => { setShowCreate(false); setCreateError(''); }}
-                className="text-gray-600 text-sm hover:text-gray-400">닫기</button>
+                className="text-gray-600 text-xs md:text-sm hover:text-gray-400 px-2 py-1">닫기</button>
             </div>
             <div className="space-y-3">
               <div>
-                <p className="text-[11px] text-gray-500 mb-1">수업 이름 *</p>
+                <p className="text-[10px] md:text-[11px] text-gray-500 mb-1">수업 이름 *</p>
                 <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                   placeholder="예) 인천대 디지털무역 워크숍 1차"
-                  className="w-full px-3 py-2.5 rounded-xl text-white text-sm"
+                  className="w-full px-3 py-2.5 md:py-3 rounded-xl text-white text-[13px] md:text-sm"
                   style={{ background: 'rgba(255,255,255,0.06)', border: form.name ? `1px solid ${S.green}` : '1px solid rgba(255,255,255,0.1)', outline: 'none' }} />
               </div>
               <div>
-                <p className="text-[11px] text-gray-500 mb-1">소속 (학교 / 기관 / 회사)</p>
+                <p className="text-[10px] md:text-[11px] text-gray-500 mb-1">소속 (학교 / 기관 / 회사)</p>
                 <input value={form.school} onChange={e => setForm(f => ({ ...f, school: e.target.value }))}
                   placeholder={teacher?.school || '소속'}
-                  className="w-full px-3 py-2.5 rounded-xl text-white text-sm"
+                  className="w-full px-3 py-2.5 md:py-3 rounded-xl text-white text-[13px] md:text-sm"
                   style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', outline: 'none' }} />
               </div>
               <div>
-                <p className="text-[11px] text-gray-500 mb-1">일정</p>
+                <p className="text-[10px] md:text-[11px] text-gray-500 mb-1">일정</p>
                 <input value={form.schedule} onChange={e => setForm(f => ({ ...f, schedule: e.target.value }))}
                   placeholder="예) 2026년 5월 3주차 토요일"
-                  className="w-full px-3 py-2.5 rounded-xl text-white text-sm"
+                  className="w-full px-3 py-2.5 md:py-3 rounded-xl text-white text-[13px] md:text-sm"
                   style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', outline: 'none' }} />
               </div>
               <div>
-                <p className="text-[11px] text-gray-500 mb-1">팀 수 <span className="text-gray-600">(자동으로 팀 코드 발급)</span></p>
-                <div className="flex gap-2">
+                <p className="text-[10px] md:text-[11px] text-gray-500 mb-1">팀 수 <span className="text-gray-600">(자동으로 팀 코드 발급)</span></p>
+                <div className="grid grid-cols-6 gap-1.5 md:gap-2">
                   {[2, 3, 4, 5, 6, 8].map(n => (
                     <button key={n} onClick={() => setForm(f => ({ ...f, teamCount: n }))}
-                      className="flex-1 py-2 rounded-lg text-[13px] font-bold transition"
+                      className="py-2 md:py-2.5 rounded-lg text-[12px] md:text-[13px] font-bold transition"
                       style={{ background: form.teamCount === n ? S.green : 'rgba(255,255,255,0.06)', color: form.teamCount === n ? S.navy : '#666', border: `1px solid ${form.teamCount === n ? S.green : 'rgba(255,255,255,0.1)'}` }}>
                       {n}
                     </button>
                   ))}
                 </div>
               </div>
-              {createError && <p className="text-red-400 text-[12px]">⚠ {createError}</p>}
+              {createError && <p className="text-red-400 text-[11px] md:text-[12px]">⚠ {createError}</p>}
               <button onClick={handleCreateClass} disabled={creating || !form.name.trim()}
-                className="w-full py-3 font-black rounded-xl text-[14px] transition disabled:opacity-30"
+                className="w-full py-3 font-black rounded-xl text-[13px] md:text-[14px] transition disabled:opacity-30"
                 style={{ background: S.green, color: S.navy }}>
                 {creating ? '생성 중...' : `수업 생성 + ${form.teamCount}개 팀 자동 생성 →`}
               </button>
@@ -145,38 +143,38 @@ export default function TeacherDashboard() {
         )}
 
         {/* 수업 목록 */}
-        <div className="mb-4 flex items-center justify-between">
-          <p className="text-sm font-bold text-white">수업 목록 ({classes.length}개)</p>
+        <div className="mb-3 md:mb-4 flex items-center justify-between">
+          <p className="text-[13px] md:text-sm font-bold text-white">수업 목록 ({classes.length}개)</p>
         </div>
 
         {classes.length === 0 ? (
-          <div className="text-center py-16">
-            <p className="text-gray-600 text-[14px]">아직 수업이 없어요</p>
-            <p className="text-gray-700 text-[12px] mt-1">위에서 첫 수업을 만들어보세요!</p>
+          <div className="text-center py-12 md:py-16">
+            <p className="text-gray-600 text-[13px] md:text-[14px]">아직 수업이 없어요</p>
+            <p className="text-gray-700 text-[11px] md:text-[12px] mt-1">위에서 첫 수업을 만들어보세요!</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2.5 md:space-y-3">
             {classes.map(cls => (
               <button key={cls.id}
                 onClick={() => router.push(`/teacher/class/${cls.id}`)}
-                className="w-full text-left rounded-2xl p-4 transition hover:scale-[1.01]"
+                className="w-full text-left rounded-2xl p-3.5 md:p-4 transition hover:scale-[1.01]"
                 style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <div className="flex items-start justify-between mb-2">
-                  <h3 className="text-base font-bold text-white">{cls.name}</h3>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full font-mono"
+                <div className="flex items-start justify-between mb-1.5 md:mb-2 gap-2">
+                  <h3 className="text-[15px] md:text-base font-bold text-white min-w-0 break-words">{cls.name}</h3>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full font-mono flex-shrink-0"
                     style={{ background: `${statusColor[cls.status]}20`, color: statusColor[cls.status] }}>
                     {statusLabel[cls.status]}
                   </span>
                 </div>
-                <p className="text-[12px] text-gray-500">{cls.school}</p>
-                {cls.schedule && <p className="text-[11px] text-gray-600 mt-1">📅 {cls.schedule}</p>}
-                <p className="text-[11px] mt-2" style={{ color: S.aqua }}>팀 관리 & 학생 명단 보기 →</p>
+                <p className="text-[11px] md:text-[12px] text-gray-500">{cls.school}</p>
+                {cls.schedule && <p className="text-[10px] md:text-[11px] text-gray-600 mt-1">📅 {cls.schedule}</p>}
+                <p className="text-[10px] md:text-[11px] mt-2" style={{ color: S.aqua }}>팀 관리 & 학생 명단 보기 →</p>
               </button>
             ))}
           </div>
         )}
 
-        <p className="text-center text-gray-700 text-[10px] mt-8 font-mono">© 2026 SIGNAL — ConnectAI</p>
+        <p className="text-center text-gray-700 text-[10px] mt-6 md:mt-8 font-mono">© 2026 SIGNAL — ConnectAI</p>
       </div>
     </div>
   );
