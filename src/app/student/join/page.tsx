@@ -137,16 +137,9 @@ function InteractiveButton({
           }} />
       ))}
 
-      {/* ⭐ 네온 폭발 효과 — 화려하게 */}
+      {/* ⭐ 네온 폭발 효과 — 미니멀 (네온 링만) */}
       {neonBlast && (
         <>
-          {/* 화면 전체 플래시 (fixed) */}
-          <span className="fixed inset-0 pointer-events-none screen-flash-overlay"
-            style={{
-              background: `radial-gradient(circle at center, ${color}33 0%, transparent 60%)`,
-              zIndex: 9999,
-            }} />
-
           {/* 네온 링 1 (큰 거) */}
           <span className="absolute inset-0 rounded-2xl pointer-events-none neon-ring-1"
             style={{
@@ -167,22 +160,6 @@ function InteractiveButton({
               border: `2px solid ${color}`,
               boxShadow: `0 0 20px ${color}`,
             }} />
-
-          {/* 빛 입자 8개 (사방으로) */}
-          {[0, 45, 90, 135, 180, 225, 270, 315].map((angle, i) => (
-            <span key={i} className="absolute pointer-events-none light-particle"
-              style={{
-                top: '50%',
-                left: '50%',
-                width: '8px',
-                height: '8px',
-                background: color,
-                borderRadius: '50%',
-                boxShadow: `0 0 16px ${color}`,
-                transform: 'translate(-50%, -50%)',
-                '--particle-angle': `${angle}deg`,
-              } as React.CSSProperties} />
-          ))}
         </>
       )}
 
@@ -1222,60 +1199,6 @@ export default function StudentJoin() {
           90% { transform: translate(-1px, 0); filter: brightness(1.1); }
         }
 
-        /* ⭐⭐⭐ 화면 전체 플래시 ⭐⭐⭐ */
-        .screen-flash-overlay {
-          animation: screenFlashAnim 0.6s ease-out forwards;
-        }
-        @keyframes screenFlashAnim {
-          0% { opacity: 0; }
-          15% { opacity: 1; }
-          100% { opacity: 0; }
-        }
-
-        /* ⭐ 빛 입자 8개 (사방으로 폭발) ⭐ */
-        .light-particle {
-          animation: particleExplode 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-        @keyframes particleExplode {
-          0% {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-          }
-          100% {
-            opacity: 0;
-            transform:
-              rotate(var(--particle-angle, 0deg))
-              translateX(80px)
-              rotate(calc(-1 * var(--particle-angle, 0deg)))
-              translate(-50%, -50%)
-              scale(0.3);
-          }
-        }
-
-        /* ⭐⭐⭐ 네온 폭발 효과 — 강화된 버전 ⭐⭐⭐ */
-
-        /* 큰 빛 플래시 — 20px → 600px로 폭발 */
-        .neon-flash-big {
-          animation: neonFlashBig 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-        @keyframes neonFlashBig {
-          0% {
-            opacity: 1;
-            width: 20px;
-            height: 20px;
-          }
-          30% {
-            opacity: 1;
-            width: 400px;
-            height: 400px;
-          }
-          100% {
-            opacity: 0;
-            width: 600px;
-            height: 600px;
-          }
-        }
-
         /* 네온 링 1 (큰 거, 천천히) */
         .neon-ring-1 {
           animation: neonRing1 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -1320,45 +1243,6 @@ export default function StudentJoin() {
           100% {
             opacity: 0;
             transform: scale(1.2);
-          }
-        }
-
-        /* 위 빛줄기 */
-        .neon-beam-top {
-          animation: neonBeamTop 0.8s ease-out forwards;
-        }
-        @keyframes neonBeamTop {
-          0% {
-            opacity: 0;
-            width: 0;
-          }
-          30% {
-            opacity: 1;
-            width: 200px;
-          }
-          100% {
-            opacity: 0;
-            width: 300px;
-          }
-        }
-
-        /* 아래 빛줄기 */
-        .neon-beam-bottom {
-          animation: neonBeamBottom 0.8s ease-out 0.1s forwards;
-          opacity: 0;
-        }
-        @keyframes neonBeamBottom {
-          0% {
-            opacity: 0;
-            width: 0;
-          }
-          30% {
-            opacity: 1;
-            width: 200px;
-          }
-          100% {
-            opacity: 0;
-            width: 300px;
           }
         }
       `}</style>
