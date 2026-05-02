@@ -104,19 +104,14 @@ function InteractiveButton({
           background: `linear-gradient(90deg, transparent 0%, ${color}55 50%, transparent 100%)`,
         }} />
 
-      {/* ⭐ 오로라 파동 (transform으로 좌→우 슬라이드) */}
+      {/* ⭐ 오로라 펄스 (숨쉬듯 깜빡임) */}
       {auroraWave && (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none"
-          style={{ borderRadius: 'inherit' }}>
-          <div className="aurora-wave absolute top-0 bottom-0"
-            style={{
-              width: '200%',
-              left: '-100%',
-              background: 'linear-gradient(110deg, transparent 0%, #06B6D4 20%, #8B5CF6 35%, #3B82F6 50%, #8B5CF6 65%, #06B6D4 80%, transparent 100%)',
-              mixBlendMode: 'screen',
-              opacity: 0.9,
-            }} />
-        </div>
+        <div className="absolute inset-0 pointer-events-none aurora-wave"
+          style={{
+            background: 'linear-gradient(110deg, #06B6D4 0%, #8B5CF6 25%, #3B82F6 50%, #8B5CF6 75%, #06B6D4 100%)',
+            mixBlendMode: 'screen',
+            borderRadius: 'inherit',
+          }} />
       )}
 
       <span className="relative z-10">{children}</span>
@@ -1103,35 +1098,19 @@ export default function StudentJoin() {
           }
         }
 
-        /* ⭐⭐⭐ 오로라 파동 (transform translateX로 확실히 움직임) ⭐⭐⭐ */
+        /* ⭐⭐⭐ 오로라 펄스 (숨쉬듯 깜빡임) ⭐⭐⭐ */
         .aurora-wave {
-          animation: auroraSlide 2.5s ease-in-out forwards;
+          animation: auroraPulse 2.5s ease-in-out forwards;
+          opacity: 0;
         }
-        @keyframes auroraSlide {
-          0% {
-            transform: translateX(0%) translateY(0px);
-            opacity: 0;
-          }
-          15% {
-            opacity: 0.9;
-          }
-          25% {
-            transform: translateX(20%) translateY(-4px);
-          }
-          50% {
-            transform: translateX(40%) translateY(3px);
-            opacity: 1;
-          }
-          75% {
-            transform: translateX(60%) translateY(-3px);
-          }
-          85% {
-            opacity: 0.7;
-          }
-          100% {
-            transform: translateX(75%) translateY(0px);
-            opacity: 0;
-          }
+        @keyframes auroraPulse {
+          0% { opacity: 0; }
+          15% { opacity: 0.5; }
+          30% { opacity: 0.85; }
+          50% { opacity: 1; }
+          70% { opacity: 0.85; }
+          85% { opacity: 0.5; }
+          100% { opacity: 0; }
         }
 
         /* ⭐⭐⭐ 회로 신호 (라인을 따라 빛이 흐름) ⭐⭐⭐ */
