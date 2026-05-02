@@ -230,7 +230,7 @@ export default function Home() {
 
   const handleSaveResponse = async (cardId: string, text: string) => {
     setResponses(prev => ({ ...prev, [cardId]: { texts: { '0': text }, images: {} } }));
-    setSavedToast(true); setTimeout(() => setSavedToast(false), 2000);
+    // toast 제거 — 글자 칠 때마다 뜨면 집중 방해됨. 저장은 계속 됨.
     if (session && teamId) {
       await saveCardResponse({ teamId, sessionId: session.id, cardId, texts: { '0': text } });
     }
