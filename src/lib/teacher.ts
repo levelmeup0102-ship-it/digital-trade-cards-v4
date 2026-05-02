@@ -42,6 +42,14 @@ export type TeamMember = {
   role_assigned_at?: string | null;
 };
 
+// ⭐ NEW: 카드 완료 이벤트 (toast 알림용)
+export type CardCompletionEvent = {
+  teamId: string;
+  teamName: string;
+  cardId: string;
+  completedAt: string;
+};
+
 // ── 간단한 비밀번호 해싱 (btoa 기반) ────────────────────────
 function hashPassword(password: string, salt: string): string {
   return btoa(unescape(encodeURIComponent(password + salt + 'signal2026')));
@@ -251,12 +259,9 @@ export async function joinAsStudent(teamId: string, memberId: string) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// ⭐ NEW: 직무 배정 + 게임 시작 + Realtime
+// 직무 배정 + 게임 시작 + Realtime
 // ─────────────────────────────────────────────────────────────
 
-/**
- * 팀원에게 직무 배정 (팀장은 자동으로 'ceo')
- */
 export async function assignRoles(
   teamId: string,
   assignments: Array<{ memberId: string; roleCode: string }>
@@ -270,9 +275,6 @@ export async function assignRoles(
   }
 }
 
-/**
- * 게임 시작 신호 — Realtime으로 모든 팀원에게 broadcast됨
- */
 export async function startTeamGame(teamId: string) {
   const { error } = await supabase
     .from('teams')
@@ -284,10 +286,6 @@ export async function startTeamGame(teamId: string) {
   if (error) throw error;
 }
 
-/**
- * Realtime: 팀의 game_started 상태 변경 구독
- * @returns unsubscribe 함수
- */
 export function subscribeToTeamStart(
   teamId: string,
   onGameStart: () => void
@@ -315,10 +313,6 @@ export function subscribeToTeamStart(
   };
 }
 
-/**
- * Realtime: 팀원 입장 상태 구독 (대기실에서 사용)
- * @returns unsubscribe 함수
- */
 export function subscribeToTeamMembers(
   teamId: string,
   onMemberUpdate: (members: TeamMember[]) => void
@@ -334,7 +328,6 @@ export function subscribeToTeamMembers(
         filter: `team_id=eq.${teamId}`,
       },
       async () => {
-        // 변경 감지 시 최신 명단 다시 가져옴
         const members = await getTeamMembers(teamId);
         onMemberUpdate(members);
       }
@@ -346,9 +339,6 @@ export function subscribeToTeamMembers(
   };
 }
 
-/**
- * 팀의 현재 game_started 상태 조회
- */
 export async function getTeamGameStatus(teamId: string): Promise<boolean> {
   const { data } = await supabase
     .from('teams')
@@ -356,4 +346,72 @@ export async function getTeamGameStatus(teamId: string): Promise<boolean> {
     .eq('id', teamId)
     .single();
   return data?.game_started === true;
+}
+
+// ─────────────────────────────────────────────────────────────
+// ⭐ NEW: 관리자 랭킹 시스템 (Realtime)
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * 수업 내 모든 팀의 카드 진행 상황 실시간 구독
+ * 학생이 카드를 완료할 때마다 자동으로 onUpdate 콜백 호출
+ *
+ * @param classId 수업 ID
+ * @param teamIds 해당 수업의 팀 ID 목록 (필터링용)
+ * @param onUpdate 변경 감지 시 호출 (완료된 카드 정보 포함)
+ * @returns unsubscribe 함수
+ */
+export function subscribeToClassProgress(
+  classId: string,
+  teamIds: string[],
+  onUpdate: (event: { teamId: string; cardId: string; isCompleted: boolean }) => void
+): () => void {
+  if (teamIds.length === 0) return () => {};
+
+  const channel = supabase
+    .channel(`class-progress-${classId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'card_progress',
+      },
+      (payload: any) => {
+        const newRecord = payload.new || payload.old;
+        if (!newRecord) return;
+        // 이 수업의 팀만 필터링
+        if (!teamIds.includes(newRecord.team_id)) return;
+
+        onUpdate({
+          teamId: newRecord.team_id,
+          cardId: newRecord.card_id,
+          isCompleted: newRecord.completed === true,
+        });
+      }
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
+/**
+ * 팀 랭킹 정보 조회 (정렬됨)
+ * 완료 카드 수 내림차순 → 동점이면 빠른 시간 우선
+ */
+export async function getTeamRankings(classId: string): Promise<Team[]> {
+  const teams = await getTeamsByClass(classId);
+  // 완료 카드 수 내림차순으로 정렬
+  return teams.sort((a, b) => {
+    const aCount = a.completed_count || 0;
+    const bCount = b.completed_count || 0;
+    if (bCount !== aCount) return bCount - aCount;
+    // 동점이면 게임 시작 빠른 순
+    if (a.game_started_at && b.game_started_at) {
+      return new Date(a.game_started_at).getTime() - new Date(b.game_started_at).getTime();
+    }
+    return 0;
+  });
 }
