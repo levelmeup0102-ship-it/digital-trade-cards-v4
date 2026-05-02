@@ -32,27 +32,26 @@ const defaultLeaderConclusion = (): LeaderConclusionState => ({
   judgments: [false, false, false, false],
 });
 
-// ⭐ 인트로용 16장 카드 데이터 — 부채꼴 펼침 각도 계산
+// ⭐ 인트로용 16장 카드 — 부채꼴 펼침 각도 90° → 160° (더 넓게)
 const INTRO_CARDS = Array.from({ length: 16 }, (_, i) => {
   const id = String(i + 1).padStart(2, '0');
-  // 부채꼴 펼침: -45도 ~ +45도, 16장이 균등 분포
-  const totalAngle = 90; // 전체 부채꼴 각도
+  const totalAngle = 160; // 90 → 160으로 확대
   const angle = -totalAngle / 2 + (totalAngle / 15) * i;
   return {
     id,
     color: CARD_COLORS[id]?.bg || '#4FB0C6',
     angle,
-    delay: i * 0.06, // 한 장씩 0.06초 간격으로 등장 (총 ~1초)
+    delay: i * 0.06,
   };
 });
 
 export default function Home() {
   const router = useRouter();
 
-  const [screen, setScreen] = useState<'intro'|'landing'|'guide'|'game'>('intro'); // ⭐ intro 추가
+  const [screen, setScreen] = useState<'intro'|'landing'|'guide'|'game'>('intro');
   const [sessionLoading, setSessionLoading] = useState(true);
-  const [introDone, setIntroDone] = useState(false); // ⭐ 인트로 완료 여부
-  const [exiting, setExiting] = useState(false); // ⭐ 페이지 전환 효과
+  const [introDone, setIntroDone] = useState(false);
+  const [exiting, setExiting] = useState(false);
 
   const [item, setItem] = useState('');
   const [customItem, setCustomItem] = useState('');
@@ -92,12 +91,10 @@ export default function Home() {
 
   const myRole = roleCode ? getRole(roleCode) : null;
 
-  // ⭐ 인트로 자동 종료 (3.5초 후)
   useEffect(() => {
     if (screen !== 'intro') return;
     const timer = setTimeout(() => {
       setIntroDone(true);
-      // 약간의 페이드 후 landing으로
       setTimeout(() => setScreen('landing'), 300);
     }, 3200);
     return () => clearTimeout(timer);
@@ -114,7 +111,7 @@ export default function Home() {
           const [resps, prog] = await Promise.all([loadCardResponses(saved.team_id), loadCardProgress(saved.team_id)]);
           setResponses(resps); setCheckStates(prog.checkStates); setCompletedCards(prog.completedCards);
           setTimer(LEVELS[saved.level]?.timer || 1200);
-          setScreen('game'); // 세션 있으면 인트로 스킵
+          setScreen('game');
           setSessionLoading(false);
           return;
         }
@@ -234,20 +231,18 @@ export default function Home() {
     router.push('/student/join');
   };
 
-  // ⭐ 시작하기 버튼 — 클릭 시 화면 빨려들어가는 효과
   const handleStartClick = (path: string) => {
     setExiting(true);
     setTimeout(() => router.push(path), 600);
   };
 
-  // ─── 로딩 ───
   if (sessionLoading) return (
     <div className="min-h-screen flex items-center justify-center">
       <p className="text-gray-500 font-mono text-sm">불러오는 중...</p>
     </div>
   );
 
-  // ─── ⭐ INTRO (카드 셔플 인트로) ⭐ ───
+  // ─── ⭐ INTRO (카드 셔플 인트로 — 더 넓은 부채꼴) ⭐ ───
   if (screen === 'intro') return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden"
       style={{
@@ -255,29 +250,28 @@ export default function Home() {
         transition: 'opacity 0.3s ease-out',
       }}>
 
-      {/* 배경 플래시 */}
       <div className="fixed inset-0 pointer-events-none"
         style={{
           background: `radial-gradient(circle at center, ${S.green}10 0%, transparent 60%)`,
           animation: 'introFlash 3.2s ease-out forwards',
         }} />
 
-      {/* 16장 카드 셔플 영역 */}
-      <div className="relative w-full max-w-md h-80 flex items-center justify-center mb-6">
+      {/* 16장 카드 — 더 넓은 부채꼴 (160°) */}
+      <div className="relative w-full max-w-3xl h-[420px] flex items-center justify-center mb-6">
         {INTRO_CARDS.map((card, i) => (
           <div
             key={card.id}
             className="absolute rounded-xl flex flex-col items-center justify-center text-white font-black"
             style={{
-              width: '60px',
-              height: '84px',
+              width: '70px',
+              height: '98px',
               background: card.color,
               boxShadow: `0 8px 24px ${card.color}66, 0 0 20px ${card.color}33`,
               animation: `introCardEnter 1.8s cubic-bezier(0.16, 1, 0.3, 1) ${card.delay}s forwards`,
               transformOrigin: 'bottom center',
               opacity: 0,
               '--final-angle': `${card.angle}deg`,
-              '--final-y': `${Math.abs(card.angle) * 0.5}px`,
+              '--final-y': `${Math.abs(card.angle) * 0.4}px`,
             } as React.CSSProperties}
           >
             <span className="text-[10px] font-mono opacity-80">CARD</span>
@@ -286,7 +280,6 @@ export default function Home() {
         ))}
       </div>
 
-      {/* 로고 (인트로 후반부 등장) */}
       <div className="text-center"
         style={{
           opacity: 0,
@@ -335,7 +328,6 @@ export default function Home() {
     </div>
   );
 
-  // ─── LANDING ───
   if (screen === 'landing') return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden"
       style={{
@@ -364,17 +356,14 @@ export default function Home() {
           ))}
         </div>
 
-        {/* ⭐ 학생 버튼 - 빛 한 바퀴 + 광택 */}
         <button onClick={() => handleStartClick('/student/join')}
           className="btn-orbit relative w-full py-4 font-black rounded-2xl text-base mb-3 transition-all hover:scale-[1.02] overflow-hidden group"
           style={{ background: S.green, color: S.navy, boxShadow: `0 10px 30px -5px ${S.green}66` }}>
           <span className="relative z-10">🎓 학생으로 입장 →</span>
-          {/* 광택 (호버 시) */}
           <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700"
             style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)' }} />
         </button>
 
-        {/* ⭐ 관리자 버튼 - 빛 한 바퀴 효과 */}
         <button onClick={() => handleStartClick('/teacher')}
           className="btn-orbit-aqua relative w-full py-3.5 font-bold rounded-2xl text-[14px] transition-all hover:scale-[1.01] mb-3 overflow-hidden"
           style={{ background: 'rgba(193,232,235,0.08)', border: `1px solid ${S.aqua}33`, color: S.aqua }}>
@@ -391,7 +380,6 @@ export default function Home() {
       </div>
 
       <style jsx>{`
-        /* 메인 버튼 — 빛이 테두리를 한 바퀴 도는 효과 */
         .btn-orbit::before {
           content: '';
           position: absolute;
@@ -428,7 +416,6 @@ export default function Home() {
           z-index: 2;
         }
 
-        /* 관리자 버튼 — 아쿠아 톤 빛 */
         .btn-orbit-aqua::before {
           content: '';
           position: absolute;
@@ -458,7 +445,6 @@ export default function Home() {
     </div>
   );
 
-  // ─── GUIDE ───
   if (screen === 'guide') return (
     <div className="min-h-screen px-4 py-6 overflow-auto">
       <div className="max-w-2xl mx-auto">
@@ -492,7 +478,6 @@ export default function Home() {
     </div>
   );
 
-  // ─── GAME ───
   return (
     <div className="min-h-screen flex flex-col items-center px-4 py-4 relative overflow-hidden">
       <div className="fixed top-[20%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full pointer-events-none"
