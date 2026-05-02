@@ -147,19 +147,6 @@ function InteractiveButton({
               zIndex: 9999,
             }} />
 
-          {/* 큰 빛 플래시 (가운데서 폭발) */}
-          <span className="absolute pointer-events-none neon-flash-big"
-            style={{
-              top: '50%',
-              left: '50%',
-              width: '20px',
-              height: '20px',
-              background: `radial-gradient(circle, ${color} 0%, ${color}88 30%, transparent 70%)`,
-              borderRadius: '50%',
-              transform: 'translate(-50%, -50%)',
-              zIndex: 5,
-            }} />
-
           {/* 네온 링 1 (큰 거) */}
           <span className="absolute inset-0 rounded-2xl pointer-events-none neon-ring-1"
             style={{
@@ -196,28 +183,6 @@ function InteractiveButton({
                 '--particle-angle': `${angle}deg`,
               } as React.CSSProperties} />
           ))}
-
-          {/* 위/아래 빛줄기 */}
-          <span className="absolute pointer-events-none neon-beam-top"
-            style={{
-              top: '0',
-              left: '50%',
-              width: '60px',
-              height: '4px',
-              background: `linear-gradient(to right, transparent, ${color}, transparent)`,
-              transform: 'translateX(-50%)',
-              boxShadow: `0 0 20px ${color}`,
-            }} />
-          <span className="absolute pointer-events-none neon-beam-bottom"
-            style={{
-              bottom: '0',
-              left: '50%',
-              width: '60px',
-              height: '4px',
-              background: `linear-gradient(to right, transparent, ${color}, transparent)`,
-              transform: 'translateX(-50%)',
-              boxShadow: `0 0 20px ${color}`,
-            }} />
         </>
       )}
 
