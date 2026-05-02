@@ -87,9 +87,9 @@ function InteractiveButton({
   const [auroraWave, setAuroraWave] = useState(false);
 
   const handleClick = () => {
-    // 오로라 파동 한 번 (잔잔히 좌→우)
+    // 오로라 파동 한 번 (물결처럼 흐름)
     setAuroraWave(true);
-    setTimeout(() => setAuroraWave(false), 2000);
+    setTimeout(() => setAuroraWave(false), 2500);
 
     onClick();
   };
@@ -104,12 +104,12 @@ function InteractiveButton({
           background: `linear-gradient(90deg, transparent 0%, ${color}55 50%, transparent 100%)`,
         }} />
 
-      {/* ⭐ 오로라 파동 (박스 전체에 깔리고 좌→우로 흐름) */}
+      {/* ⭐ 오로라 파동 (박스 전체에 깔리고 물결처럼 흐름) */}
       {auroraWave && (
         <div className="absolute inset-0 pointer-events-none aurora-wave"
           style={{
             background: 'linear-gradient(110deg, #06B6D4 0%, #8B5CF6 25%, #3B82F6 50%, #8B5CF6 75%, #06B6D4 100%)',
-            backgroundSize: '200% 100%',
+            backgroundSize: '200% 200%',
             mixBlendMode: 'screen',
           }} />
       )}
@@ -1060,36 +1060,68 @@ export default function StudentJoin() {
 
         /* 선택된 상태 — 펄스 글로우 */
         .interactive-btn.is-selected {
-          animation: selectedPulse 2s ease-in-out infinite;
+          animation:
+            selectedPulse 2s ease-in-out infinite,
+            auroraSelectedGlow 3s ease-in-out infinite;
         }
         @keyframes selectedPulse {
           0%, 100% { filter: brightness(1); }
           50% { filter: brightness(1.1); }
         }
 
-        /* ⭐⭐⭐ 오로라 파동 (박스 전체에 깔리고 흐름) ⭐⭐⭐ */
+        /* ⭐⭐⭐ 선택 시 박스 테두리 오로라 색 순환 글로우 ⭐⭐⭐ */
+        @keyframes auroraSelectedGlow {
+          0%, 100% {
+            box-shadow:
+              0 0 16px #06B6D4AA,
+              0 0 32px #06B6D466,
+              0 0 56px #8B5CF644;
+          }
+          33% {
+            box-shadow:
+              0 0 16px #8B5CF6AA,
+              0 0 32px #8B5CF666,
+              0 0 56px #3B82F644;
+          }
+          66% {
+            box-shadow:
+              0 0 16px #3B82F6AA,
+              0 0 32px #3B82F666,
+              0 0 56px #06B6D444;
+          }
+        }
+
+        /* ⭐⭐⭐ 오로라 파동 (물결처럼 흐름 - X+Y 같이 변동) ⭐⭐⭐ */
         .aurora-wave {
-          animation: auroraSweep 2s ease-in-out forwards;
-          background-position: 0% 50%;
+          animation: auroraSweep 2.5s ease-in-out forwards;
+          background-position: 0% 0%;
           opacity: 0;
         }
         @keyframes auroraSweep {
           0% {
-            background-position: 0% 50%;
+            background-position: 0% 0%;
             opacity: 0;
           }
-          15% {
+          12% {
             opacity: 0.85;
+          }
+          25% {
+            background-position: 25% 100%;
+            opacity: 0.95;
           }
           50% {
-            background-position: 50% 50%;
+            background-position: 50% 0%;
             opacity: 1;
           }
-          85% {
-            opacity: 0.85;
+          75% {
+            background-position: 75% 100%;
+            opacity: 0.95;
+          }
+          88% {
+            opacity: 0.6;
           }
           100% {
-            background-position: 100% 50%;
+            background-position: 100% 0%;
             opacity: 0;
           }
         }
