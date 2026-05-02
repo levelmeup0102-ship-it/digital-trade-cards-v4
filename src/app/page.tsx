@@ -32,55 +32,71 @@ const defaultLeaderConclusion = (): LeaderConclusionState => ({
   judgments: [false, false, false, false],
 });
 
-// ⭐ 인트로용 16장 카드 — 완벽한 원형 정렬 (시계 방향 균등 분포)
-const INTRO_CARDS = Array.from({ length: 16 }, (_, i) => {
-  const id = String(i + 1).padStart(2, '0');
-  // 360°를 16등분 → 22.5° 간격으로 균등 분포
-  const angle = (360 / 16) * i - 90; // -90도부터 시작 (위쪽부터)
-  // ⭐ 거리는 모두 동일 → 완벽한 원
-  const distance = 240;
-  // 카드 회전 (바깥쪽을 향하도록)
-  const finalRotate = angle + 90;
-  
-  return {
-    id,
-    color: CARD_COLORS[id]?.bg || '#4FB0C6',
-    angle,
-    distance,
-    x: Math.cos((angle * Math.PI) / 180) * distance,
-    y: Math.sin((angle * Math.PI) / 180) * distance,
-    finalRotate,
-    delay: 1.4 + i * 0.03,
-  };
-});
+// ⭐ 화면 크기 감지 훅
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+  return isMobile;
+}
 
-// ⭐ 폭죽 입자 (24개)
-const FIREWORK_PARTICLES = Array.from({ length: 24 }, (_, i) => {
-  const angle = (360 / 24) * i + Math.random() * 10;
-  const distance = 250 + Math.random() * 150;
-  const colors = [S.green, S.aqua, '#FFC72C', '#FF6F61', '#C1A8F0', '#4FB0C6', '#FF671F', '#FFFFFF'];
-  return {
+// ⭐ 인트로용 16장 카드 — 완벽한 원형 정렬
+function getIntroCards(isMobile: boolean) {
+  const distance = isMobile ? 130 : 240; // 모바일: 130px / PC: 240px
+  return Array.from({ length: 16 }, (_, i) => {
+    const id = String(i + 1).padStart(2, '0');
+    const angle = (360 / 16) * i - 90;
+    const finalRotate = angle + 90;
+    return {
+      id,
+      color: CARD_COLORS[id]?.bg || '#4FB0C6',
+      angle,
+      distance,
+      x: Math.cos((angle * Math.PI) / 180) * distance,
+      y: Math.sin((angle * Math.PI) / 180) * distance,
+      finalRotate,
+      delay: 1.4 + i * 0.03,
+    };
+  });
+}
+
+// ⭐ 폭죽 입자
+function getFireworkParticles(isMobile: boolean) {
+  const baseDistance = isMobile ? 150 : 250;
+  return Array.from({ length: isMobile ? 18 : 24 }, (_, i) => {
+    const angle = (360 / (isMobile ? 18 : 24)) * i + Math.random() * 10;
+    const distance = baseDistance + Math.random() * (isMobile ? 60 : 150);
+    const colors = [S.green, S.aqua, '#FFC72C', '#FF6F61', '#C1A8F0', '#4FB0C6', '#FF671F', '#FFFFFF'];
+    return {
+      id: i,
+      angle,
+      distance,
+      x: Math.cos((angle * Math.PI) / 180) * distance,
+      y: Math.sin((angle * Math.PI) / 180) * distance,
+      color: colors[i % colors.length],
+      size: (isMobile ? 3 : 4) + Math.random() * 4,
+      delay: Math.random() * 0.15,
+    };
+  });
+}
+
+// ⭐ 빛 줄기
+function getLightRays(isMobile: boolean) {
+  return Array.from({ length: 8 }, (_, i) => ({
     id: i,
-    angle,
-    distance,
-    x: Math.cos((angle * Math.PI) / 180) * distance,
-    y: Math.sin((angle * Math.PI) / 180) * distance,
-    color: colors[i % colors.length],
-    size: 4 + Math.random() * 5,
-    delay: Math.random() * 0.15,
-  };
-});
-
-// ⭐ 빛 줄기 (사진처럼 가방에서 솟아오르는 빛)
-const LIGHT_RAYS = Array.from({ length: 8 }, (_, i) => ({
-  id: i,
-  angle: -90 + (i - 3.5) * 12, // 위쪽으로 펼쳐지는 빛
-  width: 8 + Math.random() * 10,
-  delay: Math.random() * 0.1,
-}));
+    angle: -90 + (i - 3.5) * 12,
+    width: (isMobile ? 5 : 8) + Math.random() * (isMobile ? 6 : 10),
+    delay: Math.random() * 0.1,
+  }));
+}
 
 export default function Home() {
   const router = useRouter();
+  const isMobile = useIsMobile();
 
   const [screen, setScreen] = useState<'intro'|'landing'|'guide'|'game'>('intro');
   const [sessionLoading, setSessionLoading] = useState(true);
@@ -125,7 +141,11 @@ export default function Home() {
 
   const myRole = roleCode ? getRole(roleCode) : null;
 
-  // 인트로 자동 종료 (4.5초)
+  // 인트로 데이터 (화면 크기에 따라)
+  const introCards = getIntroCards(isMobile);
+  const fireworkParticles = getFireworkParticles(isMobile);
+  const lightRays = getLightRays(isMobile);
+
   useEffect(() => {
     if (screen !== 'intro') return;
     const timer = setTimeout(() => {
@@ -277,345 +297,316 @@ export default function Home() {
     </div>
   );
 
-  // ─── ⭐⭐⭐ INTRO (서류가방 + 빛 폭발 + 우아한 카드 흩어짐 + 폭죽) ⭐⭐⭐ ───
-  if (screen === 'intro') return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden"
-      style={{
-        opacity: introDone ? 0 : 1,
-        transition: 'opacity 0.3s ease-out',
-      }}>
+  // ─── ⭐ INTRO ⭐ ───
+  if (screen === 'intro') {
+    // 사이즈 (모바일/PC)
+    const briefcaseW = isMobile ? 130 : 180;
+    const briefcaseH = isMobile ? 100 : 140;
+    const cardW = isMobile ? 42 : 60;
+    const cardH = isMobile ? 60 : 84;
+    const rayHeight = isMobile ? 280 : 500;
+    const containerH = isMobile ? 400 : 600;
+    const logoSize = isMobile ? 'text-3xl' : 'text-5xl';
 
-      {/* 배경 — 자물쇠 풀릴 때 화면 전체 플래시 */}
-      <div className="fixed inset-0 pointer-events-none"
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-4 md:p-6 relative overflow-hidden"
         style={{
-          background: `radial-gradient(circle at center, ${S.green}40 0%, transparent 50%)`,
-          animation: 'screenFlash 4.5s ease-out forwards',
-          opacity: 0,
-        }} />
+          opacity: introDone ? 0 : 1,
+          transition: 'opacity 0.3s ease-out',
+        }}>
 
-      {/* 메인 인트로 영역 */}
-      <div className="relative w-full max-w-3xl h-[600px] flex items-center justify-center">
+        {/* 배경 플래시 */}
+        <div className="fixed inset-0 pointer-events-none"
+          style={{
+            background: `radial-gradient(circle at center, ${S.green}40 0%, transparent 50%)`,
+            animation: 'screenFlash 4.5s ease-out forwards',
+            opacity: 0,
+          }} />
 
-        {/* ⭐ 빛 줄기 (가방에서 솟아오르는 빛 — 사진처럼) ⭐ */}
-        <div className="absolute" style={{ top: '50%', left: '50%' }}>
-          {LIGHT_RAYS.map(ray => (
+        {/* 메인 인트로 영역 */}
+        <div className="relative w-full flex items-center justify-center"
+          style={{ height: `${containerH}px`, maxWidth: '100%' }}>
+
+          {/* 빛 줄기 */}
+          <div className="absolute" style={{ top: '50%', left: '50%' }}>
+            {lightRays.map(ray => (
+              <div
+                key={ray.id}
+                className="absolute"
+                style={{
+                  width: `${ray.width}px`,
+                  height: `${rayHeight}px`,
+                  background: `linear-gradient(to top, ${S.green}FF 0%, ${S.green}AA 30%, ${S.aqua}66 60%, transparent 100%)`,
+                  transformOrigin: 'bottom center',
+                  transform: `translateX(-50%) translateY(-100%) rotate(${ray.angle}deg)`,
+                  opacity: 0,
+                  animation: `lightRayBurst 1.8s cubic-bezier(0.16, 1, 0.3, 1) ${1.4 + ray.delay}s forwards`,
+                  filter: 'blur(2px)',
+                  mixBlendMode: 'screen',
+                }}
+              />
+            ))}
+          </div>
+
+          {/* 중앙 빛 폭발 */}
+          <div className="absolute"
+            style={{
+              top: '50%',
+              left: '50%',
+              width: '20px',
+              height: '20px',
+              transform: 'translate(-50%, -50%)',
+              background: `radial-gradient(circle, ${S.green}FF 0%, ${S.aqua}AA 30%, transparent 70%)`,
+              borderRadius: '50%',
+              opacity: 0,
+              animation: 'centralBlast 1.5s cubic-bezier(0.16, 1, 0.3, 1) 1.4s forwards',
+            }} />
+
+          {/* 💼 서류 가방 */}
+          <div className="absolute"
+            style={{
+              animation: 'briefcaseEnter 1.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, briefcaseGlow 0.8s ease-out 1.4s forwards',
+              transformOrigin: 'center',
+              zIndex: 10,
+            }}>
+            <svg width={briefcaseW} height={briefcaseH} viewBox="0 0 180 140" className="briefcase-svg">
+              <ellipse cx="90" cy="135" rx="70" ry="6" fill="rgba(0,0,0,0.4)" />
+
+              <rect className="handle" x="75" y="10" width="30" height="20" rx="4" fill="none" stroke="#3a2418" strokeWidth="3" />
+              <rect className="handle" x="78" y="13" width="24" height="14" rx="3" fill="none" stroke="#5C3A24" strokeWidth="2" />
+
+              <rect x="20" y="55" width="140" height="75" rx="6" fill="#5C3A24" />
+              <rect x="20" y="55" width="140" height="75" rx="6" fill="url(#leatherGradient)" />
+
+              <rect className="briefcase-inner-glow" x="22" y="55" width="136" height="8" fill={S.green} opacity="0" />
+
+              <g className="briefcase-lid" style={{ transformOrigin: '90px 55px' }}>
+                <rect x="20" y="30" width="140" height="30" rx="6" fill="#6B4226" />
+                <rect x="20" y="30" width="140" height="30" rx="6" fill="url(#leatherGradient2)" />
+                <rect x="80" y="48" width="20" height="12" rx="2" fill="#FFC72C" />
+                <rect x="84" y="51" width="12" height="6" rx="1" fill="#B8860B" />
+                <circle cx="90" cy="54" r="1.5" fill="#3a2418" />
+              </g>
+
+              <line x1="22" y1="60" x2="158" y2="60" stroke="#3a2418" strokeWidth="0.5" strokeDasharray="3,2" opacity="0.6" />
+              <line x1="22" y1="125" x2="158" y2="125" stroke="#3a2418" strokeWidth="0.5" strokeDasharray="3,2" opacity="0.6" />
+
+              <text x="90" y="100" textAnchor="middle" fontSize="9" fontFamily="monospace" fill="#FFC72C" fontWeight="bold" opacity="0.7">
+                SIGNAL
+              </text>
+
+              <defs>
+                <linearGradient id="leatherGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#7A4F2E" />
+                  <stop offset="50%" stopColor="#5C3A24" />
+                  <stop offset="100%" stopColor="#3a2418" />
+                </linearGradient>
+                <linearGradient id="leatherGradient2" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#8B5A38" />
+                  <stop offset="100%" stopColor="#6B4226" />
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+
+          {/* 폭죽 입자 */}
+          {fireworkParticles.map(p => (
             <div
-              key={ray.id}
-              className="absolute"
+              key={p.id}
+              className="absolute rounded-full"
               style={{
-                width: `${ray.width}px`,
-                height: '500px',
-                background: `linear-gradient(to top, ${S.green}FF 0%, ${S.green}AA 30%, ${S.aqua}66 60%, transparent 100%)`,
-                transformOrigin: 'bottom center',
-                transform: `translateX(-50%) translateY(-100%) rotate(${ray.angle}deg)`,
+                top: '50%',
+                left: '50%',
+                width: `${p.size}px`,
+                height: `${p.size}px`,
+                background: p.color,
+                boxShadow: `0 0 ${p.size * 4}px ${p.color}`,
+                animation: `particleBurst 1.8s cubic-bezier(0.16, 1, 0.3, 1) ${1.4 + p.delay}s forwards`,
                 opacity: 0,
-                animation: `lightRayBurst 1.8s cubic-bezier(0.16, 1, 0.3, 1) ${1.4 + ray.delay}s forwards`,
-                filter: 'blur(2px)',
-                mixBlendMode: 'screen',
-              }}
+                '--burst-x': `${p.x}px`,
+                '--burst-y': `${p.y}px`,
+                transform: 'translate(-50%, -50%)',
+                zIndex: 20,
+              } as React.CSSProperties}
             />
+          ))}
+
+          {/* 16장 카드 — 가방에서 우아하게 사방으로 흩어짐 */}
+          {introCards.map((card, i) => (
+            <div
+              key={card.id}
+              className="absolute rounded-xl flex flex-col items-center justify-center text-white font-black"
+              style={{
+                top: '50%',
+                left: '50%',
+                width: `${cardW}px`,
+                height: `${cardH}px`,
+                background: card.color,
+                boxShadow: `0 8px 24px ${card.color}66, 0 0 30px ${card.color}55`,
+                animation: `cardElegantSpread 2.2s cubic-bezier(0.16, 1, 0.3, 1) ${card.delay}s forwards`,
+                transformOrigin: 'center center',
+                transform: 'translate(-50%, -50%) scale(0)',
+                opacity: 0,
+                '--final-x': `${card.x}px`,
+                '--final-y': `${card.y}px`,
+                '--final-rotate': `${card.finalRotate}deg`,
+                zIndex: 15,
+              } as React.CSSProperties}
+            >
+              <span style={{ fontSize: isMobile ? '7px' : '9px', fontFamily: 'monospace', opacity: 0.8 }}>CARD</span>
+              <span style={{ fontSize: isMobile ? '11px' : '14px', fontFamily: 'monospace' }}>{card.id}</span>
+            </div>
           ))}
         </div>
 
-        {/* ⭐ 중앙 빛 폭발 (자물쇠 풀릴 때) ⭐ */}
-        <div className="absolute"
+        {/* 로고 */}
+        <div className="absolute left-0 right-0 flex justify-center"
           style={{
-            top: '50%',
-            left: '50%',
-            width: '20px',
-            height: '20px',
-            transform: 'translate(-50%, -50%)',
-            background: `radial-gradient(circle, ${S.green}FF 0%, ${S.aqua}AA 30%, transparent 70%)`,
-            borderRadius: '50%',
+            bottom: isMobile ? '32px' : '48px',
             opacity: 0,
-            animation: 'centralBlast 1.5s cubic-bezier(0.16, 1, 0.3, 1) 1.4s forwards',
-          }} />
-
-        {/* 💼 서류 가방 (SVG) */}
-        <div className="absolute"
-          style={{
-            animation: 'briefcaseEnter 1.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, briefcaseGlow 0.8s ease-out 1.4s forwards',
-            transformOrigin: 'center',
-            zIndex: 10,
+            animation: 'introLogoFade 1s ease-out 3.3s forwards',
+            zIndex: 30,
           }}>
-          <svg width="180" height="140" viewBox="0 0 180 140" className="briefcase-svg">
-            {/* 가방 그림자 */}
-            <ellipse cx="90" cy="135" rx="70" ry="6" fill="rgba(0,0,0,0.4)" />
-
-            {/* 손잡이 */}
-            <rect className="handle" x="75" y="10" width="30" height="20" rx="4" fill="none"
-              stroke="#3a2418" strokeWidth="3" />
-            <rect className="handle" x="78" y="13" width="24" height="14" rx="3" fill="none"
-              stroke="#5C3A24" strokeWidth="2" />
-
-            {/* 가방 본체 (아래 부분) */}
-            <rect x="20" y="55" width="140" height="75" rx="6" fill="#5C3A24" />
-            <rect x="20" y="55" width="140" height="75" rx="6" fill="url(#leatherGradient)" />
-
-            {/* 가방 내부에서 빛 새어나옴 (자물쇠 풀린 후 강하게) */}
-            <rect className="briefcase-inner-glow" x="22" y="55" width="136" height="8" fill={S.green} opacity="0" />
-
-            {/* 가방 뚜껑 (열림 애니메이션) */}
-            <g className="briefcase-lid" style={{ transformOrigin: '90px 55px' }}>
-              <rect x="20" y="30" width="140" height="30" rx="6" fill="#6B4226" />
-              <rect x="20" y="30" width="140" height="30" rx="6" fill="url(#leatherGradient2)" />
-              {/* 자물쇠 */}
-              <rect x="80" y="48" width="20" height="12" rx="2" fill="#FFC72C" />
-              <rect x="84" y="51" width="12" height="6" rx="1" fill="#B8860B" />
-              <circle cx="90" cy="54" r="1.5" fill="#3a2418" />
-            </g>
-
-            {/* 박음질 디테일 */}
-            <line x1="22" y1="60" x2="158" y2="60" stroke="#3a2418" strokeWidth="0.5" strokeDasharray="3,2" opacity="0.6" />
-            <line x1="22" y1="125" x2="158" y2="125" stroke="#3a2418" strokeWidth="0.5" strokeDasharray="3,2" opacity="0.6" />
-
-            {/* 텍스트 라벨 */}
-            <text x="90" y="100" textAnchor="middle" fontSize="9" fontFamily="monospace" fill="#FFC72C" fontWeight="bold" opacity="0.7">
-              SIGNAL
-            </text>
-
-            {/* 그라디언트 정의 */}
-            <defs>
-              <linearGradient id="leatherGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#7A4F2E" />
-                <stop offset="50%" stopColor="#5C3A24" />
-                <stop offset="100%" stopColor="#3a2418" />
-              </linearGradient>
-              <linearGradient id="leatherGradient2" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#8B5A38" />
-                <stop offset="100%" stopColor="#6B4226" />
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
-
-        {/* 💥 폭죽 입자 (자물쇠 풀릴 때 같이 터짐) */}
-        {FIREWORK_PARTICLES.map(p => (
-          <div
-            key={p.id}
-            className="absolute rounded-full"
-            style={{
-              top: '50%',
-              left: '50%',
-              width: `${p.size}px`,
-              height: `${p.size}px`,
-              background: p.color,
-              boxShadow: `0 0 ${p.size * 4}px ${p.color}`,
-              animation: `particleBurst 1.8s cubic-bezier(0.16, 1, 0.3, 1) ${1.4 + p.delay}s forwards`,
-              opacity: 0,
-              '--burst-x': `${p.x}px`,
-              '--burst-y': `${p.y}px`,
-              transform: 'translate(-50%, -50%)',
-              zIndex: 20,
-            } as React.CSSProperties}
-          />
-        ))}
-
-        {/* 🎴 16장 카드 — 가방에서 우아하게 사방으로 흩어짐 */}
-        {INTRO_CARDS.map((card, i) => (
-          <div
-            key={card.id}
-            className="absolute rounded-xl flex flex-col items-center justify-center text-white font-black"
-            style={{
-              top: '50%',
-              left: '50%',
-              width: '60px',
-              height: '84px',
-              background: card.color,
-              boxShadow: `0 8px 24px ${card.color}66, 0 0 30px ${card.color}55`,
-              animation: `cardElegantSpread 2.2s cubic-bezier(0.16, 1, 0.3, 1) ${card.delay}s forwards`,
-              transformOrigin: 'center center',
-              transform: 'translate(-50%, -50%) scale(0)',
-              opacity: 0,
-              '--final-x': `${card.x}px`,
-              '--final-y': `${card.y}px`,
-              '--final-rotate': `${card.finalRotate}deg`,
-              zIndex: 15,
-            } as React.CSSProperties}
-          >
-            <span className="text-[9px] font-mono opacity-80">CARD</span>
-            <span className="text-sm font-mono">{card.id}</span>
+          <div className="text-center">
+            <p className="text-[9px] md:text-[11px] tracking-[4px] md:tracking-[6px] text-gray-600 uppercase mb-1 md:mb-2 font-mono">ConnectAI</p>
+            <h1 className={`${logoSize} md:text-5xl font-black text-white tracking-tight mb-1 md:mb-2`}>SIGNAL</h1>
+            <p className="text-gray-400 text-xs md:text-sm font-bold">디지털 무역 전략카드</p>
           </div>
-        ))}
-      </div>
-
-      {/* 로고 — 화면 정가운데 하단 정렬 */}
-      <div className="absolute bottom-12 left-0 right-0 flex justify-center"
-        style={{
-          opacity: 0,
-          animation: 'introLogoFade 1s ease-out 3.3s forwards',
-          zIndex: 30,
-        }}>
-        <div className="text-center">
-          <p className="text-[11px] tracking-[6px] text-gray-600 uppercase mb-2 font-mono">ConnectAI</p>
-          <h1 className="text-5xl font-black text-white tracking-tight mb-2">SIGNAL</h1>
-          <p className="text-gray-400 text-sm font-bold">디지털 무역 전략카드</p>
         </div>
+
+        <style jsx>{`
+          @keyframes briefcaseEnter {
+            0% {
+              opacity: 0;
+              transform: translateY(-200px) scale(0.5) rotate(-10deg);
+            }
+            60% {
+              opacity: 1;
+              transform: translateY(20px) scale(1.05) rotate(2deg);
+            }
+            80% {
+              transform: translateY(-5px) scale(0.98) rotate(-1deg);
+            }
+            100% {
+              opacity: 1;
+              transform: translateY(0) scale(1) rotate(0deg);
+            }
+          }
+
+          @keyframes briefcaseGlow {
+            0% { filter: drop-shadow(0 0 0px transparent); }
+            50% { filter: drop-shadow(0 0 30px ${S.green}AA); }
+            100% { filter: drop-shadow(0 0 15px ${S.green}66); }
+          }
+
+          .briefcase-svg .briefcase-lid {
+            animation: lidOpen 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 1.3s forwards;
+          }
+          @keyframes lidOpen {
+            0% { transform: rotateX(0deg); }
+            100% { transform: rotateX(-160deg); }
+          }
+
+          .briefcase-svg .briefcase-inner-glow {
+            animation: innerGlow 1.5s ease-out 1.4s forwards;
+          }
+          @keyframes innerGlow {
+            0% { opacity: 0; }
+            20% { opacity: 1; }
+            100% { opacity: 0.6; }
+          }
+
+          @keyframes centralBlast {
+            0% { opacity: 0; width: 20px; height: 20px; }
+            30% { opacity: 1; width: ${isMobile ? '400px' : '600px'}; height: ${isMobile ? '400px' : '600px'}; }
+            100% { opacity: 0; width: ${isMobile ? '500px' : '800px'}; height: ${isMobile ? '500px' : '800px'}; }
+          }
+
+          @keyframes lightRayBurst {
+            0% {
+              opacity: 0;
+              transform: translateX(-50%) translateY(-100%) rotate(var(--rotate, 0deg)) scaleY(0);
+            }
+            30% {
+              opacity: 1;
+              transform: translateX(-50%) translateY(-100%) rotate(var(--rotate, 0deg)) scaleY(1.2);
+            }
+            100% {
+              opacity: 0;
+              transform: translateX(-50%) translateY(-100%) rotate(var(--rotate, 0deg)) scaleY(1);
+            }
+          }
+
+          @keyframes screenFlash {
+            0%, 30% { opacity: 0; }
+            31% { opacity: 1; }
+            50% { opacity: 0.4; }
+            100% { opacity: 0; }
+          }
+
+          @keyframes cardElegantSpread {
+            0% {
+              opacity: 0;
+              transform: translate(-50%, -50%) scale(0.3) rotate(0deg);
+            }
+            15% {
+              opacity: 1;
+              transform: translate(-50%, -50%) scale(1.1) rotate(0deg);
+            }
+            60% {
+              opacity: 1;
+              transform: 
+                translate(calc(-50% + var(--final-x) * 0.85), calc(-50% + var(--final-y) * 0.85))
+                scale(1.05)
+                rotate(calc(var(--final-rotate) * 0.85));
+            }
+            100% {
+              opacity: 1;
+              transform: 
+                translate(calc(-50% + var(--final-x)), calc(-50% + var(--final-y)))
+                scale(1)
+                rotate(var(--final-rotate));
+            }
+          }
+
+          @keyframes particleBurst {
+            0% {
+              opacity: 1;
+              transform: translate(-50%, -50%) scale(1);
+            }
+            20% {
+              opacity: 1;
+              transform: translate(
+                calc(-50% + var(--burst-x) * 0.3),
+                calc(-50% + var(--burst-y) * 0.3)
+              ) scale(1.5);
+            }
+            100% {
+              opacity: 0;
+              transform: translate(
+                calc(-50% + var(--burst-x)),
+                calc(-50% + var(--burst-y))
+              ) scale(0.3);
+            }
+          }
+
+          @keyframes introLogoFade {
+            0% {
+              opacity: 0;
+              transform: translateY(20px) scale(0.95);
+            }
+            100% {
+              opacity: 1;
+              transform: translateY(0) scale(1);
+            }
+          }
+        `}</style>
       </div>
-
-      <style jsx>{`
-        /* 가방 등장 — 위에서 떨어지면서 살짝 바운스 */
-        @keyframes briefcaseEnter {
-          0% {
-            opacity: 0;
-            transform: translateY(-200px) scale(0.5) rotate(-10deg);
-          }
-          60% {
-            opacity: 1;
-            transform: translateY(20px) scale(1.05) rotate(2deg);
-          }
-          80% {
-            transform: translateY(-5px) scale(0.98) rotate(-1deg);
-          }
-          100% {
-            opacity: 1;
-            transform: translateY(0) scale(1) rotate(0deg);
-          }
-        }
-
-        /* 가방 자체에 글로우 효과 (자물쇠 풀릴 때) */
-        @keyframes briefcaseGlow {
-          0% {
-            filter: drop-shadow(0 0 0px transparent);
-          }
-          50% {
-            filter: drop-shadow(0 0 30px ${S.green}AA);
-          }
-          100% {
-            filter: drop-shadow(0 0 15px ${S.green}66);
-          }
-        }
-
-        /* 가방 뚜껑 열림 */
-        .briefcase-svg .briefcase-lid {
-          animation: lidOpen 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 1.3s forwards;
-        }
-        @keyframes lidOpen {
-          0% { transform: rotateX(0deg); }
-          100% { transform: rotateX(-160deg); }
-        }
-
-        /* 가방 안쪽 빛 (강하게 새어나옴) */
-        .briefcase-svg .briefcase-inner-glow {
-          animation: innerGlow 1.5s ease-out 1.4s forwards;
-        }
-        @keyframes innerGlow {
-          0% { opacity: 0; }
-          20% { opacity: 1; }
-          100% { opacity: 0.6; }
-        }
-
-        /* 중앙 빛 폭발 (자물쇠 풀릴 때) */
-        @keyframes centralBlast {
-          0% {
-            opacity: 0;
-            width: 20px;
-            height: 20px;
-          }
-          30% {
-            opacity: 1;
-            width: 600px;
-            height: 600px;
-          }
-          100% {
-            opacity: 0;
-            width: 800px;
-            height: 800px;
-          }
-        }
-
-        /* 빛 줄기 (사방으로 솟아오름) */
-        @keyframes lightRayBurst {
-          0% {
-            opacity: 0;
-            transform: translateX(-50%) translateY(-100%) rotate(var(--rotate, 0deg)) scaleY(0);
-          }
-          30% {
-            opacity: 1;
-            transform: translateX(-50%) translateY(-100%) rotate(var(--rotate, 0deg)) scaleY(1.2);
-          }
-          100% {
-            opacity: 0;
-            transform: translateX(-50%) translateY(-100%) rotate(var(--rotate, 0deg)) scaleY(1);
-          }
-        }
-
-        /* 화면 전체 플래시 */
-        @keyframes screenFlash {
-          0%, 30% { opacity: 0; }
-          31% { opacity: 1; }
-          50% { opacity: 0.4; }
-          100% { opacity: 0; }
-        }
-
-        /* 카드 우아한 흩어짐 (사진처럼 부드럽게) */
-        @keyframes cardElegantSpread {
-          /* 0%: 가방 안에 숨겨짐 */
-          0% {
-            opacity: 0;
-            transform: translate(-50%, -50%) scale(0.3) rotate(0deg);
-          }
-          /* 15%: 가방에서 빛과 함께 등장 */
-          15% {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1.1) rotate(0deg);
-          }
-          /* 60%: 부드럽게 사방으로 흩어짐 */
-          60% {
-            opacity: 1;
-            transform: 
-              translate(calc(-50% + var(--final-x) * 0.85), calc(-50% + var(--final-y) * 0.85))
-              scale(1.05)
-              rotate(calc(var(--final-rotate) * 0.85));
-          }
-          /* 100%: 최종 위치 (사방으로 균등 분포) */
-          100% {
-            opacity: 1;
-            transform: 
-              translate(calc(-50% + var(--final-x)), calc(-50% + var(--final-y)))
-              scale(1)
-              rotate(var(--final-rotate));
-          }
-        }
-
-        /* 폭죽 입자 분출 */
-        @keyframes particleBurst {
-          0% {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-          }
-          20% {
-            opacity: 1;
-            transform: translate(
-              calc(-50% + var(--burst-x) * 0.3),
-              calc(-50% + var(--burst-y) * 0.3)
-            ) scale(1.5);
-          }
-          100% {
-            opacity: 0;
-            transform: translate(
-              calc(-50% + var(--burst-x)),
-              calc(-50% + var(--burst-y))
-            ) scale(0.3);
-          }
-        }
-
-        @keyframes introLogoFade {
-          0% {
-            opacity: 0;
-            transform: translateY(20px) scale(0.95);
-          }
-          100% {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-      `}</style>
-    </div>
-  );
+    );
+  }
 
   if (screen === 'landing') return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden"
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 md:p-6 relative overflow-hidden"
       style={{
         opacity: exiting ? 0 : 1,
         transform: exiting ? 'scale(1.5)' : 'scale(1)',
@@ -623,27 +614,33 @@ export default function Home() {
         filter: exiting ? 'blur(8px)' : 'blur(0)',
       }}>
 
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full pointer-events-none"
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] md:w-[600px] h-[400px] md:h-[600px] rounded-full pointer-events-none"
         style={{ background: `radial-gradient(circle, ${S.green}08 0%, transparent 70%)` }} />
 
       <div className="relative z-10 text-center max-w-md w-full"
         style={{ animation: 'fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}>
-        <p className="text-[11px] tracking-[6px] text-gray-600 uppercase mb-4 font-mono">ConnectAI</p>
-        <h1 className="text-6xl font-black text-white mb-2 tracking-tight">SIGNAL</h1>
-        <p className="text-gray-500 text-sm mb-2 font-mono">디지털 무역 전략카드</p>
-        <p className="text-gray-600 text-[13px] mb-8 leading-relaxed">
+        <p className="text-[10px] md:text-[11px] tracking-[4px] md:tracking-[6px] text-gray-600 uppercase mb-3 md:mb-4 font-mono">ConnectAI</p>
+        <h1 className="text-5xl md:text-6xl font-black text-white mb-2 tracking-tight">SIGNAL</h1>
+        <p className="text-gray-500 text-xs md:text-sm mb-2 font-mono">디지털 무역 전략카드</p>
+        <p className="text-gray-600 text-[12px] md:text-[13px] mb-6 md:mb-8 leading-relaxed px-2">
           디지털 무역 전략을 직접 만들어보는<br />체험형 카드게임 학습 플랫폼
         </p>
 
-        <div className="flex justify-center gap-3 mb-10">
+        <div className="flex justify-center gap-2 md:gap-3 mb-8 md:mb-10">
           {['01','02','03','04','05'].map((id, i) => (
-            <div key={id} className="w-12 h-16 rounded-xl flex items-center justify-center text-white text-[11px] font-black font-mono hover-lift"
-              style={{ background: CARD_COLORS[id].bg, transform: `rotate(${(i-2)*6}deg)`, boxShadow: `0 4px 20px ${CARD_COLORS[id].bg}55` }}>{id}</div>
+            <div key={id} className="rounded-xl flex items-center justify-center text-white text-[10px] md:text-[11px] font-black font-mono hover-lift"
+              style={{
+                width: isMobile ? '40px' : '48px',
+                height: isMobile ? '56px' : '64px',
+                background: CARD_COLORS[id].bg,
+                transform: `rotate(${(i-2)*6}deg)`,
+                boxShadow: `0 4px 20px ${CARD_COLORS[id].bg}55`,
+              }}>{id}</div>
           ))}
         </div>
 
         <button onClick={() => handleStartClick('/student/join')}
-          className="btn-orbit relative w-full py-4 font-black rounded-2xl text-base mb-3 transition-all hover:scale-[1.02] overflow-hidden group"
+          className="btn-orbit relative w-full py-3.5 md:py-4 font-black rounded-2xl text-[15px] md:text-base mb-3 transition-all hover:scale-[1.02] overflow-hidden group"
           style={{ background: S.green, color: S.navy, boxShadow: `0 10px 30px -5px ${S.green}66` }}>
           <span className="relative z-10">🎓 학생으로 입장 →</span>
           <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700"
@@ -651,18 +648,18 @@ export default function Home() {
         </button>
 
         <button onClick={() => handleStartClick('/teacher')}
-          className="btn-orbit-aqua relative w-full py-3.5 font-bold rounded-2xl text-[14px] transition-all hover:scale-[1.01] mb-3 overflow-hidden"
+          className="btn-orbit-aqua relative w-full py-3 md:py-3.5 font-bold rounded-2xl text-[13px] md:text-[14px] transition-all hover:scale-[1.01] mb-3 overflow-hidden"
           style={{ background: 'rgba(193,232,235,0.08)', border: `1px solid ${S.aqua}33`, color: S.aqua }}>
           <span className="relative z-10">💼 관리자 로그인</span>
         </button>
 
         <button onClick={() => setScreen('guide')}
-          className="w-full py-3 rounded-2xl text-sm text-gray-500 transition hover:text-gray-300"
+          className="w-full py-2.5 md:py-3 rounded-2xl text-xs md:text-sm text-gray-500 transition hover:text-gray-300"
           style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
           📋 퍼실리테이터 가이드
         </button>
 
-        <p className="text-gray-700 text-[10px] mt-8 font-mono">© 2026 SIGNAL — ConnectAI</p>
+        <p className="text-gray-700 text-[10px] mt-6 md:mt-8 font-mono">© 2026 SIGNAL — ConnectAI</p>
       </div>
 
       <style jsx>{`
@@ -732,13 +729,13 @@ export default function Home() {
   );
 
   if (screen === 'guide') return (
-    <div className="min-h-screen px-4 py-6 overflow-auto">
+    <div className="min-h-screen px-3 md:px-4 py-4 md:py-6 overflow-auto">
       <div className="max-w-2xl mx-auto">
-        <button onClick={() => setScreen('landing')} className="text-gray-600 text-sm mb-4">← 돌아가기</button>
-        <div className="rounded-2xl p-6 mb-6" style={{ background: `${S.green}08`, border: `1px solid ${S.green}20` }}>
+        <button onClick={() => setScreen('landing')} className="text-gray-600 text-sm mb-3 md:mb-4">← 돌아가기</button>
+        <div className="rounded-2xl p-4 md:p-6 mb-4 md:mb-6" style={{ background: `${S.green}08`, border: `1px solid ${S.green}20` }}>
           <p className="text-[10px] font-mono tracking-widest mb-2" style={{ color: S.green }}>FACILITATOR GUIDE</p>
-          <h2 className="text-xl font-black text-white mb-1">퍼실리테이터 운영 가이드</h2>
-          <p className="text-[12px] text-gray-500">카드 01 기준 · 45~60분 · 팀별 4~6명</p>
+          <h2 className="text-lg md:text-xl font-black text-white mb-1">퍼실리테이터 운영 가이드</h2>
+          <p className="text-[11px] md:text-[12px] text-gray-500">카드 01 기준 · 45~60분 · 팀별 4~6명</p>
         </div>
         {[
           { time: '0–5분',   step: '주제 탭 — 카드 개념 확인', icon: '🎯', color: '#534AB7', tip: '주제 탭을 프로젝터에 띄워 핵심 통찰 질문을 함께 읽으세요.' },
@@ -747,13 +744,13 @@ export default function Home() {
           { time: '40–50분', step: '카드 완료 → 다음 카드', icon: '✅', color: '#4FB0C6', tip: 'Q1~Q3 답변 + 한 문장 전략 작성 후 카드 완료.' },
           { time: '50–60분', step: '팀별 발표', icon: '📌', color: '#FF6F61', tip: '각 팀의 한 문장 전략을 발표하고 강사가 피드백합니다.' },
         ].map((f, i) => (
-          <div key={i} className="flex gap-3 mb-4">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg flex-shrink-0"
+          <div key={i} className="flex gap-2 md:gap-3 mb-3 md:mb-4">
+            <div className="w-9 h-9 md:w-10 md:h-10 rounded-full flex items-center justify-center text-base md:text-lg flex-shrink-0"
               style={{ background: f.color + '22', border: `2px solid ${f.color}` }}>{f.icon}</div>
-            <div className="flex-1 pt-1">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-[13px] font-bold" style={{ color: f.color }}>{f.step}</span>
-                <span className="text-[11px] text-gray-600 px-2 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.05)' }}>{f.time}</span>
+            <div className="flex-1 pt-0.5 md:pt-1">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <span className="text-[12px] md:text-[13px] font-bold" style={{ color: f.color }}>{f.step}</span>
+                <span className="text-[10px] md:text-[11px] text-gray-600 px-2 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.05)' }}>{f.time}</span>
               </div>
               <div className="text-[11px] px-3 py-1.5 rounded-lg" style={{ color: f.color, background: f.color + '10' }}>💡 {f.tip}</div>
             </div>
@@ -765,15 +762,15 @@ export default function Home() {
   );
 
   return (
-    <div className="min-h-screen flex flex-col items-center px-4 py-4 relative overflow-hidden">
-      <div className="fixed top-[20%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full pointer-events-none"
+    <div className="min-h-screen flex flex-col items-center px-3 md:px-4 py-3 md:py-4 relative overflow-hidden">
+      <div className="fixed top-[20%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 md:w-96 md:h-96 rounded-full pointer-events-none"
         style={{ background: `radial-gradient(circle, ${color}15 0%, transparent 70%)` }} />
 
       <div className="w-full max-w-md mb-3 relative z-10">
         <div className="flex items-center justify-between mb-2">
           <div>
-            <p className="text-[11px] tracking-[4px] text-gray-600 font-mono">SIGNAL</p>
-            <h1 className="text-sm font-extrabold text-white">디지털 무역 전략카드</h1>
+            <p className="text-[10px] md:text-[11px] tracking-[4px] text-gray-600 font-mono">SIGNAL</p>
+            <h1 className="text-xs md:text-sm font-extrabold text-white">디지털 무역 전략카드</h1>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[9px] px-2 py-1 rounded-md font-bold" style={{ background: lv.color + '22', color: lv.color }}>{lv.emoji} {lv.label}</span>
@@ -837,7 +834,7 @@ export default function Home() {
         <div className="flex gap-0.5 flex-wrap">
           {TOPICS.map((t, i) => (
             <button key={t.id} onClick={() => goToCard(i)}
-              className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold font-mono transition-all hover:scale-110"
+              className="flex-shrink-0 w-5 h-5 md:w-6 md:h-6 rounded-full flex items-center justify-center text-[8px] md:text-[9px] font-bold font-mono transition-all hover:scale-110"
               style={{
                 background: currentCardIdx === i ? CARD_COLORS[t.id].bg : completedCards.has(t.id) ? CARD_COLORS[t.id].bg + '44' : 'rgba(255,255,255,0.06)',
                 border: currentCardIdx === i ? `2px solid ${CARD_COLORS[t.id].bg}` : '1px solid rgba(255,255,255,0.08)',
@@ -921,16 +918,16 @@ export default function Home() {
         />
       </div>
 
-      <div className="flex gap-3 items-center mt-4 relative z-10">
+      <div className="flex gap-3 items-center mt-3 md:mt-4 relative z-10">
         <button onClick={() => goToCard(currentCardIdx - 1)} disabled={currentCardIdx === 0}
-          className="w-11 h-11 rounded-full flex items-center justify-center text-lg transition-all disabled:opacity-20 hover:scale-110"
+          className="w-10 h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center text-base md:text-lg transition-all disabled:opacity-20 hover:scale-110"
           style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>‹</button>
-        <div className="text-center min-w-[160px]">
-          <div className="text-[13px] font-bold text-white">{topic.title}</div>
+        <div className="text-center min-w-[140px] md:min-w-[160px]">
+          <div className="text-[12px] md:text-[13px] font-bold text-white">{topic.title}</div>
           <div className="text-[10px] text-gray-600 font-mono mt-0.5">카드 {currentCardIdx + 1}/16 · {'★'.repeat(topic.difficulty)}{'☆'.repeat(5-topic.difficulty)}</div>
         </div>
         <button onClick={() => goToCard(currentCardIdx + 1)} disabled={currentCardIdx === TOPICS.length - 1}
-          className="w-11 h-11 rounded-full flex items-center justify-center text-lg font-bold transition-all disabled:opacity-20 hover:scale-110"
+          className="w-10 h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center text-base md:text-lg font-bold transition-all disabled:opacity-20 hover:scale-110"
           style={{
             background: currentCardIdx === TOPICS.length - 1 ? 'rgba(255,255,255,0.06)' : color,
             color: '#fff',
@@ -950,7 +947,7 @@ export default function Home() {
         </div>
       )}
 
-      <div className="mt-4 text-[10px] text-gray-700 text-center relative z-10 font-mono">
+      <div className="mt-3 md:mt-4 text-[10px] text-gray-700 text-center relative z-10 font-mono">
         © 2026 SIGNAL — ConnectAI
         <button onClick={exitGame}
           className="ml-3 text-gray-700 underline hover:text-gray-500">나가기</button>
