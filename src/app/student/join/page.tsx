@@ -356,38 +356,191 @@ export default function StudentJoin() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8 relative overflow-hidden">
+
+      {/* ⭐⭐⭐ 사이버틱 배경 효과 ⭐⭐⭐ */}
+
+      {/* 그리드 패턴 */}
+      <div className="fixed inset-0 pointer-events-none opacity-[0.07]"
+        style={{
+          backgroundImage: `
+            linear-gradient(${S.green} 1px, transparent 1px),
+            linear-gradient(90deg, ${S.green} 1px, transparent 1px)
+          `,
+          backgroundSize: '60px 60px',
+        }} />
+
+      {/* 메시 그라디언트 */}
+      <div className="fixed inset-0 pointer-events-none"
+        style={{
+          background: `
+            radial-gradient(circle at 15% 25%, ${S.green}12 0%, transparent 40%),
+            radial-gradient(circle at 85% 70%, ${S.aqua}10 0%, transparent 50%),
+            radial-gradient(circle at 50% 100%, #C1A8F008 0%, transparent 60%)
+          `,
+        }} />
+
+      {/* 스캔라인 (위→아래) */}
+      <div className="fixed inset-0 pointer-events-none scanline"
+        style={{
+          background: `linear-gradient(to bottom, transparent 0%, ${S.green}06 50%, transparent 100%)`,
+          height: '120px',
+        }} />
+
+      {/* 네온 입자 별들 */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        {Array.from({ length: 20 }).map((_, i) => {
+          const colors = [S.green, S.aqua, '#C1A8F0'];
+          const left = (i * 7 + 13) % 100;
+          const top = (i * 13 + 7) % 100;
+          const size = 1.5 + (i % 3) * 0.5;
+          const duration = 4 + (i % 4);
+          const delay = (i % 5) * 0.7;
+          return (
+            <div key={i} className="absolute rounded-full neon-particle"
+              style={{
+                left: `${left}%`,
+                top: `${top}%`,
+                width: `${size}px`,
+                height: `${size}px`,
+                background: colors[i % 3],
+                boxShadow: `0 0 ${size * 4}px ${colors[i % 3]}`,
+                animationDuration: `${duration}s`,
+                animationDelay: `${delay}s`,
+              }} />
+          );
+        })}
+      </div>
+
+      {/* 코너 HUD 장식 (좌상) */}
+      <div className="fixed top-4 left-4 pointer-events-none z-0">
+        <div className="w-12 h-12 relative">
+          <div className="absolute top-0 left-0 w-6 h-[2px]" style={{ background: S.green, boxShadow: `0 0 8px ${S.green}` }} />
+          <div className="absolute top-0 left-0 w-[2px] h-6" style={{ background: S.green, boxShadow: `0 0 8px ${S.green}` }} />
+        </div>
+      </div>
+      {/* 코너 HUD 장식 (우상) */}
+      <div className="fixed top-4 right-4 pointer-events-none z-0">
+        <div className="w-12 h-12 relative">
+          <div className="absolute top-0 right-0 w-6 h-[2px]" style={{ background: S.aqua, boxShadow: `0 0 8px ${S.aqua}` }} />
+          <div className="absolute top-0 right-0 w-[2px] h-6" style={{ background: S.aqua, boxShadow: `0 0 8px ${S.aqua}` }} />
+        </div>
+      </div>
+      {/* 코너 HUD 장식 (좌하) */}
+      <div className="fixed bottom-4 left-4 pointer-events-none z-0">
+        <div className="w-12 h-12 relative">
+          <div className="absolute bottom-0 left-0 w-6 h-[2px]" style={{ background: S.aqua, boxShadow: `0 0 8px ${S.aqua}` }} />
+          <div className="absolute bottom-0 left-0 w-[2px] h-6" style={{ background: S.aqua, boxShadow: `0 0 8px ${S.aqua}` }} />
+        </div>
+      </div>
+      {/* 코너 HUD 장식 (우하) */}
+      <div className="fixed bottom-4 right-4 pointer-events-none z-0">
+        <div className="w-12 h-12 relative">
+          <div className="absolute bottom-0 right-0 w-6 h-[2px]" style={{ background: S.green, boxShadow: `0 0 8px ${S.green}` }} />
+          <div className="absolute bottom-0 right-0 w-[2px] h-6" style={{ background: S.green, boxShadow: `0 0 8px ${S.green}` }} />
+        </div>
+      </div>
+
       <div className="w-full max-w-sm relative z-10">
 
-        {/* 로고 */}
-        <div className="text-center mb-8">
-          <p className="text-[11px] tracking-[6px] text-gray-600 font-mono mb-1">ConnectAI</p>
-          <h1 className="text-4xl font-black text-white tracking-tight">SIGNAL</h1>
-          <p className="text-[13px] mt-2 font-bold tracking-wide" style={{ color: 'rgba(255,255,255,0.85)' }}>
-            디지털 무역 전략카드
-          </p>
+        {/* 로고 — 사이버틱 네온 */}
+        <div className="text-center mb-8 relative">
+          {/* 로고 뒤 글로우 */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-32 pointer-events-none"
+            style={{
+              background: `radial-gradient(ellipse, ${S.green}25 0%, transparent 70%)`,
+              filter: 'blur(20px)',
+            }} />
+
+          {/* 양쪽 장식 라인 */}
+          <div className="flex items-center justify-center gap-3 mb-1.5 relative">
+            <div className="flex-1 h-[1px] max-w-[60px]"
+              style={{ background: `linear-gradient(90deg, transparent, ${S.green}AA)` }} />
+            <p className="text-[10px] tracking-[5px] font-mono font-bold"
+              style={{ color: S.green, textShadow: `0 0 10px ${S.green}AA` }}>
+              CONNECTAI
+            </p>
+            <div className="flex-1 h-[1px] max-w-[60px]"
+              style={{ background: `linear-gradient(90deg, ${S.green}AA, transparent)` }} />
+          </div>
+
+          {/* SIGNAL — 글리치 효과 */}
+          <h1 className="text-5xl font-black text-white tracking-tight relative inline-block glitch-text"
+            style={{
+              textShadow: `0 0 20px ${S.green}66, 0 0 40px ${S.green}33`,
+            }}>
+            SIGNAL
+          </h1>
+
+          <div className="flex items-center justify-center gap-2 mt-2">
+            <div className="w-1 h-1 rounded-full" style={{ background: S.green, boxShadow: `0 0 6px ${S.green}` }} />
+            <p className="text-[12px] font-bold tracking-[3px] font-mono"
+              style={{ color: S.aqua, textShadow: `0 0 8px ${S.aqua}66` }}>
+              DIGITAL TRADE CARDS
+            </p>
+            <div className="w-1 h-1 rounded-full" style={{ background: S.aqua, boxShadow: `0 0 6px ${S.aqua}` }} />
+          </div>
         </div>
 
         {/* ── Step 1: 코드 입력 ── */}
         {step === 'code' && (
           <div>
-            <div className="rounded-2xl p-5 mb-4" style={{ background: `${S.green}08`, border: `1px solid ${S.green}20` }}>
-              <p className="text-[10px] font-mono tracking-widest mb-1" style={{ color: S.green }}>STEP 1 / 4</p>
-              <h2 className="text-lg font-black text-white mb-1">팀 코드 입력</h2>
-              <p className="text-[12px] text-gray-500">관리자가 알려준 코드를 입력하세요</p>
+            {/* Step 카드 — HUD 스타일 */}
+            <div className="rounded-2xl p-5 mb-4 relative overflow-hidden cyber-card"
+              style={{
+                background: `linear-gradient(135deg, ${S.green}08 0%, ${S.aqua}05 100%)`,
+                border: `1px solid ${S.green}40`,
+                boxShadow: `0 0 30px ${S.green}15, inset 0 0 20px ${S.green}08`,
+              }}>
+              {/* 코너 장식 */}
+              <div className="absolute top-2 left-2 w-4 h-4 pointer-events-none"
+                style={{ borderTop: `2px solid ${S.green}`, borderLeft: `2px solid ${S.green}` }} />
+              <div className="absolute top-2 right-2 w-4 h-4 pointer-events-none"
+                style={{ borderTop: `2px solid ${S.green}`, borderRight: `2px solid ${S.green}` }} />
+              <div className="absolute bottom-2 left-2 w-4 h-4 pointer-events-none"
+                style={{ borderBottom: `2px solid ${S.green}`, borderLeft: `2px solid ${S.green}` }} />
+              <div className="absolute bottom-2 right-2 w-4 h-4 pointer-events-none"
+                style={{ borderBottom: `2px solid ${S.green}`, borderRight: `2px solid ${S.green}` }} />
+
+              <p className="text-[10px] font-mono tracking-widest mb-1 flex items-center gap-2"
+                style={{ color: S.green, textShadow: `0 0 8px ${S.green}AA` }}>
+                <span className="w-1.5 h-1.5 rounded-full inline-block animate-pulse"
+                  style={{ background: S.green, boxShadow: `0 0 6px ${S.green}` }} />
+                STEP 1 / 4
+              </p>
+              <h2 className="text-lg font-black text-white mb-1"
+                style={{ textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}>
+                팀 코드 입력
+              </h2>
+              <p className="text-[12px] text-gray-400">{`>`} 관리자가 알려준 코드를 입력하세요</p>
             </div>
             <input value={joinCode} onChange={e => { setJoinCode(e.target.value.toUpperCase()); setCodeError(''); }}
               onKeyDown={e => e.key === 'Enter' && handleCodeSubmit()}
               placeholder="예) DT-AB-X7K2"
               maxLength={12}
-              className="w-full px-4 py-4 rounded-2xl text-white text-lg font-black tracking-widest uppercase text-center mb-3"
-              style={{ background: 'rgba(255,255,255,0.06)', border: joinCode ? `2px solid ${S.green}` : '2px solid rgba(255,255,255,0.1)', outline: 'none', fontFamily: 'monospace' }} />
+              className="w-full px-4 py-4 rounded-2xl text-white text-lg font-black tracking-widest uppercase text-center mb-3 cyber-input"
+              style={{
+                background: 'rgba(0,0,0,0.5)',
+                border: joinCode ? `2px solid ${S.green}` : `2px solid ${S.green}30`,
+                outline: 'none',
+                fontFamily: 'monospace',
+                boxShadow: joinCode
+                  ? `0 0 20px ${S.green}55, inset 0 0 12px ${S.green}15`
+                  : `inset 0 0 8px rgba(0,0,0,0.5)`,
+                color: joinCode ? S.green : '#fff',
+                textShadow: joinCode ? `0 0 8px ${S.green}` : 'none',
+              }} />
             {codeError && <p className="text-red-400 text-[12px] text-center mb-3">⚠ {codeError}</p>}
             <button onClick={handleCodeSubmit} disabled={loading || joinCode.trim().length < 4}
-              className="relative w-full py-4 font-black rounded-2xl text-[15px] transition disabled:opacity-30 overflow-hidden group"
-              style={{ background: S.green, color: S.navy, boxShadow: `0 10px 30px -5px ${S.green}66` }}>
-              <span className="relative z-10">{loading ? '확인 중...' : '팀 확인하기 →'}</span>
+              className="relative w-full py-4 font-black rounded-2xl text-[15px] transition disabled:opacity-30 overflow-hidden group cyber-btn"
+              style={{
+                background: S.green,
+                color: S.navy,
+                boxShadow: `0 0 30px ${S.green}66, 0 10px 30px -5px ${S.green}88`,
+                border: `1px solid ${S.green}`,
+              }}>
+              <span className="relative z-10 tracking-wider">{loading ? '> 확인 중...' : '> 팀 확인하기 →'}</span>
               <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700"
-                style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)' }} />
+                style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.5) 50%, transparent 100%)' }} />
             </button>
           </div>
         )}
@@ -905,6 +1058,85 @@ export default function StudentJoin() {
         }
 
         /* 빛 입자 폭발 효과 제거 — 호환성 문제 */
+
+        /* ⭐⭐⭐ 사이버틱 효과 ⭐⭐⭐ */
+
+        /* 스캔라인 — 위에서 아래로 빛이 흐름 */
+        .scanline {
+          animation: scanlineMove 4s linear infinite;
+        }
+        @keyframes scanlineMove {
+          0% { transform: translateY(-120px); }
+          100% { transform: translateY(100vh); }
+        }
+
+        /* 네온 입자 깜빡임 */
+        .neon-particle {
+          animation-name: neonTwinkle;
+          animation-iteration-count: infinite;
+          animation-timing-function: ease-in-out;
+        }
+        @keyframes neonTwinkle {
+          0%, 100% { opacity: 0.3; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.5); }
+        }
+
+        /* SIGNAL 글리치 텍스트 */
+        .glitch-text {
+          position: relative;
+          animation: glitchPulse 5s ease-in-out infinite;
+        }
+        @keyframes glitchPulse {
+          0%, 100% {
+            text-shadow:
+              0 0 20px rgba(231, 254, 85, 0.4),
+              0 0 40px rgba(231, 254, 85, 0.2);
+          }
+          50% {
+            text-shadow:
+              -1px 0 0 rgba(193, 232, 235, 0.7),
+              1px 0 0 rgba(231, 254, 85, 0.7),
+              0 0 30px rgba(231, 254, 85, 0.6),
+              0 0 60px rgba(193, 232, 235, 0.3);
+          }
+        }
+
+        /* 사이버 카드 — 미세하게 빛이 흐름 */
+        .cyber-card::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(
+            120deg,
+            transparent 30%,
+            rgba(231, 254, 85, 0.05) 50%,
+            transparent 70%
+          );
+          animation: cardSweep 4s linear infinite;
+          pointer-events: none;
+        }
+        @keyframes cardSweep {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+
+        /* 사이버 인풋 — 포커스 시 펄스 */
+        .cyber-input:focus {
+          animation: inputPulse 1.5s ease-in-out infinite;
+        }
+        @keyframes inputPulse {
+          0%, 100% { box-shadow: 0 0 20px rgba(231, 254, 85, 0.4), inset 0 0 12px rgba(231, 254, 85, 0.1); }
+          50% { box-shadow: 0 0 30px rgba(231, 254, 85, 0.7), inset 0 0 18px rgba(231, 254, 85, 0.2); }
+        }
+
+        /* 사이버 버튼 — 글로우 펄스 */
+        .cyber-btn {
+          animation: btnNeonPulse 2.5s ease-in-out infinite;
+        }
+        @keyframes btnNeonPulse {
+          0%, 100% { box-shadow: 0 0 20px rgba(231, 254, 85, 0.4), 0 10px 30px -5px rgba(231, 254, 85, 0.5); }
+          50% { box-shadow: 0 0 40px rgba(231, 254, 85, 0.7), 0 10px 40px -5px rgba(231, 254, 85, 0.8); }
+        }
       `}</style>
     </div>
   );
