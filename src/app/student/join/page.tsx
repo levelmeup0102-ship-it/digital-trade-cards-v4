@@ -626,7 +626,10 @@ export default function StudentJoin() {
                     onClick={() => setSelectedMember(selectedMember?.id === m.id ? null : m)}
                     color={S.green}
                     className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-left transition"
-                    style={{ background: selectedMember?.id === m.id ? `${S.green}15` : 'rgba(255,255,255,0.04)', border: selectedMember?.id === m.id ? `2px solid ${S.green}` : '1px solid rgba(255,255,255,0.08)' }}>
+                    style={{
+                      background: selectedMember?.id === m.id ? 'rgba(139, 92, 246, 0.08)' : 'rgba(255,255,255,0.04)',
+                      border: selectedMember?.id === m.id ? '2px solid #8B5CF6' : '1px solid rgba(255,255,255,0.08)',
+                    }}>
                     <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-black flex-shrink-0"
                       style={{ background: m.is_leader ? S.green : 'rgba(255,255,255,0.1)', color: m.is_leader ? S.navy : '#fff' }}>
                       {m.is_leader ? '👑' : m.name[0]}
@@ -647,8 +650,12 @@ export default function StudentJoin() {
                       </p>
                     </div>
                     {selectedMember?.id === m.id && (
-                      <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: S.green }}>
-                        <svg width="10" height="10" viewBox="0 0 10 10"><path d="M1.5 5l2.5 2.5 4.5-5" stroke={S.navy} strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center"
+                        style={{
+                          background: '#8B5CF6',
+                          boxShadow: '0 0 12px #8B5CF6AA',
+                        }}>
+                        <svg width="10" height="10" viewBox="0 0 10 10"><path d="M1.5 5l2.5 2.5 4.5-5" stroke="#fff" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>
                       </div>
                     )}
                   </InteractiveButton>
