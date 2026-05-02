@@ -104,12 +104,12 @@ function InteractiveButton({
           background: `linear-gradient(90deg, transparent 0%, ${color}55 50%, transparent 100%)`,
         }} />
 
-      {/* ⭐ 오로라 파동 (한 번만, 잔잔히 좌→우 흐름) */}
+      {/* ⭐ 오로라 파동 (박스 전체에 깔리고 좌→우로 흐름) */}
       {auroraWave && (
         <div className="absolute inset-0 pointer-events-none aurora-wave"
           style={{
-            background: 'linear-gradient(110deg, transparent 20%, #06B6D4 35%, #8B5CF6 50%, #3B82F6 65%, transparent 80%)',
-            backgroundSize: '250% 100%',
+            background: 'linear-gradient(110deg, #06B6D4 0%, #8B5CF6 25%, #3B82F6 50%, #8B5CF6 75%, #06B6D4 100%)',
+            backgroundSize: '200% 100%',
             mixBlendMode: 'screen',
           }} />
       )}
@@ -346,58 +346,6 @@ export default function StudentJoin() {
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8 relative overflow-hidden">
 
       {/* ⭐⭐⭐ 사이버틱 배경 효과 ⭐⭐⭐ */}
-
-      {/* ⭐ 회로 패턴 (Circuit Lines) */}
-      <svg className="fixed inset-0 pointer-events-none w-full h-full"
-        xmlns="http://www.w3.org/2000/svg"
-        style={{ opacity: 0.18, zIndex: 0 }}>
-        <defs>
-          {/* 회로 패턴 정의 - 200x200 타일이 반복됨 */}
-          <pattern id="circuit-pattern" x="0" y="0" width="200" height="200" patternUnits="userSpaceOnUse">
-            {/* 가로 라인 */}
-            <line x1="0" y1="40" x2="80" y2="40" stroke={S.green} strokeWidth="1" />
-            <line x1="120" y1="40" x2="200" y2="40" stroke={S.green} strokeWidth="1" />
-            <line x1="0" y1="120" x2="160" y2="120" stroke={S.aqua} strokeWidth="1" />
-
-            {/* 세로 라인 */}
-            <line x1="80" y1="40" x2="80" y2="100" stroke={S.green} strokeWidth="1" />
-            <line x1="160" y1="120" x2="160" y2="200" stroke={S.aqua} strokeWidth="1" />
-            <line x1="40" y1="0" x2="40" y2="80" stroke={S.green} strokeWidth="1" />
-
-            {/* 꺾이는 라인 */}
-            <path d="M 80 100 L 120 100 L 120 40" stroke={S.green} strokeWidth="1" fill="none" />
-            <path d="M 40 80 L 80 80" stroke={S.aqua} strokeWidth="1" fill="none" />
-            <path d="M 0 160 L 60 160 L 60 200" stroke={S.green} strokeWidth="1" fill="none" />
-            <path d="M 100 160 L 140 160 L 140 120" stroke={S.aqua} strokeWidth="1" fill="none" />
-
-            {/* 노드 (점 - 회로 연결점) */}
-            <circle cx="80" cy="40" r="3" fill={S.green} />
-            <circle cx="120" cy="40" r="3" fill={S.green} />
-            <circle cx="40" cy="80" r="3" fill={S.aqua} />
-            <circle cx="80" cy="100" r="3" fill={S.green} />
-            <circle cx="160" cy="120" r="3" fill={S.aqua} />
-            <circle cx="60" cy="160" r="3" fill={S.green} />
-            <circle cx="140" cy="160" r="3" fill={S.aqua} />
-            <circle cx="100" cy="160" r="2" fill={S.green} />
-
-            {/* 작은 사각형 (회로 부품) */}
-            <rect x="76" y="36" width="8" height="8" fill="none" stroke={S.green} strokeWidth="0.5" />
-            <rect x="156" y="116" width="8" height="8" fill="none" stroke={S.aqua} strokeWidth="0.5" />
-          </pattern>
-
-          {/* 발광 노드 글로우 */}
-          <filter id="circuit-glow">
-            <feGaussianBlur stdDeviation="2" result="coloredBlur" />
-            <feMerge>
-              <feMergeNode in="coloredBlur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-
-        {/* 회로 패턴 적용 */}
-        <rect width="100%" height="100%" fill="url(#circuit-pattern)" />
-      </svg>
 
       {/* ⭐ 빛나며 흐르는 회로 신호 (펄스 - 가로 방향) */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
@@ -1119,37 +1067,29 @@ export default function StudentJoin() {
           50% { filter: brightness(1.1); }
         }
 
-        /* ⭐⭐⭐ 오로라 파동 (background-position으로 안전하게) ⭐⭐⭐ */
+        /* ⭐⭐⭐ 오로라 파동 (박스 전체에 깔리고 흐름) ⭐⭐⭐ */
         .aurora-wave {
           animation: auroraSweep 2s ease-in-out forwards;
-          background-position: -150% 50%;
+          background-position: 0% 50%;
           opacity: 0;
         }
         @keyframes auroraSweep {
           0% {
-            background-position: -150% 50%;
+            background-position: 0% 50%;
             opacity: 0;
           }
           15% {
-            opacity: 0.9;
-          }
-          35% {
-            background-position: 0% 30%;
-            opacity: 1;
+            opacity: 0.85;
           }
           50% {
-            background-position: 50% 70%;
+            background-position: 50% 50%;
             opacity: 1;
           }
-          65% {
-            background-position: 100% 30%;
-            opacity: 0.95;
-          }
           85% {
-            opacity: 0.6;
+            opacity: 0.85;
           }
           100% {
-            background-position: 250% 50%;
+            background-position: 100% 50%;
             opacity: 0;
           }
         }
