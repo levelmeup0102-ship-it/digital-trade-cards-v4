@@ -87,9 +87,9 @@ function InteractiveButton({
   const [auroraWave, setAuroraWave] = useState(false);
 
   const handleClick = () => {
-    // 오로라 파동 한 번
+    // 오로라 파동 한 번 (잔잔히)
     setAuroraWave(true);
-    setTimeout(() => setAuroraWave(false), 1000);
+    setTimeout(() => setAuroraWave(false), 1600);
 
     onClick();
   };
@@ -104,13 +104,14 @@ function InteractiveButton({
           background: `linear-gradient(90deg, transparent 0%, ${color}55 50%, transparent 100%)`,
         }} />
 
-      {/* ⭐ 오로라 파동 (한 번만, 좌→우) */}
+      {/* ⭐ 오로라 파동 (한 번만, 잔잔히 좌→우 흐름) */}
       {auroraWave && (
         <span className="absolute inset-0 pointer-events-none aurora-wave"
           style={{
-            background: 'linear-gradient(90deg, transparent 0%, #06B6D4 25%, #3B82F6 50%, #8B5CF6 75%, transparent 100%)',
+            background: 'linear-gradient(110deg, transparent 0%, transparent 20%, #06B6D4 35%, #3B82F6 50%, #8B5CF6 65%, transparent 80%, transparent 100%)',
             mixBlendMode: 'screen',
-            opacity: 0.7,
+            opacity: 0.55,
+            filter: 'blur(8px)',
           }} />
       )}
 
@@ -601,7 +602,15 @@ export default function StudentJoin() {
                       <p className="font-bold text-white text-[14px]">{m.name}</p>
                       <p className="text-[11px]" style={{ color: m.is_leader ? S.green : '#666' }}>
                         {m.is_leader ? '팀장 (CEO)' : '팀원'}
-                        {m.joined_at && <span className="ml-2 text-gray-600">이미 입장함</span>}
+                        {m.joined_at && (
+                          <span className="ml-2 font-bold"
+                            style={{
+                              color: '#FF6FB5',
+                              textShadow: '0 0 8px rgba(255, 111, 181, 0.6)',
+                            }}>
+                            이미 입장함
+                          </span>
+                        )}
                       </p>
                     </div>
                     {selectedMember?.id === m.id && (
@@ -1025,17 +1034,31 @@ export default function StudentJoin() {
           50% { filter: brightness(1.1); }
         }
 
-        /* ⭐⭐⭐ 오로라 파동 (클릭 시 한 번) ⭐⭐⭐ */
+        /* ⭐⭐⭐ 오로라 파동 (잔잔하게 흐름, 살짝 움직임) ⭐⭐⭐ */
         .aurora-wave {
-          animation: auroraWaveAnim 1s ease-out forwards;
+          animation: auroraWaveAnim 1.6s ease-in-out forwards;
           transform: translateX(-100%);
         }
         @keyframes auroraWaveAnim {
           0% {
-            transform: translateX(-100%);
+            transform: translateX(-100%) translateY(0) scale(1);
+            filter: blur(8px) hue-rotate(0deg);
+          }
+          25% {
+            transform: translateX(-50%) translateY(-3px) scale(1.05);
+            filter: blur(10px) hue-rotate(-10deg);
+          }
+          50% {
+            transform: translateX(0) translateY(2px) scale(1.1);
+            filter: blur(8px) hue-rotate(0deg);
+          }
+          75% {
+            transform: translateX(50%) translateY(-2px) scale(1.05);
+            filter: blur(10px) hue-rotate(10deg);
           }
           100% {
-            transform: translateX(100%);
+            transform: translateX(100%) translateY(0) scale(1);
+            filter: blur(8px) hue-rotate(0deg);
           }
         }
 
