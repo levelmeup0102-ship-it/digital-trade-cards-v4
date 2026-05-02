@@ -66,7 +66,7 @@ type Ripple = { id: number; x: number; y: number; key: string };
 // ⭐ 클릭 시 빛 입자 터짐 타입
 type BurstEffect = { id: number; key: string };
 
-// ⭐ 인터랙티브 버튼 컴포넌트
+// ⭐ 인터랙티브 버튼 컴포넌트 — 오로라 파동만
 function InteractiveButton({
   isSelected,
   onClick,
@@ -84,90 +84,37 @@ function InteractiveButton({
   style?: React.CSSProperties;
   uniqueKey: string;
 }) {
-  const [ripples, setRipples] = useState<Ripple[]>([]);
-  const [isGlitching, setIsGlitching] = useState(false);
-  const [neonBlast, setNeonBlast] = useState(false);
-  const rippleIdRef = useRef(0);
+  const [auroraWave, setAuroraWave] = useState(false);
 
-  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    // 리플 추가
-    const rippleId = ++rippleIdRef.current;
-    setRipples(prev => [...prev, { id: rippleId, x, y, key: `${uniqueKey}-ripple-${rippleId}` }]);
-    setTimeout(() => {
-      setRipples(prev => prev.filter(r => r.id !== rippleId));
-    }, 700);
-
-    // ⭐ 글리치 효과 트리거 (1초로 증가)
-    setIsGlitching(true);
-    setTimeout(() => setIsGlitching(false), 1000);
-
-    // ⭐ 네온 폭발 트리거 (1.2초로 증가)
-    setNeonBlast(true);
-    setTimeout(() => setNeonBlast(false), 1200);
+  const handleClick = () => {
+    // 오로라 파동 한 번
+    setAuroraWave(true);
+    setTimeout(() => setAuroraWave(false), 1000);
 
     onClick();
   };
 
   return (
     <button onClick={handleClick}
-      className={`relative interactive-btn ${isSelected ? 'is-selected' : ''} ${isGlitching ? 'btn-glitch-shake' : ''} ${className || ''}`}
-      style={{
-        ...style,
-        overflow: neonBlast ? 'visible' : 'hidden',
-      }}>
+      className={`relative overflow-hidden interactive-btn ${isSelected ? 'is-selected' : ''} ${className || ''}`}
+      style={style}>
       {/* 호버 시 빛 흐름 (광택) */}
       <span className="absolute inset-0 -translate-x-full hover-shine pointer-events-none"
         style={{
           background: `linear-gradient(90deg, transparent 0%, ${color}55 50%, transparent 100%)`,
-          overflow: 'hidden',
         }} />
 
-      {/* 리플 효과 */}
-      {ripples.map(r => (
-        <span key={r.key}
-          className="absolute rounded-full ripple-anim pointer-events-none"
+      {/* ⭐ 오로라 파동 (한 번만, 좌→우) */}
+      {auroraWave && (
+        <span className="absolute inset-0 pointer-events-none aurora-wave"
           style={{
-            left: `${r.x}px`,
-            top: `${r.y}px`,
-            background: `radial-gradient(circle, ${color}AA 0%, transparent 70%)`,
+            background: 'linear-gradient(90deg, transparent 0%, #06B6D4 25%, #3B82F6 50%, #8B5CF6 75%, transparent 100%)',
+            mixBlendMode: 'screen',
+            opacity: 0.7,
           }} />
-      ))}
-
-      {/* ⭐ 네온 폭발 효과 — 미니멀 (네온 링만, 글로우 줄임) */}
-      {neonBlast && (
-        <>
-          {/* 네온 링 1 (큰 거) */}
-          <span className="absolute inset-0 rounded-2xl pointer-events-none neon-ring-1"
-            style={{
-              border: `3px solid ${color}`,
-            }} />
-
-          {/* 네온 링 2 (중간) */}
-          <span className="absolute inset-0 rounded-2xl pointer-events-none neon-ring-2"
-            style={{
-              border: `2px solid ${color}`,
-            }} />
-
-          {/* 네온 링 3 (작은 거, 빠르게) */}
-          <span className="absolute inset-0 rounded-2xl pointer-events-none neon-ring-3"
-            style={{
-              border: `2px solid ${color}`,
-            }} />
-        </>
       )}
 
-      {/* ⭐ 글리치 효과 — 글씨 컨테이너 */}
-      <span className={`relative z-10 ${isGlitching ? 'glitch-active' : ''}`}
-        style={{
-          '--glitch-color-1': color,
-          '--glitch-color-2': '#FF00FF',
-        } as React.CSSProperties}>
-        {children}
-      </span>
+      <span className="relative z-10">{children}</span>
     </button>
   );
 }
@@ -1078,27 +1025,19 @@ export default function StudentJoin() {
           50% { filter: brightness(1.1); }
         }
 
-        /* ⭐ 리플 효과 (클릭 위치에서 빛 파동) */
-        .ripple-anim {
-          width: 0;
-          height: 0;
-          transform: translate(-50%, -50%);
-          animation: rippleExpand 0.7s ease-out forwards;
+        /* ⭐⭐⭐ 오로라 파동 (클릭 시 한 번) ⭐⭐⭐ */
+        .aurora-wave {
+          animation: auroraWaveAnim 1s ease-out forwards;
+          transform: translateX(-100%);
         }
-        @keyframes rippleExpand {
+        @keyframes auroraWaveAnim {
           0% {
-            width: 0;
-            height: 0;
-            opacity: 1;
+            transform: translateX(-100%);
           }
           100% {
-            width: 400px;
-            height: 400px;
-            opacity: 0;
+            transform: translateX(100%);
           }
         }
-
-        /* 빛 입자 폭발 효과 제거 — 호환성 문제 */
 
         /* ⭐⭐⭐ 사이버틱 효과 ⭐⭐⭐ */
 
@@ -1177,70 +1116,6 @@ export default function StudentJoin() {
         @keyframes btnNeonPulse {
           0%, 100% { box-shadow: 0 0 20px rgba(231, 254, 85, 0.4), 0 10px 30px -5px rgba(231, 254, 85, 0.5); }
           50% { box-shadow: 0 0 40px rgba(231, 254, 85, 0.7), 0 10px 40px -5px rgba(231, 254, 85, 0.8); }
-        }
-
-        /* ⭐⭐⭐ 버튼 자체 흔들기 (강력한 글리치) ⭐⭐⭐ */
-        .btn-glitch-shake {
-          animation: btnShake 0.6s linear;
-        }
-        @keyframes btnShake {
-          0%, 100% { transform: translate(0, 0); }
-          10% { transform: translate(-6px, -2px); filter: hue-rotate(0deg) brightness(1.2); }
-          20% { transform: translate(6px, 2px); filter: hue-rotate(90deg) brightness(1.3); }
-          30% { transform: translate(-5px, 1px); filter: hue-rotate(180deg) brightness(1.1); }
-          40% { transform: translate(5px, -1px); filter: hue-rotate(270deg) brightness(1.4); }
-          50% { transform: translate(-3px, 0); filter: hue-rotate(0deg) brightness(1.2); }
-          60% { transform: translate(3px, 0); filter: brightness(1.5); }
-          70% { transform: translate(-2px, -1px); filter: brightness(1.2); }
-          80% { transform: translate(2px, 1px); filter: brightness(1.3); }
-          90% { transform: translate(-1px, 0); filter: brightness(1.1); }
-        }
-
-        /* 네온 링 1 (큰 거, 천천히) */
-        .neon-ring-1 {
-          animation: neonRing1 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-        @keyframes neonRing1 {
-          0% {
-            opacity: 1;
-            transform: scale(1);
-          }
-          100% {
-            opacity: 0;
-            transform: scale(1.08);
-          }
-        }
-
-        /* 네온 링 2 (중간 속도) */
-        .neon-ring-2 {
-          animation: neonRing2 0.6s ease-out 0.1s forwards;
-          opacity: 0;
-        }
-        @keyframes neonRing2 {
-          0% {
-            opacity: 1;
-            transform: scale(1);
-          }
-          100% {
-            opacity: 0;
-            transform: scale(1.06);
-          }
-        }
-
-        /* 네온 링 3 (빠르게) */
-        .neon-ring-3 {
-          animation: neonRing3 0.4s ease-out 0.2s forwards;
-          opacity: 0;
-        }
-        @keyframes neonRing3 {
-          0% {
-            opacity: 1;
-            transform: scale(1);
-          }
-          100% {
-            opacity: 0;
-            transform: scale(1.04);
-          }
         }
       `}</style>
     </div>
