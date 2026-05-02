@@ -85,6 +85,8 @@ function InteractiveButton({
   uniqueKey: string;
 }) {
   const [ripples, setRipples] = useState<Ripple[]>([]);
+  const [isGlitching, setIsGlitching] = useState(false);
+  const [neonBlast, setNeonBlast] = useState(false);
   const rippleIdRef = useRef(0);
 
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -98,6 +100,14 @@ function InteractiveButton({
     setTimeout(() => {
       setRipples(prev => prev.filter(r => r.id !== rippleId));
     }, 700);
+
+    // ⭐ 글리치 효과 트리거
+    setIsGlitching(true);
+    setTimeout(() => setIsGlitching(false), 400);
+
+    // ⭐ 네온 폭발 트리거
+    setNeonBlast(true);
+    setTimeout(() => setNeonBlast(false), 600);
 
     onClick();
   };
@@ -123,10 +133,31 @@ function InteractiveButton({
           }} />
       ))}
 
-      {/* 빛 입자 폭발 (8개) */}
-      {/* 입자 폭발 효과 제거 — CSS cos/sin 호환성 문제로 점이 안 사라지는 이슈 */}
+      {/* ⭐ 네온 폭발 효과 */}
+      {neonBlast && (
+        <>
+          {/* 사방으로 퍼지는 네온 링 */}
+          <span className="absolute inset-0 rounded-2xl pointer-events-none neon-ring"
+            style={{
+              border: `2px solid ${color}`,
+              boxShadow: `0 0 30px ${color}, inset 0 0 30px ${color}`,
+            }} />
+          {/* 빛 플래시 */}
+          <span className="absolute inset-0 rounded-2xl pointer-events-none neon-flash"
+            style={{
+              background: `radial-gradient(circle at center, ${color}66 0%, transparent 70%)`,
+            }} />
+        </>
+      )}
 
-      <span className="relative z-10">{children}</span>
+      {/* ⭐ 글리치 효과 — 글씨 컨테이너 */}
+      <span className={`relative z-10 ${isGlitching ? 'glitch-active' : ''}`}
+        style={{
+          '--glitch-color-1': color,
+          '--glitch-color-2': '#FF00FF',
+        } as React.CSSProperties}>
+        {children}
+      </span>
     </button>
   );
 }
@@ -1136,6 +1167,100 @@ export default function StudentJoin() {
         @keyframes btnNeonPulse {
           0%, 100% { box-shadow: 0 0 20px rgba(231, 254, 85, 0.4), 0 10px 30px -5px rgba(231, 254, 85, 0.5); }
           50% { box-shadow: 0 0 40px rgba(231, 254, 85, 0.7), 0 10px 40px -5px rgba(231, 254, 85, 0.8); }
+        }
+
+        /* ⭐⭐⭐ 글리치 효과 (클릭 시) ⭐⭐⭐ */
+        .glitch-active {
+          animation: textGlitch 0.4s steps(2) 1;
+        }
+        @keyframes textGlitch {
+          0% {
+            transform: translate(0, 0);
+            text-shadow:
+              0 0 0 transparent,
+              0 0 0 transparent;
+          }
+          15% {
+            transform: translate(-2px, 1px);
+            text-shadow:
+              -2px 0 0 #FF00C8,
+              2px 0 0 #00E5FF,
+              0 0 12px var(--glitch-color-1, #E7FE55);
+          }
+          30% {
+            transform: translate(2px, -1px);
+            text-shadow:
+              2px 0 0 #FF00C8,
+              -2px 0 0 #00E5FF,
+              0 0 12px var(--glitch-color-1, #E7FE55);
+          }
+          45% {
+            transform: translate(-1px, 0);
+            text-shadow:
+              -1px 0 0 #FF00C8,
+              1px 0 0 #00E5FF,
+              0 0 8px var(--glitch-color-1, #E7FE55);
+          }
+          60% {
+            transform: translate(1px, 1px);
+            text-shadow:
+              1px 0 0 #FF00C8,
+              -1px 0 0 #00E5FF,
+              0 0 16px var(--glitch-color-1, #E7FE55);
+          }
+          75% {
+            transform: translate(-2px, -1px);
+            text-shadow:
+              -2px 0 0 #FF00C8,
+              2px 0 0 #00E5FF,
+              0 0 12px var(--glitch-color-1, #E7FE55);
+          }
+          100% {
+            transform: translate(0, 0);
+            text-shadow:
+              0 0 0 transparent,
+              0 0 0 transparent;
+          }
+        }
+
+        /* ⭐⭐⭐ 네온 폭발 효과 (클릭 시) ⭐⭐⭐ */
+
+        /* 네온 링 — 사방으로 퍼짐 */
+        .neon-ring {
+          animation: neonRingExpand 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes neonRingExpand {
+          0% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.8;
+            transform: scale(1.05);
+          }
+          100% {
+            opacity: 0;
+            transform: scale(1.15);
+          }
+        }
+
+        /* 빛 플래시 — 가운데서 폭발 */
+        .neon-flash {
+          animation: neonFlashBurst 0.6s ease-out forwards;
+        }
+        @keyframes neonFlashBurst {
+          0% {
+            opacity: 0;
+            transform: scale(0.5);
+          }
+          30% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: scale(1.3);
+          }
         }
       `}</style>
     </div>
