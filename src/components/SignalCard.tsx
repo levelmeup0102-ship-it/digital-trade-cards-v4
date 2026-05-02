@@ -48,7 +48,6 @@ export default function SignalCard({
 }: SignalCardProps) {
   const color = CARD_COLORS[topic.id].bg;
 
-  // ⭐ 카드별 템플릿 가져오기
   const template = getCardTemplate(topic.id);
 
   const getSubForTab = (tab: TabType): SubCard | null => {
@@ -69,7 +68,6 @@ export default function SignalCard({
   };
   const allQsDone = topic.subs.every(s => hasResponse(s.id));
 
-  // ⭐ 카드별 템플릿으로 한 문장 합성
   const oneSentenceSynthesis = template.buildSentence(
     leaderConclusion.fields[0] || '',
     leaderConclusion.fields[1] || '',
@@ -80,43 +78,48 @@ export default function SignalCard({
   const canComplete = isLeader && !isCardCompleted && Boolean(leaderConclusion.oneSentence?.trim()) && allQsDone;
 
   return (
-    <div className="w-full max-w-[340px]">
+    <div className="w-full max-w-[340px] mx-auto">
 
-      {/* ── 카드 비주얼 (기존 디자인 유지) ── */}
-      <div className="relative mb-4" style={{ aspectRatio: '70/45', perspective: 1200 }}>
-        {[2, 1].map(offset => (
-          <div key={offset} className="absolute rounded-2xl border border-gray-200"
-            style={{ top: offset * 4, left: offset * 3, right: -offset * 3, bottom: -offset * 4, background: '#f0f0f0', transform: `rotate(${offset * 1.5}deg)` }} />
-        ))}
-        <div className="absolute inset-0 rounded-2xl overflow-hidden bg-white border border-gray-200 shadow-lg">
+      {/* ⭐ 카드 비주얼 — 깔끔한 한 장 카드 (뒤 겹침 제거) ⭐ */}
+      <div className="mb-4 relative">
+        <div className="rounded-2xl overflow-hidden bg-white border border-gray-200 relative"
+          style={{
+            boxShadow: '0 8px 24px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.08)',
+          }}>
           {isCardCompleted && (
-            <div className="absolute top-2 right-2 z-10 flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full"
+            <div className="absolute top-3 right-3 z-10 flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full"
               style={{ background: S.green, color: S.navy }}>
               ✓ 완료
             </div>
           )}
-          <div className="p-5 h-full flex flex-col justify-between">
-            <div className="relative">
-              <div className="absolute -top-1 -left-1 w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-base z-[2]"
+          <div className="p-5 flex flex-col">
+            {/* 상단 — 번호 원 + 4x4 그리드 */}
+            <div className="flex items-start gap-3 mb-4">
+              {/* 번호 원 */}
+              <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-black text-base flex-shrink-0"
                 style={{ background: color, boxShadow: `0 4px 12px ${color}66` }}>
                 {topic.id}
               </div>
-              <div className="ml-11">
-                <div className="grid grid-cols-4 gap-1 w-full">
-                  {Array.from({ length: 16 }).map((_, i) => (
-                    <div key={i} className="aspect-square rounded"
-                      style={{ background: color, opacity: 0.85 }} />
-                  ))}
-                </div>
+              {/* 4x4 그리드 — 주제 탭은 회색, 나머지(Q1/Q2/Q3/결론)는 카드 색깔 */}
+              <div className="flex-1 grid grid-cols-4 gap-1.5">
+                {Array.from({ length: 16 }).map((_, i) => (
+                  <div key={i} className="aspect-square rounded-md transition-colors duration-300"
+                    style={{
+                      background: currentTab === '주제' ? '#D1D5DB' : color,
+                      opacity: currentTab === '주제' ? 1 : 0.85,
+                    }} />
+                ))}
               </div>
             </div>
-            <div className="mt-3">
+
+            {/* 하단 — 라벨 + 제목 */}
+            <div className="mt-2">
               <span className="inline-block px-3 py-1 rounded-full text-[11px] font-semibold mb-2"
                 style={{ border: `1.5px solid ${color}`, color }}>
                 {topic.id}. 주제카드
               </span>
               <h3 className="text-lg font-black text-gray-900 leading-tight">{topic.title}</h3>
-              <p className="text-[13px] font-extrabold text-gray-400 leading-tight">{topic.titleEn}</p>
+              <p className="text-[13px] font-extrabold text-gray-400 leading-tight mt-0.5">{topic.titleEn}</p>
             </div>
           </div>
         </div>
@@ -243,7 +246,6 @@ export default function SignalCard({
         {/* 결론 탭 */}
         {currentTab === '결론' && (
           <div className="p-4">
-            {/* Q1~Q3 답변 요약 */}
             <div className="mb-4">
               <p className="text-[10px] font-bold mb-2 font-mono tracking-widest text-gray-500">팀 답변 요약</p>
               <div className="space-y-2">
@@ -267,7 +269,6 @@ export default function SignalCard({
 
             {isLeader ? (
               <>
-                {/* ⭐ 4필드 입력 — 카드별 템플릿 적용 */}
                 <div className="mb-4">
                   <p className="text-[10px] font-bold mb-2 font-mono tracking-widest text-gray-500">한 문장 전략 재료</p>
                   <div className="grid grid-cols-2 gap-2">
@@ -290,7 +291,6 @@ export default function SignalCard({
                   </div>
                 </div>
 
-                {/* ⭐ 한 문장 전략 — 카드별 템플릿으로 합성 */}
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-1.5">
                     <p className="text-[10px] font-bold font-mono tracking-widest text-gray-500">한 문장 전략</p>
@@ -320,7 +320,6 @@ export default function SignalCard({
                   )}
                 </div>
 
-                {/* 판단 기준 */}
                 <div className="mb-4">
                   <p className="text-[10px] font-bold mb-2 font-mono tracking-widest text-gray-500">팀장 판단 기준</p>
                   {['정의가 구체적인가?', '논리적으로 연결되는가?', '현실성이 있는가?', '실행 가능한가?'].map((c, i) => (
@@ -342,7 +341,6 @@ export default function SignalCard({
                   ))}
                 </div>
 
-                {/* 완료 버튼 */}
                 {isCardCompleted ? (
                   <div className="w-full py-3 rounded-xl text-center font-bold text-[13px]"
                     style={{ background: `${S.green}20`, color: S.green }}>
