@@ -883,6 +883,18 @@ export default function StudentJoin() {
         /* 클릭 시 살짝 눌림 효과 */
         .interactive-btn {
           transition: transform 0.15s ease-out;
+          outline: none;
+          -webkit-tap-highlight-color: transparent;
+          -webkit-appearance: none;
+          appearance: none;
+        }
+        .interactive-btn:focus,
+        .interactive-btn:focus-visible {
+          outline: none;
+          box-shadow: none;
+        }
+        .interactive-btn::-moz-focus-inner {
+          border: 0;
         }
         .interactive-btn:active {
           transform: scale(0.97);
