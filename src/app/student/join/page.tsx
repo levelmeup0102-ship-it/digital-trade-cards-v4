@@ -101,13 +101,13 @@ function InteractiveButton({
       setRipples(prev => prev.filter(r => r.id !== rippleId));
     }, 700);
 
-    // ⭐ 글리치 효과 트리거
+    // ⭐ 글리치 효과 트리거 (1초로 증가)
     setIsGlitching(true);
-    setTimeout(() => setIsGlitching(false), 400);
+    setTimeout(() => setIsGlitching(false), 1000);
 
-    // ⭐ 네온 폭발 트리거
+    // ⭐ 네온 폭발 트리거 (1.2초로 증가)
     setNeonBlast(true);
-    setTimeout(() => setNeonBlast(false), 600);
+    setTimeout(() => setNeonBlast(false), 1200);
 
     onClick();
   };
@@ -133,19 +133,63 @@ function InteractiveButton({
           }} />
       ))}
 
-      {/* ⭐ 네온 폭발 효과 */}
+      {/* ⭐ 네온 폭발 효과 — 화려하게 */}
       {neonBlast && (
         <>
-          {/* 사방으로 퍼지는 네온 링 */}
-          <span className="absolute inset-0 rounded-2xl pointer-events-none neon-ring"
+          {/* 큰 빛 플래시 (가운데서 폭발) */}
+          <span className="absolute pointer-events-none neon-flash-big"
+            style={{
+              top: '50%',
+              left: '50%',
+              width: '20px',
+              height: '20px',
+              background: `radial-gradient(circle, ${color} 0%, ${color}88 30%, transparent 70%)`,
+              borderRadius: '50%',
+              transform: 'translate(-50%, -50%)',
+              zIndex: 5,
+            }} />
+
+          {/* 네온 링 1 (큰 거) */}
+          <span className="absolute inset-0 rounded-2xl pointer-events-none neon-ring-1"
+            style={{
+              border: `3px solid ${color}`,
+              boxShadow: `0 0 40px ${color}, inset 0 0 40px ${color}66`,
+            }} />
+
+          {/* 네온 링 2 (중간) */}
+          <span className="absolute inset-0 rounded-2xl pointer-events-none neon-ring-2"
             style={{
               border: `2px solid ${color}`,
-              boxShadow: `0 0 30px ${color}, inset 0 0 30px ${color}`,
+              boxShadow: `0 0 30px ${color}AA`,
             }} />
-          {/* 빛 플래시 */}
-          <span className="absolute inset-0 rounded-2xl pointer-events-none neon-flash"
+
+          {/* 네온 링 3 (작은 거, 빠르게) */}
+          <span className="absolute inset-0 rounded-2xl pointer-events-none neon-ring-3"
             style={{
-              background: `radial-gradient(circle at center, ${color}66 0%, transparent 70%)`,
+              border: `2px solid ${color}`,
+              boxShadow: `0 0 20px ${color}`,
+            }} />
+
+          {/* 위/아래 빛줄기 */}
+          <span className="absolute pointer-events-none neon-beam-top"
+            style={{
+              top: '0',
+              left: '50%',
+              width: '60px',
+              height: '4px',
+              background: `linear-gradient(to right, transparent, ${color}, transparent)`,
+              transform: 'translateX(-50%)',
+              boxShadow: `0 0 20px ${color}`,
+            }} />
+          <span className="absolute pointer-events-none neon-beam-bottom"
+            style={{
+              bottom: '0',
+              left: '50%',
+              width: '60px',
+              height: '4px',
+              background: `linear-gradient(to right, transparent, ${color}, transparent)`,
+              transform: 'translateX(-50%)',
+              boxShadow: `0 0 20px ${color}`,
             }} />
         </>
       )}
@@ -1169,97 +1213,215 @@ export default function StudentJoin() {
           50% { box-shadow: 0 0 40px rgba(231, 254, 85, 0.7), 0 10px 40px -5px rgba(231, 254, 85, 0.8); }
         }
 
-        /* ⭐⭐⭐ 글리치 효과 (클릭 시) ⭐⭐⭐ */
+        /* ⭐⭐⭐ 글리치 효과 — 강화된 버전 (1초) ⭐⭐⭐ */
         .glitch-active {
-          animation: textGlitch 0.4s steps(2) 1;
+          animation: textGlitchStrong 1s linear 1;
         }
-        @keyframes textGlitch {
+        @keyframes textGlitchStrong {
           0% {
-            transform: translate(0, 0);
+            transform: translate(0, 0) skewX(0deg);
+            text-shadow: none;
+            opacity: 1;
+          }
+          5% {
+            transform: translate(-4px, 2px) skewX(-3deg);
             text-shadow:
-              0 0 0 transparent,
-              0 0 0 transparent;
+              -3px 0 0 #FF00C8,
+              3px 0 0 #00E5FF,
+              0 0 16px var(--glitch-color-1, #E7FE55);
+            opacity: 0.9;
+          }
+          10% {
+            transform: translate(4px, -2px) skewX(3deg);
+            text-shadow:
+              3px 0 0 #FF00C8,
+              -3px 0 0 #00E5FF,
+              0 0 16px var(--glitch-color-1, #E7FE55);
           }
           15% {
-            transform: translate(-2px, 1px);
+            transform: translate(-3px, 1px) skewX(-2deg);
             text-shadow:
               -2px 0 0 #FF00C8,
               2px 0 0 #00E5FF,
               0 0 12px var(--glitch-color-1, #E7FE55);
           }
-          30% {
-            transform: translate(2px, -1px);
+          20% {
+            transform: translate(3px, -1px) skewX(2deg);
             text-shadow:
               2px 0 0 #FF00C8,
               -2px 0 0 #00E5FF,
-              0 0 12px var(--glitch-color-1, #E7FE55);
+              0 0 20px var(--glitch-color-1, #E7FE55);
+            opacity: 1;
           }
-          45% {
+          25% {
+            transform: translate(0, 0) skewX(0);
+            text-shadow:
+              0 0 0 transparent,
+              0 0 24px var(--glitch-color-1, #E7FE55);
+          }
+          30% {
+            transform: translate(-2px, 0) skewX(-1deg);
+            text-shadow:
+              -2px 0 0 #FF00C8,
+              2px 0 0 #00E5FF;
+            opacity: 0.85;
+          }
+          35% {
+            transform: translate(5px, 2px) skewX(4deg);
+            text-shadow:
+              4px 0 0 #FF00C8,
+              -4px 0 0 #00E5FF,
+              0 0 20px var(--glitch-color-1, #E7FE55);
+          }
+          40% {
+            transform: translate(-5px, -1px) skewX(-3deg);
+            text-shadow:
+              -3px 0 0 #FF00C8,
+              3px 0 0 #00E5FF;
+          }
+          50% {
+            transform: translate(0, 0) skewX(0);
+            text-shadow:
+              0 0 32px var(--glitch-color-1, #E7FE55);
+            opacity: 1;
+          }
+          60% {
+            transform: translate(-2px, 1px) skewX(-2deg);
+            text-shadow:
+              -2px 0 0 #FF00C8,
+              2px 0 0 #00E5FF;
+          }
+          70% {
+            transform: translate(2px, -1px) skewX(2deg);
+            text-shadow:
+              2px 0 0 #FF00C8,
+              -2px 0 0 #00E5FF;
+          }
+          80% {
             transform: translate(-1px, 0);
             text-shadow:
               -1px 0 0 #FF00C8,
               1px 0 0 #00E5FF,
-              0 0 8px var(--glitch-color-1, #E7FE55);
-          }
-          60% {
-            transform: translate(1px, 1px);
-            text-shadow:
-              1px 0 0 #FF00C8,
-              -1px 0 0 #00E5FF,
               0 0 16px var(--glitch-color-1, #E7FE55);
           }
-          75% {
-            transform: translate(-2px, -1px);
-            text-shadow:
-              -2px 0 0 #FF00C8,
-              2px 0 0 #00E5FF,
-              0 0 12px var(--glitch-color-1, #E7FE55);
+          90% {
+            transform: translate(1px, 0);
+            text-shadow: 0 0 12px var(--glitch-color-1, #E7FE55);
           }
           100% {
-            transform: translate(0, 0);
-            text-shadow:
-              0 0 0 transparent,
-              0 0 0 transparent;
+            transform: translate(0, 0) skewX(0);
+            text-shadow: none;
+            opacity: 1;
           }
         }
 
-        /* ⭐⭐⭐ 네온 폭발 효과 (클릭 시) ⭐⭐⭐ */
+        /* ⭐⭐⭐ 네온 폭발 효과 — 강화된 버전 ⭐⭐⭐ */
 
-        /* 네온 링 — 사방으로 퍼짐 */
-        .neon-ring {
-          animation: neonRingExpand 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        /* 큰 빛 플래시 — 20px → 600px로 폭발 */
+        .neon-flash-big {
+          animation: neonFlashBig 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
-        @keyframes neonRingExpand {
+        @keyframes neonFlashBig {
+          0% {
+            opacity: 1;
+            width: 20px;
+            height: 20px;
+          }
+          30% {
+            opacity: 1;
+            width: 400px;
+            height: 400px;
+          }
+          100% {
+            opacity: 0;
+            width: 600px;
+            height: 600px;
+          }
+        }
+
+        /* 네온 링 1 (큰 거, 천천히) */
+        .neon-ring-1 {
+          animation: neonRing1 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes neonRing1 {
           0% {
             opacity: 1;
             transform: scale(1);
           }
-          50% {
-            opacity: 0.8;
-            transform: scale(1.05);
-          }
           100% {
             opacity: 0;
-            transform: scale(1.15);
+            transform: scale(1.4);
           }
         }
 
-        /* 빛 플래시 — 가운데서 폭발 */
-        .neon-flash {
-          animation: neonFlashBurst 0.6s ease-out forwards;
+        /* 네온 링 2 (중간 속도) */
+        .neon-ring-2 {
+          animation: neonRing2 0.9s ease-out 0.1s forwards;
+          opacity: 0;
         }
-        @keyframes neonFlashBurst {
+        @keyframes neonRing2 {
           0% {
-            opacity: 0;
-            transform: scale(0.5);
-          }
-          30% {
             opacity: 1;
             transform: scale(1);
           }
           100% {
             opacity: 0;
             transform: scale(1.3);
+          }
+        }
+
+        /* 네온 링 3 (빠르게) */
+        .neon-ring-3 {
+          animation: neonRing3 0.6s ease-out 0.2s forwards;
+          opacity: 0;
+        }
+        @keyframes neonRing3 {
+          0% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: scale(1.2);
+          }
+        }
+
+        /* 위 빛줄기 */
+        .neon-beam-top {
+          animation: neonBeamTop 0.8s ease-out forwards;
+        }
+        @keyframes neonBeamTop {
+          0% {
+            opacity: 0;
+            width: 0;
+          }
+          30% {
+            opacity: 1;
+            width: 200px;
+          }
+          100% {
+            opacity: 0;
+            width: 300px;
+          }
+        }
+
+        /* 아래 빛줄기 */
+        .neon-beam-bottom {
+          animation: neonBeamBottom 0.8s ease-out 0.1s forwards;
+          opacity: 0;
+        }
+        @keyframes neonBeamBottom {
+          0% {
+            opacity: 0;
+            width: 0;
+          }
+          30% {
+            opacity: 1;
+            width: 200px;
+          }
+          100% {
+            opacity: 0;
+            width: 300px;
           }
         }
       `}</style>
