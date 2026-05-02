@@ -85,9 +85,7 @@ function InteractiveButton({
   uniqueKey: string;
 }) {
   const [ripples, setRipples] = useState<Ripple[]>([]);
-  const [bursts, setBursts] = useState<BurstEffect[]>([]);
   const rippleIdRef = useRef(0);
-  const burstIdRef = useRef(0);
 
   const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -100,13 +98,6 @@ function InteractiveButton({
     setTimeout(() => {
       setRipples(prev => prev.filter(r => r.id !== rippleId));
     }, 700);
-
-    // 입자 폭발 추가
-    const burstId = ++burstIdRef.current;
-    setBursts(prev => [...prev, { id: burstId, key: `${uniqueKey}-burst-${burstId}` }]);
-    setTimeout(() => {
-      setBursts(prev => prev.filter(b => b.id !== burstId));
-    }, 1000);
 
     onClick();
   };
@@ -133,23 +124,7 @@ function InteractiveButton({
       ))}
 
       {/* 빛 입자 폭발 (8개) */}
-      {bursts.map(b => (
-        <span key={b.key} className="absolute inset-0 pointer-events-none">
-          {[0, 45, 90, 135, 180, 225, 270, 315].map(angle => (
-            <span key={angle}
-              className="absolute rounded-full particle-burst"
-              style={{
-                top: '50%',
-                left: '50%',
-                width: '4px',
-                height: '4px',
-                background: color,
-                boxShadow: `0 0 8px ${color}`,
-                '--burst-angle': `${angle}deg`,
-              } as React.CSSProperties} />
-          ))}
-        </span>
-      ))}
+      {/* 입자 폭발 효과 제거 — CSS cos/sin 호환성 문제로 점이 안 사라지는 이슈 */}
 
       <span className="relative z-10">{children}</span>
     </button>
@@ -929,26 +904,7 @@ export default function StudentJoin() {
           }
         }
 
-        /* ⭐ 빛 입자 폭발 (8개 사방으로) */
-        .particle-burst {
-          transform: translate(-50%, -50%);
-          animation: burstParticle 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-        @keyframes burstParticle {
-          0% {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-          }
-          100% {
-            opacity: 0;
-            transform:
-              translate(
-                calc(-50% + cos(var(--burst-angle, 0deg)) * 60px),
-                calc(-50% + sin(var(--burst-angle, 0deg)) * 60px)
-              )
-              scale(0.3);
-          }
-        }
+        /* 빛 입자 폭발 효과 제거 — 호환성 문제 */
       `}</style>
     </div>
   );
