@@ -36,12 +36,10 @@ const CARD_COLORS_LIST = [
   '#00695C', '#4E342E', '#E64A19', '#1565C0', '#2E7D32', '#1976D2',
 ];
 
-// 떠다니는 카드 데이터 (8장)
 const FLOATING_CARDS = Array.from({ length: 8 }, (_, i) => ({
   id: i,
   color: CARD_COLORS_LIST[i * 2],
   cardNum: String((i * 2) + 1).padStart(2, '0'),
-  // 위치 / 크기 / 속도 다양화
   left: [10, 85, 20, 75, 5, 90, 30, 65][i],
   top: [15, 20, 75, 80, 50, 55, 5, 90][i],
   size: [40, 50, 35, 45, 50, 40, 45, 38][i],
@@ -50,7 +48,6 @@ const FLOATING_CARDS = Array.from({ length: 8 }, (_, i) => ({
   rotate: [-15, 12, -8, 20, -22, 10, 18, -12][i],
 }));
 
-// 빛나는 입자 (15개)
 const PARTICLES = Array.from({ length: 15 }, (_, i) => ({
   id: i,
   left: Math.random() * 100,
@@ -62,6 +59,102 @@ const PARTICLES = Array.from({ length: 15 }, (_, i) => ({
 }));
 
 type Step = 'code' | 'confirm' | 'select' | 'leader-setup' | 'waiting' | 'welcome';
+
+// ⭐ 리플 효과 타입
+type Ripple = { id: number; x: number; y: number; key: string };
+
+// ⭐ 클릭 시 빛 입자 터짐 타입
+type BurstEffect = { id: number; key: string };
+
+// ⭐ 인터랙티브 버튼 컴포넌트
+function InteractiveButton({
+  isSelected,
+  onClick,
+  color,
+  children,
+  className,
+  style,
+  uniqueKey,
+}: {
+  isSelected: boolean;
+  onClick: () => void;
+  color: string;
+  children: React.ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+  uniqueKey: string;
+}) {
+  const [ripples, setRipples] = useState<Ripple[]>([]);
+  const [bursts, setBursts] = useState<BurstEffect[]>([]);
+  const rippleIdRef = useRef(0);
+  const burstIdRef = useRef(0);
+
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    // 리플 추가
+    const rippleId = ++rippleIdRef.current;
+    setRipples(prev => [...prev, { id: rippleId, x, y, key: `${uniqueKey}-ripple-${rippleId}` }]);
+    setTimeout(() => {
+      setRipples(prev => prev.filter(r => r.id !== rippleId));
+    }, 700);
+
+    // 입자 폭발 추가
+    const burstId = ++burstIdRef.current;
+    setBursts(prev => [...prev, { id: burstId, key: `${uniqueKey}-burst-${burstId}` }]);
+    setTimeout(() => {
+      setBursts(prev => prev.filter(b => b.id !== burstId));
+    }, 1000);
+
+    onClick();
+  };
+
+  return (
+    <button onClick={handleClick}
+      className={`relative overflow-hidden interactive-btn ${isSelected ? 'is-selected' : ''} ${className || ''}`}
+      style={style}>
+      {/* 호버 시 빛 흐름 (광택) */}
+      <span className="absolute inset-0 -translate-x-full hover-shine pointer-events-none"
+        style={{
+          background: `linear-gradient(90deg, transparent 0%, ${color}55 50%, transparent 100%)`,
+        }} />
+
+      {/* 리플 효과 */}
+      {ripples.map(r => (
+        <span key={r.key}
+          className="absolute rounded-full ripple-anim pointer-events-none"
+          style={{
+            left: `${r.x}px`,
+            top: `${r.y}px`,
+            background: `radial-gradient(circle, ${color}AA 0%, transparent 70%)`,
+          }} />
+      ))}
+
+      {/* 빛 입자 폭발 (8개) */}
+      {bursts.map(b => (
+        <span key={b.key} className="absolute inset-0 pointer-events-none">
+          {[0, 45, 90, 135, 180, 225, 270, 315].map(angle => (
+            <span key={angle}
+              className="absolute rounded-full particle-burst"
+              style={{
+                top: '50%',
+                left: '50%',
+                width: '4px',
+                height: '4px',
+                background: color,
+                boxShadow: `0 0 8px ${color}`,
+                '--burst-angle': `${angle}deg`,
+              } as React.CSSProperties} />
+          ))}
+        </span>
+      ))}
+
+      <span className="relative z-10">{children}</span>
+    </button>
+  );
+}
 
 export default function StudentJoin() {
   const router = useRouter();
@@ -377,7 +470,11 @@ export default function StudentJoin() {
             ) : (
               <div className="space-y-2 mb-4">
                 {members.map(m => (
-                  <button key={m.id} onClick={() => setSelectedMember(selectedMember?.id === m.id ? null : m)}
+                  <InteractiveButton key={m.id}
+                    uniqueKey={`member-${m.id}`}
+                    isSelected={selectedMember?.id === m.id}
+                    onClick={() => setSelectedMember(selectedMember?.id === m.id ? null : m)}
+                    color={S.green}
                     className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-left transition"
                     style={{ background: selectedMember?.id === m.id ? `${S.green}15` : 'rgba(255,255,255,0.04)', border: selectedMember?.id === m.id ? `2px solid ${S.green}` : '1px solid rgba(255,255,255,0.08)' }}>
                     <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-black flex-shrink-0"
@@ -396,7 +493,7 @@ export default function StudentJoin() {
                         <svg width="10" height="10" viewBox="0 0 10 10"><path d="M1.5 5l2.5 2.5 4.5-5" stroke={S.navy} strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>
                       </div>
                     )}
-                  </button>
+                  </InteractiveButton>
                 ))}
               </div>
             )}
@@ -422,16 +519,26 @@ export default function StudentJoin() {
               <p className="text-[12px] text-gray-500">팀장만 설정할 수 있어요. 팀원들에게도 적용됩니다.</p>
             </div>
 
-            {/* ① 아이템 */}
+            {/* ⭐ ① 아이템 — 인터랙티브 버튼 */}
             <div className="mb-5">
               <p className="text-sm font-bold text-white mb-2">① 팀 아이템 선택</p>
               <div className="grid grid-cols-2 gap-2">
                 {ITEMS.map(it => (
-                  <button key={it} onClick={() => setItem(it)}
+                  <InteractiveButton key={it}
+                    uniqueKey={`item-${it}`}
+                    isSelected={item === it}
+                    onClick={() => setItem(it)}
+                    color={S.green}
                     className="px-3 py-2.5 rounded-xl text-left text-[12px] transition"
-                    style={{ background: item === it ? `${S.green}15` : 'rgba(255,255,255,0.04)', border: item === it ? `1px solid ${S.green}` : '1px solid rgba(255,255,255,0.08)', color: item === it ? S.green : '#9ca3af', fontWeight: item === it ? 700 : 400 }}>
+                    style={{
+                      background: item === it ? `${S.green}15` : 'rgba(255,255,255,0.04)',
+                      border: item === it ? `1px solid ${S.green}` : '1px solid rgba(255,255,255,0.08)',
+                      color: item === it ? S.green : '#9ca3af',
+                      fontWeight: item === it ? 700 : 400,
+                      boxShadow: item === it ? `0 0 16px ${S.green}33` : 'none',
+                    }}>
                     {it}
-                  </button>
+                  </InteractiveButton>
                 ))}
               </div>
               {item === '✏️ 직접 입력' && (
@@ -442,17 +549,25 @@ export default function StudentJoin() {
               )}
             </div>
 
-            {/* ② 수준 */}
+            {/* ⭐ ② 수준 — 인터랙티브 버튼 */}
             <div className="mb-5">
               <p className="text-sm font-bold text-white mb-2">② 수업 수준</p>
               {Object.entries(LEVELS).map(([k, v]) => (
-                <button key={k} onClick={() => setLevel(k)}
+                <InteractiveButton key={k}
+                  uniqueKey={`level-${k}`}
+                  isSelected={level === k}
+                  onClick={() => setLevel(k)}
+                  color={v.color}
                   className="w-full mb-2 px-4 py-3 rounded-xl flex items-center gap-3 transition"
-                  style={{ background: level === k ? v.color + '22' : 'rgba(255,255,255,0.04)', border: level === k ? `1px solid ${v.color}` : '1px solid rgba(255,255,255,0.08)' }}>
+                  style={{
+                    background: level === k ? v.color + '22' : 'rgba(255,255,255,0.04)',
+                    border: level === k ? `1px solid ${v.color}` : '1px solid rgba(255,255,255,0.08)',
+                    boxShadow: level === k ? `0 0 16px ${v.color}33` : 'none',
+                  }}>
                   <span className="text-xl">{v.emoji}</span>
                   <div className="flex-1 text-left text-[13px] font-bold text-white">{v.label}</div>
                   <span className="text-[11px] text-gray-500">{Math.floor(v.timer / 60)}분 · {v.minChars}자</span>
-                </button>
+                </InteractiveButton>
               ))}
             </div>
 
@@ -486,8 +601,12 @@ export default function StudentJoin() {
                   <select
                     value={roleAssignments[m.id] || ''}
                     onChange={e => setRoleAssignments(prev => ({ ...prev, [m.id]: e.target.value as RoleCode }))}
-                    className="w-full px-3 py-2 rounded-lg text-[12px] text-white outline-none"
-                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    className="w-full px-3 py-2 rounded-lg text-[12px] text-white outline-none transition"
+                    style={{
+                      background: 'rgba(255,255,255,0.06)',
+                      border: roleAssignments[m.id] ? `1px solid ${ROLES[roleAssignments[m.id]]?.color}66` : '1px solid rgba(255,255,255,0.1)',
+                      boxShadow: roleAssignments[m.id] ? `0 0 12px ${ROLES[roleAssignments[m.id]]?.color}22` : 'none',
+                    }}>
                     <option value="" style={{ background: '#0A0A0A' }}>직무 선택...</option>
                     {availableRoles.map(code => {
                       const r = ROLES[code];
@@ -530,11 +649,9 @@ export default function StudentJoin() {
           </div>
         )}
 
-        {/* ⭐ 대기실 (팀원용) — 풍성한 애니메이션 ⭐ */}
+        {/* 대기실 */}
         {step === 'waiting' && team && selectedMember && (
           <div className="text-center relative">
-
-            {/* 펄스 글로우 헤일로 (배경) */}
             <div className="absolute top-12 left-1/2 -translate-x-1/2 pointer-events-none">
               <div className="halo-pulse"
                 style={{
@@ -545,7 +662,6 @@ export default function StudentJoin() {
                 }} />
             </div>
 
-            {/* 카드 셔플 애니메이션 (메인) */}
             <div className="relative h-48 mb-6 flex items-center justify-center z-10">
               {[0, 1, 2, 3, 4].map((i) => {
                 const cardColor = CARD_COLORS_LIST[i * 3];
@@ -568,7 +684,6 @@ export default function StudentJoin() {
               })}
             </div>
 
-            {/* 메인 메시지 */}
             <div className="rounded-2xl p-5 mb-4 relative z-10" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
               <p className="text-[10px] font-mono tracking-widest mb-1" style={{ color: S.green }}>WAITING ROOM</p>
               <h2 className="text-lg font-black text-white mb-1">
@@ -577,7 +692,6 @@ export default function StudentJoin() {
               <p className="text-[12px] text-gray-500">팀장이 게임을 준비하고 있어요</p>
             </div>
 
-            {/* 응원 메시지 슬라이드 */}
             <div className="rounded-xl p-4 mb-4 min-h-[60px] flex items-center justify-center relative z-10"
               style={{ background: `${S.green}08`, border: `1px solid ${S.green}20` }}>
               <p key={waitingMsgIdx} className="text-[13px] font-bold text-white"
@@ -586,7 +700,6 @@ export default function StudentJoin() {
               </p>
             </div>
 
-            {/* 입장 현황 */}
             <div className="rounded-xl p-4 mb-4 text-left relative z-10"
               style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
               <p className="text-[10px] font-mono tracking-widest text-gray-500 mb-2">
@@ -613,7 +726,6 @@ export default function StudentJoin() {
               ⚡ 게임이 시작되면 자동으로 화면이 전환됩니다
             </p>
 
-            {/* 새 팀원 입장 알림 */}
             <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] flex flex-col gap-2 pointer-events-none">
               {recentJoiners.map(joiner => (
                 <div key={joiner.id}
@@ -633,7 +745,7 @@ export default function StudentJoin() {
           </div>
         )}
 
-        {/* ── Step 4: 환영 ── */}
+        {/* 환영 */}
         {step === 'welcome' && selectedMember && team && (
           <div className="text-center">
             <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl pulse-glow"
@@ -675,10 +787,9 @@ export default function StudentJoin() {
         <p className="text-center text-gray-700 text-[10px] mt-8 font-mono relative z-10">© 2026 SIGNAL — ConnectAI</p>
       </div>
 
-      {/* ⭐ 대기실 전용 배경 효과 — 떠다니는 카드 + 입자 ⭐ */}
+      {/* 대기실 배경 효과 */}
       {step === 'waiting' && (
         <>
-          {/* 떠다니는 카드 (배경) */}
           <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
             {FLOATING_CARDS.map(card => (
               <div
@@ -700,7 +811,6 @@ export default function StudentJoin() {
             ))}
           </div>
 
-          {/* 빛나는 입자 */}
           <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
             {PARTICLES.map(p => (
               <div
@@ -720,82 +830,35 @@ export default function StudentJoin() {
         </>
       )}
 
-      {/* 키프레임 */}
+      {/* 키프레임 + 인터랙티브 버튼 스타일 */}
       <style jsx>{`
         @keyframes cardShuffle {
-          0% {
-            transform: translateY(0) rotate(-15deg) translateX(-60px);
-            opacity: 0.7;
-          }
-          25% {
-            transform: translateY(-20px) rotate(-5deg) translateX(-30px);
-            opacity: 1;
-          }
-          50% {
-            transform: translateY(0) rotate(0deg) translateX(0);
-            opacity: 1;
-          }
-          75% {
-            transform: translateY(-20px) rotate(5deg) translateX(30px);
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(0) rotate(15deg) translateX(60px);
-            opacity: 0.7;
-          }
+          0% { transform: translateY(0) rotate(-15deg) translateX(-60px); opacity: 0.7; }
+          25% { transform: translateY(-20px) rotate(-5deg) translateX(-30px); opacity: 1; }
+          50% { transform: translateY(0) rotate(0deg) translateX(0); opacity: 1; }
+          75% { transform: translateY(-20px) rotate(5deg) translateX(30px); opacity: 1; }
+          100% { transform: translateY(0) rotate(15deg) translateX(60px); opacity: 0.7; }
         }
 
         @keyframes slideDownFade {
-          0% {
-            opacity: 0;
-            transform: translateY(-20px);
-          }
-          15% {
-            opacity: 1;
-            transform: translateY(0);
-          }
-          85% {
-            opacity: 1;
-            transform: translateY(0);
-          }
-          100% {
-            opacity: 0;
-            transform: translateY(-20px);
-          }
+          0% { opacity: 0; transform: translateY(-20px); }
+          15% { opacity: 1; transform: translateY(0); }
+          85% { opacity: 1; transform: translateY(0); }
+          100% { opacity: 0; transform: translateY(-20px); }
         }
 
         @keyframes floatCard {
-          0%, 100% {
-            transform: translateY(0) translateX(0) rotate(var(--rotate, 0deg));
-          }
-          25% {
-            transform: translateY(-30px) translateX(15px) rotate(calc(var(--rotate, 0deg) + 8deg));
-          }
-          50% {
-            transform: translateY(-15px) translateX(-20px) rotate(calc(var(--rotate, 0deg) - 5deg));
-          }
-          75% {
-            transform: translateY(-25px) translateX(10px) rotate(calc(var(--rotate, 0deg) + 5deg));
-          }
+          0%, 100% { transform: translateY(0) translateX(0) rotate(var(--rotate, 0deg)); }
+          25% { transform: translateY(-30px) translateX(15px) rotate(calc(var(--rotate, 0deg) + 8deg)); }
+          50% { transform: translateY(-15px) translateX(-20px) rotate(calc(var(--rotate, 0deg) - 5deg)); }
+          75% { transform: translateY(-25px) translateX(10px) rotate(calc(var(--rotate, 0deg) + 5deg)); }
         }
 
         @keyframes particleFloat {
-          0%, 100% {
-            transform: translateY(0) translateX(0);
-            opacity: 0.4;
-          }
-          25% {
-            transform: translateY(-40px) translateX(20px);
-            opacity: 1;
-          }
-          50% {
-            transform: translateY(-80px) translateX(-15px);
-            opacity: 0.7;
-          }
-          75% {
-            transform: translateY(-50px) translateX(25px);
-            opacity: 1;
-          }
+          0%, 100% { transform: translateY(0) translateX(0); opacity: 0.4; }
+          25% { transform: translateY(-40px) translateX(20px); opacity: 1; }
+          50% { transform: translateY(-80px) translateX(-15px); opacity: 0.7; }
+          75% { transform: translateY(-50px) translateX(25px); opacity: 1; }
         }
 
         .halo-pulse {
@@ -803,13 +866,75 @@ export default function StudentJoin() {
         }
 
         @keyframes haloPulse {
-          0%, 100% {
-            opacity: 0.5;
-            transform: scale(1);
+          0%, 100% { opacity: 0.5; transform: scale(1); }
+          50% { opacity: 0.9; transform: scale(1.15); }
+        }
+
+        /* ⭐⭐⭐ 인터랙티브 버튼 효과 ⭐⭐⭐ */
+
+        /* 호버 시 빛 흐름 (광택) */
+        .interactive-btn .hover-shine {
+          transition: transform 0.7s ease-out;
+        }
+        .interactive-btn:hover .hover-shine {
+          transform: translateX(100%);
+        }
+
+        /* 클릭 시 살짝 눌림 효과 */
+        .interactive-btn {
+          transition: transform 0.15s ease-out;
+        }
+        .interactive-btn:active {
+          transform: scale(0.97);
+        }
+
+        /* 선택된 상태 — 펄스 글로우 */
+        .interactive-btn.is-selected {
+          animation: selectedPulse 2s ease-in-out infinite;
+        }
+        @keyframes selectedPulse {
+          0%, 100% { filter: brightness(1); }
+          50% { filter: brightness(1.1); }
+        }
+
+        /* ⭐ 리플 효과 (클릭 위치에서 빛 파동) */
+        .ripple-anim {
+          width: 0;
+          height: 0;
+          transform: translate(-50%, -50%);
+          animation: rippleExpand 0.7s ease-out forwards;
+        }
+        @keyframes rippleExpand {
+          0% {
+            width: 0;
+            height: 0;
+            opacity: 1;
           }
-          50% {
-            opacity: 0.9;
-            transform: scale(1.15);
+          100% {
+            width: 400px;
+            height: 400px;
+            opacity: 0;
+          }
+        }
+
+        /* ⭐ 빛 입자 폭발 (8개 사방으로) */
+        .particle-burst {
+          transform: translate(-50%, -50%);
+          animation: burstParticle 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes burstParticle {
+          0% {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform:
+              translate(
+                calc(-50% + cos(var(--burst-angle, 0deg)) * 60px),
+                calc(-50% + sin(var(--burst-angle, 0deg)) * 60px)
+              )
+              scale(0.3);
           }
         }
       `}</style>
