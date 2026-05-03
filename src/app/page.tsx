@@ -365,20 +365,6 @@ export default function Home() {
         <div className="relative w-full flex items-center justify-center"
           style={{ height: `${containerH}px`, maxWidth: '100%' }}>
 
-          {/* 중앙 빛 폭발 */}
-          <div className="absolute"
-            style={{
-              top: '50%',
-              left: '50%',
-              width: '20px',
-              height: '20px',
-              transform: 'translate(-50%, -50%)',
-              background: `radial-gradient(circle, ${S.green}FF 0%, ${S.aqua}AA 30%, transparent 70%)`,
-              borderRadius: '50%',
-              opacity: 0,
-              animation: 'centralBlast 1.5s cubic-bezier(0.16, 1, 0.3, 1) 1.4s forwards',
-            }} />
-
           {/* 🎲 디지털 큐브 (가방 대체) */}
           <div className="absolute cube-perspective"
             style={{
@@ -458,33 +444,33 @@ export default function Home() {
                   opacity: 0,
                   zIndex: 1,
                 }} />
-
-              {/* ⭐ 큐브 안의 카드 (1.6초~ 등장, 폭발 시 사라짐) */}
-              <div className="absolute cube-inner-card"
-                style={{
-                  width: `${cubeSize * 0.4}px`,
-                  height: `${cubeSize * 0.55}px`,
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  borderRadius: '6px',
-                  background: `linear-gradient(135deg, ${S.cyan}DD, ${S.purple}DD)`,
-                  border: `2px solid #FFFFFF`,
-                  boxShadow: `0 0 30px ${S.cyan}, 0 0 60px ${S.cyan}88, inset 0 0 20px rgba(255,255,255,0.3)`,
-                  opacity: 0,
-                  zIndex: 2,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexDirection: 'column',
-                  fontFamily: 'monospace',
-                  color: '#FFFFFF',
-                  textShadow: '0 0 8px rgba(255,255,255,0.8)',
-                }}>
-                <span style={{ fontSize: isMobile ? '8px' : '10px', opacity: 0.8 }}>SIGNAL</span>
-                <span style={{ fontSize: isMobile ? '14px' : '20px', fontWeight: 900 }}>?</span>
-              </div>
             </div>
+          </div>
+
+          {/* ⭐ 큐브 안의 카드 (큐브 회전과 무관하게 항상 정면) */}
+          <div className="absolute cube-inner-card pointer-events-none"
+            style={{
+              width: `${cubeSize * 0.4}px`,
+              height: `${cubeSize * 0.55}px`,
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              borderRadius: '6px',
+              background: `linear-gradient(135deg, ${S.cyan}EE, ${S.purple}EE)`,
+              border: `2px solid #FFFFFF`,
+              boxShadow: `0 0 30px ${S.cyan}, 0 0 60px ${S.cyan}88, inset 0 0 20px rgba(255,255,255,0.3)`,
+              opacity: 0,
+              zIndex: 20,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexDirection: 'column',
+              fontFamily: 'monospace',
+              color: '#FFFFFF',
+              textShadow: '0 0 8px rgba(255,255,255,0.8)',
+            }}>
+            <span style={{ fontSize: isMobile ? '8px' : '10px', opacity: 0.8, letterSpacing: '1px' }}>SIGNAL</span>
+            <span style={{ fontSize: isMobile ? '16px' : '24px', fontWeight: 900, marginTop: '2px' }}>?</span>
           </div>
 
           {/* 폭죽 입자 */}
@@ -660,6 +646,48 @@ export default function Home() {
             100% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
           }
 
+          /* ⭐ 큐브 안 카드 (1.6초 등장 → 3.8초 폭발 직전 빛남) */
+          .cube-inner-card {
+            animation:
+              cubeInnerCardEnter 1s ease-out 1.6s forwards,
+              cubeInnerCardPulse 1.4s ease-in-out 2.6s infinite,
+              cubeInnerCardExplode 0.5s ease-in 3.6s forwards;
+          }
+          @keyframes cubeInnerCardEnter {
+            0% {
+              opacity: 0;
+              transform: translate(-50%, -50%) scale(0) rotate(-180deg);
+            }
+            60% {
+              opacity: 1;
+              transform: translate(-50%, -50%) scale(1.15) rotate(10deg);
+            }
+            100% {
+              opacity: 1;
+              transform: translate(-50%, -50%) scale(1) rotate(0deg);
+            }
+          }
+          @keyframes cubeInnerCardPulse {
+            0%, 100% {
+              box-shadow: 0 0 30px ${S.cyan}, 0 0 60px ${S.cyan}88, inset 0 0 20px rgba(255,255,255,0.3);
+            }
+            50% {
+              box-shadow: 0 0 50px #FFFFFF, 0 0 90px ${S.cyan}, inset 0 0 30px rgba(255,255,255,0.6);
+            }
+          }
+          @keyframes cubeInnerCardExplode {
+            0% {
+              opacity: 1;
+              transform: translate(-50%, -50%) scale(1);
+              filter: brightness(1);
+            }
+            100% {
+              opacity: 0;
+              transform: translate(-50%, -50%) scale(2.5);
+              filter: brightness(8);
+            }
+          }
+
           /* 큐브 노드 펄스 */
           .cube-node {
             animation: cubeNodePulse 1.5s ease-in-out infinite;
@@ -712,28 +740,6 @@ export default function Home() {
             0% { opacity: 0; width: 20px; height: 20px; }
             30% { opacity: 1; width: ${isMobile ? '400px' : '600px'}; height: ${isMobile ? '400px' : '600px'}; }
             100% { opacity: 0; width: ${isMobile ? '500px' : '800px'}; height: ${isMobile ? '500px' : '800px'}; }
-          }
-
-          @keyframes lightRayBurst {
-            0% {
-              opacity: 0;
-              transform: translateX(-50%) translateY(-100%) rotate(var(--rotate, 0deg)) scaleY(0);
-            }
-            30% {
-              opacity: 1;
-              transform: translateX(-50%) translateY(-100%) rotate(var(--rotate, 0deg)) scaleY(1.2);
-            }
-            100% {
-              opacity: 0;
-              transform: translateX(-50%) translateY(-100%) rotate(var(--rotate, 0deg)) scaleY(1);
-            }
-          }
-
-          @keyframes screenFlash {
-            0%, 30% { opacity: 0; }
-            31% { opacity: 1; }
-            50% { opacity: 0.4; }
-            100% { opacity: 0; }
           }
 
           @keyframes cardElegantSpread {
