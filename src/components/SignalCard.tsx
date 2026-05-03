@@ -48,18 +48,8 @@ export default function SignalCard({
 }: SignalCardProps) {
   const color = CARD_COLORS[topic.id].bg;
 
-  // 카드 색이 어두울 때 강조 텍스트는 밝은 색으로 (가독성)
-  const getReadableAccent = (hex: string) => {
-    const c = hex.replace('#', '');
-    const r = parseInt(c.substring(0, 2), 16);
-    const g = parseInt(c.substring(2, 4), 16);
-    const b = parseInt(c.substring(4, 6), 16);
-    // 밝기 계산 (luminance)
-    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-    // 어두우면 밝은 사이안 반환, 아니면 카드 색 그대로
-    return brightness < 100 ? '#06B6D4' : hex;
-  };
-  const accentColor = getReadableAccent(color);
+  // 카드 03만 색이 너무 어두워서 글씨 안 보임 → 밝은 남색으로 대체
+  const accentColor = topic.id === '03' ? '#5B8DEE' : color;
 
   const template = getCardTemplate(topic.id);
 
