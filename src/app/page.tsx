@@ -939,40 +939,98 @@ export default function Home() {
 
         <div className="flex justify-center gap-2 md:gap-3 mb-8 md:mb-10">
           {['01','02','03','04','05'].map((id, i) => (
-            <div key={id} className="rounded-xl flex items-center justify-center text-white text-[10px] md:text-[11px] font-black font-mono hover-lift"
+            <div key={id} className="relative rounded-xl flex items-center justify-center text-white text-[10px] md:text-[11px] font-black font-mono cyber-card-mini hover-lift"
               style={{
                 width: isMobile ? '40px' : '48px',
                 height: isMobile ? '56px' : '64px',
                 background: CARD_COLORS[id].bg,
                 transform: `rotate(${(i-2)*6}deg)`,
-                boxShadow: `0 4px 20px ${CARD_COLORS[id].bg}55, 0 0 24px ${CARD_COLORS[id].bg}33`,
-              }}>{id}</div>
+                boxShadow: `0 4px 20px ${CARD_COLORS[id].bg}66, 0 0 24px ${CARD_COLORS[id].bg}44`,
+                animationDelay: `${i * 0.15}s`,
+              }}>
+              {/* 사이버 코너 장식 (4모서리) */}
+              <span className="absolute top-0.5 left-0.5 w-1.5 h-[1px] bg-white/60" />
+              <span className="absolute top-0.5 left-0.5 w-[1px] h-1.5 bg-white/60" />
+              <span className="absolute top-0.5 right-0.5 w-1.5 h-[1px] bg-white/60" />
+              <span className="absolute top-0.5 right-0.5 w-[1px] h-1.5 bg-white/60" />
+              <span className="absolute bottom-0.5 left-0.5 w-1.5 h-[1px] bg-white/60" />
+              <span className="absolute bottom-0.5 left-0.5 w-[1px] h-1.5 bg-white/60" />
+              <span className="absolute bottom-0.5 right-0.5 w-1.5 h-[1px] bg-white/60" />
+              <span className="absolute bottom-0.5 right-0.5 w-[1px] h-1.5 bg-white/60" />
+
+              {/* 카드 번호 */}
+              <span className="relative z-10" style={{ textShadow: '0 0 8px rgba(255,255,255,0.6)' }}>{id}</span>
+
+              {/* 호버 시 빛 흐름 */}
+              <span className="absolute inset-0 rounded-xl pointer-events-none cyber-card-shine"
+                style={{
+                  background: `linear-gradient(135deg, transparent 30%, rgba(255,255,255,0.3) 50%, transparent 70%)`,
+                }} />
+            </div>
           ))}
         </div>
 
         <button onClick={() => handleStartClick('/student/join')}
-          className="btn-orbit relative w-full py-3.5 md:py-4 font-black rounded-2xl text-[15px] md:text-base mb-3 transition-all hover:scale-[1.02] overflow-hidden group"
-          style={{ background: S.green, color: S.navy, boxShadow: `0 10px 30px -5px ${S.green}66` }}>
-          <span className="relative z-10">🎓 학생으로 입장 →</span>
+          className="cyber-btn-primary btn-orbit relative w-full py-3.5 md:py-4 font-black rounded-2xl text-[15px] md:text-base mb-3 transition-all hover:scale-[1.02] overflow-hidden group"
+          style={{
+            background: S.green,
+            color: S.navy,
+            boxShadow: `0 10px 30px -5px ${S.green}66, 0 0 30px ${S.green}55`,
+          }}>
+          {/* 4모서리 사이버 코너 */}
+          <span className="absolute top-1.5 left-1.5 w-2.5 h-2.5 pointer-events-none z-20"
+            style={{ borderTop: `2px solid ${S.navy}`, borderLeft: `2px solid ${S.navy}` }} />
+          <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 pointer-events-none z-20"
+            style={{ borderTop: `2px solid ${S.navy}`, borderRight: `2px solid ${S.navy}` }} />
+          <span className="absolute bottom-1.5 left-1.5 w-2.5 h-2.5 pointer-events-none z-20"
+            style={{ borderBottom: `2px solid ${S.navy}`, borderLeft: `2px solid ${S.navy}` }} />
+          <span className="absolute bottom-1.5 right-1.5 w-2.5 h-2.5 pointer-events-none z-20"
+            style={{ borderBottom: `2px solid ${S.navy}`, borderRight: `2px solid ${S.navy}` }} />
+
+          <span className="relative z-10 tracking-wider">{`>`} 학생으로 입장 →</span>
           <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700"
             style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)' }} />
         </button>
 
         <button onClick={() => handleStartClick('/teacher')}
-          className="btn-orbit-aqua relative w-full py-3 md:py-3.5 font-bold rounded-2xl text-[13px] md:text-[14px] transition-all hover:scale-[1.01] mb-3 overflow-hidden"
+          className="cyber-btn-secondary btn-orbit-aqua relative w-full py-3 md:py-3.5 font-bold rounded-2xl text-[13px] md:text-[14px] transition-all hover:scale-[1.01] mb-3 overflow-hidden"
           style={{
             background: 'rgba(6, 182, 212, 0.08)',
             border: `1px solid #06B6D466`,
             color: '#06B6D4',
             textShadow: '0 0 8px #06B6D466',
+            boxShadow: `0 0 20px #06B6D422, inset 0 0 12px #06B6D411`,
           }}>
-          <span className="relative z-10">💼 관리자 로그인</span>
+          {/* 4모서리 사이버 코너 */}
+          <span className="absolute top-1.5 left-1.5 w-2 h-2 pointer-events-none"
+            style={{ borderTop: `2px solid #06B6D4`, borderLeft: `2px solid #06B6D4`, boxShadow: '0 0 4px #06B6D4' }} />
+          <span className="absolute top-1.5 right-1.5 w-2 h-2 pointer-events-none"
+            style={{ borderTop: `2px solid #06B6D4`, borderRight: `2px solid #06B6D4`, boxShadow: '0 0 4px #06B6D4' }} />
+          <span className="absolute bottom-1.5 left-1.5 w-2 h-2 pointer-events-none"
+            style={{ borderBottom: `2px solid #06B6D4`, borderLeft: `2px solid #06B6D4`, boxShadow: '0 0 4px #06B6D4' }} />
+          <span className="absolute bottom-1.5 right-1.5 w-2 h-2 pointer-events-none"
+            style={{ borderBottom: `2px solid #06B6D4`, borderRight: `2px solid #06B6D4`, boxShadow: '0 0 4px #06B6D4' }} />
+
+          <span className="relative z-10 tracking-wide">{`>`} 관리자 로그인</span>
         </button>
 
         <button onClick={() => setScreen('guide')}
-          className="w-full py-2.5 md:py-3 rounded-2xl text-xs md:text-sm text-gray-500 transition hover:text-gray-300"
-          style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-          📋 퍼실리테이터 가이드
+          className="cyber-btn-tertiary relative w-full py-2.5 md:py-3 rounded-2xl text-xs md:text-sm text-gray-500 transition hover:text-gray-300"
+          style={{
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.08)',
+          }}>
+          {/* 단순 코너 */}
+          <span className="absolute top-1 left-1 w-1.5 h-[1px] bg-gray-600" />
+          <span className="absolute top-1 left-1 w-[1px] h-1.5 bg-gray-600" />
+          <span className="absolute top-1 right-1 w-1.5 h-[1px] bg-gray-600" />
+          <span className="absolute top-1 right-1 w-[1px] h-1.5 bg-gray-600" />
+          <span className="absolute bottom-1 left-1 w-1.5 h-[1px] bg-gray-600" />
+          <span className="absolute bottom-1 left-1 w-[1px] h-1.5 bg-gray-600" />
+          <span className="absolute bottom-1 right-1 w-1.5 h-[1px] bg-gray-600" />
+          <span className="absolute bottom-1 right-1 w-[1px] h-1.5 bg-gray-600" />
+
+          <span className="relative">📋 퍼실리테이터 가이드</span>
         </button>
 
         <p className="text-gray-700 text-[10px] mt-6 md:mt-8 font-mono">© 2026 SIGNAL — ConnectAI</p>
@@ -1022,6 +1080,43 @@ export default function Home() {
         @keyframes landingParticleTwinkle {
           0%, 100% { opacity: 0.3; transform: scale(1); }
           50% { opacity: 1; transform: scale(1.5); }
+        }
+
+        /* ⭐ 사이버 미니 카드 (5장) */
+        .cyber-card-shine {
+          opacity: 0;
+          transform: translateX(-100%);
+          transition: all 0.6s ease-out;
+        }
+        .cyber-card-mini:hover .cyber-card-shine {
+          opacity: 1;
+          transform: translateX(100%);
+        }
+
+        /* ⭐ 메인 버튼 - 자체 펄스 글로우 */
+        .cyber-btn-primary {
+          animation: cyberPrimaryPulse 2.5s ease-in-out infinite;
+        }
+        @keyframes cyberPrimaryPulse {
+          0%, 100% {
+            box-shadow: 0 10px 30px -5px ${S.green}66, 0 0 30px ${S.green}55;
+          }
+          50% {
+            box-shadow: 0 10px 40px -5px ${S.green}88, 0 0 50px ${S.green}88;
+          }
+        }
+
+        /* ⭐ 보조 버튼 - 사이안 펄스 */
+        .cyber-btn-secondary {
+          animation: cyberSecondaryPulse 3s ease-in-out infinite;
+        }
+        @keyframes cyberSecondaryPulse {
+          0%, 100% {
+            box-shadow: 0 0 20px #06B6D422, inset 0 0 12px #06B6D411;
+          }
+          50% {
+            box-shadow: 0 0 30px #06B6D466, inset 0 0 16px #06B6D422;
+          }
         }
 
         .btn-orbit::before {
