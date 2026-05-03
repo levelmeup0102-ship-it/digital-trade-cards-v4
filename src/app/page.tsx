@@ -1250,46 +1250,6 @@ export default function Home() {
           zIndex: 0,
         }} />
 
-      {/* 빛 신호 4개 */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
-        <div className="absolute game-signal-1"
-          style={{
-            top: '12%',
-            left: 0,
-            width: '100px',
-            height: '2px',
-            background: `linear-gradient(90deg, transparent, ${S.cyan}, transparent)`,
-            boxShadow: `0 0 14px ${S.cyan}, 0 0 28px ${S.cyan}66`,
-          }} />
-        <div className="absolute game-signal-2"
-          style={{
-            top: '50%',
-            right: 0,
-            width: '120px',
-            height: '2px',
-            background: `linear-gradient(90deg, transparent, ${S.purple}, transparent)`,
-            boxShadow: `0 0 14px ${S.purple}, 0 0 28px ${S.purple}66`,
-          }} />
-        <div className="absolute game-signal-3"
-          style={{
-            top: '85%',
-            left: 0,
-            width: '90px',
-            height: '2px',
-            background: `linear-gradient(90deg, transparent, ${S.blue}, transparent)`,
-            boxShadow: `0 0 14px ${S.blue}, 0 0 28px ${S.blue}66`,
-          }} />
-        <div className="absolute game-signal-vertical"
-          style={{
-            right: '8%',
-            top: 0,
-            width: '2px',
-            height: '80px',
-            background: `linear-gradient(180deg, transparent, ${S.cyan}, transparent)`,
-            boxShadow: `0 0 14px ${S.cyan}, 0 0 28px ${S.cyan}66`,
-          }} />
-      </div>
-
       {/* 떠다니는 빛 입자 */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
         {Array.from({ length: 14 }).map((_, i) => {
@@ -1527,40 +1487,6 @@ export default function Home() {
       )}
 
       <style jsx>{`
-        /* ⭐ 빛 신호 흐름 */
-        .game-signal-1 {
-          animation: gameSignalRight 5s linear infinite;
-        }
-        .game-signal-3 {
-          animation: gameSignalRight 7s linear infinite 1.5s;
-        }
-        @keyframes gameSignalRight {
-          0% { transform: translateX(-100px); opacity: 0; }
-          10% { opacity: 1; }
-          90% { opacity: 1; }
-          100% { transform: translateX(100vw); opacity: 0; }
-        }
-
-        .game-signal-2 {
-          animation: gameSignalLeft 6s linear infinite 0.5s;
-        }
-        @keyframes gameSignalLeft {
-          0% { transform: translateX(120px); opacity: 0; }
-          10% { opacity: 1; }
-          90% { opacity: 1; }
-          100% { transform: translateX(-100vw); opacity: 0; }
-        }
-
-        .game-signal-vertical {
-          animation: gameSignalDown 6s linear infinite;
-        }
-        @keyframes gameSignalDown {
-          0% { transform: translateY(-80px); opacity: 0; }
-          10% { opacity: 1; }
-          90% { opacity: 1; }
-          100% { transform: translateY(100vh); opacity: 0; }
-        }
-
         /* 떠다니는 입자 */
         .game-particle {
           animation-name: gameParticleTwinkle;
