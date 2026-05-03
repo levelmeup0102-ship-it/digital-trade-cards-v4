@@ -496,7 +496,7 @@ export default function Home() {
             </div>
           ))}
 
-          {/* ⭐ C: 16개 신호 라인 (3.6초~ 카드에서 가운데로 빛 라인) */}
+          {/* ⭐ C: 16개 신호 라인 (3.6초~ 카드에서 가운데로 네온 빛 라인) */}
           {signalLines.map(line => (
             <div
               key={`line-${line.id}`}
@@ -505,17 +505,76 @@ export default function Home() {
                 top: '50%',
                 left: '50%',
                 width: `${line.length}px`,
-                height: '2px',
-                background: `linear-gradient(to right, ${line.color}00 0%, ${line.color}88 30%, ${line.color}FF 100%)`,
-                boxShadow: `0 0 8px ${line.color}, 0 0 16px ${line.color}66`,
+                height: '3px',
+                background: `linear-gradient(to right, ${line.color}00 0%, ${line.color}66 20%, ${line.color}FF 60%, #FFFFFF 100%)`,
+                boxShadow: `0 0 12px ${line.color}, 0 0 24px ${line.color}AA, 0 0 40px ${line.color}66`,
                 transformOrigin: '0 50%',
                 transform: `translate(0, -50%) rotate(${line.angle + 180}deg)`,
                 opacity: 0,
-                animation: `signalLineDraw 1.5s cubic-bezier(0.16, 1, 0.3, 1) 3.6s forwards`,
+                animation: `signalLineDraw 1.8s cubic-bezier(0.16, 1, 0.3, 1) 3.6s forwards`,
                 zIndex: 12,
+                filter: 'blur(0.5px)',
               }}
             />
           ))}
+
+          {/* ⭐ C: 신호 라인 위에 흐르는 빛 펄스 (네온 효과) */}
+          {signalLines.map(line => (
+            <div
+              key={`pulse-${line.id}`}
+              className="absolute pointer-events-none"
+              style={{
+                top: '50%',
+                left: '50%',
+                width: '40px',
+                height: '4px',
+                background: `linear-gradient(to right, transparent, ${line.color}, #FFFFFF, ${line.color}, transparent)`,
+                boxShadow: `0 0 16px ${line.color}, 0 0 32px ${line.color}`,
+                transformOrigin: '0 50%',
+                transform: `translate(0, -50%) rotate(${line.angle + 180}deg)`,
+                opacity: 0,
+                animation: `signalPulseFlow 1.5s ease-out 3.8s forwards`,
+                '--line-length': `${line.length}px`,
+                zIndex: 13,
+                filter: 'blur(1px)',
+              } as React.CSSProperties}
+            />
+          ))}
+
+          {/* ⭐ 가운데 오로라 코어 (3.6초~ 항상 회전하는 디지털 코어) */}
+          <div className="absolute pointer-events-none"
+            style={{
+              top: '50%',
+              left: '50%',
+              width: isMobile ? '100px' : '160px',
+              height: isMobile ? '100px' : '160px',
+              transform: 'translate(-50%, -50%)',
+              opacity: 0,
+              animation: 'auroraCore 3s ease-in-out 3.6s forwards',
+              zIndex: 14,
+            }}>
+            {/* 회전하는 오로라 코어 */}
+            <div className="absolute inset-0 rounded-full"
+              style={{
+                background: 'conic-gradient(from 0deg, #06B6D4, #8B5CF6, #3B82F6, #06B6D4)',
+                animation: 'coreRotate 4s linear infinite',
+                filter: 'blur(12px)',
+                opacity: 0.9,
+              }} />
+            {/* 안쪽 코어 (밝은 빛) */}
+            <div className="absolute inset-[20%] rounded-full"
+              style={{
+                background: 'radial-gradient(circle, #FFFFFF 0%, #06B6D4 40%, transparent 80%)',
+                animation: 'corePulse 2s ease-in-out infinite',
+                filter: 'blur(8px)',
+              }} />
+            {/* 가장 안쪽 점 */}
+            <div className="absolute inset-[40%] rounded-full"
+              style={{
+                background: 'radial-gradient(circle, #FFFFFF 0%, #06B6D4 50%, transparent 100%)',
+                filter: 'blur(2px)',
+              }} />
+          </div>
 
           {/* ⭐ 16개 무지개 입자 (3.8초 한번에 카드에서 튀어나옴 → 정중앙으로 모임) */}
           {rainbowParticles.map(p => (
@@ -870,6 +929,59 @@ export default function Home() {
             100% {
               opacity: 0;
               width: 0;
+            }
+          }
+
+          /* ⭐ C: 신호 라인 위 빛 펄스 - 카드에서 가운데로 흐름 */
+          @keyframes signalPulseFlow {
+            0% {
+              opacity: 0;
+              transform: translate(0, -50%) rotate(var(--rotate, 0deg)) translateX(0);
+            }
+            20% {
+              opacity: 1;
+            }
+            100% {
+              opacity: 0;
+              transform: translate(0, -50%) translateX(var(--line-length));
+            }
+          }
+
+          /* ⭐ 가운데 오로라 코어 - 등장 */
+          @keyframes auroraCore {
+            0% {
+              opacity: 0;
+              transform: translate(-50%, -50%) scale(0);
+            }
+            30% {
+              opacity: 1;
+              transform: translate(-50%, -50%) scale(1.2);
+            }
+            60% {
+              opacity: 1;
+              transform: translate(-50%, -50%) scale(1);
+            }
+            100% {
+              opacity: 1;
+              transform: translate(-50%, -50%) scale(1);
+            }
+          }
+
+          /* 코어 회전 (무한) */
+          @keyframes coreRotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+
+          /* 코어 펄스 (숨쉬듯 빛남) */
+          @keyframes corePulse {
+            0%, 100% {
+              opacity: 0.7;
+              transform: scale(0.95);
+            }
+            50% {
+              opacity: 1;
+              transform: scale(1.1);
             }
           }
 
