@@ -373,8 +373,8 @@ export default function Home() {
           {[0, 1, 2, 3].map(i => (
             <div key={`pulse-${i}`} className="absolute signal-pulse-ring pointer-events-none"
               style={{
-                width: `${cardOneW * 1.5}px`,
-                height: `${cardOneW * 1.5}px`,
+                width: `${isMobile ? 140 : 280}px`,
+                height: `${isMobile ? 140 : 280}px`,
                 top: '50%',
                 left: '50%',
                 borderRadius: '50%',
@@ -562,12 +562,12 @@ export default function Home() {
         <style jsx>{`
           /* ⭐⭐⭐ 신호 발산 + 카드 애니메이션 ⭐⭐⭐ */
 
-          /* 신호 발산 동심원 (1.4초~3.6초 무한 펄스) */
+          /* 신호 발산 동심원 (1.4초~3.6초만, 그 후 완전 멈춤) */
           .signal-pulse-ring {
             transform: translate(-50%, -50%) scale(0);
             animation:
               signalPulseExpand 2.5s ease-out infinite,
-              signalPulseStop 0.4s ease-out 3.6s forwards;
+              signalPulseHide 0.1s linear 3.6s forwards;
           }
           @keyframes signalPulseExpand {
             0% {
@@ -582,9 +582,9 @@ export default function Home() {
               opacity: 0;
             }
           }
-          @keyframes signalPulseStop {
-            0% { opacity: 1; }
-            100% { opacity: 0; }
+          @keyframes signalPulseHide {
+            0% { visibility: visible; }
+            100% { visibility: hidden; opacity: 0; }
           }
 
           /* 카드 뒤 오로라 후광 (1.4초 등장, 3.6초 폭발) */
