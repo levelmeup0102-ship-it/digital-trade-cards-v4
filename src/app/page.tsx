@@ -496,33 +496,29 @@ export default function Home() {
         </div>
 
         {/* ⭐ 작은 빛 폭발 (5.0초 - 가운데 한 점에서 짧게) */}
-        <div className="absolute pointer-events-none"
+        <div className="absolute pointer-events-none light-burst"
           style={{
             top: '50%',
             left: '50%',
-            width: '20px',
-            height: '20px',
-            transform: 'translate(-50%, -50%)',
+            width: isMobile ? '300px' : '450px',
+            height: isMobile ? '300px' : '450px',
             background: 'radial-gradient(circle, #FFFFFF 0%, #06B6D4 40%, #8B5CF6 70%, transparent 100%)',
             borderRadius: '50%',
             opacity: 0,
-            animation: 'logoLightBurst 0.8s ease-out 5.0s forwards',
             zIndex: 25,
             filter: 'blur(6px)',
           }} />
 
         {/* ⭐ 거대한 오로라 후광 (5.2초~ 천천히 펴짐) */}
-        <div className="absolute pointer-events-none"
+        <div className="absolute pointer-events-none aurora-halo"
           style={{
             top: '50%',
             left: '50%',
-            width: '20px',
-            height: '20px',
-            transform: 'translate(-50%, -50%)',
+            width: isMobile ? '700px' : '1100px',
+            height: isMobile ? '700px' : '1100px',
             background: 'radial-gradient(circle, #06B6D455 0%, #8B5CF633 30%, #3B82F622 60%, transparent 85%)',
             borderRadius: '50%',
             opacity: 0,
-            animation: 'logoAuroraHalo 2.2s ease-out 5.2s forwards',
             zIndex: 27,
             filter: 'blur(40px)',
           }} />
@@ -768,45 +764,55 @@ export default function Home() {
             }
           }
 
-          /* ⭐ 작은 빛 폭발 (5.0초 - 빠르고 작게) */
-          @keyframes logoLightBurst {
+          /* ⭐ 작은 빛 폭발 (scale 방식 - GPU 가속) */
+          .light-burst {
+            transform: translate(-50%, -50%) scale(0.05);
+            animation: lightBurstScale 0.8s ease-out 5.0s forwards;
+          }
+          @keyframes lightBurstScale {
             0% {
               opacity: 0;
-              width: 20px;
-              height: 20px;
+              transform: translate(-50%, -50%) scale(0.05);
             }
             40% {
               opacity: 1;
-              width: ${isMobile ? '200px' : '300px'};
-              height: ${isMobile ? '200px' : '300px'};
+              transform: translate(-50%, -50%) scale(0.7);
             }
             100% {
               opacity: 0;
-              width: ${isMobile ? '300px' : '450px'};
-              height: ${isMobile ? '300px' : '450px'};
+              transform: translate(-50%, -50%) scale(1);
             }
           }
 
-          /* ⭐ 로고 뒤 거대한 후광 (4.2초~) */
-          @keyframes logoAuroraHalo {
+          /* ⭐ 거대한 오로라 후광 (scale 방식 - GPU 가속, 부드러움) */
+          .aurora-halo {
+            transform: translate(-50%, -50%) scale(0.05);
+            animation: auroraHaloScale 2.2s ease-out 5.2s forwards;
+          }
+          @keyframes auroraHaloScale {
             0% {
               opacity: 0;
-              width: 20px;
-              height: 20px;
+              transform: translate(-50%, -50%) scale(0.05);
+            }
+            25% {
+              opacity: 0.5;
+              transform: translate(-50%, -50%) scale(0.4);
             }
             50% {
               opacity: 1;
-              width: ${isMobile ? '500px' : '800px'};
-              height: ${isMobile ? '500px' : '800px'};
+              transform: translate(-50%, -50%) scale(0.75);
+            }
+            75% {
+              opacity: 0.9;
+              transform: translate(-50%, -50%) scale(0.92);
             }
             100% {
               opacity: 0.7;
-              width: ${isMobile ? '700px' : '1100px'};
-              height: ${isMobile ? '700px' : '1100px'};
+              transform: translate(-50%, -50%) scale(1);
             }
           }
 
-          /* 오로라 배경 페이드 인 (4.2초) */
+          /* 오로라 배경 페이드 인 */
           @keyframes auroraBackgroundFadeIn {
             0% { opacity: 0; }
             100% { opacity: 1; }
