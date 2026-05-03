@@ -831,15 +831,109 @@ export default function Home() {
         filter: exiting ? 'blur(8px)' : 'blur(0)',
       }}>
 
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] md:w-[600px] h-[400px] md:h-[600px] rounded-full pointer-events-none"
-        style={{ background: `radial-gradient(circle, ${S.green}08 0%, transparent 70%)` }} />
+      {/* ⭐⭐⭐ 오로라 배경 ⭐⭐⭐ */}
+
+      {/* 메시 그라디언트 (오로라) */}
+      <div className="fixed inset-0 pointer-events-none"
+        style={{
+          background: `
+            radial-gradient(circle at 20% 25%, #06B6D420 0%, transparent 45%),
+            radial-gradient(circle at 80% 60%, #8B5CF620 0%, transparent 50%),
+            radial-gradient(circle at 50% 95%, #3B82F61A 0%, transparent 60%)
+          `,
+        }} />
+
+      {/* 빛 신호 4개 (오로라 색) */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
+        <div className="absolute landing-signal-1"
+          style={{
+            top: '15%',
+            left: 0,
+            width: '100px',
+            height: '2px',
+            background: `linear-gradient(90deg, transparent, #06B6D4, transparent)`,
+            boxShadow: `0 0 14px #06B6D4, 0 0 28px #06B6D466`,
+          }} />
+        <div className="absolute landing-signal-2"
+          style={{
+            top: '45%',
+            right: 0,
+            width: '120px',
+            height: '2px',
+            background: `linear-gradient(90deg, transparent, #8B5CF6, transparent)`,
+            boxShadow: `0 0 14px #8B5CF6, 0 0 28px #8B5CF666`,
+          }} />
+        <div className="absolute landing-signal-3"
+          style={{
+            top: '78%',
+            left: 0,
+            width: '90px',
+            height: '2px',
+            background: `linear-gradient(90deg, transparent, #3B82F6, transparent)`,
+            boxShadow: `0 0 14px #3B82F6, 0 0 28px #3B82F666`,
+          }} />
+        <div className="absolute landing-signal-vertical"
+          style={{
+            left: '15%',
+            top: 0,
+            width: '2px',
+            height: '80px',
+            background: `linear-gradient(180deg, transparent, #06B6D4, transparent)`,
+            boxShadow: `0 0 14px #06B6D4, 0 0 28px #06B6D466`,
+          }} />
+      </div>
+
+      {/* 떠다니는 빛 입자 (오로라 색) */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
+        {Array.from({ length: 18 }).map((_, i) => {
+          const colors = ['#06B6D4', '#8B5CF6', '#3B82F6', '#C1E8EB'];
+          const left = (i * 11 + 7) % 100;
+          const top = (i * 17 + 13) % 100;
+          const size = 1.5 + (i % 3) * 0.8;
+          const duration = 4 + (i % 4);
+          const delay = (i % 5) * 0.7;
+          return (
+            <div key={i} className="absolute rounded-full landing-particle"
+              style={{
+                left: `${left}%`,
+                top: `${top}%`,
+                width: `${size}px`,
+                height: `${size}px`,
+                background: colors[i % 4],
+                boxShadow: `0 0 ${size * 4}px ${colors[i % 4]}`,
+                animationDuration: `${duration}s`,
+                animationDelay: `${delay}s`,
+              }} />
+          );
+        })}
+      </div>
+
+      {/* 로고 뒤 거대한 오로라 글로우 */}
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] md:w-[700px] h-[400px] md:h-[700px] rounded-full pointer-events-none"
+        style={{
+          background: `radial-gradient(circle, #06B6D415 0%, #8B5CF60D 40%, transparent 70%)`,
+          filter: 'blur(40px)',
+        }} />
 
       <div className="relative z-10 text-center max-w-md w-full"
         style={{ animation: 'fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}>
-        <p className="text-[10px] md:text-[11px] tracking-[4px] md:tracking-[6px] text-gray-600 uppercase mb-3 md:mb-4 font-mono">ConnectAI</p>
-        <h1 className="text-5xl md:text-6xl font-black text-white mb-2 tracking-tight">SIGNAL</h1>
-        <p className="text-gray-500 text-xs md:text-sm mb-2 font-mono">디지털 무역 전략카드</p>
-        <p className="text-gray-600 text-[12px] md:text-[13px] mb-6 md:mb-8 leading-relaxed px-2">
+        <p className="text-[10px] md:text-[11px] tracking-[4px] md:tracking-[6px] uppercase mb-3 md:mb-4 font-mono font-bold"
+          style={{ color: '#06B6D4', textShadow: '0 0 10px #06B6D4AA' }}>
+          ConnectAI
+        </p>
+        <h1 className="text-5xl md:text-6xl font-black text-white mb-2 tracking-tight"
+          style={{ textShadow: '0 0 20px #FFFFFF66, 0 0 40px #06B6D466, 0 0 80px #8B5CF633' }}>
+          SIGNAL
+        </h1>
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <div className="h-[1px] w-8" style={{ background: `linear-gradient(to right, transparent, #06B6D4)` }} />
+          <p className="text-[12px] md:text-[13px] font-mono font-bold tracking-[2px]"
+            style={{ color: '#C1E8EB', textShadow: '0 0 8px #06B6D466' }}>
+            DIGITAL TRADE CARDS
+          </p>
+          <div className="h-[1px] w-8" style={{ background: `linear-gradient(to left, transparent, #8B5CF6)` }} />
+        </div>
+        <p className="text-gray-400 text-[12px] md:text-[13px] mb-6 md:mb-8 leading-relaxed px-2">
           디지털 무역 전략을 직접 만들어보는<br />체험형 카드게임 학습 플랫폼
         </p>
 
@@ -851,7 +945,7 @@ export default function Home() {
                 height: isMobile ? '56px' : '64px',
                 background: CARD_COLORS[id].bg,
                 transform: `rotate(${(i-2)*6}deg)`,
-                boxShadow: `0 4px 20px ${CARD_COLORS[id].bg}55`,
+                boxShadow: `0 4px 20px ${CARD_COLORS[id].bg}55, 0 0 24px ${CARD_COLORS[id].bg}33`,
               }}>{id}</div>
           ))}
         </div>
@@ -866,7 +960,12 @@ export default function Home() {
 
         <button onClick={() => handleStartClick('/teacher')}
           className="btn-orbit-aqua relative w-full py-3 md:py-3.5 font-bold rounded-2xl text-[13px] md:text-[14px] transition-all hover:scale-[1.01] mb-3 overflow-hidden"
-          style={{ background: 'rgba(193,232,235,0.08)', border: `1px solid ${S.aqua}33`, color: S.aqua }}>
+          style={{
+            background: 'rgba(6, 182, 212, 0.08)',
+            border: `1px solid #06B6D466`,
+            color: '#06B6D4',
+            textShadow: '0 0 8px #06B6D466',
+          }}>
           <span className="relative z-10">💼 관리자 로그인</span>
         </button>
 
@@ -880,6 +979,51 @@ export default function Home() {
       </div>
 
       <style jsx>{`
+        /* ⭐ 빛 신호 흐름 */
+        .landing-signal-1 {
+          animation: landingSignalRight 5s linear infinite;
+        }
+        .landing-signal-3 {
+          animation: landingSignalRight 7s linear infinite 1.5s;
+        }
+        @keyframes landingSignalRight {
+          0% { transform: translateX(-100px); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { transform: translateX(100vw); opacity: 0; }
+        }
+
+        .landing-signal-2 {
+          animation: landingSignalLeft 6s linear infinite 0.5s;
+        }
+        @keyframes landingSignalLeft {
+          0% { transform: translateX(120px); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { transform: translateX(-100vw); opacity: 0; }
+        }
+
+        .landing-signal-vertical {
+          animation: landingSignalDown 6s linear infinite;
+        }
+        @keyframes landingSignalDown {
+          0% { transform: translateY(-80px); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { transform: translateY(100vh); opacity: 0; }
+        }
+
+        /* 떠다니는 입자 */
+        .landing-particle {
+          animation-name: landingParticleTwinkle;
+          animation-iteration-count: infinite;
+          animation-timing-function: ease-in-out;
+        }
+        @keyframes landingParticleTwinkle {
+          0%, 100% { opacity: 0.3; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.5); }
+        }
+
         .btn-orbit::before {
           content: '';
           position: absolute;
@@ -924,7 +1068,7 @@ export default function Home() {
           background: conic-gradient(
             from 0deg,
             transparent 0deg,
-            ${S.aqua}55 30deg,
+            #06B6D488 30deg,
             transparent 60deg,
             transparent 360deg
           );
