@@ -361,38 +361,9 @@ export default function Home() {
           transition: 'opacity 0.3s ease-out',
         }}>
 
-        {/* 배경 플래시 */}
-        <div className="fixed inset-0 pointer-events-none"
-          style={{
-            background: `radial-gradient(circle at center, #06B6D440 0%, transparent 50%)`,
-            animation: 'screenFlash 4s ease-out 3.8s forwards',
-            opacity: 0,
-          }} />
-
         {/* 메인 인트로 영역 */}
         <div className="relative w-full flex items-center justify-center"
           style={{ height: `${containerH}px`, maxWidth: '100%' }}>
-
-          {/* 빛 줄기 */}
-          <div className="absolute" style={{ top: '50%', left: '50%' }}>
-            {lightRays.map(ray => (
-              <div
-                key={ray.id}
-                className="absolute"
-                style={{
-                  width: `${ray.width}px`,
-                  height: `${rayHeight}px`,
-                  background: `linear-gradient(to top, ${S.green}FF 0%, ${S.green}AA 30%, ${S.aqua}66 60%, transparent 100%)`,
-                  transformOrigin: 'bottom center',
-                  transform: `translateX(-50%) translateY(-100%) rotate(${ray.angle}deg)`,
-                  opacity: 0,
-                  animation: `lightRayBurst 1.8s cubic-bezier(0.16, 1, 0.3, 1) ${3.8 + ray.delay}s forwards`,
-                  filter: 'blur(2px)',
-                  mixBlendMode: 'screen',
-                }}
-              />
-            ))}
-          </div>
 
           {/* 중앙 빛 폭발 */}
           <div className="absolute"
@@ -474,18 +445,45 @@ export default function Home() {
                   }} />
               ))}
 
-              {/* 빛 코어 (중앙) */}
+              {/* 빛 코어 (작게, 카드 뒤에) */}
               <div className="absolute rounded-full cube-core"
                 style={{
-                  width: `${cubeSize * 0.4}px`,
-                  height: `${cubeSize * 0.4}px`,
+                  width: `${cubeSize * 0.3}px`,
+                  height: `${cubeSize * 0.3}px`,
                   top: '50%',
                   left: '50%',
                   transform: 'translate(-50%, -50%)',
                   background: `radial-gradient(circle, #FFFFFF 0%, ${S.cyan} 30%, ${S.purple} 60%, transparent 80%)`,
                   filter: 'blur(8px)',
                   opacity: 0,
+                  zIndex: 1,
                 }} />
+
+              {/* ⭐ 큐브 안의 카드 (1.6초~ 등장, 폭발 시 사라짐) */}
+              <div className="absolute cube-inner-card"
+                style={{
+                  width: `${cubeSize * 0.4}px`,
+                  height: `${cubeSize * 0.55}px`,
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  borderRadius: '6px',
+                  background: `linear-gradient(135deg, ${S.cyan}DD, ${S.purple}DD)`,
+                  border: `2px solid #FFFFFF`,
+                  boxShadow: `0 0 30px ${S.cyan}, 0 0 60px ${S.cyan}88, inset 0 0 20px rgba(255,255,255,0.3)`,
+                  opacity: 0,
+                  zIndex: 2,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexDirection: 'column',
+                  fontFamily: 'monospace',
+                  color: '#FFFFFF',
+                  textShadow: '0 0 8px rgba(255,255,255,0.8)',
+                }}>
+                <span style={{ fontSize: isMobile ? '8px' : '10px', opacity: 0.8 }}>SIGNAL</span>
+                <span style={{ fontSize: isMobile ? '14px' : '20px', fontWeight: 900 }}>?</span>
+              </div>
             </div>
           </div>
 
