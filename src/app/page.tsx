@@ -939,33 +939,57 @@ export default function Home() {
 
         <div className="flex justify-center gap-2 md:gap-3 mb-8 md:mb-10">
           {['01','02','03','04','05'].map((id, i) => (
-            <div key={id} className="relative rounded-xl flex items-center justify-center text-white text-[10px] md:text-[11px] font-black font-mono cyber-card-mini hover-lift"
+            <div key={id} className="relative rounded-xl overflow-hidden cyber-card-mini hover-lift"
               style={{
                 width: isMobile ? '40px' : '48px',
                 height: isMobile ? '56px' : '64px',
                 background: CARD_COLORS[id].bg,
                 transform: `rotate(${(i-2)*6}deg)`,
                 boxShadow: `0 4px 20px ${CARD_COLORS[id].bg}66, 0 0 24px ${CARD_COLORS[id].bg}44`,
-                animationDelay: `${i * 0.15}s`,
+                animationDelay: `${i * 0.3}s`,
               }}>
-              {/* 사이버 코너 장식 (4모서리) */}
-              <span className="absolute top-0.5 left-0.5 w-1.5 h-[1px] bg-white/60" />
-              <span className="absolute top-0.5 left-0.5 w-[1px] h-1.5 bg-white/60" />
-              <span className="absolute top-0.5 right-0.5 w-1.5 h-[1px] bg-white/60" />
-              <span className="absolute top-0.5 right-0.5 w-[1px] h-1.5 bg-white/60" />
-              <span className="absolute bottom-0.5 left-0.5 w-1.5 h-[1px] bg-white/60" />
-              <span className="absolute bottom-0.5 left-0.5 w-[1px] h-1.5 bg-white/60" />
-              <span className="absolute bottom-0.5 right-0.5 w-1.5 h-[1px] bg-white/60" />
-              <span className="absolute bottom-0.5 right-0.5 w-[1px] h-1.5 bg-white/60" />
+              {/* 사이버 회로 패턴 (홀로그램) */}
+              <div className="absolute inset-0 pointer-events-none opacity-30"
+                style={{
+                  backgroundImage: `
+                    linear-gradient(90deg, rgba(255,255,255,0.3) 1px, transparent 1px),
+                    linear-gradient(0deg, rgba(255,255,255,0.3) 1px, transparent 1px)
+                  `,
+                  backgroundSize: '8px 8px',
+                }} />
+
+              {/* 사선 회로 라인 */}
+              <div className="absolute inset-0 pointer-events-none opacity-40"
+                style={{
+                  backgroundImage: `
+                    linear-gradient(135deg, transparent 30%, rgba(255,255,255,0.2) 50%, transparent 70%)
+                  `,
+                }} />
+
+              {/* 4모서리 사이버 코너 */}
+              <span className="absolute top-1 left-1 w-2 h-[1.5px] bg-white/80" style={{ boxShadow: '0 0 4px white' }} />
+              <span className="absolute top-1 left-1 w-[1.5px] h-2 bg-white/80" style={{ boxShadow: '0 0 4px white' }} />
+              <span className="absolute top-1 right-1 w-2 h-[1.5px] bg-white/80" style={{ boxShadow: '0 0 4px white' }} />
+              <span className="absolute top-1 right-1 w-[1.5px] h-2 bg-white/80" style={{ boxShadow: '0 0 4px white' }} />
+              <span className="absolute bottom-1 left-1 w-2 h-[1.5px] bg-white/80" style={{ boxShadow: '0 0 4px white' }} />
+              <span className="absolute bottom-1 left-1 w-[1.5px] h-2 bg-white/80" style={{ boxShadow: '0 0 4px white' }} />
+              <span className="absolute bottom-1 right-1 w-2 h-[1.5px] bg-white/80" style={{ boxShadow: '0 0 4px white' }} />
+              <span className="absolute bottom-1 right-1 w-[1.5px] h-2 bg-white/80" style={{ boxShadow: '0 0 4px white' }} />
+
+              {/* 스캔라인 효과 (위→아래 가로 빛) */}
+              <div className="absolute left-0 right-0 pointer-events-none cyber-card-scanline"
+                style={{
+                  height: '6px',
+                  background: 'linear-gradient(180deg, transparent, rgba(255,255,255,0.6), transparent)',
+                  boxShadow: '0 0 8px rgba(255,255,255,0.8)',
+                  animationDelay: `${i * 0.6}s`,
+                }} />
 
               {/* 카드 번호 */}
-              <span className="relative z-10" style={{ textShadow: '0 0 8px rgba(255,255,255,0.6)' }}>{id}</span>
-
-              {/* 호버 시 빛 흐름 */}
-              <span className="absolute inset-0 rounded-xl pointer-events-none cyber-card-shine"
-                style={{
-                  background: `linear-gradient(135deg, transparent 30%, rgba(255,255,255,0.3) 50%, transparent 70%)`,
-                }} />
+              <div className="absolute inset-0 flex items-center justify-center text-white text-[10px] md:text-[11px] font-black font-mono z-10"
+                style={{ textShadow: '0 0 8px rgba(255,255,255,0.8), 0 0 16px rgba(255,255,255,0.4)' }}>
+                {id}
+              </div>
             </div>
           ))}
         </div>
@@ -1055,15 +1079,27 @@ export default function Home() {
           50% { opacity: 1; transform: scale(1.5); }
         }
 
-        /* ⭐ 사이버 미니 카드 (5장) */
-        .cyber-card-shine {
+        /* ⭐ 사이버 미니 카드 (5장) - 스캔라인 흐름 */
+        .cyber-card-scanline {
+          animation: cardScanlineFlow 3s ease-in-out infinite;
+          top: 0;
           opacity: 0;
-          transform: translateX(-100%);
-          transition: all 0.6s ease-out;
         }
-        .cyber-card-mini:hover .cyber-card-shine {
-          opacity: 1;
-          transform: translateX(100%);
+        @keyframes cardScanlineFlow {
+          0% {
+            top: -10%;
+            opacity: 0;
+          }
+          15% {
+            opacity: 1;
+          }
+          85% {
+            opacity: 1;
+          }
+          100% {
+            top: 110%;
+            opacity: 0;
+          }
         }
 
         /* ⭐ 메인 버튼 - 자체 펄스 글로우 */
