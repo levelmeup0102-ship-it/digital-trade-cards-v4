@@ -4,7 +4,17 @@ import { useRouter, useParams } from 'next/navigation';
 import { getCurrentTeacher, getClass, getTeamsByClass, getTeamMembers, saveTeamMembers } from '@/lib/teacher';
 import type { Teacher, Class, Team, TeamMember } from '@/lib/teacher';
 
-const S = { green: '#E7FE55', aqua: '#C1E8EB', navy: '#111111', bg: '#0A0A0A', gold: '#FFD700' };
+const S = {
+  green: '#E7FE55',
+  aqua: '#C1E8EB',
+  cyan: '#06B6D4',
+  purple: '#8B5CF6',
+  blue: '#3B82F6',
+  pink: '#FF6FB5',
+  navy: '#111111',
+  bg: '#0A0A0A',
+  gold: '#FFD700'
+};
 
 export default function ClassDetail() {
   const router = useRouter();
@@ -68,35 +78,107 @@ export default function ClassDetail() {
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: S.bg }}>
-      <p className="text-gray-500 font-mono text-sm">불러오는 중...</p>
+      <p className="font-mono text-sm" style={{ color: S.cyan }}>{`>`} 불러오는 중...</p>
     </div>
   );
 
   return (
-    <div className="min-h-screen px-4 py-6" style={{ background: S.bg }}>
-      <div className="max-w-lg mx-auto">
+    <div className="min-h-screen px-4 py-6 relative overflow-hidden" style={{ background: S.bg }}>
+
+      {/* ⭐⭐⭐ 오로라 배경 ⭐⭐⭐ */}
+      <div className="fixed inset-0 pointer-events-none"
+        style={{
+          background: `
+            radial-gradient(circle at 20% 25%, ${S.cyan}1A 0%, transparent 45%),
+            radial-gradient(circle at 80% 60%, ${S.purple}1A 0%, transparent 50%),
+            radial-gradient(circle at 50% 95%, ${S.blue}14 0%, transparent 60%)
+          `,
+          zIndex: 0,
+        }} />
+
+      {/* 빛 신호 */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
+        <div className="absolute detail-signal-1"
+          style={{
+            top: '20%',
+            left: 0,
+            width: '100px',
+            height: '2px',
+            background: `linear-gradient(90deg, transparent, ${S.cyan}, transparent)`,
+            boxShadow: `0 0 14px ${S.cyan}, 0 0 28px ${S.cyan}66`,
+          }} />
+        <div className="absolute detail-signal-2"
+          style={{
+            top: '60%',
+            right: 0,
+            width: '120px',
+            height: '2px',
+            background: `linear-gradient(90deg, transparent, ${S.purple}, transparent)`,
+            boxShadow: `0 0 14px ${S.purple}, 0 0 28px ${S.purple}66`,
+          }} />
+      </div>
+
+      {/* 떠다니는 입자 */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
+        {Array.from({ length: 10 }).map((_, i) => {
+          const colors = [S.cyan, S.purple, S.blue];
+          const left = (i * 13 + 7) % 100;
+          const top = (i * 19 + 13) % 100;
+          const size = 1.5 + (i % 3) * 0.5;
+          const duration = 4 + (i % 4);
+          const delay = (i % 5) * 0.7;
+          return (
+            <div key={i} className="absolute rounded-full detail-particle"
+              style={{
+                left: `${left}%`,
+                top: `${top}%`,
+                width: `${size}px`,
+                height: `${size}px`,
+                background: colors[i % 3],
+                boxShadow: `0 0 ${size * 4}px ${colors[i % 3]}`,
+                animationDuration: `${duration}s`,
+                animationDelay: `${delay}s`,
+              }} />
+          );
+        })}
+      </div>
+
+      <div className="max-w-lg mx-auto relative z-10">
 
         {/* 헤더 */}
         <div className="flex items-center gap-3 mb-6">
           <button onClick={() => router.push('/teacher/dashboard')}
-            className="text-gray-600 hover:text-gray-400 transition text-sm">← 대시보드</button>
+            className="hover:text-gray-400 transition text-sm font-mono"
+            style={{ color: S.cyan }}>{`<`} 대시보드</button>
         </div>
 
         <div className="rounded-2xl p-5 mb-6"
-          style={{ background: `${S.green}08`, border: `1px solid ${S.green}20` }}>
-          <p className="text-[10px] font-mono tracking-widest mb-1" style={{ color: S.green }}>수업 상세</p>
-          <h1 className="text-xl font-black text-white">{cls?.name}</h1>
-          <p className="text-[12px] text-gray-500 mt-1">{cls?.school} {cls?.schedule && `· ${cls.schedule}`}</p>
+          style={{
+            background: `${S.cyan}08`,
+            border: `1.5px solid ${S.cyan}40`,
+            boxShadow: `0 0 24px ${S.cyan}22, inset 0 0 16px ${S.cyan}11`,
+          }}>
+          <p className="text-[10px] font-mono tracking-widest mb-1 font-bold"
+            style={{ color: S.cyan, textShadow: `0 0 8px ${S.cyan}AA` }}>
+            {`>`} 수업 상세
+          </p>
+          <h1 className="text-xl font-black text-white"
+            style={{ textShadow: `0 0 12px ${S.cyan}55` }}>{cls?.name}</h1>
+          <p className="text-[12px] mt-1" style={{ color: '#888' }}>{cls?.school} {cls?.schedule && `· ${cls.schedule}`}</p>
         </div>
 
         {/* 학생 접속 URL 안내 */}
         <div className="rounded-xl p-4 mb-6"
-          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-          <p className="text-[11px] font-bold text-gray-400 mb-1">학생 접속 주소</p>
-          <p className="text-[12px] font-mono" style={{ color: S.aqua }}>
+          style={{
+            background: `${S.purple}08`,
+            border: `1px solid ${S.purple}33`,
+            boxShadow: `inset 0 0 12px ${S.purple}11`,
+          }}>
+          <p className="text-[11px] font-bold mb-1" style={{ color: S.purple }}>{`>`} 학생 접속 주소</p>
+          <p className="text-[12px] font-mono break-all" style={{ color: S.cyan, textShadow: `0 0 6px ${S.cyan}66` }}>
             digital-trade-cards-production.up.railway.app/student/join
           </p>
-          <p className="text-[11px] text-gray-600 mt-1">학생들에게 팀 코드와 함께 공유하세요</p>
+          <p className="text-[11px] mt-1" style={{ color: '#666' }}>학생들에게 팀 코드와 함께 공유하세요</p>
         </div>
 
         {/* ⭐⭐⭐ 강렬한 랭킹 보기 버튼 ⭐⭐⭐ */}
@@ -154,8 +236,10 @@ export default function ClassDetail() {
 
         {/* 팀 목록 (기존 — 명단 관리) */}
         <div className="mb-4">
-          <p className="text-sm font-bold text-white">팀 관리 ({teams.length}개)</p>
-          <p className="text-[11px] text-gray-600 mt-0.5">팀 코드 복사 · 학생 명단 등록</p>
+          <p className="text-sm font-bold text-white">
+            <span style={{ color: S.cyan }}>{`>`}</span> 팀 관리 ({teams.length}개)
+          </p>
+          <p className="text-[11px] mt-0.5" style={{ color: '#666' }}>팀 코드 복사 · 학생 명단 등록</p>
         </div>
 
         <div className="space-y-4">
@@ -164,24 +248,34 @@ export default function ClassDetail() {
             const isEditing = editingTeamId === team.id;
 
             return (
-              <div key={team.id} className="rounded-2xl overflow-hidden"
-                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div key={team.id} className="rounded-2xl overflow-hidden cyber-team-card"
+                style={{
+                  background: 'rgba(255,255,255,0.03)',
+                  border: `1px solid ${S.cyan}33`,
+                  boxShadow: `0 0 16px ${S.cyan}11`,
+                }}>
 
                 {/* 팀 헤더 */}
                 <div className="p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div>
                       <h3 className="text-base font-bold text-white">{team.name}</h3>
-                      <p className="text-[11px] text-gray-600 mt-0.5">
+                      <p className="text-[11px] mt-0.5" style={{ color: S.cyan }}>
                         완료 {team.completed_count || 0}/16장
                       </p>
                     </div>
                     {/* 팀 코드 */}
                     <button onClick={() => copyCode(team.join_code)}
                       className="flex flex-col items-end gap-1">
-                      <p className="text-[9px] text-gray-600 font-mono">수업 코드</p>
+                      <p className="text-[9px] font-mono" style={{ color: S.cyan }}>수업 코드</p>
                       <div className="px-3 py-1.5 rounded-lg font-black font-mono text-sm transition"
-                        style={{ background: copiedCode === team.join_code ? `${S.green}20` : 'rgba(255,255,255,0.08)', color: copiedCode === team.join_code ? S.green : '#fff', border: `1px solid ${copiedCode === team.join_code ? S.green : 'rgba(255,255,255,0.12)'}` }}>
+                        style={{
+                          background: copiedCode === team.join_code ? `${S.cyan}20` : 'rgba(0,0,0,0.4)',
+                          color: copiedCode === team.join_code ? S.cyan : '#fff',
+                          border: `1.5px solid ${copiedCode === team.join_code ? S.cyan : S.cyan + '44'}`,
+                          boxShadow: copiedCode === team.join_code ? `0 0 12px ${S.cyan}66` : `0 0 8px ${S.cyan}22`,
+                          textShadow: copiedCode === team.join_code ? `0 0 6px ${S.cyan}` : 'none',
+                        }}>
                         {copiedCode === team.join_code ? '✓ 복사됨' : team.join_code}
                       </div>
                     </button>
@@ -191,13 +285,18 @@ export default function ClassDetail() {
                   {!isEditing ? (
                     <div>
                       {members.length === 0 ? (
-                        <p className="text-[12px] text-gray-600 mb-3">아직 학생 명단이 없어요</p>
+                        <p className="text-[12px] mb-3" style={{ color: '#666' }}>아직 학생 명단이 없어요</p>
                       ) : (
                         <div className="flex flex-wrap gap-1.5 mb-3">
                           {members.map(m => (
                             <span key={m.id}
                               className="px-2.5 py-1 rounded-full text-[11px] font-bold"
-                              style={{ background: m.is_leader ? `${S.green}20` : 'rgba(255,255,255,0.06)', color: m.is_leader ? S.green : '#aaa', border: `1px solid ${m.is_leader ? S.green + '40' : 'rgba(255,255,255,0.08)'}` }}>
+                              style={{
+                                background: m.is_leader ? `${S.cyan}20` : 'rgba(255,255,255,0.06)',
+                                color: m.is_leader ? S.cyan : '#aaa',
+                                border: `1px solid ${m.is_leader ? S.cyan + '66' : 'rgba(255,255,255,0.08)'}`,
+                                boxShadow: m.is_leader ? `0 0 8px ${S.cyan}33` : 'none',
+                              }}>
                               {m.is_leader ? '👑 ' : ''}{m.name}
                             </span>
                           ))}
@@ -211,14 +310,18 @@ export default function ClassDetail() {
                         }));
                       }}
                         className="w-full py-2 rounded-xl text-[12px] font-bold transition"
-                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#888' }}>
+                        style={{
+                          background: 'rgba(0,0,0,0.3)',
+                          border: `1px solid ${S.cyan}33`,
+                          color: S.cyan,
+                        }}>
                         {members.length === 0 ? '+ 학생 명단 입력' : '✏️ 명단 수정'}
                       </button>
                     </div>
                   ) : (
                     <div>
-                      <p className="text-[11px] text-gray-500 mb-2">
-                        한 줄에 한 명씩 입력 · 첫 번째 학생이 자동으로 팀장이 됩니다
+                      <p className="text-[11px] mb-2" style={{ color: S.cyan }}>
+                        {`>`} 한 줄에 한 명씩 입력 · 첫 번째 학생이 자동으로 팀장이 됩니다
                       </p>
                       <textarea
                         value={memberInputs[team.id] || ''}
@@ -226,7 +329,13 @@ export default function ClassDetail() {
                         placeholder={"이서연\n김민준\n박서아\n정하율"}
                         rows={5}
                         className="w-full px-3 py-2.5 rounded-xl text-[13px] text-white leading-relaxed resize-none mb-3"
-                        style={{ background: 'rgba(255,255,255,0.06)', border: `1px solid ${S.green}40`, outline: 'none', fontFamily: 'monospace' }}
+                        style={{
+                          background: 'rgba(0,0,0,0.4)',
+                          border: `1.5px solid ${S.cyan}55`,
+                          outline: 'none',
+                          fontFamily: 'monospace',
+                          boxShadow: `inset 0 0 8px ${S.cyan}11`,
+                        }}
                       />
                       <div className="flex gap-2">
                         <button onClick={() => setEditingTeamId(null)}
@@ -236,8 +345,12 @@ export default function ClassDetail() {
                         </button>
                         <button onClick={() => handleSaveMembers(team.id)} disabled={saving}
                           className="flex-[2] py-2.5 rounded-xl text-[13px] font-black transition disabled:opacity-50"
-                          style={{ background: S.green, color: S.navy }}>
-                          {saving ? '저장 중...' : '저장하기'}
+                          style={{
+                            background: S.cyan,
+                            color: S.navy,
+                            boxShadow: `0 0 16px ${S.cyan}66`,
+                          }}>
+                          {saving ? '저장 중...' : `> 저장하기`}
                         </button>
                       </div>
                     </div>
@@ -249,7 +362,11 @@ export default function ClassDetail() {
                   <div className="px-4 pb-3">
                     <div className="h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
                       <div className="h-full rounded-full transition-all"
-                        style={{ width: `${((team.completed_count || 0) / 16) * 100}%`, background: S.green }} />
+                        style={{
+                          width: `${((team.completed_count || 0) / 16) * 100}%`,
+                          background: `linear-gradient(90deg, ${S.cyan}, ${S.purple})`,
+                          boxShadow: `0 0 12px ${S.cyan}88`,
+                        }} />
                     </div>
                   </div>
                 )}
@@ -324,6 +441,37 @@ export default function ClassDetail() {
         }
         .ranking-btn {
           animation: btnPulse 3s ease-in-out infinite;
+        }
+
+        /* ⭐ 빛 신호 흐름 */
+        .detail-signal-1 {
+          animation: detailSignalRight 5s linear infinite;
+        }
+        @keyframes detailSignalRight {
+          0% { transform: translateX(-100px); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { transform: translateX(100vw); opacity: 0; }
+        }
+        .detail-signal-2 {
+          animation: detailSignalLeft 6s linear infinite 0.5s;
+        }
+        @keyframes detailSignalLeft {
+          0% { transform: translateX(120px); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { transform: translateX(-100vw); opacity: 0; }
+        }
+
+        /* 떠다니는 입자 */
+        .detail-particle {
+          animation-name: detailParticleTwinkle;
+          animation-iteration-count: infinite;
+          animation-timing-function: ease-in-out;
+        }
+        @keyframes detailParticleTwinkle {
+          0%, 100% { opacity: 0.3; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.5); }
         }
       `}</style>
     </div>
