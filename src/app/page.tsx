@@ -187,7 +187,7 @@ export default function Home() {
     const timer = setTimeout(() => {
       setIntroDone(true);
       setTimeout(() => setScreen('landing'), 300);
-    }, 6000);
+    }, 7000);
     return () => clearTimeout(timer);
   }, [screen]);
 
@@ -479,7 +479,7 @@ export default function Home() {
                 height: `${cardH}px`,
                 background: card.color,
                 boxShadow: `0 8px 24px ${card.color}66, 0 0 30px ${card.color}55`,
-                animation: `cardElegantSpread 2.2s cubic-bezier(0.16, 1, 0.3, 1) ${card.delay}s forwards`,
+                animation: `cardElegantSpread 2.2s cubic-bezier(0.16, 1, 0.3, 1) ${card.delay}s forwards, cardDimAndBrighten 3s ease-in-out 4s forwards`,
                 transformOrigin: 'center center',
                 transform: 'translate(-50%, -50%) scale(0)',
                 opacity: 0,
@@ -495,20 +495,7 @@ export default function Home() {
           ))}
         </div>
 
-        {/* ⭐ 오로라 배경 (4.2초에 페이드 인) */}
-        <div className="fixed inset-0 pointer-events-none"
-          style={{
-            opacity: 0,
-            animation: 'auroraBackgroundFadeIn 1.5s ease-out 4.2s forwards',
-            zIndex: 1,
-            background: `
-              radial-gradient(circle at 20% 30%, #06B6D420 0%, transparent 50%),
-              radial-gradient(circle at 80% 60%, #8B5CF620 0%, transparent 50%),
-              radial-gradient(circle at 50% 90%, #3B82F620 0%, transparent 60%)
-            `,
-          }} />
-
-        {/* ⭐ 로고 등장 시 빛 폭발 (4초에 가운데서 큰 폭발) */}
+        {/* ⭐ 작은 빛 폭발 (5.0초 - 가운데 한 점에서 짧게) */}
         <div className="absolute pointer-events-none"
           style={{
             top: '50%',
@@ -516,15 +503,15 @@ export default function Home() {
             width: '20px',
             height: '20px',
             transform: 'translate(-50%, -50%)',
-            background: 'radial-gradient(circle, #FFFFFF 0%, #06B6D4 30%, #8B5CF6 60%, #3B82F6 80%, transparent 100%)',
+            background: 'radial-gradient(circle, #FFFFFF 0%, #06B6D4 40%, #8B5CF6 70%, transparent 100%)',
             borderRadius: '50%',
             opacity: 0,
-            animation: 'logoLightBurst 1.5s cubic-bezier(0.16, 1, 0.3, 1) 4s forwards',
+            animation: 'logoLightBurst 0.8s ease-out 5.0s forwards',
             zIndex: 25,
-            filter: 'blur(8px)',
+            filter: 'blur(6px)',
           }} />
 
-        {/* ⭐ 로고 뒤 거대한 오로라 후광 (4.2초~ 영원히) */}
+        {/* ⭐ 거대한 오로라 후광 (5.2초~ 천천히 펴짐) */}
         <div className="absolute pointer-events-none"
           style={{
             top: '50%',
@@ -535,16 +522,29 @@ export default function Home() {
             background: 'radial-gradient(circle, #06B6D455 0%, #8B5CF633 30%, #3B82F622 60%, transparent 85%)',
             borderRadius: '50%',
             opacity: 0,
-            animation: 'logoAuroraHalo 2.5s ease-out 4.2s forwards',
+            animation: 'logoAuroraHalo 2.2s ease-out 5.2s forwards',
             zIndex: 27,
-            filter: 'blur(30px)',
+            filter: 'blur(40px)',
           }} />
 
-        {/* 로고 — 화면 정중앙에서 거대하게 등장 */}
+        {/* ⭐ 오로라 배경 (5.2초에 페이드 인) */}
+        <div className="fixed inset-0 pointer-events-none"
+          style={{
+            opacity: 0,
+            animation: 'auroraBackgroundFadeIn 1.5s ease-out 5.2s forwards',
+            zIndex: 1,
+            background: `
+              radial-gradient(circle at 20% 30%, #06B6D420 0%, transparent 50%),
+              radial-gradient(circle at 80% 60%, #8B5CF620 0%, transparent 50%),
+              radial-gradient(circle at 50% 90%, #3B82F620 0%, transparent 60%)
+            `,
+          }} />
+
+        {/* 로고 — 화면 정중앙에서 부드럽게 등장 */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none"
           style={{
             opacity: 0,
-            animation: 'introLogoFade 1.5s cubic-bezier(0.16, 1, 0.3, 1) 4.5s forwards',
+            animation: 'introLogoFade 1.2s ease-out 5.5s forwards',
             zIndex: 30,
           }}>
           <div className="text-center relative">
@@ -676,6 +676,14 @@ export default function Home() {
             }
           }
 
+          /* ⭐ C: 카드들 어두워졌다 다시 밝아짐 (4~7초) */
+          @keyframes cardDimAndBrighten {
+            0% { filter: brightness(1); }
+            30% { filter: brightness(0.4); }
+            60% { filter: brightness(0.4); }
+            100% { filter: brightness(1.1); }
+          }
+
           @keyframes particleBurst {
             0% {
               opacity: 1;
@@ -700,27 +708,17 @@ export default function Home() {
           @keyframes introLogoFade {
             0% {
               opacity: 0;
-              transform: translateY(20px) scale(0.6);
-              filter: blur(20px);
-            }
-            40% {
-              opacity: 1;
-              transform: translateY(0) scale(1.1);
-              filter: blur(0);
-            }
-            60% {
-              transform: translateY(0) scale(0.95);
+              transform: scale(0.92);
             }
             100% {
               opacity: 1;
-              transform: translateY(0) scale(1);
-              filter: blur(0);
+              transform: scale(1);
             }
           }
 
-          /* ⭐⭐⭐ SIGNAL 로고 글로우 펄스 (계속) ⭐⭐⭐ */
+          /* ⭐⭐⭐ SIGNAL 로고 글로우 펄스 (등장 후 천천히) ⭐⭐⭐ */
           .logo-glow-text {
-            animation: logoGlowPulse 3s ease-in-out 5.5s infinite;
+            animation: logoGlowPulse 3s ease-in-out 6.5s infinite;
           }
           @keyframes logoGlowPulse {
             0%, 100% {
@@ -770,22 +768,22 @@ export default function Home() {
             }
           }
 
-          /* ⭐ 로고 등장 시 빛 폭발 (4초) */
+          /* ⭐ 작은 빛 폭발 (5.0초 - 빠르고 작게) */
           @keyframes logoLightBurst {
             0% {
               opacity: 0;
               width: 20px;
               height: 20px;
             }
-            30% {
+            40% {
               opacity: 1;
-              width: ${isMobile ? '350px' : '500px'};
-              height: ${isMobile ? '350px' : '500px'};
+              width: ${isMobile ? '200px' : '300px'};
+              height: ${isMobile ? '200px' : '300px'};
             }
             100% {
               opacity: 0;
-              width: ${isMobile ? '600px' : '900px'};
-              height: ${isMobile ? '600px' : '900px'};
+              width: ${isMobile ? '300px' : '450px'};
+              height: ${isMobile ? '300px' : '450px'};
             }
           }
 
