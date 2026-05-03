@@ -48,8 +48,11 @@ export default function SignalCard({
 }: SignalCardProps) {
   const color = CARD_COLORS[topic.id].bg;
 
-  // 카드 03만 색이 너무 어두워서 글씨 안 보임 → 밝은 남색으로 대체
-  const accentColor = topic.id === '03' ? '#5B8DEE' : color;
+  // 어두운 카드 강조 텍스트는 같은 계열 밝은 색으로 (가독성)
+  const accentColor =
+    topic.id === '03' ? '#5B8DEE' :  // 진한 남색 → 밝은 남색
+    topic.id === '16' ? '#C44569' :  // 진한 자주 → 밝은 자주
+    color;
 
   const template = getCardTemplate(topic.id);
 
