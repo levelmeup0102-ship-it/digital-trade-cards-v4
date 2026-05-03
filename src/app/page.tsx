@@ -113,6 +113,23 @@ function getRainbowParticles(isMobile: boolean) {
   });
 }
 
+// ⭐ 16개 신호 라인 (카드 → 정중앙) - 네트워크 효과
+function getSignalLines(isMobile: boolean) {
+  const distance = isMobile ? 130 : 240;
+  return Array.from({ length: 16 }, (_, i) => {
+    const id = String(i + 1).padStart(2, '0');
+    const angle = (360 / 16) * i - 90;
+
+    return {
+      id: i,
+      color: CARD_COLORS[id]?.bg || '#4FB0C6',
+      // 라인이 그려질 각도 (카드에서 가운데로)
+      angle: angle + 180, // 라인을 카드에서 안쪽으로 향하게 (180도 반대)
+      length: distance,
+    };
+  });
+}
+
 export default function Home() {
   const router = useRouter();
   const isMobile = useIsMobile();
@@ -165,6 +182,7 @@ export default function Home() {
   const fireworkParticles = getFireworkParticles(isMobile);
   const lightRays = getLightRays(isMobile);
   const rainbowParticles = getRainbowParticles(isMobile);
+  const signalLines = getSignalLines(isMobile);
 
   useEffect(() => {
     if (screen !== 'intro') return;
@@ -478,6 +496,27 @@ export default function Home() {
             </div>
           ))}
 
+          {/* ⭐ C: 16개 신호 라인 (3.6초~ 카드에서 가운데로 빛 라인) */}
+          {signalLines.map(line => (
+            <div
+              key={`line-${line.id}`}
+              className="absolute pointer-events-none"
+              style={{
+                top: '50%',
+                left: '50%',
+                width: `${line.length}px`,
+                height: '2px',
+                background: `linear-gradient(to right, ${line.color}00 0%, ${line.color}88 30%, ${line.color}FF 100%)`,
+                boxShadow: `0 0 8px ${line.color}, 0 0 16px ${line.color}66`,
+                transformOrigin: '0 50%',
+                transform: `translate(0, -50%) rotate(${line.angle + 180}deg)`,
+                opacity: 0,
+                animation: `signalLineDraw 1.5s cubic-bezier(0.16, 1, 0.3, 1) 3.6s forwards`,
+                zIndex: 12,
+              }}
+            />
+          ))}
+
           {/* ⭐ 16개 무지개 입자 (3.8초 한번에 카드에서 튀어나옴 → 정중앙으로 모임) */}
           {rainbowParticles.map(p => (
             <div
@@ -500,7 +539,7 @@ export default function Home() {
             />
           ))}
 
-          {/* ⭐ 응축 폭발 (5.3초에 - 입자가 모여 로고로 변함) */}
+          {/* ⭐ D: 응축 폭발 (5.3초 - 입자가 모여 빛이 됨) */}
           <div className="absolute pointer-events-none"
             style={{
               top: '50%',
@@ -508,12 +547,37 @@ export default function Home() {
               width: '20px',
               height: '20px',
               transform: 'translate(-50%, -50%)',
-              background: 'radial-gradient(circle, #FFFFFF 0%, #06B6D4 30%, #8B5CF6 60%, transparent 80%)',
+              background: 'radial-gradient(circle, #FFFFFF 0%, #06B6D4 25%, #8B5CF6 55%, #3B82F6 75%, transparent 90%)',
               borderRadius: '50%',
               opacity: 0,
-              animation: 'logoConverge 0.8s ease-out 5.3s forwards',
+              animation: 'logoConverge 1s cubic-bezier(0.16, 1, 0.3, 1) 5.3s forwards',
               zIndex: 28,
-              filter: 'blur(4px)',
+              filter: 'blur(6px)',
+            }} />
+
+          {/* ⭐ D: 큰 오로라 후광 (5.6초~ 로고 등장과 동시에 거대한 빛) */}
+          <div className="absolute pointer-events-none"
+            style={{
+              top: '50%',
+              left: '50%',
+              width: '20px',
+              height: '20px',
+              transform: 'translate(-50%, -50%)',
+              background: 'radial-gradient(circle, #06B6D444 0%, #8B5CF633 30%, #3B82F622 60%, transparent 80%)',
+              borderRadius: '50%',
+              opacity: 0,
+              animation: 'auroraHalo 2.5s ease-out 5.6s forwards',
+              zIndex: 27,
+              filter: 'blur(20px)',
+            }} />
+
+          {/* ⭐ D: 카드들도 살짝 더 밝아짐 (5.5초) */}
+          <div className="absolute inset-0 pointer-events-none"
+            style={{
+              opacity: 0,
+              animation: 'cardsBrighten 2s ease-out 5.5s forwards',
+              zIndex: 8,
+              background: `radial-gradient(circle at center, transparent 0%, transparent 30%, #06B6D408 50%, transparent 80%)`,
             }} />
         </div>
 
@@ -774,14 +838,65 @@ export default function Home() {
             }
             30% {
               opacity: 1;
-              width: ${isMobile ? '200px' : '300px'};
-              height: ${isMobile ? '200px' : '300px'};
+              width: ${isMobile ? '250px' : '400px'};
+              height: ${isMobile ? '250px' : '400px'};
+            }
+            60% {
+              opacity: 0.8;
+              width: ${isMobile ? '350px' : '550px'};
+              height: ${isMobile ? '350px' : '550px'};
             }
             100% {
               opacity: 0;
-              width: ${isMobile ? '300px' : '450px'};
-              height: ${isMobile ? '300px' : '450px'};
+              width: ${isMobile ? '450px' : '700px'};
+              height: ${isMobile ? '450px' : '700px'};
             }
+          }
+
+          /* ⭐ C: 신호 라인 그리기 (3.6초~) */
+          @keyframes signalLineDraw {
+            0% {
+              opacity: 0;
+              width: 0;
+            }
+            20% {
+              opacity: 1;
+              width: ${isMobile ? '130px' : '240px'};
+            }
+            70% {
+              opacity: 1;
+              width: ${isMobile ? '130px' : '240px'};
+            }
+            100% {
+              opacity: 0;
+              width: 0;
+            }
+          }
+
+          /* ⭐ D: 거대한 오로라 후광 (5.6초~) */
+          @keyframes auroraHalo {
+            0% {
+              opacity: 0;
+              width: 20px;
+              height: 20px;
+            }
+            40% {
+              opacity: 1;
+              width: ${isMobile ? '500px' : '800px'};
+              height: ${isMobile ? '500px' : '800px'};
+            }
+            100% {
+              opacity: 0.6;
+              width: ${isMobile ? '600px' : '1000px'};
+              height: ${isMobile ? '600px' : '1000px'};
+            }
+          }
+
+          /* ⭐ D: 카드들 밝아지는 효과 */
+          @keyframes cardsBrighten {
+            0% { opacity: 0; }
+            50% { opacity: 1; }
+            100% { opacity: 0.5; }
           }
 
           /* 오로라 배경 페이드 인 (5.5초) */
