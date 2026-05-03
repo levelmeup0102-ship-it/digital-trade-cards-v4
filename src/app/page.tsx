@@ -94,28 +94,22 @@ function getLightRays(isMobile: boolean) {
   }));
 }
 
-// ⭐ 16개 무지개 입자 (가방 → 로고 변환용)
+// ⭐ 16개 무지개 입자 (카드 위치에서 → 정중앙으로 모임)
 function getRainbowParticles(isMobile: boolean) {
-  // 무지개 16색
-  const rainbowColors = [
-    '#FF0080', '#FF4D00', '#FF9900', '#FFE500',
-    '#A8FF00', '#00FF44', '#00FFCC', '#00E5FF',
-    '#0099FF', '#4D5BFF', '#8B5CF6', '#C800FF',
-    '#FF00C8', '#FF1493', '#FF4080', '#FF6FB5',
-  ];
-
+  const distance = isMobile ? 130 : 240; // getIntroCards와 동일
+  // 카드 색깔 순서 그대로 사용 (CARD_COLORS의 bg)
   return Array.from({ length: 16 }, (_, i) => {
-    // 시작 위치: 가방 주변 사방으로 흩어짐
-    const startAngle = (i / 16) * Math.PI * 2;
-    const startDistance = isMobile ? 60 : 100;
+    const id = String(i + 1).padStart(2, '0');
+    const angle = (360 / 16) * i - 90;
 
     return {
       id: i,
-      color: rainbowColors[i],
-      // 가방 위치(원점 0,0)에서 사방으로 흩어진 시작점
-      startX: Math.cos(startAngle) * startDistance,
-      startY: Math.sin(startAngle) * startDistance,
-      size: isMobile ? 8 : 12,
+      color: CARD_COLORS[id]?.bg || '#4FB0C6', // 해당 카드 색
+      // 시작 위치: 펼쳐진 카드 위치 (getIntroCards와 동일)
+      startX: Math.cos((angle * Math.PI) / 180) * distance,
+      startY: Math.sin((angle * Math.PI) / 180) * distance,
+      size: isMobile ? 10 : 14,
+      delay: i * 0.04, // 카드별로 살짝씩 시간차
     };
   });
 }
@@ -501,7 +495,7 @@ export default function Home() {
               filter: 'blur(8px)',
             }} />
 
-          {/* ⭐ 16개 무지개 입자 (3.8초에 등장 → 정중앙으로 모임) */}
+          {/* ⭐ 16개 무지개 입자 (3.8초~ 카드에서 튀어나옴 → 정중앙으로 모임) */}
           {rainbowParticles.map(p => (
             <div
               key={`rainbow-${p.id}`}
@@ -512,13 +506,12 @@ export default function Home() {
                 width: `${p.size}px`,
                 height: `${p.size}px`,
                 background: p.color,
-                boxShadow: `0 0 ${p.size * 3}px ${p.color}, 0 0 ${p.size * 6}px ${p.color}66`,
+                boxShadow: `0 0 ${p.size * 3}px ${p.color}, 0 0 ${p.size * 6}px ${p.color}88`,
                 opacity: 0,
                 transform: 'translate(-50%, -50%)',
-                animation: `rainbowParticleMerge 1.7s cubic-bezier(0.16, 1, 0.3, 1) 3.8s forwards`,
+                animation: `rainbowParticleMerge 1.7s cubic-bezier(0.16, 1, 0.3, 1) ${3.8 + p.delay}s forwards`,
                 '--start-x': `${p.startX}px`,
                 '--start-y': `${p.startY}px`,
-                '--rotation': `${p.id * 60}deg`,
                 zIndex: 30,
               } as React.CSSProperties}
             />
@@ -762,35 +755,42 @@ export default function Home() {
             }
           }
 
-          /* 16개 무지개 입자 - 가방 위치에서 → 화면 정중앙으로 모임 (3.8초~5.5초) */
+          /* 16개 무지개 입자 - 카드에서 튀어나와 정중앙으로 모임 (3.8초~5.5초) */
           @keyframes rainbowParticleMerge {
             0% {
               opacity: 0;
               transform:
                 translate(-50%, -50%)
                 translate(var(--start-x), var(--start-y))
-                scale(0.5);
+                scale(0);
             }
-            15% {
+            8% {
               opacity: 1;
               transform:
                 translate(-50%, -50%)
                 translate(var(--start-x), var(--start-y))
-                scale(1.5);
+                scale(1.8);
+            }
+            20% {
+              opacity: 1;
+              transform:
+                translate(-50%, -50%)
+                translate(calc(var(--start-x) * 1.15), calc(var(--start-y) * 1.15))
+                scale(1.4);
             }
             70% {
               opacity: 1;
               transform:
                 translate(-50%, -50%)
-                rotate(720deg)
+                translate(calc(var(--start-x) * 0.2), calc(var(--start-y) * 0.2))
                 scale(1);
             }
             100% {
               opacity: 0;
               transform:
                 translate(-50%, -50%)
-                rotate(1080deg)
-                scale(0.3);
+                translate(0, 0)
+                scale(0.4);
             }
           }
 
