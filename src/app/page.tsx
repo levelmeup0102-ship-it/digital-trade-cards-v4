@@ -977,16 +977,6 @@ export default function Home() {
             color: S.navy,
             boxShadow: `0 10px 30px -5px ${S.green}66, 0 0 30px ${S.green}55`,
           }}>
-          {/* 4모서리 사이버 코너 */}
-          <span className="absolute top-1.5 left-1.5 w-2.5 h-2.5 pointer-events-none z-20"
-            style={{ borderTop: `2px solid ${S.navy}`, borderLeft: `2px solid ${S.navy}` }} />
-          <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 pointer-events-none z-20"
-            style={{ borderTop: `2px solid ${S.navy}`, borderRight: `2px solid ${S.navy}` }} />
-          <span className="absolute bottom-1.5 left-1.5 w-2.5 h-2.5 pointer-events-none z-20"
-            style={{ borderBottom: `2px solid ${S.navy}`, borderLeft: `2px solid ${S.navy}` }} />
-          <span className="absolute bottom-1.5 right-1.5 w-2.5 h-2.5 pointer-events-none z-20"
-            style={{ borderBottom: `2px solid ${S.navy}`, borderRight: `2px solid ${S.navy}` }} />
-
           <span className="relative z-10 tracking-wider">{`>`} 학생으로 입장 →</span>
           <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700"
             style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)' }} />
@@ -1001,36 +991,19 @@ export default function Home() {
             textShadow: '0 0 8px #06B6D466',
             boxShadow: `0 0 20px #06B6D422, inset 0 0 12px #06B6D411`,
           }}>
-          {/* 4모서리 사이버 코너 */}
-          <span className="absolute top-1.5 left-1.5 w-2 h-2 pointer-events-none"
-            style={{ borderTop: `2px solid #06B6D4`, borderLeft: `2px solid #06B6D4`, boxShadow: '0 0 4px #06B6D4' }} />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 pointer-events-none"
-            style={{ borderTop: `2px solid #06B6D4`, borderRight: `2px solid #06B6D4`, boxShadow: '0 0 4px #06B6D4' }} />
-          <span className="absolute bottom-1.5 left-1.5 w-2 h-2 pointer-events-none"
-            style={{ borderBottom: `2px solid #06B6D4`, borderLeft: `2px solid #06B6D4`, boxShadow: '0 0 4px #06B6D4' }} />
-          <span className="absolute bottom-1.5 right-1.5 w-2 h-2 pointer-events-none"
-            style={{ borderBottom: `2px solid #06B6D4`, borderRight: `2px solid #06B6D4`, boxShadow: '0 0 4px #06B6D4' }} />
-
           <span className="relative z-10 tracking-wide">{`>`} 관리자 로그인</span>
         </button>
 
         <button onClick={() => setScreen('guide')}
-          className="cyber-btn-tertiary relative w-full py-2.5 md:py-3 rounded-2xl text-xs md:text-sm text-gray-500 transition hover:text-gray-300"
+          className="cyber-btn-tertiary relative w-full py-3 md:py-3.5 rounded-2xl text-[13px] md:text-[14px] font-bold transition-all hover:scale-[1.01] overflow-hidden"
           style={{
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.08)',
+            background: 'rgba(139, 92, 246, 0.08)',
+            border: `1px solid #8B5CF666`,
+            color: '#8B5CF6',
+            textShadow: '0 0 8px #8B5CF666',
+            boxShadow: `0 0 20px #8B5CF622, inset 0 0 12px #8B5CF611`,
           }}>
-          {/* 단순 코너 */}
-          <span className="absolute top-1 left-1 w-1.5 h-[1px] bg-gray-600" />
-          <span className="absolute top-1 left-1 w-[1px] h-1.5 bg-gray-600" />
-          <span className="absolute top-1 right-1 w-1.5 h-[1px] bg-gray-600" />
-          <span className="absolute top-1 right-1 w-[1px] h-1.5 bg-gray-600" />
-          <span className="absolute bottom-1 left-1 w-1.5 h-[1px] bg-gray-600" />
-          <span className="absolute bottom-1 left-1 w-[1px] h-1.5 bg-gray-600" />
-          <span className="absolute bottom-1 right-1 w-1.5 h-[1px] bg-gray-600" />
-          <span className="absolute bottom-1 right-1 w-[1px] h-1.5 bg-gray-600" />
-
-          <span className="relative">📋 퍼실리테이터 가이드</span>
+          <span className="relative z-10 tracking-wide">{`>`} 퍼실리테이터 가이드</span>
         </button>
 
         <p className="text-gray-700 text-[10px] mt-6 md:mt-8 font-mono">© 2026 SIGNAL — ConnectAI</p>
@@ -1116,6 +1089,19 @@ export default function Home() {
           }
           50% {
             box-shadow: 0 0 30px #06B6D466, inset 0 0 16px #06B6D422;
+          }
+        }
+
+        /* ⭐ 가이드 버튼 - 보라 펄스 */
+        .cyber-btn-tertiary {
+          animation: cyberTertiaryPulse 3.5s ease-in-out infinite;
+        }
+        @keyframes cyberTertiaryPulse {
+          0%, 100% {
+            box-shadow: 0 0 20px #8B5CF622, inset 0 0 12px #8B5CF611;
+          }
+          50% {
+            box-shadow: 0 0 30px #8B5CF666, inset 0 0 16px #8B5CF622;
           }
         }
 
