@@ -369,93 +369,39 @@ export default function Home() {
         <div className="relative w-full flex items-center justify-center"
           style={{ height: `${containerH}px`, maxWidth: '100%' }}>
 
-          {/* ⭐ 홀로그램 프레임 (카드를 감싸는 사각 프레임) */}
-          <div className="absolute hologram-frame pointer-events-none"
+          {/* ⭐ 신호 발산 동심원 (카드 뒤 - 사방으로 퍼짐) */}
+          {[0, 1, 2, 3].map(i => (
+            <div key={`pulse-${i}`} className="absolute signal-pulse-ring pointer-events-none"
+              style={{
+                width: `${cardOneW * 1.5}px`,
+                height: `${cardOneW * 1.5}px`,
+                top: '50%',
+                left: '50%',
+                borderRadius: '50%',
+                border: `2px solid ${i % 2 === 0 ? S.cyan : S.purple}`,
+                boxShadow: `0 0 20px ${i % 2 === 0 ? S.cyan : S.purple}AA, inset 0 0 20px ${i % 2 === 0 ? S.cyan : S.purple}44`,
+                opacity: 0,
+                zIndex: 5,
+                animationDelay: `${1.4 + i * 0.6}s`,
+              }} />
+          ))}
+
+          {/* ⭐ 카드 뒤 큰 오로라 후광 */}
+          <div className="absolute card-aurora-glow pointer-events-none"
             style={{
-              width: `${cardFrameW}px`,
-              height: `${cardFrameH}px`,
+              width: `${cardOneW * 3}px`,
+              height: `${cardOneW * 3}px`,
               top: '50%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
+              borderRadius: '50%',
+              background: `radial-gradient(circle, ${S.cyan}33 0%, ${S.purple}22 35%, ${S.blue}11 60%, transparent 80%)`,
+              filter: 'blur(20px)',
               opacity: 0,
-              zIndex: 10,
-            }}>
-            {/* 외곽 사각 라인 */}
-            <div className="absolute inset-0"
-              style={{
-                border: `2px solid ${S.cyan}`,
-                boxShadow: `0 0 16px ${S.cyan}88, inset 0 0 16px ${S.cyan}44`,
-                borderRadius: '4px',
-              }} />
+              zIndex: 4,
+            }} />
 
-            {/* 4모서리 ㄱ자 코너 (도드라지게) */}
-            {[
-              { top: '-6px', left: '-6px', borderTop: 'true', borderLeft: 'true' },
-              { top: '-6px', right: '-6px', borderTop: 'true', borderRight: 'true' },
-              { bottom: '-6px', left: '-6px', borderBottom: 'true', borderLeft: 'true' },
-              { bottom: '-6px', right: '-6px', borderBottom: 'true', borderRight: 'true' },
-            ].map((c, i) => (
-              <div key={i} className="absolute"
-                style={{
-                  width: '20px',
-                  height: '20px',
-                  ...c,
-                  borderTop: c.borderTop ? `3px solid ${S.cyan}` : 'none',
-                  borderBottom: c.borderBottom ? `3px solid ${S.cyan}` : 'none',
-                  borderLeft: c.borderLeft ? `3px solid ${S.cyan}` : 'none',
-                  borderRight: c.borderRight ? `3px solid ${S.cyan}` : 'none',
-                  boxShadow: `0 0 8px ${S.cyan}`,
-                }} />
-            ))}
-
-            {/* 상단 라벨: SIGNAL.SYS */}
-            <div className="absolute"
-              style={{
-                top: '-22px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                background: S.bg,
-                padding: '0 10px',
-                color: S.cyan,
-                fontSize: isMobile ? '9px' : '11px',
-                fontFamily: 'monospace',
-                fontWeight: 'bold',
-                letterSpacing: '2px',
-                textShadow: `0 0 6px ${S.cyan}`,
-              }}>
-              [ SIGNAL.SYS ]
-            </div>
-
-            {/* 하단 라벨: SCAN */}
-            <div className="absolute"
-              style={{
-                bottom: '-22px',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                background: S.bg,
-                padding: '0 8px',
-                color: S.cyan,
-                fontSize: isMobile ? '8px' : '10px',
-                fontFamily: 'monospace',
-                fontWeight: 'bold',
-                letterSpacing: '2px',
-                textShadow: `0 0 6px ${S.cyan}`,
-              }}>
-              ▸ SCAN ◂
-            </div>
-
-            {/* 스캔라인 (위→아래 흐름) */}
-            <div className="absolute pointer-events-none hologram-scan"
-              style={{
-                left: 0,
-                right: 0,
-                height: '6px',
-                background: `linear-gradient(180deg, transparent, ${S.cyan}, transparent)`,
-                boxShadow: `0 0 8px ${S.cyan}`,
-              }} />
-          </div>
-
-          {/* ⭐ 카드 한 장 (홀로그램 프레임 안) */}
+          {/* ⭐ 카드 한 장 (중앙) */}
           <div className="absolute cube-inner-card pointer-events-none"
             style={{
               width: `${cardOneW}px`,
@@ -614,62 +560,51 @@ export default function Home() {
         </div>
 
         <style jsx>{`
-          /* ⭐⭐⭐ 홀로그램 프레임 + 카드 애니메이션 ⭐⭐⭐ */
+          /* ⭐⭐⭐ 신호 발산 + 카드 애니메이션 ⭐⭐⭐ */
 
-          /* 홀로그램 프레임 등장 (0.4초~1.4초) */
-          .hologram-frame {
+          /* 신호 발산 동심원 (1.4초~3.6초 무한 펄스) */
+          .signal-pulse-ring {
+            transform: translate(-50%, -50%) scale(0);
             animation:
-              hologramFrameEnter 1s cubic-bezier(0.34, 1.56, 0.64, 1) 0.4s forwards,
-              hologramFrameRotate 8s linear 1.4s infinite,
-              hologramFrameExplode 0.6s ease-in 3.6s forwards;
+              signalPulseExpand 2.5s ease-out infinite,
+              signalPulseStop 0.4s ease-out 3.6s forwards;
           }
-          @keyframes hologramFrameEnter {
+          @keyframes signalPulseExpand {
             0% {
-              opacity: 0;
               transform: translate(-50%, -50%) scale(0.3);
-            }
-            70% {
-              opacity: 1;
-              transform: translate(-50%, -50%) scale(1.05);
-            }
-            100% {
-              opacity: 1;
-              transform: translate(-50%, -50%) scale(1);
-            }
-          }
-          /* 프레임 천천히 회전 (1.4초~ 무한) */
-          @keyframes hologramFrameRotate {
-            0% { transform: translate(-50%, -50%) rotate(0deg); }
-            100% { transform: translate(-50%, -50%) rotate(360deg); }
-          }
-          /* 프레임 폭발 (3.6초~ 빛나며 사라짐) */
-          @keyframes hologramFrameExplode {
-            0% {
-              opacity: 1;
-              filter: brightness(1);
-            }
-            50% {
-              opacity: 0.8;
-              filter: brightness(2.5) drop-shadow(0 0 30px #FFFFFF);
-            }
-            100% {
               opacity: 0;
-              transform: translate(-50%, -50%) rotate(360deg) scale(1.5);
-              filter: brightness(5);
             }
+            15% {
+              opacity: 0.8;
+            }
+            100% {
+              transform: translate(-50%, -50%) scale(2.5);
+              opacity: 0;
+            }
+          }
+          @keyframes signalPulseStop {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
           }
 
-          /* 스캔라인 흐름 */
-          .hologram-scan {
-            animation: hologramScanFlow 2.5s ease-in-out 1.4s infinite;
-            top: 0;
-            opacity: 0;
+          /* 카드 뒤 오로라 후광 (1.4초 등장, 3.6초 폭발) */
+          .card-aurora-glow {
+            animation:
+              auroraGlowEnter 1.2s ease-out 1.2s forwards,
+              auroraGlowPulse 2.5s ease-in-out 2.4s infinite,
+              auroraGlowExplode 0.6s ease-in 3.6s forwards;
           }
-          @keyframes hologramScanFlow {
-            0% { top: 0; opacity: 0; }
-            10% { opacity: 1; }
-            90% { opacity: 1; }
-            100% { top: 100%; opacity: 0; }
+          @keyframes auroraGlowEnter {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+            100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+          }
+          @keyframes auroraGlowPulse {
+            0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+          }
+          @keyframes auroraGlowExplode {
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(2); filter: brightness(3); }
           }
 
           /* ⭐ 카드 한 장 (1.4초 등장 → 3.6초 폭발) */
