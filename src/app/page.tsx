@@ -380,9 +380,8 @@ export default function Home() {
                 borderRadius: '50%',
                 border: `2px solid ${i % 2 === 0 ? S.cyan : S.purple}`,
                 boxShadow: `0 0 20px ${i % 2 === 0 ? S.cyan : S.purple}AA, inset 0 0 20px ${i % 2 === 0 ? S.cyan : S.purple}44`,
-                opacity: 0,
                 zIndex: 5,
-                animationDelay: `${1.4 + i * 0.6}s`,
+                animationDelay: `${1.4 + i * 0.6}s, 0s`,
               }} />
           ))}
 
@@ -397,7 +396,6 @@ export default function Home() {
               borderRadius: '50%',
               background: `radial-gradient(circle, ${S.cyan}33 0%, ${S.purple}22 35%, ${S.blue}11 60%, transparent 80%)`,
               filter: 'blur(20px)',
-              opacity: 0,
               zIndex: 4,
             }} />
 
@@ -562,12 +560,13 @@ export default function Home() {
         <style jsx>{`
           /* ⭐⭐⭐ 신호 발산 + 카드 애니메이션 ⭐⭐⭐ */
 
-          /* 신호 발산 동심원 (1.4초~3.6초만, 그 후 완전 멈춤) */
+          /* 신호 발산 동심원 - 시작 시 안 보이고, 애니메이션으로 펄스 → 3.6초에 완전 사라짐 */
           .signal-pulse-ring {
+            opacity: 0;
             transform: translate(-50%, -50%) scale(0);
             animation:
               signalPulseExpand 2.5s ease-out infinite,
-              signalPulseHide 0.1s linear 3.6s forwards;
+              signalPulseFinalHide 0.3s ease-out 3.6s forwards;
           }
           @keyframes signalPulseExpand {
             0% {
@@ -582,29 +581,46 @@ export default function Home() {
               opacity: 0;
             }
           }
-          @keyframes signalPulseHide {
-            0% { visibility: visible; }
-            100% { visibility: hidden; opacity: 0; }
+          /* 폭발 시 - 무한 애니메이션 무시하고 완전 숨김 */
+          @keyframes signalPulseFinalHide {
+            0% { opacity: 0; }
+            100% {
+              opacity: 0;
+              display: none;
+              visibility: hidden;
+            }
           }
 
-          /* 카드 뒤 오로라 후광 (1.4초 등장, 3.6초 폭발) */
+          /* 카드 뒤 오로라 후광 - 등장 → 펄스 → 폭발 시 완전 사라짐 */
           .card-aurora-glow {
+            opacity: 0;
             animation:
               auroraGlowEnter 1.2s ease-out 1.2s forwards,
-              auroraGlowPulse 2.5s ease-in-out 2.4s infinite,
-              auroraGlowExplode 0.6s ease-in 3.6s forwards;
+              auroraGlowPulse 2.5s ease-in-out 2.4s 1,
+              auroraGlowFinalHide 0.6s ease-in 3.6s forwards;
           }
           @keyframes auroraGlowEnter {
             0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
-            100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
           }
           @keyframes auroraGlowPulse {
             0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
             50% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
           }
-          @keyframes auroraGlowExplode {
-            0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-            100% { opacity: 0; transform: translate(-50%, -50%) scale(2); filter: brightness(3); }
+          /* 폭발 시 - 완전히 사라짐 */
+          @keyframes auroraGlowFinalHide {
+            0% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
+            40% {
+              opacity: 1;
+              transform: translate(-50%, -50%) scale(1.6);
+              filter: brightness(2);
+            }
+            100% {
+              opacity: 0;
+              transform: translate(-50%, -50%) scale(2.2);
+              filter: brightness(3);
+              visibility: hidden;
+            }
           }
 
           /* ⭐ 카드 한 장 (1.4초 등장 → 3.6초 폭발) */
