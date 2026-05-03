@@ -348,6 +348,10 @@ export default function Home() {
     const briefcaseW = isMobile ? 130 : 180;
     const briefcaseH = isMobile ? 100 : 140;
     const cubeSize = isMobile ? 90 : 160;
+    const cardOneW = isMobile ? 70 : 110;
+    const cardOneH = isMobile ? 100 : 155;
+    const cardFrameW = isMobile ? 110 : 170;
+    const cardFrameH = isMobile ? 140 : 215;
     const cardW = isMobile ? 42 : 60;
     const cardH = isMobile ? 60 : 84;
     const rayHeight = isMobile ? 280 : 500;
@@ -365,97 +369,101 @@ export default function Home() {
         <div className="relative w-full flex items-center justify-center"
           style={{ height: `${containerH}px`, maxWidth: '100%' }}>
 
-          {/* 🎲 디지털 큐브 (가방 대체) */}
-          <div className="absolute cube-perspective"
+          {/* ⭐ 홀로그램 프레임 (카드를 감싸는 사각 프레임) */}
+          <div className="absolute hologram-frame pointer-events-none"
             style={{
-              animation: 'cubeEnter 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) 0.4s forwards, cubeFadeOut 0.8s ease-out 3.8s forwards',
-              transformOrigin: 'center',
-              zIndex: 10,
-              opacity: 0,
-              perspective: '600px',
-              perspectiveOrigin: 'center',
-            }}>
-            {/* 3D 큐브 컨테이너 (회전) */}
-            <div className="cube-3d"
-              style={{
-                width: `${cubeSize}px`,
-                height: `${cubeSize}px`,
-                position: 'relative',
-                transformStyle: 'preserve-3d',
-                animation: 'cubeRotate 6s linear infinite, cubeRotateAccel 0.7s ease-in 3.1s forwards',
-              }}>
-
-              {/* 6개 면 (반투명 사이안) */}
-              {[
-                { transform: `translateZ(${cubeSize / 2}px)`, name: 'front' },
-                { transform: `translateZ(-${cubeSize / 2}px) rotateY(180deg)`, name: 'back' },
-                { transform: `rotateY(90deg) translateZ(${cubeSize / 2}px)`, name: 'right' },
-                { transform: `rotateY(-90deg) translateZ(${cubeSize / 2}px)`, name: 'left' },
-                { transform: `rotateX(90deg) translateZ(${cubeSize / 2}px)`, name: 'top' },
-                { transform: `rotateX(-90deg) translateZ(${cubeSize / 2}px)`, name: 'bottom' },
-              ].map(face => (
-                <div key={face.name} className="cube-face absolute inset-0"
-                  style={{
-                    transform: face.transform,
-                    border: `2px solid ${S.cyan}`,
-                    background: `linear-gradient(135deg, ${S.cyan}11, ${S.purple}11)`,
-                    boxShadow: `inset 0 0 30px ${S.cyan}44, 0 0 20px ${S.cyan}66`,
-                  }}>
-                  {/* 면 안에 격자 패턴 */}
-                  <div className="absolute inset-0 opacity-30"
-                    style={{
-                      backgroundImage: `
-                        linear-gradient(${S.cyan}55 1px, transparent 1px),
-                        linear-gradient(90deg, ${S.cyan}55 1px, transparent 1px)
-                      `,
-                      backgroundSize: '15px 15px',
-                    }} />
-                </div>
-              ))}
-
-              {/* 8개 꼭지점 노드 */}
-              {[
-                [-1, -1, -1], [1, -1, -1], [-1, 1, -1], [1, 1, -1],
-                [-1, -1, 1], [1, -1, 1], [-1, 1, 1], [1, 1, 1],
-              ].map((pos, i) => (
-                <div key={i} className="absolute rounded-full cube-node"
-                  style={{
-                    width: '8px',
-                    height: '8px',
-                    top: '50%',
-                    left: '50%',
-                    transform: `translate(-50%, -50%) translate3d(${pos[0] * cubeSize / 2}px, ${pos[1] * cubeSize / 2}px, ${pos[2] * cubeSize / 2}px)`,
-                    background: '#FFFFFF',
-                    boxShadow: `0 0 12px ${S.cyan}, 0 0 20px ${S.cyan}88`,
-                    animationDelay: `${i * 0.1}s`,
-                  }} />
-              ))}
-
-              {/* 빛 코어 (작게, 카드 뒤에) */}
-              <div className="absolute rounded-full cube-core"
-                style={{
-                  width: `${cubeSize * 0.3}px`,
-                  height: `${cubeSize * 0.3}px`,
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  background: `radial-gradient(circle, #FFFFFF 0%, ${S.cyan} 30%, ${S.purple} 60%, transparent 80%)`,
-                  filter: 'blur(8px)',
-                  opacity: 0,
-                  zIndex: 1,
-                }} />
-            </div>
-          </div>
-
-          {/* ⭐ 큐브 안의 카드 (큐브 회전과 무관하게 항상 정면) */}
-          <div className="absolute cube-inner-card pointer-events-none"
-            style={{
-              width: `${cubeSize * 0.4}px`,
-              height: `${cubeSize * 0.55}px`,
+              width: `${cardFrameW}px`,
+              height: `${cardFrameH}px`,
               top: '50%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
-              borderRadius: '6px',
+              opacity: 0,
+              zIndex: 10,
+            }}>
+            {/* 외곽 사각 라인 */}
+            <div className="absolute inset-0"
+              style={{
+                border: `2px solid ${S.cyan}`,
+                boxShadow: `0 0 16px ${S.cyan}88, inset 0 0 16px ${S.cyan}44`,
+                borderRadius: '4px',
+              }} />
+
+            {/* 4모서리 ㄱ자 코너 (도드라지게) */}
+            {[
+              { top: '-6px', left: '-6px', borderTop: 'true', borderLeft: 'true' },
+              { top: '-6px', right: '-6px', borderTop: 'true', borderRight: 'true' },
+              { bottom: '-6px', left: '-6px', borderBottom: 'true', borderLeft: 'true' },
+              { bottom: '-6px', right: '-6px', borderBottom: 'true', borderRight: 'true' },
+            ].map((c, i) => (
+              <div key={i} className="absolute"
+                style={{
+                  width: '20px',
+                  height: '20px',
+                  ...c,
+                  borderTop: c.borderTop ? `3px solid ${S.cyan}` : 'none',
+                  borderBottom: c.borderBottom ? `3px solid ${S.cyan}` : 'none',
+                  borderLeft: c.borderLeft ? `3px solid ${S.cyan}` : 'none',
+                  borderRight: c.borderRight ? `3px solid ${S.cyan}` : 'none',
+                  boxShadow: `0 0 8px ${S.cyan}`,
+                }} />
+            ))}
+
+            {/* 상단 라벨: SIGNAL.SYS */}
+            <div className="absolute"
+              style={{
+                top: '-22px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                background: S.bg,
+                padding: '0 10px',
+                color: S.cyan,
+                fontSize: isMobile ? '9px' : '11px',
+                fontFamily: 'monospace',
+                fontWeight: 'bold',
+                letterSpacing: '2px',
+                textShadow: `0 0 6px ${S.cyan}`,
+              }}>
+              [ SIGNAL.SYS ]
+            </div>
+
+            {/* 하단 라벨: SCAN */}
+            <div className="absolute"
+              style={{
+                bottom: '-22px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                background: S.bg,
+                padding: '0 8px',
+                color: S.cyan,
+                fontSize: isMobile ? '8px' : '10px',
+                fontFamily: 'monospace',
+                fontWeight: 'bold',
+                letterSpacing: '2px',
+                textShadow: `0 0 6px ${S.cyan}`,
+              }}>
+              ▸ SCAN ◂
+            </div>
+
+            {/* 스캔라인 (위→아래 흐름) */}
+            <div className="absolute pointer-events-none hologram-scan"
+              style={{
+                left: 0,
+                right: 0,
+                height: '6px',
+                background: `linear-gradient(180deg, transparent, ${S.cyan}, transparent)`,
+                boxShadow: `0 0 8px ${S.cyan}`,
+              }} />
+          </div>
+
+          {/* ⭐ 카드 한 장 (홀로그램 프레임 안) */}
+          <div className="absolute cube-inner-card pointer-events-none"
+            style={{
+              width: `${cardOneW}px`,
+              height: `${cardOneH}px`,
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              borderRadius: '8px',
               background: `linear-gradient(135deg, ${S.cyan}EE, ${S.purple}EE)`,
               border: `2px solid #FFFFFF`,
               boxShadow: `0 0 30px ${S.cyan}, 0 0 60px ${S.cyan}88, inset 0 0 20px rgba(255,255,255,0.3)`,
@@ -469,8 +477,8 @@ export default function Home() {
               color: '#FFFFFF',
               textShadow: '0 0 8px rgba(255,255,255,0.8)',
             }}>
-            <span style={{ fontSize: isMobile ? '8px' : '10px', opacity: 0.8, letterSpacing: '1px' }}>SIGNAL</span>
-            <span style={{ fontSize: isMobile ? '16px' : '24px', fontWeight: 900, marginTop: '2px' }}>?</span>
+            <span style={{ fontSize: isMobile ? '9px' : '12px', opacity: 0.9, letterSpacing: '2px' }}>SIGNAL</span>
+            <span style={{ fontSize: isMobile ? '24px' : '36px', fontWeight: 900, marginTop: '4px' }}>?</span>
           </div>
 
           {/* 폭죽 입자 */}
@@ -606,52 +614,70 @@ export default function Home() {
         </div>
 
         <style jsx>{`
-          /* ⭐⭐⭐ 디지털 큐브 애니메이션 ⭐⭐⭐ */
+          /* ⭐⭐⭐ 홀로그램 프레임 + 카드 애니메이션 ⭐⭐⭐ */
 
-          /* 큐브 등장 (0.4초~1.6초) - 작은 점에서 확대 */
-          @keyframes cubeEnter {
+          /* 홀로그램 프레임 등장 (0.4초~1.4초) */
+          .hologram-frame {
+            animation:
+              hologramFrameEnter 1s cubic-bezier(0.34, 1.56, 0.64, 1) 0.4s forwards,
+              hologramFrameRotate 8s linear 1.4s infinite,
+              hologramFrameExplode 0.6s ease-in 3.6s forwards;
+          }
+          @keyframes hologramFrameEnter {
             0% {
               opacity: 0;
-              transform: scale(0) rotate(-30deg);
+              transform: translate(-50%, -50%) scale(0.3);
             }
-            60% {
+            70% {
               opacity: 1;
-              transform: scale(1.1) rotate(5deg);
+              transform: translate(-50%, -50%) scale(1.05);
             }
             100% {
               opacity: 1;
-              transform: scale(1) rotate(0deg);
+              transform: translate(-50%, -50%) scale(1);
+            }
+          }
+          /* 프레임 천천히 회전 (1.4초~ 무한) */
+          @keyframes hologramFrameRotate {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+          }
+          /* 프레임 폭발 (3.6초~ 빛나며 사라짐) */
+          @keyframes hologramFrameExplode {
+            0% {
+              opacity: 1;
+              filter: brightness(1);
+            }
+            50% {
+              opacity: 0.8;
+              filter: brightness(2.5) drop-shadow(0 0 30px #FFFFFF);
+            }
+            100% {
+              opacity: 0;
+              transform: translate(-50%, -50%) rotate(360deg) scale(1.5);
+              filter: brightness(5);
             }
           }
 
-          /* 큐브 자연 회전 (3D, 6초 주기) */
-          @keyframes cubeRotate {
-            0% { transform: rotateX(0deg) rotateY(0deg); }
-            100% { transform: rotateX(360deg) rotateY(360deg); }
+          /* 스캔라인 흐름 */
+          .hologram-scan {
+            animation: hologramScanFlow 2.5s ease-in-out 1.4s infinite;
+            top: 0;
+            opacity: 0;
+          }
+          @keyframes hologramScanFlow {
+            0% { top: 0; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
           }
 
-          /* 큐브 회전 가속 (3.1초~3.8초 - 폭발 직전) */
-          @keyframes cubeRotateAccel {
-            0% { animation-duration: 6s; }
-            100% { animation-duration: 0.8s; }
-          }
-
-          /* 코어 빛 (1.6초~3.8초 - 점점 밝아짐) */
-          .cube-core {
-            animation: cubeCoreGlow 2.2s ease-in 1.6s forwards;
-          }
-          @keyframes cubeCoreGlow {
-            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
-            50% { opacity: 0.7; transform: translate(-50%, -50%) scale(0.7); }
-            100% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
-          }
-
-          /* ⭐ 큐브 안 카드 (1.6초 등장 → 3.8초 폭발 직전 빛남) */
+          /* ⭐ 카드 한 장 (1.4초 등장 → 3.6초 폭발) */
           .cube-inner-card {
             animation:
-              cubeInnerCardEnter 1s ease-out 1.6s forwards,
-              cubeInnerCardPulse 1.4s ease-in-out 2.6s infinite,
-              cubeInnerCardExplode 0.5s ease-in 3.6s forwards;
+              cubeInnerCardEnter 1s ease-out 1.4s forwards,
+              cubeInnerCardPulse 1.4s ease-in-out 2.4s infinite,
+              cubeInnerCardExplode 0.6s ease-in 3.6s forwards;
           }
           @keyframes cubeInnerCardEnter {
             0% {
@@ -684,54 +710,6 @@ export default function Home() {
             100% {
               opacity: 0;
               transform: translate(-50%, -50%) scale(2.5);
-              filter: brightness(8);
-            }
-          }
-
-          /* 큐브 노드 펄스 */
-          .cube-node {
-            animation: cubeNodePulse 1.5s ease-in-out infinite;
-          }
-          @keyframes cubeNodePulse {
-            0%, 100% {
-              opacity: 0.7;
-              box-shadow: 0 0 8px ${S.cyan}, 0 0 16px ${S.cyan}88;
-            }
-            50% {
-              opacity: 1;
-              box-shadow: 0 0 16px #FFFFFF, 0 0 24px ${S.cyan};
-            }
-          }
-
-          /* 큐브 면 빛남 (점점 밝아짐) */
-          .cube-face {
-            animation: cubeFaceBrighten 2.2s ease-in 1.6s forwards;
-          }
-          @keyframes cubeFaceBrighten {
-            0% { background: linear-gradient(135deg, ${S.cyan}11, ${S.purple}11); }
-            100% { background: linear-gradient(135deg, ${S.cyan}55, ${S.purple}44); }
-          }
-
-          /* 큐브 fade out (3.8초~ 폭발하며 사라짐) */
-          @keyframes cubeFadeOut {
-            0% {
-              opacity: 1;
-              transform: scale(1);
-              filter: brightness(1);
-            }
-            30% {
-              opacity: 1;
-              transform: scale(1.4);
-              filter: brightness(3) drop-shadow(0 0 60px #FFFFFF);
-            }
-            70% {
-              opacity: 0.5;
-              transform: scale(1.8);
-              filter: brightness(5) drop-shadow(0 0 100px #FFFFFF);
-            }
-            100% {
-              opacity: 0;
-              transform: scale(2.2);
               filter: brightness(8);
             }
           }
