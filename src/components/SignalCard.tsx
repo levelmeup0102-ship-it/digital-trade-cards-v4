@@ -48,6 +48,19 @@ export default function SignalCard({
 }: SignalCardProps) {
   const color = CARD_COLORS[topic.id].bg;
 
+  // 카드 색이 어두울 때 강조 텍스트는 밝은 색으로 (가독성)
+  const getReadableAccent = (hex: string) => {
+    const c = hex.replace('#', '');
+    const r = parseInt(c.substring(0, 2), 16);
+    const g = parseInt(c.substring(2, 4), 16);
+    const b = parseInt(c.substring(4, 6), 16);
+    // 밝기 계산 (luminance)
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    // 어두우면 밝은 사이안 반환, 아니면 카드 색 그대로
+    return brightness < 100 ? '#06B6D4' : hex;
+  };
+  const accentColor = getReadableAccent(color);
+
   const template = getCardTemplate(topic.id);
 
   const getSubForTab = (tab: TabType): SubCard | null => {
@@ -153,10 +166,10 @@ export default function SignalCard({
         {/* 주제 탭 */}
         {currentTab === '주제' && (
           <div className="p-4">
-            <p className="text-[10px] font-bold mb-2 font-mono tracking-widest" style={{ color: color }}>개념 및 중요성</p>
+            <p className="text-[10px] font-bold mb-2 font-mono tracking-widest" style={{ color: accentColor }}>개념 및 중요성</p>
             <p className="text-[13px] text-gray-300 leading-relaxed mb-4">{topic.overview}</p>
             <div className="rounded-xl p-3 mb-4" style={{ background: `${color}12`, border: `1px solid ${color}30` }}>
-              <p className="text-[10px] font-bold mb-1 font-mono tracking-widest" style={{ color: color }}>핵심 통찰 질문</p>
+              <p className="text-[10px] font-bold mb-1 font-mono tracking-widest" style={{ color: accentColor }}>핵심 통찰 질문</p>
               <p className="text-[13px] text-white font-bold leading-relaxed">{topic.insightQ}</p>
             </div>
             <button onClick={() => onTabChange('Q1')}
@@ -172,7 +185,7 @@ export default function SignalCard({
           <div className="p-4">
             <div className="flex items-center gap-2 mb-3">
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full"
-                style={{ background: `${color}22`, color: color }}>{sub.id}</span>
+                style={{ background: `${color}22`, color: accentColor }}>{sub.id}</span>
               <span className="text-[10px] text-gray-500">
                 {currentTab === 'Q1' ? 'Fact 수집' : currentTab === 'Q2' ? 'Insight 해석' : 'Decision 결정'}
               </span>
@@ -270,7 +283,7 @@ export default function SignalCard({
                         border: `1.5px solid ${filled ? color + '80' : color + '40'}`,
                         boxShadow: filled ? `0 0 12px ${color}25` : 'none',
                       }}>
-                      <p className="text-[10px] font-bold font-mono mb-1" style={{ color: color }}>Q{i + 1}</p>
+                      <p className="text-[10px] font-bold font-mono mb-1" style={{ color: accentColor }}>Q{i + 1}</p>
                       {interim
                         ? <p className="text-[12px] text-gray-300">→ {interim}</p>
                         : r
