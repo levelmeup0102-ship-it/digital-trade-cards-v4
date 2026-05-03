@@ -187,7 +187,7 @@ export default function Home() {
     const timer = setTimeout(() => {
       setIntroDone(true);
       setTimeout(() => setScreen('landing'), 300);
-    }, 7000);
+    }, 9000);
     return () => clearTimeout(timer);
   }, [screen]);
 
@@ -338,6 +338,7 @@ export default function Home() {
     // 사이즈 (모바일/PC)
     const briefcaseW = isMobile ? 130 : 180;
     const briefcaseH = isMobile ? 100 : 140;
+    const cubeSize = isMobile ? 90 : 160;
     const cardW = isMobile ? 42 : 60;
     const cardH = isMobile ? 60 : 84;
     const rayHeight = isMobile ? 280 : 500;
@@ -354,8 +355,8 @@ export default function Home() {
         {/* 배경 플래시 */}
         <div className="fixed inset-0 pointer-events-none"
           style={{
-            background: `radial-gradient(circle at center, ${S.green}40 0%, transparent 50%)`,
-            animation: 'screenFlash 4.5s ease-out forwards',
+            background: `radial-gradient(circle at center, #06B6D440 0%, transparent 50%)`,
+            animation: 'screenFlash 4s ease-out 3.8s forwards',
             opacity: 0,
           }} />
 
@@ -376,7 +377,7 @@ export default function Home() {
                   transformOrigin: 'bottom center',
                   transform: `translateX(-50%) translateY(-100%) rotate(${ray.angle}deg)`,
                   opacity: 0,
-                  animation: `lightRayBurst 1.8s cubic-bezier(0.16, 1, 0.3, 1) ${1.4 + ray.delay}s forwards`,
+                  animation: `lightRayBurst 1.8s cubic-bezier(0.16, 1, 0.3, 1) ${3.8 + ray.delay}s forwards`,
                   filter: 'blur(2px)',
                   mixBlendMode: 'screen',
                 }}
@@ -398,51 +399,85 @@ export default function Home() {
               animation: 'centralBlast 1.5s cubic-bezier(0.16, 1, 0.3, 1) 1.4s forwards',
             }} />
 
-          {/* 💼 서류 가방 */}
-          <div className="absolute"
+          {/* 🎲 디지털 큐브 (가방 대체) */}
+          <div className="absolute cube-perspective"
             style={{
-              animation: 'briefcaseEnter 1.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, briefcaseGlow 0.8s ease-out 1.4s forwards, briefcaseFadeOut 1.2s ease-out 3.5s forwards',
+              animation: 'cubeEnter 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) 0.4s forwards, cubeFadeOut 0.8s ease-out 3.8s forwards',
               transformOrigin: 'center',
               zIndex: 10,
+              opacity: 0,
+              perspective: '600px',
+              perspectiveOrigin: 'center',
             }}>
-            <svg width={briefcaseW} height={briefcaseH} viewBox="0 0 180 140" className="briefcase-svg">
-              <ellipse cx="90" cy="135" rx="70" ry="6" fill="rgba(0,0,0,0.4)" />
+            {/* 3D 큐브 컨테이너 (회전) */}
+            <div className="cube-3d"
+              style={{
+                width: `${cubeSize}px`,
+                height: `${cubeSize}px`,
+                position: 'relative',
+                transformStyle: 'preserve-3d',
+                animation: 'cubeRotate 6s linear infinite, cubeRotateAccel 0.7s ease-in 3.1s forwards',
+              }}>
 
-              <rect className="handle" x="75" y="10" width="30" height="20" rx="4" fill="none" stroke="#3a2418" strokeWidth="3" />
-              <rect className="handle" x="78" y="13" width="24" height="14" rx="3" fill="none" stroke="#5C3A24" strokeWidth="2" />
+              {/* 6개 면 (반투명 사이안) */}
+              {[
+                { transform: `translateZ(${cubeSize / 2}px)`, name: 'front' },
+                { transform: `translateZ(-${cubeSize / 2}px) rotateY(180deg)`, name: 'back' },
+                { transform: `rotateY(90deg) translateZ(${cubeSize / 2}px)`, name: 'right' },
+                { transform: `rotateY(-90deg) translateZ(${cubeSize / 2}px)`, name: 'left' },
+                { transform: `rotateX(90deg) translateZ(${cubeSize / 2}px)`, name: 'top' },
+                { transform: `rotateX(-90deg) translateZ(${cubeSize / 2}px)`, name: 'bottom' },
+              ].map(face => (
+                <div key={face.name} className="cube-face absolute inset-0"
+                  style={{
+                    transform: face.transform,
+                    border: `2px solid ${S.cyan}`,
+                    background: `linear-gradient(135deg, ${S.cyan}11, ${S.purple}11)`,
+                    boxShadow: `inset 0 0 30px ${S.cyan}44, 0 0 20px ${S.cyan}66`,
+                  }}>
+                  {/* 면 안에 격자 패턴 */}
+                  <div className="absolute inset-0 opacity-30"
+                    style={{
+                      backgroundImage: `
+                        linear-gradient(${S.cyan}55 1px, transparent 1px),
+                        linear-gradient(90deg, ${S.cyan}55 1px, transparent 1px)
+                      `,
+                      backgroundSize: '15px 15px',
+                    }} />
+                </div>
+              ))}
 
-              <rect x="20" y="55" width="140" height="75" rx="6" fill="#5C3A24" />
-              <rect x="20" y="55" width="140" height="75" rx="6" fill="url(#leatherGradient)" />
+              {/* 8개 꼭지점 노드 */}
+              {[
+                [-1, -1, -1], [1, -1, -1], [-1, 1, -1], [1, 1, -1],
+                [-1, -1, 1], [1, -1, 1], [-1, 1, 1], [1, 1, 1],
+              ].map((pos, i) => (
+                <div key={i} className="absolute rounded-full cube-node"
+                  style={{
+                    width: '8px',
+                    height: '8px',
+                    top: '50%',
+                    left: '50%',
+                    transform: `translate(-50%, -50%) translate3d(${pos[0] * cubeSize / 2}px, ${pos[1] * cubeSize / 2}px, ${pos[2] * cubeSize / 2}px)`,
+                    background: '#FFFFFF',
+                    boxShadow: `0 0 12px ${S.cyan}, 0 0 20px ${S.cyan}88`,
+                    animationDelay: `${i * 0.1}s`,
+                  }} />
+              ))}
 
-              <rect className="briefcase-inner-glow" x="22" y="55" width="136" height="8" fill={S.green} opacity="0" />
-
-              <g className="briefcase-lid" style={{ transformOrigin: '90px 55px' }}>
-                <rect x="20" y="30" width="140" height="30" rx="6" fill="#6B4226" />
-                <rect x="20" y="30" width="140" height="30" rx="6" fill="url(#leatherGradient2)" />
-                <rect x="80" y="48" width="20" height="12" rx="2" fill="#FFC72C" />
-                <rect x="84" y="51" width="12" height="6" rx="1" fill="#B8860B" />
-                <circle cx="90" cy="54" r="1.5" fill="#3a2418" />
-              </g>
-
-              <line x1="22" y1="60" x2="158" y2="60" stroke="#3a2418" strokeWidth="0.5" strokeDasharray="3,2" opacity="0.6" />
-              <line x1="22" y1="125" x2="158" y2="125" stroke="#3a2418" strokeWidth="0.5" strokeDasharray="3,2" opacity="0.6" />
-
-              <text x="90" y="100" textAnchor="middle" fontSize="9" fontFamily="monospace" fill="#FFC72C" fontWeight="bold" opacity="0.7">
-                SIGNAL
-              </text>
-
-              <defs>
-                <linearGradient id="leatherGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#7A4F2E" />
-                  <stop offset="50%" stopColor="#5C3A24" />
-                  <stop offset="100%" stopColor="#3a2418" />
-                </linearGradient>
-                <linearGradient id="leatherGradient2" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#8B5A38" />
-                  <stop offset="100%" stopColor="#6B4226" />
-                </linearGradient>
-              </defs>
-            </svg>
+              {/* 빛 코어 (중앙) */}
+              <div className="absolute rounded-full cube-core"
+                style={{
+                  width: `${cubeSize * 0.4}px`,
+                  height: `${cubeSize * 0.4}px`,
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  background: `radial-gradient(circle, #FFFFFF 0%, ${S.cyan} 30%, ${S.purple} 60%, transparent 80%)`,
+                  filter: 'blur(8px)',
+                  opacity: 0,
+                }} />
+            </div>
           </div>
 
           {/* 폭죽 입자 */}
@@ -457,7 +492,7 @@ export default function Home() {
                 height: `${p.size}px`,
                 background: p.color,
                 boxShadow: `0 0 ${p.size * 4}px ${p.color}`,
-                animation: `particleBurst 1.8s cubic-bezier(0.16, 1, 0.3, 1) ${1.4 + p.delay}s forwards`,
+                animation: `particleBurst 1.8s cubic-bezier(0.16, 1, 0.3, 1) ${3.8 + p.delay}s forwards`,
                 opacity: 0,
                 '--burst-x': `${p.x}px`,
                 '--burst-y': `${p.y}px`,
@@ -479,7 +514,7 @@ export default function Home() {
                 height: `${cardH}px`,
                 background: card.color,
                 boxShadow: `0 8px 24px ${card.color}66, 0 0 30px ${card.color}55`,
-                animation: `cardElegantSpread 2.2s cubic-bezier(0.16, 1, 0.3, 1) ${card.delay}s forwards, cardDimAndBrighten 3s ease-in-out 4s forwards`,
+                animation: `cardElegantSpread 2.5s cubic-bezier(0.16, 1, 0.3, 1) ${3.8 + card.delay}s forwards, cardDimAndBrighten 3s ease-in-out 6.5s forwards`,
                 transformOrigin: 'center center',
                 transform: 'translate(-50%, -50%) scale(0)',
                 opacity: 0,
@@ -523,11 +558,11 @@ export default function Home() {
             filter: 'blur(40px)',
           }} />
 
-        {/* ⭐ 오로라 배경 (5.2초에 페이드 인) */}
+        {/* ⭐ 오로라 배경 (6.5초에 페이드 인) */}
         <div className="fixed inset-0 pointer-events-none"
           style={{
             opacity: 0,
-            animation: 'auroraBackgroundFadeIn 1.5s ease-out 5.2s forwards',
+            animation: 'auroraBackgroundFadeIn 1.5s ease-out 6.5s forwards',
             zIndex: 1,
             background: `
               radial-gradient(circle at 20% 30%, #06B6D420 0%, transparent 50%),
@@ -536,11 +571,11 @@ export default function Home() {
             `,
           }} />
 
-        {/* 로고 — 화면 정중앙에서 부드럽게 등장 */}
+        {/* 로고 — 화면 정중앙에서 부드럽게 등장 (7.0초) */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none"
           style={{
             opacity: 0,
-            animation: 'introLogoFade 1.2s ease-out 5.5s forwards',
+            animation: 'introLogoFade 1.2s ease-out 7.0s forwards',
             zIndex: 30,
           }}>
           <div className="text-center relative">
@@ -578,45 +613,92 @@ export default function Home() {
         </div>
 
         <style jsx>{`
-          @keyframes briefcaseEnter {
+          /* ⭐⭐⭐ 디지털 큐브 애니메이션 ⭐⭐⭐ */
+
+          /* 큐브 등장 (0.4초~1.6초) - 작은 점에서 확대 */
+          @keyframes cubeEnter {
             0% {
               opacity: 0;
-              transform: translateY(-200px) scale(0.5) rotate(-10deg);
+              transform: scale(0) rotate(-30deg);
             }
             60% {
               opacity: 1;
-              transform: translateY(20px) scale(1.05) rotate(2deg);
-            }
-            80% {
-              transform: translateY(-5px) scale(0.98) rotate(-1deg);
+              transform: scale(1.1) rotate(5deg);
             }
             100% {
               opacity: 1;
-              transform: translateY(0) scale(1) rotate(0deg);
+              transform: scale(1) rotate(0deg);
             }
           }
 
-          @keyframes briefcaseGlow {
-            0% { filter: drop-shadow(0 0 0px transparent); }
-            50% { filter: drop-shadow(0 0 30px ${S.green}AA); }
-            100% { filter: drop-shadow(0 0 15px ${S.green}66); }
+          /* 큐브 자연 회전 (3D, 6초 주기) */
+          @keyframes cubeRotate {
+            0% { transform: rotateX(0deg) rotateY(0deg); }
+            100% { transform: rotateX(360deg) rotateY(360deg); }
           }
 
-          .briefcase-svg .briefcase-lid {
-            animation: lidOpen 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 1.3s forwards;
-          }
-          @keyframes lidOpen {
-            0% { transform: rotateX(0deg); }
-            100% { transform: rotateX(-160deg); }
+          /* 큐브 회전 가속 (3.1초~3.8초 - 폭발 직전) */
+          @keyframes cubeRotateAccel {
+            0% { animation-duration: 6s; }
+            100% { animation-duration: 0.8s; }
           }
 
-          .briefcase-svg .briefcase-inner-glow {
-            animation: innerGlow 1.5s ease-out 1.4s forwards;
+          /* 코어 빛 (1.6초~3.8초 - 점점 밝아짐) */
+          .cube-core {
+            animation: cubeCoreGlow 2.2s ease-in 1.6s forwards;
           }
-          @keyframes innerGlow {
-            0% { opacity: 0; }
-            20% { opacity: 1; }
-            100% { opacity: 0.6; }
+          @keyframes cubeCoreGlow {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+            50% { opacity: 0.7; transform: translate(-50%, -50%) scale(0.7); }
+            100% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+          }
+
+          /* 큐브 노드 펄스 */
+          .cube-node {
+            animation: cubeNodePulse 1.5s ease-in-out infinite;
+          }
+          @keyframes cubeNodePulse {
+            0%, 100% {
+              opacity: 0.7;
+              box-shadow: 0 0 8px ${S.cyan}, 0 0 16px ${S.cyan}88;
+            }
+            50% {
+              opacity: 1;
+              box-shadow: 0 0 16px #FFFFFF, 0 0 24px ${S.cyan};
+            }
+          }
+
+          /* 큐브 면 빛남 (점점 밝아짐) */
+          .cube-face {
+            animation: cubeFaceBrighten 2.2s ease-in 1.6s forwards;
+          }
+          @keyframes cubeFaceBrighten {
+            0% { background: linear-gradient(135deg, ${S.cyan}11, ${S.purple}11); }
+            100% { background: linear-gradient(135deg, ${S.cyan}55, ${S.purple}44); }
+          }
+
+          /* 큐브 fade out (3.8초~ 폭발하며 사라짐) */
+          @keyframes cubeFadeOut {
+            0% {
+              opacity: 1;
+              transform: scale(1);
+              filter: brightness(1);
+            }
+            30% {
+              opacity: 1;
+              transform: scale(1.4);
+              filter: brightness(3) drop-shadow(0 0 60px #FFFFFF);
+            }
+            70% {
+              opacity: 0.5;
+              transform: scale(1.8);
+              filter: brightness(5) drop-shadow(0 0 100px #FFFFFF);
+            }
+            100% {
+              opacity: 0;
+              transform: scale(2.2);
+              filter: brightness(8);
+            }
           }
 
           @keyframes centralBlast {
@@ -714,7 +796,7 @@ export default function Home() {
 
           /* ⭐⭐⭐ SIGNAL 로고 글로우 펄스 (등장 후 천천히) ⭐⭐⭐ */
           .logo-glow-text {
-            animation: logoGlowPulse 3s ease-in-out 6.5s infinite;
+            animation: logoGlowPulse 3s ease-in-out 8s infinite;
           }
           @keyframes logoGlowPulse {
             0%, 100% {
@@ -733,41 +815,12 @@ export default function Home() {
             }
           }
 
-          /* ⭐⭐⭐ 새 시퀀스: 가방→로고 변환 ⭐⭐⭐ */
-
-          /* 가방 fade out (3.5초~4.7초) - 강하게 빛나며 사라짐 */
-          @keyframes briefcaseFadeOut {
-            0% {
-              opacity: 1;
-              transform: scale(1);
-              filter: brightness(1) drop-shadow(0 0 15px ${S.green}66);
-            }
-            20% {
-              opacity: 1;
-              transform: scale(1.08);
-              filter: brightness(2) drop-shadow(0 0 40px #FFFFFF);
-            }
-            50% {
-              opacity: 0.9;
-              transform: scale(1.15);
-              filter: brightness(3.5) drop-shadow(0 0 80px #FFFFFF) drop-shadow(0 0 40px #06B6D4);
-            }
-            80% {
-              opacity: 0.4;
-              transform: scale(1.1);
-              filter: brightness(5) drop-shadow(0 0 100px #FFFFFF) drop-shadow(0 0 60px #8B5CF6);
-            }
-            100% {
-              opacity: 0;
-              transform: scale(0.95);
-              filter: brightness(8) drop-shadow(0 0 120px #FFFFFF);
-            }
-          }
+          /* ⭐⭐⭐ 새 시퀀스: 큐브→로고 변환 ⭐⭐⭐ */
 
           /* ⭐ 작은 빛 폭발 (scale 방식 - GPU 가속) */
           .light-burst {
             transform: translate(-50%, -50%) scale(0.05);
-            animation: lightBurstScale 0.8s ease-out 5.0s forwards;
+            animation: lightBurstScale 0.8s ease-out 6.5s forwards;
           }
           @keyframes lightBurstScale {
             0% {
@@ -787,7 +840,7 @@ export default function Home() {
           /* ⭐ 거대한 오로라 후광 (scale 방식 - GPU 가속, 부드러움) */
           .aurora-halo {
             transform: translate(-50%, -50%) scale(0.05);
-            animation: auroraHaloScale 2.2s ease-out 5.2s forwards;
+            animation: auroraHaloScale 2.2s ease-out 6.7s forwards;
           }
           @keyframes auroraHaloScale {
             0% {
