@@ -17,7 +17,16 @@ const LEVELS: Record<string, { label: string; emoji: string; timer: number; minC
   advanced: { label: '심화', emoji: '🚀', timer: 900,  minChars: 100, color: '#582C83' },
 };
 
-const S = { green: '#E7FE55', aqua: '#C1E8EB', navy: '#111111', bg: '#0A0A0A' };
+const S = {
+  green: '#E7FE55',
+  aqua: '#C1E8EB',
+  cyan: '#06B6D4',
+  purple: '#8B5CF6',
+  blue: '#3B82F6',
+  pink: '#FF6FB5',
+  navy: '#111111',
+  bg: '#0A0A0A',
+};
 const TABS = ['주제', 'Q1', 'Q2', 'Q3', '결론'] as const;
 type TabType = typeof TABS[number];
 
