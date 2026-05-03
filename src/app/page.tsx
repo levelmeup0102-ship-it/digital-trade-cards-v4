@@ -109,7 +109,6 @@ function getRainbowParticles(isMobile: boolean) {
       startX: Math.cos((angle * Math.PI) / 180) * distance,
       startY: Math.sin((angle * Math.PI) / 180) * distance,
       size: isMobile ? 10 : 14,
-      delay: i * 0.04, // 카드별로 살짝씩 시간차
     };
   });
 }
@@ -386,7 +385,7 @@ export default function Home() {
           {/* 💼 서류 가방 */}
           <div className="absolute"
             style={{
-              animation: 'briefcaseEnter 1.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, briefcaseGlow 0.8s ease-out 1.4s forwards, briefcaseFadeOut 1s ease-out 3.5s forwards',
+              animation: 'briefcaseEnter 1.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, briefcaseGlow 0.8s ease-out 1.4s forwards, briefcaseFadeOut 1.2s ease-out 3.5s forwards',
               transformOrigin: 'center',
               zIndex: 10,
             }}>
@@ -479,23 +478,7 @@ export default function Home() {
             </div>
           ))}
 
-          {/* ⭐ 무지개 빛 폭발 (3.5초에) - 가방 위치에서 */}
-          <div className="absolute pointer-events-none"
-            style={{
-              top: '50%',
-              left: '50%',
-              width: '20px',
-              height: '20px',
-              transform: 'translate(-50%, -50%)',
-              background: 'conic-gradient(#FF0080, #FF9900, #FFE500, #00FF44, #00E5FF, #4D5BFF, #C800FF, #FF0080)',
-              borderRadius: '50%',
-              opacity: 0,
-              animation: 'rainbowBurst 1s cubic-bezier(0.16, 1, 0.3, 1) 3.5s forwards',
-              zIndex: 25,
-              filter: 'blur(8px)',
-            }} />
-
-          {/* ⭐ 16개 무지개 입자 (3.8초~ 카드에서 튀어나옴 → 정중앙으로 모임) */}
+          {/* ⭐ 16개 무지개 입자 (3.8초 한번에 카드에서 튀어나옴 → 정중앙으로 모임) */}
           {rainbowParticles.map(p => (
             <div
               key={`rainbow-${p.id}`}
@@ -509,7 +492,7 @@ export default function Home() {
                 boxShadow: `0 0 ${p.size * 3}px ${p.color}, 0 0 ${p.size * 6}px ${p.color}88`,
                 opacity: 0,
                 transform: 'translate(-50%, -50%)',
-                animation: `rainbowParticleMerge 1.7s cubic-bezier(0.16, 1, 0.3, 1) ${3.8 + p.delay}s forwards`,
+                animation: `rainbowParticleMerge 1.8s cubic-bezier(0.16, 1, 0.3, 1) 3.8s forwards`,
                 '--start-x': `${p.startX}px`,
                 '--start-y': `${p.startY}px`,
                 zIndex: 30,
@@ -714,48 +697,36 @@ export default function Home() {
 
           /* ⭐⭐⭐ 새 시퀀스: 가방→로고 변환 ⭐⭐⭐ */
 
-          /* 가방 fade out (3.5초~4.5초) */
+          /* 가방 fade out (3.5초~4.7초) - 강하게 빛나며 사라짐 */
           @keyframes briefcaseFadeOut {
             0% {
               opacity: 1;
               transform: scale(1);
-              filter: brightness(1);
+              filter: brightness(1) drop-shadow(0 0 15px ${S.green}66);
             }
-            30% {
+            20% {
               opacity: 1;
+              transform: scale(1.08);
+              filter: brightness(2) drop-shadow(0 0 40px #FFFFFF);
+            }
+            50% {
+              opacity: 0.9;
+              transform: scale(1.15);
+              filter: brightness(3.5) drop-shadow(0 0 80px #FFFFFF) drop-shadow(0 0 40px #06B6D4);
+            }
+            80% {
+              opacity: 0.4;
               transform: scale(1.1);
-              filter: brightness(1.5);
+              filter: brightness(5) drop-shadow(0 0 100px #FFFFFF) drop-shadow(0 0 60px #8B5CF6);
             }
             100% {
               opacity: 0;
-              transform: scale(0);
-              filter: brightness(2);
+              transform: scale(0.95);
+              filter: brightness(8) drop-shadow(0 0 120px #FFFFFF);
             }
           }
 
-          /* 무지개 폭발 (3.5초) */
-          @keyframes rainbowBurst {
-            0% {
-              opacity: 0;
-              width: 20px;
-              height: 20px;
-              transform: translate(-50%, -50%) rotate(0deg);
-            }
-            30% {
-              opacity: 1;
-              width: ${isMobile ? '350px' : '500px'};
-              height: ${isMobile ? '350px' : '500px'};
-              transform: translate(-50%, -50%) rotate(180deg);
-            }
-            100% {
-              opacity: 0;
-              width: ${isMobile ? '500px' : '700px'};
-              height: ${isMobile ? '500px' : '700px'};
-              transform: translate(-50%, -50%) rotate(360deg);
-            }
-          }
-
-          /* 16개 무지개 입자 - 카드에서 튀어나와 정중앙으로 모임 (3.8초~5.5초) */
+          /* 16개 무지개 입자 - 한번에 카드에서 펑! 등장 → 부드럽게 정중앙으로 모임 (3.8초~5.6초) */
           @keyframes rainbowParticleMerge {
             0% {
               opacity: 0;
@@ -764,33 +735,33 @@ export default function Home() {
                 translate(var(--start-x), var(--start-y))
                 scale(0);
             }
-            8% {
+            10% {
               opacity: 1;
               transform:
                 translate(-50%, -50%)
                 translate(var(--start-x), var(--start-y))
-                scale(1.8);
+                scale(2);
             }
-            20% {
+            18% {
               opacity: 1;
               transform:
                 translate(-50%, -50%)
-                translate(calc(var(--start-x) * 1.15), calc(var(--start-y) * 1.15))
-                scale(1.4);
+                translate(calc(var(--start-x) * 1.1), calc(var(--start-y) * 1.1))
+                scale(1.5);
             }
-            70% {
+            85% {
               opacity: 1;
               transform:
                 translate(-50%, -50%)
-                translate(calc(var(--start-x) * 0.2), calc(var(--start-y) * 0.2))
-                scale(1);
+                translate(calc(var(--start-x) * 0.1), calc(var(--start-y) * 0.1))
+                scale(0.9);
             }
             100% {
               opacity: 0;
               transform:
                 translate(-50%, -50%)
                 translate(0, 0)
-                scale(0.4);
+                scale(0.3);
             }
           }
 
