@@ -94,6 +94,32 @@ function getLightRays(isMobile: boolean) {
   }));
 }
 
+// ⭐ 16개 무지개 입자 (가방 → 로고 변환용)
+function getRainbowParticles(isMobile: boolean) {
+  // 무지개 16색
+  const rainbowColors = [
+    '#FF0080', '#FF4D00', '#FF9900', '#FFE500',
+    '#A8FF00', '#00FF44', '#00FFCC', '#00E5FF',
+    '#0099FF', '#4D5BFF', '#8B5CF6', '#C800FF',
+    '#FF00C8', '#FF1493', '#FF4080', '#FF6FB5',
+  ];
+
+  return Array.from({ length: 16 }, (_, i) => {
+    // 시작 위치: 가방 주변 사방으로 흩어짐
+    const startAngle = (i / 16) * Math.PI * 2;
+    const startDistance = isMobile ? 60 : 100;
+
+    return {
+      id: i,
+      color: rainbowColors[i],
+      // 가방 위치(원점 0,0)에서 사방으로 흩어진 시작점
+      startX: Math.cos(startAngle) * startDistance,
+      startY: Math.sin(startAngle) * startDistance,
+      size: isMobile ? 8 : 12,
+    };
+  });
+}
+
 export default function Home() {
   const router = useRouter();
   const isMobile = useIsMobile();
@@ -145,13 +171,14 @@ export default function Home() {
   const introCards = getIntroCards(isMobile);
   const fireworkParticles = getFireworkParticles(isMobile);
   const lightRays = getLightRays(isMobile);
+  const rainbowParticles = getRainbowParticles(isMobile);
 
   useEffect(() => {
     if (screen !== 'intro') return;
     const timer = setTimeout(() => {
       setIntroDone(true);
       setTimeout(() => setScreen('landing'), 300);
-    }, 4500);
+    }, 6500);
     return () => clearTimeout(timer);
   }, [screen]);
 
@@ -365,7 +392,7 @@ export default function Home() {
           {/* 💼 서류 가방 */}
           <div className="absolute"
             style={{
-              animation: 'briefcaseEnter 1.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, briefcaseGlow 0.8s ease-out 1.4s forwards',
+              animation: 'briefcaseEnter 1.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards, briefcaseGlow 0.8s ease-out 1.4s forwards, briefcaseFadeOut 1s ease-out 3.5s forwards',
               transformOrigin: 'center',
               zIndex: 10,
             }}>
@@ -457,20 +484,111 @@ export default function Home() {
               <span style={{ fontSize: isMobile ? '11px' : '14px', fontFamily: 'monospace' }}>{card.id}</span>
             </div>
           ))}
+
+          {/* ⭐ 무지개 빛 폭발 (3.5초에) - 가방 위치에서 */}
+          <div className="absolute pointer-events-none"
+            style={{
+              top: '50%',
+              left: '50%',
+              width: '20px',
+              height: '20px',
+              transform: 'translate(-50%, -50%)',
+              background: 'conic-gradient(#FF0080, #FF9900, #FFE500, #00FF44, #00E5FF, #4D5BFF, #C800FF, #FF0080)',
+              borderRadius: '50%',
+              opacity: 0,
+              animation: 'rainbowBurst 1s cubic-bezier(0.16, 1, 0.3, 1) 3.5s forwards',
+              zIndex: 25,
+              filter: 'blur(8px)',
+            }} />
+
+          {/* ⭐ 16개 무지개 입자 (3.8초에 등장 → 정중앙으로 모임) */}
+          {rainbowParticles.map(p => (
+            <div
+              key={`rainbow-${p.id}`}
+              className="absolute rounded-full pointer-events-none"
+              style={{
+                top: '50%',
+                left: '50%',
+                width: `${p.size}px`,
+                height: `${p.size}px`,
+                background: p.color,
+                boxShadow: `0 0 ${p.size * 3}px ${p.color}, 0 0 ${p.size * 6}px ${p.color}66`,
+                opacity: 0,
+                transform: 'translate(-50%, -50%)',
+                animation: `rainbowParticleMerge 1.7s cubic-bezier(0.16, 1, 0.3, 1) 3.8s forwards`,
+                '--start-x': `${p.startX}px`,
+                '--start-y': `${p.startY}px`,
+                '--rotation': `${p.id * 60}deg`,
+                zIndex: 30,
+              } as React.CSSProperties}
+            />
+          ))}
+
+          {/* ⭐ 응축 폭발 (5.3초에 - 입자가 모여 로고로 변함) */}
+          <div className="absolute pointer-events-none"
+            style={{
+              top: '50%',
+              left: '50%',
+              width: '20px',
+              height: '20px',
+              transform: 'translate(-50%, -50%)',
+              background: 'radial-gradient(circle, #FFFFFF 0%, #06B6D4 30%, #8B5CF6 60%, transparent 80%)',
+              borderRadius: '50%',
+              opacity: 0,
+              animation: 'logoConverge 0.8s ease-out 5.3s forwards',
+              zIndex: 28,
+              filter: 'blur(4px)',
+            }} />
         </div>
 
-        {/* 로고 */}
-        <div className="absolute left-0 right-0 flex justify-center"
+        {/* ⭐ 오로라 배경 (5.5초에 페이드 인) */}
+        <div className="fixed inset-0 pointer-events-none"
           style={{
-            bottom: isMobile ? '32px' : '48px',
             opacity: 0,
-            animation: 'introLogoFade 1s ease-out 3.3s forwards',
+            animation: 'auroraBackgroundFadeIn 1.5s ease-out 5.5s forwards',
+            zIndex: 1,
+            background: `
+              radial-gradient(circle at 20% 30%, #06B6D420 0%, transparent 50%),
+              radial-gradient(circle at 80% 60%, #8B5CF620 0%, transparent 50%),
+              radial-gradient(circle at 50% 90%, #3B82F620 0%, transparent 60%)
+            `,
+          }} />
+
+        {/* 로고 — 화면 정중앙에서 등장 */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none"
+          style={{
+            opacity: 0,
+            animation: 'introLogoFade 1.2s cubic-bezier(0.16, 1, 0.3, 1) 5.5s forwards',
             zIndex: 30,
           }}>
-          <div className="text-center">
-            <p className="text-[9px] md:text-[11px] tracking-[4px] md:tracking-[6px] text-gray-600 uppercase mb-1 md:mb-2 font-mono">ConnectAI</p>
-            <h1 className={`${logoSize} md:text-5xl font-black text-white tracking-tight mb-1 md:mb-2`}>SIGNAL</h1>
-            <p className="text-gray-400 text-xs md:text-sm font-bold">디지털 무역 전략카드</p>
+          <div className="text-center relative">
+            {/* 로고 뒤 오로라 글로우 */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+              style={{
+                width: isMobile ? '300px' : '500px',
+                height: isMobile ? '160px' : '220px',
+                background: `radial-gradient(ellipse, #06B6D440 0%, #8B5CF620 40%, transparent 70%)`,
+                filter: 'blur(20px)',
+              }} />
+
+            <p className="text-[10px] md:text-[12px] tracking-[5px] md:tracking-[7px] uppercase mb-2 md:mb-3 font-mono font-bold relative"
+              style={{ color: '#06B6D4', textShadow: '0 0 12px #06B6D4AA' }}>
+              ConnectAI
+            </p>
+            <h1 className={`${logoSize} md:text-6xl font-black text-white tracking-tight mb-2 md:mb-3 relative`}
+              style={{ textShadow: '0 0 30px #06B6D466, 0 0 60px #8B5CF633' }}>
+              SIGNAL
+            </h1>
+            <div className="flex items-center justify-center gap-2 relative">
+              <div className="w-1.5 h-1.5 rounded-full"
+                style={{ background: '#06B6D4', boxShadow: '0 0 8px #06B6D4' }} />
+              <p className="text-[12px] md:text-base font-bold tracking-[2px] md:tracking-[3px] font-mono"
+                style={{ color: '#C1E8EB', textShadow: '0 0 8px #06B6D466' }}>
+                DIGITAL TRADE CARDS
+              </p>
+              <div className="w-1.5 h-1.5 rounded-full"
+                style={{ background: '#8B5CF6', boxShadow: '0 0 8px #8B5CF6' }} />
+            </div>
           </div>
         </div>
 
@@ -593,12 +711,112 @@ export default function Home() {
           @keyframes introLogoFade {
             0% {
               opacity: 0;
-              transform: translateY(20px) scale(0.95);
+              transform: translateY(20px) scale(0.85);
             }
             100% {
               opacity: 1;
               transform: translateY(0) scale(1);
             }
+          }
+
+          /* ⭐⭐⭐ 새 시퀀스: 가방→로고 변환 ⭐⭐⭐ */
+
+          /* 가방 fade out (3.5초~4.5초) */
+          @keyframes briefcaseFadeOut {
+            0% {
+              opacity: 1;
+              transform: scale(1);
+              filter: brightness(1);
+            }
+            30% {
+              opacity: 1;
+              transform: scale(1.1);
+              filter: brightness(1.5);
+            }
+            100% {
+              opacity: 0;
+              transform: scale(0);
+              filter: brightness(2);
+            }
+          }
+
+          /* 무지개 폭발 (3.5초) */
+          @keyframes rainbowBurst {
+            0% {
+              opacity: 0;
+              width: 20px;
+              height: 20px;
+              transform: translate(-50%, -50%) rotate(0deg);
+            }
+            30% {
+              opacity: 1;
+              width: ${isMobile ? '350px' : '500px'};
+              height: ${isMobile ? '350px' : '500px'};
+              transform: translate(-50%, -50%) rotate(180deg);
+            }
+            100% {
+              opacity: 0;
+              width: ${isMobile ? '500px' : '700px'};
+              height: ${isMobile ? '500px' : '700px'};
+              transform: translate(-50%, -50%) rotate(360deg);
+            }
+          }
+
+          /* 16개 무지개 입자 - 가방 위치에서 → 화면 정중앙으로 모임 (3.8초~5.5초) */
+          @keyframes rainbowParticleMerge {
+            0% {
+              opacity: 0;
+              transform:
+                translate(-50%, -50%)
+                translate(var(--start-x), var(--start-y))
+                scale(0.5);
+            }
+            15% {
+              opacity: 1;
+              transform:
+                translate(-50%, -50%)
+                translate(var(--start-x), var(--start-y))
+                scale(1.5);
+            }
+            70% {
+              opacity: 1;
+              transform:
+                translate(-50%, -50%)
+                rotate(720deg)
+                scale(1);
+            }
+            100% {
+              opacity: 0;
+              transform:
+                translate(-50%, -50%)
+                rotate(1080deg)
+                scale(0.3);
+            }
+          }
+
+          /* 응축 폭발 (5.3초 - 입자가 모여 빛이 됨) */
+          @keyframes logoConverge {
+            0% {
+              opacity: 0;
+              width: 20px;
+              height: 20px;
+            }
+            30% {
+              opacity: 1;
+              width: ${isMobile ? '200px' : '300px'};
+              height: ${isMobile ? '200px' : '300px'};
+            }
+            100% {
+              opacity: 0;
+              width: ${isMobile ? '300px' : '450px'};
+              height: ${isMobile ? '300px' : '450px'};
+            }
+          }
+
+          /* 오로라 배경 페이드 인 (5.5초) */
+          @keyframes auroraBackgroundFadeIn {
+            0% { opacity: 0; }
+            100% { opacity: 1; }
           }
         `}</style>
       </div>
