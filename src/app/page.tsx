@@ -1236,8 +1236,88 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col items-center px-3 md:px-4 py-3 md:py-4 relative overflow-hidden">
+
+      {/* ⭐⭐⭐ 오로라 배경 ⭐⭐⭐ */}
+
+      {/* 메시 그라디언트 */}
+      <div className="fixed inset-0 pointer-events-none"
+        style={{
+          background: `
+            radial-gradient(circle at 20% 25%, ${S.cyan}1A 0%, transparent 45%),
+            radial-gradient(circle at 80% 60%, ${S.purple}1A 0%, transparent 50%),
+            radial-gradient(circle at 50% 95%, ${S.blue}14 0%, transparent 60%)
+          `,
+          zIndex: 0,
+        }} />
+
+      {/* 빛 신호 4개 */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
+        <div className="absolute game-signal-1"
+          style={{
+            top: '12%',
+            left: 0,
+            width: '100px',
+            height: '2px',
+            background: `linear-gradient(90deg, transparent, ${S.cyan}, transparent)`,
+            boxShadow: `0 0 14px ${S.cyan}, 0 0 28px ${S.cyan}66`,
+          }} />
+        <div className="absolute game-signal-2"
+          style={{
+            top: '50%',
+            right: 0,
+            width: '120px',
+            height: '2px',
+            background: `linear-gradient(90deg, transparent, ${S.purple}, transparent)`,
+            boxShadow: `0 0 14px ${S.purple}, 0 0 28px ${S.purple}66`,
+          }} />
+        <div className="absolute game-signal-3"
+          style={{
+            top: '85%',
+            left: 0,
+            width: '90px',
+            height: '2px',
+            background: `linear-gradient(90deg, transparent, ${S.blue}, transparent)`,
+            boxShadow: `0 0 14px ${S.blue}, 0 0 28px ${S.blue}66`,
+          }} />
+        <div className="absolute game-signal-vertical"
+          style={{
+            right: '8%',
+            top: 0,
+            width: '2px',
+            height: '80px',
+            background: `linear-gradient(180deg, transparent, ${S.cyan}, transparent)`,
+            boxShadow: `0 0 14px ${S.cyan}, 0 0 28px ${S.cyan}66`,
+          }} />
+      </div>
+
+      {/* 떠다니는 빛 입자 */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
+        {Array.from({ length: 14 }).map((_, i) => {
+          const colors = [S.cyan, S.purple, S.blue];
+          const left = (i * 13 + 7) % 100;
+          const top = (i * 17 + 13) % 100;
+          const size = 1.5 + (i % 3) * 0.5;
+          const duration = 4 + (i % 4);
+          const delay = (i % 5) * 0.7;
+          return (
+            <div key={i} className="absolute rounded-full game-particle"
+              style={{
+                left: `${left}%`,
+                top: `${top}%`,
+                width: `${size}px`,
+                height: `${size}px`,
+                background: colors[i % 3],
+                boxShadow: `0 0 ${size * 4}px ${colors[i % 3]}`,
+                animationDuration: `${duration}s`,
+                animationDelay: `${delay}s`,
+              }} />
+          );
+        })}
+      </div>
+
+      {/* 카드 색깔 글로우 (현재 카드 컬러 따라감) */}
       <div className="fixed top-[20%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 md:w-96 md:h-96 rounded-full pointer-events-none"
-        style={{ background: `radial-gradient(circle, ${color}15 0%, transparent 70%)` }} />
+        style={{ background: `radial-gradient(circle, ${color}25 0%, transparent 70%)`, zIndex: 1 }} />
 
       <div className="w-full max-w-md mb-3 relative z-10">
         <div className="flex items-center justify-between mb-2">
@@ -1445,6 +1525,53 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      <style jsx>{`
+        /* ⭐ 빛 신호 흐름 */
+        .game-signal-1 {
+          animation: gameSignalRight 5s linear infinite;
+        }
+        .game-signal-3 {
+          animation: gameSignalRight 7s linear infinite 1.5s;
+        }
+        @keyframes gameSignalRight {
+          0% { transform: translateX(-100px); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { transform: translateX(100vw); opacity: 0; }
+        }
+
+        .game-signal-2 {
+          animation: gameSignalLeft 6s linear infinite 0.5s;
+        }
+        @keyframes gameSignalLeft {
+          0% { transform: translateX(120px); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { transform: translateX(-100vw); opacity: 0; }
+        }
+
+        .game-signal-vertical {
+          animation: gameSignalDown 6s linear infinite;
+        }
+        @keyframes gameSignalDown {
+          0% { transform: translateY(-80px); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { transform: translateY(100vh); opacity: 0; }
+        }
+
+        /* 떠다니는 입자 */
+        .game-particle {
+          animation-name: gameParticleTwinkle;
+          animation-iteration-count: infinite;
+          animation-timing-function: ease-in-out;
+        }
+        @keyframes gameParticleTwinkle {
+          0%, 100% { opacity: 0.3; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.5); }
+        }
+      `}</style>
     </div>
   );
 }
