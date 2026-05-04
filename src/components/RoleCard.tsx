@@ -1,16 +1,48 @@
 'use client';
+import { useState, useEffect } from 'react';
 import { RoleInfo } from '@/data/roleData';
 
 interface RoleCardProps {
   role: RoleInfo;
   memberName: string;
   isMobile?: boolean;
-  isCompact?: boolean; // 작은 사이즈 (팀원 리스트용)
+  isCompact?: boolean;
 }
 
 export default function RoleCard({ role, memberName, isMobile, isCompact }: RoleCardProps) {
   const cardW = isCompact ? (isMobile ? 140 : 180) : (isMobile ? 280 : 340);
   const imgSize = isCompact ? (isMobile ? 60 : 80) : (isMobile ? 140 : 180);
+
+  // ⭐ 이미지 로딩 상태
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [showImage, setShowImage] = useState(false);
+
+  // 이미지 로드 + 최소 0.6초 표시 (자연스러운 연출)
+  useEffect(() => {
+    const img = new window.Image();
+    img.src = role.image;
+
+    const minLoadTime = 600; // 최소 0.6초는 로딩 효과 보여주기
+    const startTime = Date.now();
+
+    img.onload = () => {
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, minLoadTime - elapsed);
+      setTimeout(() => {
+        setImgLoaded(true);
+        // 살짝 후 이미지 표시 (글리치 → 이미지 전환)
+        setTimeout(() => setShowImage(true), 150);
+      }, remaining);
+    };
+
+    img.onerror = () => {
+      // 에러여도 일단 보여줌
+      setTimeout(() => {
+        setImgLoaded(true);
+        setShowImage(true);
+      }, minLoadTime);
+    };
+  }, [role.image]);
 
   return (
     <div className="cyber-role-card relative rounded-2xl overflow-hidden"
@@ -21,7 +53,7 @@ export default function RoleCard({ role, memberName, isMobile, isCompact }: Role
         boxShadow: `0 0 24px ${role.color}33, inset 0 0 20px ${role.color}11`,
       }}>
 
-      {/* 헤더 - SIGNAL TRADE CO. */}
+      {/* 헤더 */}
       <div className="px-3 py-1.5 flex items-center justify-between"
         style={{
           background: `${role.color}1A`,
@@ -47,7 +79,7 @@ export default function RoleCard({ role, memberName, isMobile, isCompact }: Role
       <span className="absolute bottom-0 right-0 w-3 h-3 pointer-events-none"
         style={{ borderBottom: `2px solid ${role.color}`, borderRight: `2px solid ${role.color}` }} />
 
-      {/* 이미지 */}
+      {/* 이미지 영역 */}
       <div className="flex justify-center pt-3 pb-2 relative">
         {/* 이미지 뒤 글로우 */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full pointer-events-none"
@@ -66,17 +98,89 @@ export default function RoleCard({ role, memberName, isMobile, isCompact }: Role
             boxShadow: `0 0 20px ${role.color}88`,
             background: `linear-gradient(135deg, ${role.color}33, ${role.color}11)`,
           }}>
-          <img src={role.image} alt={role.nameKr}
-            className="w-full h-full object-cover role-card-img"
-            style={{ filter: 'saturate(1.1) contrast(1.05)' }}
-            loading="eager" />
 
-          {/* 스캔라인 오버레이 */}
-          <div className="absolute inset-0 pointer-events-none cyber-scanline-overlay"
-            style={{
-              background: `linear-gradient(180deg, transparent 0%, ${role.color}15 50%, transparent 100%)`,
-              backgroundSize: '100% 4px',
-            }} />
+            {/* ⭐ 로딩 효과 (이미지 로드 전) */}
+            {!showImage && (
+              <div className="absolute inset-0">
+                {/* 격자 패턴 */}
+                <div className="absolute inset-0 opacity-40"
+                  style={{
+                    backgroundImage: `
+                      linear-gradient(${role.color}66 1px, transparent 1px),
+                      linear-gradient(90deg, ${role.color}66 1px, transparent 1px)
+                    `,
+                    backgroundSize: '12px 12px',
+                  }} />
+
+                {/* 데이터 비트 (0과 1) */}
+                <div className="absolute inset-0 flex flex-col justify-center items-center font-mono text-[8px] data-bits"
+                  style={{ color: `${role.color}AA` }}>
+                  <div className="absolute top-2 left-2 opacity-60">01010111</div>
+                  <div className="absolute top-2 right-2 opacity-60">10110001</div>
+                  <div className="absolute bottom-2 left-2 opacity-60">11001010</div>
+                  <div className="absolute bottom-2 right-2 opacity-60">00101101</div>
+                </div>
+
+                {/* 스캔라인 (위→아래) */}
+                <div className="absolute left-0 right-0 h-1 cyber-scan-line"
+                  style={{
+                    background: `linear-gradient(180deg, transparent, ${role.color}, ${role.color}, transparent)`,
+                    boxShadow: `0 0 12px ${role.color}, 0 0 24px ${role.color}`,
+                  }} />
+
+                {/* 중앙 LOADING 텍스트 */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-center">
+                    <p className="font-mono font-bold loading-text"
+                      style={{
+                        fontSize: imgSize > 100 ? '11px' : '8px',
+                        color: role.color,
+                        textShadow: `0 0 8px ${role.color}`,
+                        letterSpacing: '2px',
+                      }}>
+                      SCAN
+                    </p>
+                    <p className="font-mono loading-dots mt-0.5"
+                      style={{
+                        fontSize: imgSize > 100 ? '14px' : '10px',
+                        color: role.color,
+                        textShadow: `0 0 6px ${role.color}`,
+                        fontWeight: 'bold',
+                      }}>
+                      ▰▰▰
+                    </p>
+                  </div>
+                </div>
+
+                {/* 글리치 효과 */}
+                <div className="absolute inset-0 cyber-glitch-overlay pointer-events-none"
+                  style={{
+                    background: `linear-gradient(90deg, transparent 49%, ${role.color}33 50%, transparent 51%)`,
+                  }} />
+              </div>
+            )}
+
+            {/* 실제 이미지 */}
+            <img src={role.image} alt={role.nameKr}
+              className="w-full h-full object-cover absolute inset-0 role-card-img"
+              style={{
+                filter: 'saturate(1.1) contrast(1.05)',
+                opacity: showImage ? 1 : 0,
+                transition: 'opacity 0.5s ease-out',
+              }}
+              loading="eager"
+              onLoad={() => {
+                if (imgLoaded) setShowImage(true);
+              }} />
+
+            {/* 스캔라인 오버레이 (이미지 보일 때) */}
+            {showImage && (
+              <div className="absolute inset-0 pointer-events-none cyber-scanline-overlay"
+                style={{
+                  background: `linear-gradient(180deg, transparent 0%, ${role.color}15 50%, transparent 100%)`,
+                  backgroundSize: '100% 4px',
+                }} />
+            )}
         </div>
       </div>
 
@@ -94,7 +198,7 @@ export default function RoleCard({ role, memberName, isMobile, isCompact }: Role
         </div>
       </div>
 
-      {/* 사이버 게이지 (스킬 3개) - 일반 사이즈에만 표시 */}
+      {/* 사이버 게이지 */}
       {!isCompact && (
         <div className="px-4 pb-3 space-y-1.5"
           style={{ borderTop: `1px solid ${role.color}22`, paddingTop: '10px' }}>
@@ -118,7 +222,7 @@ export default function RoleCard({ role, memberName, isMobile, isCompact }: Role
         </div>
       )}
 
-      {/* 명대사 - 일반 사이즈에만 */}
+      {/* 명대사 */}
       {!isCompact && (
         <div className="px-4 pb-3">
           <div className="rounded-lg px-3 py-2"
@@ -142,11 +246,11 @@ export default function RoleCard({ role, memberName, isMobile, isCompact }: Role
         }}>
         <span className="text-[8px] md:text-[9px] font-mono"
           style={{ color: '#888' }}>
-          AUTH·OK
+          AUTH·{showImage ? 'OK' : '...'}
         </span>
         <span className="text-[8px] md:text-[9px] font-mono font-bold"
           style={{ color: role.color, textShadow: `0 0 6px ${role.color}` }}>
-          ✓ PASS
+          {showImage ? '✓ PASS' : '⏳ SCAN'}
         </span>
       </div>
 
@@ -165,16 +269,63 @@ export default function RoleCard({ role, memberName, isMobile, isCompact }: Role
           }
         }
 
-        /* 이미지 부드러운 페이드 인 */
-        .role-card-img {
-          opacity: 0;
-          animation: imgFadeIn 0.4s ease-out 0.2s forwards;
+        /* ⭐ 스캔라인 위→아래 흐름 (로딩 중) */
+        .cyber-scan-line {
+          animation: scanLineFlow 1.2s ease-in-out infinite;
+          top: 0;
         }
-        @keyframes imgFadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
+        @keyframes scanLineFlow {
+          0% { top: 0; opacity: 0; }
+          15% { opacity: 1; }
+          85% { opacity: 1; }
+          100% { top: 100%; opacity: 0; }
         }
 
+        /* ⭐ 데이터 비트 깜빡임 */
+        .data-bits > div {
+          animation: dataBitsBlink 0.8s ease-in-out infinite;
+        }
+        .data-bits > div:nth-child(1) { animation-delay: 0s; }
+        .data-bits > div:nth-child(2) { animation-delay: 0.2s; }
+        .data-bits > div:nth-child(3) { animation-delay: 0.4s; }
+        .data-bits > div:nth-child(4) { animation-delay: 0.6s; }
+        @keyframes dataBitsBlink {
+          0%, 100% { opacity: 0.3; }
+          50% { opacity: 0.8; }
+        }
+
+        /* ⭐ LOADING 텍스트 펄스 */
+        .loading-text {
+          animation: loadingTextPulse 1s ease-in-out infinite;
+        }
+        @keyframes loadingTextPulse {
+          0%, 100% { opacity: 0.7; }
+          50% { opacity: 1; }
+        }
+
+        /* ⭐ 점 3개 흐름 */
+        .loading-dots {
+          animation: dotsFlow 0.8s ease-in-out infinite;
+        }
+        @keyframes dotsFlow {
+          0%, 100% { letter-spacing: 2px; opacity: 0.5; }
+          50% { letter-spacing: 4px; opacity: 1; }
+        }
+
+        /* ⭐ 글리치 오버레이 (가끔 한 번씩) */
+        .cyber-glitch-overlay {
+          animation: glitchEffect 2s ease-in-out infinite;
+          opacity: 0;
+        }
+        @keyframes glitchEffect {
+          0%, 95% { opacity: 0; transform: translateX(0); }
+          96% { opacity: 1; transform: translateX(-2px); }
+          97% { opacity: 1; transform: translateX(2px); }
+          98% { opacity: 1; transform: translateX(-1px); }
+          100% { opacity: 0; transform: translateX(0); }
+        }
+
+        /* 이미지 보일 때 스캔라인 */
         .cyber-scanline-overlay {
           animation: scanlineFlow 3s linear infinite;
         }
