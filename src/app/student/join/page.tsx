@@ -1205,7 +1205,7 @@ export default function StudentJoin() {
                     transition: 'color 0.4s ease, text-shadow 0.4s ease',
                     zIndex: 10,
                   }}>
-                  {countdown === 0 ? 'Start' : `0${countdown}`}
+                  {countdown === 0 ? 'START' : `0${countdown}`}
                 </div>
               </div>
 
