@@ -68,7 +68,7 @@ const PARTICLES = Array.from({ length: 15 }, (_, i) => ({
   color: i % 3 === 0 ? S.green : i % 3 === 1 ? S.aqua : '#C1A8F0',
 }));
 
-type Step = 'code' | 'confirm' | 'select' | 'leader-setup' | 'waiting' | 'welcome';
+type Step = 'code' | 'confirm' | 'select' | 'leader-setup' | 'waiting' | 'countdown' | 'welcome';
 
 // ⭐ 리플 효과 타입
 type Ripple = { id: number; x: number; y: number; key: string };
@@ -157,6 +157,23 @@ export default function StudentJoin() {
     return () => window.removeEventListener('resize', check);
   }, []);
 
+  // ⭐ 캐릭터 이미지 미리 로드 (페이지 진입 즉시 백그라운드 다운로드)
+  useEffect(() => {
+    const imageUrls = [
+      '/roles/ceo.jpg',
+      '/roles/analyst.jpg',
+      '/roles/brand.jpg',
+      '/roles/customer.jpg',
+      '/roles/global.jpg',
+      '/roles/marketer.jpg',
+      '/roles/compliance.jpg',
+    ];
+    imageUrls.forEach(url => {
+      const img = new Image();
+      img.src = url;
+    });
+  }, []);
+
   const [team, setTeam] = useState<Team | null>(null);
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
@@ -168,6 +185,9 @@ export default function StudentJoin() {
   const [roleAssignments, setRoleAssignments] = useState<Record<string, RoleCode>>({});
 
   const [waitingMsgIdx, setWaitingMsgIdx] = useState(0);
+
+  // 카운트다운 (5→4→3→2→1→0)
+  const [countdown, setCountdown] = useState(5);
   const [recentJoiners, setRecentJoiners] = useState<TeamMember[]>([]);
   const previousMembersRef = useRef<Set<string>>(new Set());
 
@@ -176,6 +196,24 @@ export default function StudentJoin() {
     const interval = setInterval(() => {
       setWaitingMsgIdx(i => (i + 1) % WAITING_MESSAGES.length);
     }, 3500);
+    return () => clearInterval(interval);
+  }, [step]);
+
+  // ⭐ 카운트다운 - 5초마다 줄어들고 0이 되면 welcome으로
+  useEffect(() => {
+    if (step !== 'countdown') return;
+    setCountdown(5);
+    const interval = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          // 0초 보여주고 0.7초 후 welcome으로
+          setTimeout(() => setStep('welcome'), 700);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
     return () => clearInterval(interval);
   }, [step]);
 
@@ -357,7 +395,8 @@ export default function StudentJoin() {
       roleCode: myRole,
     }));
 
-    setStep('welcome');
+    // 카운트다운 시작!
+    setStep('countdown');
   };
 
   const handleStart = () => router.push('/');
@@ -994,6 +1033,88 @@ export default function StudentJoin() {
           </div>
         )}
 
+        {/* ⭐ 카운트다운 (5→4→3→2→1→0) */}
+        {step === 'countdown' && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center"
+            style={{
+              background: 'rgba(0,0,0,0.85)',
+              animation: 'countdownBgPulse 1s ease-in-out infinite',
+            }}>
+
+            {/* 화면 전체 오로라 펄스 (배경) */}
+            <div className="fixed inset-0 pointer-events-none"
+              style={{
+                background: countdown === 0
+                  ? `radial-gradient(circle at center, ${S.green}40 0%, ${S.cyan}30 30%, transparent 70%)`
+                  : countdown <= 2
+                    ? `radial-gradient(circle at center, ${S.purple}30 0%, ${S.blue}20 50%, transparent 80%)`
+                    : `radial-gradient(circle at center, ${S.cyan}25 0%, ${S.purple}15 50%, transparent 80%)`,
+                animation: 'screenAuroraFlash 1s ease-in-out infinite',
+                transition: 'background 0.3s ease',
+              }} />
+
+            {/* 카운트다운 컨테이너 */}
+            <div className="relative flex items-center justify-center">
+
+              {/* 외곽 오로라 링 (가장 큰) */}
+              <div className="absolute rounded-full pointer-events-none countdown-ring-outer"
+                style={{
+                  width: isMobile ? '280px' : '420px',
+                  height: isMobile ? '280px' : '420px',
+                  border: `3px solid ${countdown <= 2 ? S.purple : S.cyan}`,
+                  boxShadow: `0 0 40px ${countdown <= 2 ? S.purple : S.cyan}, inset 0 0 40px ${countdown <= 2 ? S.purple : S.cyan}66`,
+                }} />
+
+              {/* 중간 링 */}
+              <div className="absolute rounded-full pointer-events-none countdown-ring-mid"
+                style={{
+                  width: isMobile ? '220px' : '320px',
+                  height: isMobile ? '220px' : '320px',
+                  border: `2px solid ${countdown <= 2 ? S.blue : S.purple}`,
+                  boxShadow: `0 0 30px ${countdown <= 2 ? S.blue : S.purple}, inset 0 0 30px ${countdown <= 2 ? S.blue : S.purple}66`,
+                }} />
+
+              {/* 내부 링 */}
+              <div className="absolute rounded-full pointer-events-none countdown-ring-inner"
+                style={{
+                  width: isMobile ? '160px' : '240px',
+                  height: isMobile ? '160px' : '240px',
+                  border: `2px solid ${countdown === 0 ? S.green : S.cyan}`,
+                  boxShadow: `0 0 24px ${countdown === 0 ? S.green : S.cyan}, inset 0 0 24px ${countdown === 0 ? S.green : S.cyan}66`,
+                  background: `radial-gradient(circle, ${countdown === 0 ? S.green : S.cyan}15 0%, transparent 70%)`,
+                }} />
+
+              {/* 숫자 */}
+              <div key={countdown}
+                className="relative text-white font-black countdown-number"
+                style={{
+                  fontSize: isMobile ? '120px' : '180px',
+                  fontFamily: 'monospace',
+                  textShadow: countdown === 0
+                    ? `0 0 30px ${S.green}, 0 0 60px ${S.green}, 0 0 100px ${S.green}88`
+                    : countdown <= 2
+                      ? `0 0 30px ${S.purple}, 0 0 60px ${S.purple}, 0 0 100px ${S.blue}88`
+                      : `0 0 30px ${S.cyan}, 0 0 60px ${S.cyan}, 0 0 100px ${S.purple}88`,
+                  zIndex: 10,
+                }}>
+                {countdown === 0 ? 'GO!' : countdown}
+              </div>
+            </div>
+
+            {/* 하단 메시지 */}
+            <div className="fixed bottom-20 left-1/2 -translate-x-1/2 text-center pointer-events-none">
+              <p className="text-[12px] md:text-sm font-mono tracking-widest font-bold"
+                style={{
+                  color: countdown === 0 ? S.green : S.cyan,
+                  textShadow: `0 0 12px ${countdown === 0 ? S.green : S.cyan}`,
+                  animation: 'countdownTextPulse 0.5s ease-in-out infinite',
+                }}>
+                {countdown === 0 ? '🚀 SIGNAL GAME START!' : '> 게임이 곧 시작됩니다'}
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* 환영 */}
         {step === 'welcome' && selectedMember && team && (
           <div className="text-center">
@@ -1314,6 +1435,73 @@ export default function StudentJoin() {
         @keyframes btnNeonPulse {
           0%, 100% { box-shadow: 0 0 20px rgba(231, 254, 85, 0.4), 0 10px 30px -5px rgba(231, 254, 85, 0.5); }
           50% { box-shadow: 0 0 40px rgba(231, 254, 85, 0.7), 0 10px 40px -5px rgba(231, 254, 85, 0.8); }
+        }
+
+        /* ⭐⭐⭐ 카운트다운 애니메이션 ⭐⭐⭐ */
+
+        /* 화면 전체 배경 펄스 */
+        @keyframes countdownBgPulse {
+          0%, 100% { background: rgba(0,0,0,0.85); }
+          50% { background: rgba(0,0,0,0.95); }
+        }
+
+        /* 화면 오로라 플래시 */
+        @keyframes screenAuroraFlash {
+          0%, 100% { opacity: 0.4; }
+          50% { opacity: 1; }
+        }
+
+        /* 외곽 링 - 천천히 회전 */
+        .countdown-ring-outer {
+          animation: ringRotate 4s linear infinite, ringPulse 1s ease-in-out infinite;
+        }
+
+        /* 중간 링 - 반대로 회전 */
+        .countdown-ring-mid {
+          animation: ringRotateReverse 3s linear infinite, ringPulse 1s ease-in-out infinite 0.2s;
+        }
+
+        /* 내부 링 - 빠르게 펄스 */
+        .countdown-ring-inner {
+          animation: ringRotate 2s linear infinite, ringPulse 0.8s ease-in-out infinite 0.4s;
+        }
+
+        @keyframes ringRotate {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        @keyframes ringRotateReverse {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(-360deg); }
+        }
+        @keyframes ringPulse {
+          0%, 100% { transform: scale(1) rotate(var(--rotate, 0deg)); }
+          50% { transform: scale(1.08) rotate(var(--rotate, 0deg)); }
+        }
+
+        /* 숫자 등장 애니메이션 */
+        .countdown-number {
+          animation: numberEnter 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        @keyframes numberEnter {
+          0% {
+            opacity: 0;
+            transform: scale(0.3) rotate(-30deg);
+          }
+          50% {
+            opacity: 1;
+            transform: scale(1.2) rotate(5deg);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1) rotate(0deg);
+          }
+        }
+
+        /* 하단 텍스트 펄스 */
+        @keyframes countdownTextPulse {
+          0%, 100% { opacity: 0.7; }
+          50% { opacity: 1; }
         }
       `}</style>
     </div>
