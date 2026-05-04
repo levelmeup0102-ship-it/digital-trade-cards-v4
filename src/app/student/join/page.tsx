@@ -1034,86 +1034,104 @@ export default function StudentJoin() {
         )}
 
         {/* ⭐ 카운트다운 (5→4→3→2→1→0) */}
-        {step === 'countdown' && (
-          <div className="fixed inset-0 z-[300] flex items-center justify-center"
-            style={{
-              background: 'rgba(0,0,0,0.85)',
-              animation: 'countdownBgPulse 1s ease-in-out infinite',
-            }}>
+        {step === 'countdown' && (() => {
+          // 매 초마다 색상이 바뀜 (5→4→3→2→1→0)
+          const colorMap: Record<number, { main: string; glow: string; label: string }> = {
+            5: { main: S.cyan,   glow: S.cyan,   label: 'STANDBY' },
+            4: { main: S.blue,   glow: S.blue,   label: 'STANDBY' },
+            3: { main: S.purple, glow: S.purple, label: 'INITIALIZING' },
+            2: { main: S.pink,   glow: S.pink,   label: 'WARMING UP' },
+            1: { main: '#FF9500', glow: '#FF9500', label: 'GET READY' },
+            0: { main: S.green,  glow: S.green,  label: 'GO!' },
+          };
+          const c = colorMap[countdown] || colorMap[5];
+          const ringSize = isMobile ? 280 : 420;
+          const ticksCount = 60;
 
-            {/* 화면 전체 오로라 펄스 (배경) */}
-            <div className="fixed inset-0 pointer-events-none"
-              style={{
-                background: countdown === 0
-                  ? `radial-gradient(circle at center, ${S.green}40 0%, ${S.cyan}30 30%, transparent 70%)`
-                  : countdown <= 2
-                    ? `radial-gradient(circle at center, ${S.purple}30 0%, ${S.blue}20 50%, transparent 80%)`
-                    : `radial-gradient(circle at center, ${S.cyan}25 0%, ${S.purple}15 50%, transparent 80%)`,
-                animation: 'screenAuroraFlash 1s ease-in-out infinite',
-                transition: 'background 0.3s ease',
-              }} />
+          return (
+            <div className="fixed inset-0 z-[300] flex items-center justify-center"
+              style={{ background: 'rgba(0,0,0,0.92)' }}>
 
-            {/* 카운트다운 컨테이너 */}
-            <div className="relative flex items-center justify-center">
-
-              {/* 외곽 오로라 링 (가장 큰) */}
-              <div className="absolute rounded-full pointer-events-none countdown-ring-outer"
+              {/* 화면 전체 오로라 펄스 */}
+              <div className="fixed inset-0 pointer-events-none"
                 style={{
-                  width: isMobile ? '280px' : '420px',
-                  height: isMobile ? '280px' : '420px',
-                  border: `3px solid ${countdown <= 2 ? S.purple : S.cyan}`,
-                  boxShadow: `0 0 40px ${countdown <= 2 ? S.purple : S.cyan}, inset 0 0 40px ${countdown <= 2 ? S.purple : S.cyan}66`,
+                  background: `radial-gradient(circle at center, ${c.main}1F 0%, ${c.main}0A 40%, transparent 75%)`,
+                  animation: 'screenAuroraFlash 1s ease-in-out infinite',
+                  transition: 'background 0.4s ease',
                 }} />
 
-              {/* 중간 링 */}
-              <div className="absolute rounded-full pointer-events-none countdown-ring-mid"
-                style={{
-                  width: isMobile ? '220px' : '320px',
-                  height: isMobile ? '220px' : '320px',
-                  border: `2px solid ${countdown <= 2 ? S.blue : S.purple}`,
-                  boxShadow: `0 0 30px ${countdown <= 2 ? S.blue : S.purple}, inset 0 0 30px ${countdown <= 2 ? S.blue : S.purple}66`,
-                }} />
+              {/* 카운트다운 컨테이너 */}
+              <div className="relative flex items-center justify-center"
+                style={{ width: `${ringSize}px`, height: `${ringSize}px` }}>
 
-              {/* 내부 링 */}
-              <div className="absolute rounded-full pointer-events-none countdown-ring-inner"
-                style={{
-                  width: isMobile ? '160px' : '240px',
-                  height: isMobile ? '160px' : '240px',
-                  border: `2px solid ${countdown === 0 ? S.green : S.cyan}`,
-                  boxShadow: `0 0 24px ${countdown === 0 ? S.green : S.cyan}, inset 0 0 24px ${countdown === 0 ? S.green : S.cyan}66`,
-                  background: `radial-gradient(circle, ${countdown === 0 ? S.green : S.cyan}15 0%, transparent 70%)`,
-                }} />
+                {/* 60개 눈금 (둥글게) */}
+                {Array.from({ length: ticksCount }).map((_, i) => {
+                  // 매 5번째 눈금은 길고 두껍게
+                  const isMajor = i % 5 === 0;
+                  const tickH = isMajor ? (isMobile ? 16 : 22) : (isMobile ? 8 : 12);
+                  const tickW = isMajor ? 3 : 1.5;
+                  const angle = (i / ticksCount) * 360;
 
-              {/* 숫자 */}
-              <div key={countdown}
-                className="relative text-white font-black countdown-number"
-                style={{
-                  fontSize: isMobile ? '120px' : '180px',
-                  fontFamily: 'monospace',
-                  textShadow: countdown === 0
-                    ? `0 0 30px ${S.green}, 0 0 60px ${S.green}, 0 0 100px ${S.green}88`
-                    : countdown <= 2
-                      ? `0 0 30px ${S.purple}, 0 0 60px ${S.purple}, 0 0 100px ${S.blue}88`
-                      : `0 0 30px ${S.cyan}, 0 0 60px ${S.cyan}, 0 0 100px ${S.purple}88`,
-                  zIndex: 10,
-                }}>
-                {countdown === 0 ? 'GO!' : countdown}
+                  return (
+                    <div key={i} className="absolute top-1/2 left-1/2 origin-center pointer-events-none countdown-tick"
+                      style={{
+                        width: `${tickW}px`,
+                        height: `${tickH}px`,
+                        background: c.main,
+                        boxShadow: `0 0 6px ${c.glow}, 0 0 12px ${c.glow}66`,
+                        transform: `translate(-50%, -50%) rotate(${angle}deg) translateY(-${ringSize / 2 - tickH / 2 - 4}px)`,
+                        animationDelay: `${i * 0.015}s`,
+                        opacity: 0.8,
+                        transition: 'background 0.4s ease, box-shadow 0.4s ease',
+                      }} />
+                  );
+                })}
+
+                {/* 외곽 빛 글로우 */}
+                <div className="absolute inset-0 rounded-full pointer-events-none"
+                  style={{
+                    boxShadow: `0 0 60px ${c.glow}33, inset 0 0 80px ${c.glow}11`,
+                    transition: 'box-shadow 0.4s ease',
+                  }} />
+
+                {/* 디지털 시계 숫자 */}
+                <div key={countdown}
+                  className="relative countdown-digital-number"
+                  style={{
+                    color: c.main,
+                    fontFamily: '"DS-Digital", "Courier New", monospace',
+                    fontWeight: 700,
+                    fontSize: countdown === 0 ? (isMobile ? '64px' : '100px') : (isMobile ? '110px' : '170px'),
+                    letterSpacing: countdown === 0 ? '4px' : '0',
+                    textShadow: `
+                      0 0 20px ${c.glow},
+                      0 0 40px ${c.glow},
+                      0 0 80px ${c.glow}AA,
+                      0 0 120px ${c.glow}66
+                    `,
+                    transition: 'color 0.4s ease, text-shadow 0.4s ease',
+                    zIndex: 10,
+                  }}>
+                  {countdown === 0 ? 'Start' : `0${countdown}`}
+                </div>
+              </div>
+
+              {/* 하단 라벨 */}
+              <div className="fixed bottom-20 left-1/2 -translate-x-1/2 text-center pointer-events-none">
+                <p className="font-mono tracking-[4px] md:tracking-[6px] font-bold"
+                  style={{
+                    fontSize: isMobile ? '11px' : '13px',
+                    color: c.main,
+                    textShadow: `0 0 10px ${c.glow}, 0 0 20px ${c.glow}88`,
+                    transition: 'color 0.4s ease, text-shadow 0.4s ease',
+                    animation: 'countdownTextPulse 1s ease-in-out infinite',
+                  }}>
+                  {`> ${c.label}`}
+                </p>
               </div>
             </div>
-
-            {/* 하단 메시지 */}
-            <div className="fixed bottom-20 left-1/2 -translate-x-1/2 text-center pointer-events-none">
-              <p className="text-[12px] md:text-sm font-mono tracking-widest font-bold"
-                style={{
-                  color: countdown === 0 ? S.green : S.cyan,
-                  textShadow: `0 0 12px ${countdown === 0 ? S.green : S.cyan}`,
-                  animation: 'countdownTextPulse 0.5s ease-in-out infinite',
-                }}>
-                {countdown === 0 ? '🚀 SIGNAL GAME START!' : '> 게임이 곧 시작됩니다'}
-              </p>
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* 환영 */}
         {step === 'welcome' && selectedMember && team && (
@@ -1439,68 +1457,46 @@ export default function StudentJoin() {
 
         /* ⭐⭐⭐ 카운트다운 애니메이션 ⭐⭐⭐ */
 
-        /* 화면 전체 배경 펄스 */
-        @keyframes countdownBgPulse {
-          0%, 100% { background: rgba(0,0,0,0.85); }
-          50% { background: rgba(0,0,0,0.95); }
-        }
-
         /* 화면 오로라 플래시 */
         @keyframes screenAuroraFlash {
           0%, 100% { opacity: 0.4; }
           50% { opacity: 1; }
         }
 
-        /* 외곽 링 - 천천히 회전 */
-        .countdown-ring-outer {
-          animation: ringRotate 4s linear infinite, ringPulse 1s ease-in-out infinite;
+        /* 60개 눈금 - 차례로 깜빡 (시계 초침 같은 느낌) */
+        .countdown-tick {
+          animation: tickPulse 1s ease-in-out infinite;
+        }
+        @keyframes tickPulse {
+          0%, 100% { opacity: 0.5; }
+          50% { opacity: 1; }
         }
 
-        /* 중간 링 - 반대로 회전 */
-        .countdown-ring-mid {
-          animation: ringRotateReverse 3s linear infinite, ringPulse 1s ease-in-out infinite 0.2s;
+        /* 디지털 숫자 등장 - 글리치 + 페이드 */
+        .countdown-digital-number {
+          animation: digitalNumberEnter 0.4s ease-out forwards;
         }
-
-        /* 내부 링 - 빠르게 펄스 */
-        .countdown-ring-inner {
-          animation: ringRotate 2s linear infinite, ringPulse 0.8s ease-in-out infinite 0.4s;
-        }
-
-        @keyframes ringRotate {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        @keyframes ringRotateReverse {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(-360deg); }
-        }
-        @keyframes ringPulse {
-          0%, 100% { transform: scale(1) rotate(var(--rotate, 0deg)); }
-          50% { transform: scale(1.08) rotate(var(--rotate, 0deg)); }
-        }
-
-        /* 숫자 등장 애니메이션 */
-        .countdown-number {
-          animation: numberEnter 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-        }
-        @keyframes numberEnter {
+        @keyframes digitalNumberEnter {
           0% {
             opacity: 0;
-            transform: scale(0.3) rotate(-30deg);
+            transform: scale(0.85);
+            filter: blur(6px);
           }
           50% {
             opacity: 1;
-            transform: scale(1.2) rotate(5deg);
+            transform: scale(1.05);
+            filter: blur(0);
           }
           100% {
             opacity: 1;
-            transform: scale(1) rotate(0deg);
+            transform: scale(1);
+            filter: blur(0);
           }
         }
 
         /* 하단 텍스트 펄스 */
         @keyframes countdownTextPulse {
-          0%, 100% { opacity: 0.7; }
+          0%, 100% { opacity: 0.6; }
           50% { opacity: 1; }
         }
       `}</style>
