@@ -907,12 +907,105 @@ export default function StudentJoin() {
                 if (myRole) {
                   return <RoleCard role={myRole} memberName={selectedMember.name} isMobile={isMobile} />;
                 }
-                // 직무 미배정 시 임시 카드
+                // 직무 미배정 시 - 사이버 스캔 카드 (살아있는 효과)
                 return (
-                  <div className="rounded-2xl p-6"
-                    style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${S.cyan}33` }}>
-                    <p className="text-3xl mb-2">⏳</p>
-                    <p className="text-[13px] text-gray-400">직무 배정 대기 중...</p>
+                  <div className="relative rounded-2xl overflow-hidden waiting-role-card"
+                    style={{
+                      width: isMobile ? '220px' : '280px',
+                      height: isMobile ? '180px' : '220px',
+                      background: `linear-gradient(135deg, rgba(10,10,10,0.95) 0%, rgba(20,20,40,0.9) 100%)`,
+                      border: `2px solid ${S.cyan}66`,
+                      boxShadow: `0 0 24px ${S.cyan}33, inset 0 0 20px ${S.cyan}11`,
+                    }}>
+
+                    {/* 격자 패턴 배경 */}
+                    <div className="absolute inset-0 opacity-30 pointer-events-none"
+                      style={{
+                        backgroundImage: `
+                          linear-gradient(${S.cyan}44 1px, transparent 1px),
+                          linear-gradient(90deg, ${S.cyan}44 1px, transparent 1px)
+                        `,
+                        backgroundSize: '14px 14px',
+                      }} />
+
+                    {/* 4모서리 데이터 비트 (깜빡임) */}
+                    <div className="absolute top-2 left-2 font-mono text-[8px] waiting-bit-1"
+                      style={{ color: `${S.cyan}AA` }}>01010111</div>
+                    <div className="absolute top-2 right-2 font-mono text-[8px] waiting-bit-2"
+                      style={{ color: `${S.cyan}AA` }}>10110001</div>
+                    <div className="absolute bottom-2 left-2 font-mono text-[8px] waiting-bit-3"
+                      style={{ color: `${S.cyan}AA` }}>11001010</div>
+                    <div className="absolute bottom-2 right-2 font-mono text-[8px] waiting-bit-4"
+                      style={{ color: `${S.cyan}AA` }}>00101101</div>
+
+                    {/* 스캔라인 (위→아래 흐름) */}
+                    <div className="absolute left-0 right-0 pointer-events-none waiting-scan-line"
+                      style={{
+                        height: '3px',
+                        background: `linear-gradient(180deg, transparent, ${S.cyan}, transparent)`,
+                        boxShadow: `0 0 12px ${S.cyan}, 0 0 24px ${S.cyan}66`,
+                      }} />
+
+                    {/* 중앙 컨텐츠 */}
+                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                      {/* 회전하는 사이버 링 */}
+                      <div className="relative mb-3">
+                        <div className="rounded-full waiting-ring-outer"
+                          style={{
+                            width: '50px',
+                            height: '50px',
+                            border: `2px solid ${S.cyan}`,
+                            borderTopColor: 'transparent',
+                            borderRightColor: 'transparent',
+                            boxShadow: `0 0 12px ${S.cyan}, inset 0 0 8px ${S.cyan}66`,
+                          }} />
+                        <div className="absolute inset-0 m-auto rounded-full waiting-ring-inner"
+                          style={{
+                            width: '30px',
+                            height: '30px',
+                            top: '10px',
+                            left: '10px',
+                            border: `2px solid ${S.purple}`,
+                            borderBottomColor: 'transparent',
+                            borderLeftColor: 'transparent',
+                            boxShadow: `0 0 10px ${S.purple}`,
+                          }} />
+                        {/* 중앙 점 (펄스) */}
+                        <div className="absolute inset-0 m-auto rounded-full waiting-center-dot"
+                          style={{
+                            width: '8px',
+                            height: '8px',
+                            top: '21px',
+                            left: '21px',
+                            background: S.cyan,
+                            boxShadow: `0 0 12px ${S.cyan}, 0 0 24px ${S.cyan}AA`,
+                          }} />
+                      </div>
+
+                      {/* SCAN 텍스트 + 점 */}
+                      <p className="font-mono font-bold tracking-[3px] mb-1 waiting-scan-text"
+                        style={{
+                          fontSize: '11px',
+                          color: S.cyan,
+                          textShadow: `0 0 8px ${S.cyan}`,
+                        }}>
+                        ASSIGNING ROLE
+                      </p>
+                      <p className="font-mono font-bold tracking-widest waiting-dots"
+                        style={{
+                          fontSize: '14px',
+                          color: S.cyan,
+                          textShadow: `0 0 6px ${S.cyan}`,
+                        }}>
+                        ▰▰▰
+                      </p>
+                    </div>
+
+                    {/* 글리치 효과 */}
+                    <div className="absolute inset-0 pointer-events-none waiting-glitch"
+                      style={{
+                        background: `linear-gradient(90deg, transparent 49%, ${S.cyan}33 50%, transparent 51%)`,
+                      }} />
                   </div>
                 );
               })()}
@@ -1453,6 +1546,105 @@ export default function StudentJoin() {
         @keyframes btnNeonPulse {
           0%, 100% { box-shadow: 0 0 20px rgba(231, 254, 85, 0.4), 0 10px 30px -5px rgba(231, 254, 85, 0.5); }
           50% { box-shadow: 0 0 40px rgba(231, 254, 85, 0.7), 0 10px 40px -5px rgba(231, 254, 85, 0.8); }
+        }
+
+        /* ⭐⭐⭐ 대기 중 직무 카드 (사이버 스캔 효과) ⭐⭐⭐ */
+        .waiting-role-card {
+          animation: waitingCardPulse 2s ease-in-out infinite;
+        }
+        @keyframes waitingCardPulse {
+          0%, 100% {
+            box-shadow: 0 0 24px rgba(6, 182, 212, 0.2), inset 0 0 20px rgba(6, 182, 212, 0.07);
+          }
+          50% {
+            box-shadow: 0 0 36px rgba(6, 182, 212, 0.4), inset 0 0 30px rgba(6, 182, 212, 0.15);
+          }
+        }
+
+        /* 스캔라인 위→아래 흐름 */
+        .waiting-scan-line {
+          animation: waitingScanFlow 1.8s ease-in-out infinite;
+          top: 0;
+        }
+        @keyframes waitingScanFlow {
+          0% { top: 0; opacity: 0; }
+          15% { opacity: 1; }
+          85% { opacity: 1; }
+          100% { top: 100%; opacity: 0; }
+        }
+
+        /* 데이터 비트 깜빡임 (시간차) */
+        .waiting-bit-1 { animation: waitingBitBlink 1s ease-in-out infinite 0s; }
+        .waiting-bit-2 { animation: waitingBitBlink 1s ease-in-out infinite 0.25s; }
+        .waiting-bit-3 { animation: waitingBitBlink 1s ease-in-out infinite 0.5s; }
+        .waiting-bit-4 { animation: waitingBitBlink 1s ease-in-out infinite 0.75s; }
+        @keyframes waitingBitBlink {
+          0%, 100% { opacity: 0.3; }
+          50% { opacity: 0.9; }
+        }
+
+        /* 회전 링 (외곽 - 정방향) */
+        .waiting-ring-outer {
+          animation: waitingRingSpin 2s linear infinite;
+        }
+        @keyframes waitingRingSpin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        /* 회전 링 (내부 - 역방향) */
+        .waiting-ring-inner {
+          animation: waitingRingSpinReverse 1.5s linear infinite;
+        }
+        @keyframes waitingRingSpinReverse {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(-360deg); }
+        }
+
+        /* 중앙 점 펄스 */
+        .waiting-center-dot {
+          animation: waitingDotPulse 1s ease-in-out infinite;
+        }
+        @keyframes waitingDotPulse {
+          0%, 100% {
+            transform: scale(1);
+            opacity: 0.8;
+          }
+          50% {
+            transform: scale(1.4);
+            opacity: 1;
+          }
+        }
+
+        /* SCAN 텍스트 펄스 */
+        .waiting-scan-text {
+          animation: waitingScanTextPulse 1.5s ease-in-out infinite;
+        }
+        @keyframes waitingScanTextPulse {
+          0%, 100% { opacity: 0.7; }
+          50% { opacity: 1; }
+        }
+
+        /* 점 3개 흐름 */
+        .waiting-dots {
+          animation: waitingDotsFlow 0.8s ease-in-out infinite;
+        }
+        @keyframes waitingDotsFlow {
+          0%, 100% { letter-spacing: 4px; opacity: 0.5; }
+          50% { letter-spacing: 8px; opacity: 1; }
+        }
+
+        /* 글리치 효과 (가끔 한 번씩) */
+        .waiting-glitch {
+          animation: waitingGlitchEffect 3s ease-in-out infinite;
+          opacity: 0;
+        }
+        @keyframes waitingGlitchEffect {
+          0%, 95% { opacity: 0; transform: translateX(0); }
+          96% { opacity: 1; transform: translateX(-2px); }
+          97% { opacity: 1; transform: translateX(2px); }
+          98% { opacity: 1; transform: translateX(-1px); }
+          100% { opacity: 0; transform: translateX(0); }
         }
 
         /* ⭐⭐⭐ 카운트다운 애니메이션 ⭐⭐⭐ */
