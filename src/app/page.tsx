@@ -10,6 +10,19 @@ import {
 } from '@/lib/session';
 import type { Session } from '@/lib/supabase';
 import { getRole, type RoleCode } from '@/data/roleData';
+import {
+  loadTeamInsights,
+  subscribeToTeamInsights,
+  loadSubCardLocks,
+  subscribeToSubCardLocks,
+  ensureFirstSubCardUnlocked,
+  leaderCompleteSubCard,
+  getNextSubCardId,
+  type MemberInsight,
+  type SubCardLock,
+} from '@/lib/collaborative';
+import { getTeamMembers } from '@/lib/teacher';
+import type { TeamMember } from '@/lib/teacher';
 
 const LEVELS: Record<string, { label: string; emoji: string; timer: number; minChars: number; color: string }> = {
   basic:    { label: '초급', emoji: '🌱', timer: 1800, minChars: 20,  color: '#059669' },
@@ -41,7 +54,6 @@ const defaultLeaderConclusion = (): LeaderConclusionState => ({
   judgments: [false, false, false, false],
 });
 
-// ⭐ 화면 크기 감지 훅
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
@@ -53,9 +65,8 @@ function useIsMobile() {
   return isMobile;
 }
 
-// ⭐ 인트로용 16장 카드 — 완벽한 원형 정렬
 function getIntroCards(isMobile: boolean) {
-  const distance = isMobile ? 130 : 240; // 모바일: 130px / PC: 240px
+  const distance = isMobile ? 130 : 240;
   return Array.from({ length: 16 }, (_, i) => {
     const id = String(i + 1).padStart(2, '0');
     const angle = (360 / 16) * i - 90;
@@ -73,7 +84,6 @@ function getIntroCards(isMobile: boolean) {
   });
 }
 
-// ⭐ 폭죽 입자
 function getFireworkParticles(isMobile: boolean) {
   const baseDistance = isMobile ? 150 : 250;
   return Array.from({ length: isMobile ? 18 : 24 }, (_, i) => {
@@ -93,7 +103,6 @@ function getFireworkParticles(isMobile: boolean) {
   });
 }
 
-// ⭐ 빛 줄기
 function getLightRays(isMobile: boolean) {
   return Array.from({ length: 8 }, (_, i) => ({
     id: i,
@@ -103,18 +112,14 @@ function getLightRays(isMobile: boolean) {
   }));
 }
 
-// ⭐ 16개 무지개 입자 (카드 위치에서 → 정중앙으로 모임)
 function getRainbowParticles(isMobile: boolean) {
-  const distance = isMobile ? 130 : 240; // getIntroCards와 동일
-  // 카드 색깔 순서 그대로 사용 (CARD_COLORS의 bg)
+  const distance = isMobile ? 130 : 240;
   return Array.from({ length: 16 }, (_, i) => {
     const id = String(i + 1).padStart(2, '0');
     const angle = (360 / 16) * i - 90;
-
     return {
       id: i,
-      color: CARD_COLORS[id]?.bg || '#4FB0C6', // 해당 카드 색
-      // 시작 위치: 펼쳐진 카드 위치 (getIntroCards와 동일)
+      color: CARD_COLORS[id]?.bg || '#4FB0C6',
       startX: Math.cos((angle * Math.PI) / 180) * distance,
       startY: Math.sin((angle * Math.PI) / 180) * distance,
       size: isMobile ? 10 : 14,
@@ -122,18 +127,15 @@ function getRainbowParticles(isMobile: boolean) {
   });
 }
 
-// ⭐ 16개 신호 라인 (카드 → 정중앙) - 네트워크 효과
 function getSignalLines(isMobile: boolean) {
   const distance = isMobile ? 130 : 240;
   return Array.from({ length: 16 }, (_, i) => {
     const id = String(i + 1).padStart(2, '0');
     const angle = (360 / 16) * i - 90;
-
     return {
       id: i,
       color: CARD_COLORS[id]?.bg || '#4FB0C6',
-      // 라인이 그려질 각도 (카드에서 가운데로)
-      angle: angle + 180, // 라인을 카드에서 안쪽으로 향하게 (180도 반대)
+      angle: angle + 180,
       length: distance,
     };
   });
@@ -157,6 +159,12 @@ export default function Home() {
 
   const [session, setSession] = useState<Session | null>(null);
   const [teamId, setTeamId] = useState<string | null>(null);
+
+  // ⭐ 협업 시스템 state
+  const [myMemberId, setMyMemberId] = useState<string>('');
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [memberInsights, setMemberInsights] = useState<MemberInsight[]>([]);
+  const [subCardLocks, setSubCardLocks] = useState<SubCardLock[]>([]);
 
   const [currentCardIdx, setCurrentCardIdx] = useState(0);
   const [currentTab, setCurrentTab] = useState<TabType>('주제');
@@ -186,7 +194,6 @@ export default function Home() {
 
   const myRole = roleCode ? getRole(roleCode) : null;
 
-  // 인트로 데이터 (화면 크기에 따라)
   const introCards = getIntroCards(isMobile);
   const fireworkParticles = getFireworkParticles(isMobile);
   const lightRays = getLightRays(isMobile);
@@ -200,6 +207,7 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, [screen]);
 
+  // ⭐ 게임 시작 시 데이터 로드 (협업 시스템 포함)
   useEffect(() => {
     (async () => {
       try {
@@ -208,8 +216,28 @@ export default function Home() {
           setSession(saved); setTeamId(saved.team_id);
           setPlayerName(saved.player_name); setRole(saved.role);
           setLevel(saved.level); setItem(saved.item || '');
-          const [resps, prog] = await Promise.all([loadCardResponses(saved.team_id), loadCardProgress(saved.team_id)]);
-          setResponses(resps); setCheckStates(prog.checkStates); setCompletedCards(prog.completedCards);
+
+          if (saved.role === 'leader') {
+            await ensureFirstSubCardUnlocked(saved.team_id);
+          }
+
+          const [resps, prog, members, insights, locks] = await Promise.all([
+            loadCardResponses(saved.team_id),
+            loadCardProgress(saved.team_id),
+            getTeamMembers(saved.team_id),
+            loadTeamInsights(saved.team_id),
+            loadSubCardLocks(saved.team_id),
+          ]);
+          setResponses(resps);
+          setCheckStates(prog.checkStates);
+          setCompletedCards(prog.completedCards);
+          setTeamMembers(members);
+          setMemberInsights(insights);
+          setSubCardLocks(locks);
+
+          const myMember = members.find(m => m.name === saved.player_name);
+          if (myMember) setMyMemberId(myMember.id);
+
           setTimer(LEVELS[saved.level]?.timer || 1200);
           setScreen('game');
           setSessionLoading(false);
@@ -233,8 +261,27 @@ export default function Home() {
             setPlayerName(v2.memberName); setRole(v2Role);
             setLevel(v2Level); setItem(v2.item || '');
             if (v2.roleCode) setRoleCode(v2.roleCode as RoleCode);
-            const [resps, prog] = await Promise.all([loadCardResponses(v2.teamId), loadCardProgress(v2.teamId)]);
-            setResponses(resps); setCheckStates(prog.checkStates); setCompletedCards(prog.completedCards);
+
+            // ⭐ myMemberId 저장 (협업 시스템 핵심!)
+            if (v2.memberId) setMyMemberId(v2.memberId);
+
+            if (v2.isLeader) {
+              await ensureFirstSubCardUnlocked(v2.teamId);
+            }
+
+            const [resps, prog, members, insights, locks] = await Promise.all([
+              loadCardResponses(v2.teamId),
+              loadCardProgress(v2.teamId),
+              getTeamMembers(v2.teamId),
+              loadTeamInsights(v2.teamId),
+              loadSubCardLocks(v2.teamId),
+            ]);
+            setResponses(resps);
+            setCheckStates(prog.checkStates);
+            setCompletedCards(prog.completedCards);
+            setTeamMembers(members);
+            setMemberInsights(insights);
+            setSubCardLocks(locks);
             setTimer(LEVELS[v2Level]?.timer || 1200);
             setScreen('game');
             setSessionLoading(false);
@@ -248,6 +295,24 @@ export default function Home() {
       }
     })();
   }, []);
+
+  // ⭐ Realtime 구독: 팀원 인사이트 + 잠금 상태
+  useEffect(() => {
+    if (screen !== 'game' || !teamId) return;
+
+    const unsubInsights = subscribeToTeamInsights(teamId, (insights) => {
+      setMemberInsights(insights);
+    });
+
+    const unsubLocks = subscribeToSubCardLocks(teamId, (locks) => {
+      setSubCardLocks(locks);
+    });
+
+    return () => {
+      unsubInsights();
+      unsubLocks();
+    };
+  }, [screen, teamId]);
 
   useEffect(() => {
     if (timerActive && timer > 0) {
@@ -275,7 +340,6 @@ export default function Home() {
 
   const handleSaveResponse = async (cardId: string, text: string) => {
     setResponses(prev => ({ ...prev, [cardId]: { texts: { '0': text }, images: {} } }));
-    // toast 제거 — 글자 칠 때마다 뜨면 집중 방해됨. 저장은 계속 됨.
     if (session && teamId) {
       await saveCardResponse({ teamId, sessionId: session.id, cardId, texts: { '0': text } });
     }
@@ -298,10 +362,31 @@ export default function Home() {
     if (session && teamId) {
       await saveCardProgress({ teamId, sessionId: session.id, cardId: topic.id, checklistStatus: {}, completed: true });
     }
-    if (currentCardIdx < TOPICS.length - 1) {
+
+    // ⭐ 카드 완료 시 다음 카드의 Q1 자동 잠금 해제
+    if (teamId && currentCardIdx < TOPICS.length - 1) {
+      const nextTopicId = TOPICS[currentCardIdx + 1].id;
+      const nextSubCardId = `${nextTopicId}-1`;
+      await leaderCompleteSubCard({
+        teamId,
+        subCardId: `${topic.id}-3`,
+        nextSubCardId,
+      });
       setTimeout(() => goToCard(currentCardIdx + 1), 1000);
     }
   };
+
+  // ⭐ 팀장 Q1/Q2/Q3 완료 핸들러
+  const handleLeaderCompleteSubCard = useCallback(async (subCardId: string) => {
+    if (!teamId || !isLeader) return;
+    const nextSubCardId = getNextSubCardId(subCardId);
+    await leaderCompleteSubCard({ teamId, subCardId, nextSubCardId });
+
+    const qNum = parseInt(subCardId.split('-')[1], 10);
+    if (qNum === 1) setCurrentTab('Q2');
+    else if (qNum === 2) setCurrentTab('Q3');
+    else if (qNum === 3) setCurrentTab('결론');
+  }, [teamId, isLeader]);
 
   const onTouchStart = (e: React.TouchEvent) => setTouchStart(e.touches[0].clientX);
   const onTouchMove = (e: React.TouchEvent) => { if (touchStart !== null) setSwipeOffset(e.touches[0].clientX - touchStart); };
@@ -341,22 +426,13 @@ export default function Home() {
       <p className="text-gray-500 font-mono text-sm">불러오는 중...</p>
     </div>
   );
-
   // ─── ⭐ INTRO ⭐ ───
   if (screen === 'intro') {
-    // 사이즈 (모바일/PC)
-    const briefcaseW = isMobile ? 130 : 180;
-    const briefcaseH = isMobile ? 100 : 140;
-    const cubeSize = isMobile ? 90 : 160;
     const cardOneW = isMobile ? 70 : 110;
     const cardOneH = isMobile ? 100 : 155;
-    const cardFrameW = isMobile ? 110 : 170;
-    const cardFrameH = isMobile ? 140 : 215;
     const cardW = isMobile ? 42 : 60;
     const cardH = isMobile ? 60 : 84;
-    const rayHeight = isMobile ? 280 : 500;
     const containerH = isMobile ? 400 : 600;
-    const logoSize = isMobile ? 'text-3xl' : 'text-5xl';
 
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4 md:p-6 relative overflow-hidden"
@@ -365,11 +441,9 @@ export default function Home() {
           transition: 'opacity 0.3s ease-out',
         }}>
 
-        {/* 메인 인트로 영역 */}
         <div className="relative w-full flex items-center justify-center"
           style={{ height: `${containerH}px`, maxWidth: '100%' }}>
 
-          {/* ⭐ 신호 발산 동심원 (카드 뒤 - 사방으로 퍼짐) */}
           {[0, 1, 2, 3].map(i => (
             <div key={`pulse-${i}`} className="absolute signal-pulse-ring pointer-events-none"
               style={{
@@ -385,7 +459,6 @@ export default function Home() {
               }} />
           ))}
 
-          {/* ⭐ 카드 뒤 큰 오로라 후광 */}
           <div className="absolute card-aurora-glow pointer-events-none"
             style={{
               width: `${cardOneW * 3}px`,
@@ -399,7 +472,6 @@ export default function Home() {
               zIndex: 4,
             }} />
 
-          {/* ⭐ 카드 한 장 (중앙) */}
           <div className="absolute cube-inner-card pointer-events-none"
             style={{
               width: `${cardOneW}px`,
@@ -425,7 +497,6 @@ export default function Home() {
             <span style={{ fontSize: isMobile ? '24px' : '36px', fontWeight: 900, marginTop: '4px' }}>?</span>
           </div>
 
-          {/* 폭죽 입자 */}
           {fireworkParticles.map(p => (
             <div
               key={p.id}
@@ -447,7 +518,6 @@ export default function Home() {
             />
           ))}
 
-          {/* 16장 카드 — 가방에서 우아하게 사방으로 흩어짐 */}
           {introCards.map((card, i) => (
             <div
               key={card.id}
@@ -475,7 +545,6 @@ export default function Home() {
           ))}
         </div>
 
-        {/* ⭐ 작은 빛 폭발 (5.0초 - 가운데 한 점에서 짧게) */}
         <div className="absolute pointer-events-none light-burst"
           style={{
             top: '50%',
@@ -489,7 +558,6 @@ export default function Home() {
             filter: 'blur(6px)',
           }} />
 
-        {/* ⭐ 거대한 오로라 후광 (5.2초~ 천천히 펴짐) */}
         <div className="absolute pointer-events-none aurora-halo"
           style={{
             top: '50%',
@@ -503,7 +571,6 @@ export default function Home() {
             filter: 'blur(40px)',
           }} />
 
-        {/* ⭐ 오로라 배경 (6.5초에 페이드 인) */}
         <div className="fixed inset-0 pointer-events-none"
           style={{
             opacity: 0,
@@ -516,7 +583,6 @@ export default function Home() {
             `,
           }} />
 
-        {/* 로고 — 화면 정중앙에서 부드럽게 등장 (7.0초) */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none"
           style={{
             opacity: 0,
@@ -558,9 +624,6 @@ export default function Home() {
         </div>
 
         <style jsx>{`
-          /* ⭐⭐⭐ 신호 발산 + 카드 애니메이션 ⭐⭐⭐ */
-
-          /* 신호 발산 동심원 - 시작 시 안 보이고, 애니메이션으로 펄스 → 3.6초에 완전 사라짐 */
           .signal-pulse-ring {
             opacity: 0;
             transform: translate(-50%, -50%) scale(0);
@@ -569,29 +632,15 @@ export default function Home() {
               signalPulseFinalHide 0.3s ease-out 3.6s forwards;
           }
           @keyframes signalPulseExpand {
-            0% {
-              transform: translate(-50%, -50%) scale(0.3);
-              opacity: 0;
-            }
-            15% {
-              opacity: 0.8;
-            }
-            100% {
-              transform: translate(-50%, -50%) scale(2.5);
-              opacity: 0;
-            }
+            0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0; }
+            15% { opacity: 0.8; }
+            100% { transform: translate(-50%, -50%) scale(2.5); opacity: 0; }
           }
-          /* 폭발 시 - 무한 애니메이션 무시하고 완전 숨김 */
           @keyframes signalPulseFinalHide {
             0% { opacity: 0; }
-            100% {
-              opacity: 0;
-              display: none;
-              visibility: hidden;
-            }
+            100% { opacity: 0; display: none; visibility: hidden; }
           }
 
-          /* 카드 뒤 오로라 후광 - 등장 → 펄스 → 폭발 시 완전 사라짐 */
           .card-aurora-glow {
             opacity: 0;
             animation:
@@ -607,23 +656,12 @@ export default function Home() {
             0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
             50% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
           }
-          /* 폭발 시 - 완전히 사라짐 */
           @keyframes auroraGlowFinalHide {
             0% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
-            40% {
-              opacity: 1;
-              transform: translate(-50%, -50%) scale(1.6);
-              filter: brightness(2);
-            }
-            100% {
-              opacity: 0;
-              transform: translate(-50%, -50%) scale(2.2);
-              filter: brightness(3);
-              visibility: hidden;
-            }
+            40% { opacity: 1; transform: translate(-50%, -50%) scale(1.6); filter: brightness(2); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(2.2); filter: brightness(3); visibility: hidden; }
           }
 
-          /* ⭐ 카드 한 장 (1.4초 등장 → 3.6초 폭발) */
           .cube-inner-card {
             animation:
               cubeInnerCardEnter 1s ease-out 1.4s forwards,
@@ -631,72 +669,32 @@ export default function Home() {
               cubeInnerCardExplode 0.6s ease-in 3.6s forwards;
           }
           @keyframes cubeInnerCardEnter {
-            0% {
-              opacity: 0;
-              transform: translate(-50%, -50%) scale(0) rotate(-180deg);
-            }
-            60% {
-              opacity: 1;
-              transform: translate(-50%, -50%) scale(1.15) rotate(10deg);
-            }
-            100% {
-              opacity: 1;
-              transform: translate(-50%, -50%) scale(1) rotate(0deg);
-            }
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0) rotate(-180deg); }
+            60% { opacity: 1; transform: translate(-50%, -50%) scale(1.15) rotate(10deg); }
+            100% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0deg); }
           }
           @keyframes cubeInnerCardPulse {
-            0%, 100% {
-              box-shadow: 0 0 30px ${S.cyan}, 0 0 60px ${S.cyan}88, inset 0 0 20px rgba(255,255,255,0.3);
-            }
-            50% {
-              box-shadow: 0 0 50px #FFFFFF, 0 0 90px ${S.cyan}, inset 0 0 30px rgba(255,255,255,0.6);
-            }
+            0%, 100% { box-shadow: 0 0 30px ${S.cyan}, 0 0 60px ${S.cyan}88, inset 0 0 20px rgba(255,255,255,0.3); }
+            50% { box-shadow: 0 0 50px #FFFFFF, 0 0 90px ${S.cyan}, inset 0 0 30px rgba(255,255,255,0.6); }
           }
           @keyframes cubeInnerCardExplode {
-            0% {
-              opacity: 1;
-              transform: translate(-50%, -50%) scale(1);
-              filter: brightness(1);
-            }
-            100% {
-              opacity: 0;
-              transform: translate(-50%, -50%) scale(2.5);
-              filter: brightness(8);
-            }
-          }
-
-          @keyframes centralBlast {
-            0% { opacity: 0; width: 20px; height: 20px; }
-            30% { opacity: 1; width: ${isMobile ? '400px' : '600px'}; height: ${isMobile ? '400px' : '600px'}; }
-            100% { opacity: 0; width: ${isMobile ? '500px' : '800px'}; height: ${isMobile ? '500px' : '800px'}; }
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(1); filter: brightness(1); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(2.5); filter: brightness(8); }
           }
 
           @keyframes cardElegantSpread {
-            0% {
-              opacity: 0;
-              transform: translate(-50%, -50%) scale(0.3) rotate(0deg);
-            }
-            15% {
-              opacity: 1;
-              transform: translate(-50%, -50%) scale(1.1) rotate(0deg);
-            }
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3) rotate(0deg); }
+            15% { opacity: 1; transform: translate(-50%, -50%) scale(1.1) rotate(0deg); }
             60% {
               opacity: 1;
-              transform: 
-                translate(calc(-50% + var(--final-x) * 0.85), calc(-50% + var(--final-y) * 0.85))
-                scale(1.05)
-                rotate(calc(var(--final-rotate) * 0.85));
+              transform: translate(calc(-50% + var(--final-x) * 0.85), calc(-50% + var(--final-y) * 0.85)) scale(1.05) rotate(calc(var(--final-rotate) * 0.85));
             }
             100% {
               opacity: 1;
-              transform: 
-                translate(calc(-50% + var(--final-x)), calc(-50% + var(--final-y)))
-                scale(1)
-                rotate(var(--final-rotate));
+              transform: translate(calc(-50% + var(--final-x)), calc(-50% + var(--final-y))) scale(1) rotate(var(--final-rotate));
             }
           }
 
-          /* ⭐ C: 카드들 어두워졌다 다시 밝아짐 (4~7초) */
           @keyframes cardDimAndBrighten {
             0% { filter: brightness(1); }
             30% { filter: brightness(0.4); }
@@ -705,109 +703,46 @@ export default function Home() {
           }
 
           @keyframes particleBurst {
-            0% {
-              opacity: 1;
-              transform: translate(-50%, -50%) scale(1);
-            }
-            20% {
-              opacity: 1;
-              transform: translate(
-                calc(-50% + var(--burst-x) * 0.3),
-                calc(-50% + var(--burst-y) * 0.3)
-              ) scale(1.5);
-            }
-            100% {
-              opacity: 0;
-              transform: translate(
-                calc(-50% + var(--burst-x)),
-                calc(-50% + var(--burst-y))
-              ) scale(0.3);
-            }
+            0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            20% { opacity: 1; transform: translate(calc(-50% + var(--burst-x) * 0.3), calc(-50% + var(--burst-y) * 0.3)) scale(1.5); }
+            100% { opacity: 0; transform: translate(calc(-50% + var(--burst-x)), calc(-50% + var(--burst-y))) scale(0.3); }
           }
 
           @keyframes introLogoFade {
-            0% {
-              opacity: 0;
-              transform: scale(0.92);
-            }
-            100% {
-              opacity: 1;
-              transform: scale(1);
-            }
+            0% { opacity: 0; transform: scale(0.92); }
+            100% { opacity: 1; transform: scale(1); }
           }
 
-          /* ⭐⭐⭐ SIGNAL 로고 글로우 펄스 (등장 후 천천히) ⭐⭐⭐ */
           .logo-glow-text {
             animation: logoGlowPulse 3s ease-in-out 8s infinite;
           }
           @keyframes logoGlowPulse {
-            0%, 100% {
-              text-shadow:
-                0 0 20px #FFFFFFAA,
-                0 0 40px #06B6D488,
-                0 0 80px #8B5CF666,
-                0 0 120px #3B82F644;
-            }
-            50% {
-              text-shadow:
-                0 0 30px #FFFFFFFF,
-                0 0 60px #06B6D4DD,
-                0 0 100px #8B5CF688,
-                0 0 160px #3B82F666;
-            }
+            0%, 100% { text-shadow: 0 0 20px #FFFFFFAA, 0 0 40px #06B6D488, 0 0 80px #8B5CF666, 0 0 120px #3B82F644; }
+            50% { text-shadow: 0 0 30px #FFFFFFFF, 0 0 60px #06B6D4DD, 0 0 100px #8B5CF688, 0 0 160px #3B82F666; }
           }
 
-          /* ⭐⭐⭐ 새 시퀀스: 큐브→로고 변환 ⭐⭐⭐ */
-
-          /* ⭐ 작은 빛 폭발 (scale 방식 - GPU 가속) */
           .light-burst {
             transform: translate(-50%, -50%) scale(0.05);
             animation: lightBurstScale 0.8s ease-out 6.5s forwards;
           }
           @keyframes lightBurstScale {
-            0% {
-              opacity: 0;
-              transform: translate(-50%, -50%) scale(0.05);
-            }
-            40% {
-              opacity: 1;
-              transform: translate(-50%, -50%) scale(0.7);
-            }
-            100% {
-              opacity: 0;
-              transform: translate(-50%, -50%) scale(1);
-            }
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.05); }
+            40% { opacity: 1; transform: translate(-50%, -50%) scale(0.7); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
           }
 
-          /* ⭐ 거대한 오로라 후광 (scale 방식 - GPU 가속, 부드러움) */
           .aurora-halo {
             transform: translate(-50%, -50%) scale(0.05);
             animation: auroraHaloScale 2.2s ease-out 6.7s forwards;
           }
           @keyframes auroraHaloScale {
-            0% {
-              opacity: 0;
-              transform: translate(-50%, -50%) scale(0.05);
-            }
-            25% {
-              opacity: 0.5;
-              transform: translate(-50%, -50%) scale(0.4);
-            }
-            50% {
-              opacity: 1;
-              transform: translate(-50%, -50%) scale(0.75);
-            }
-            75% {
-              opacity: 0.9;
-              transform: translate(-50%, -50%) scale(0.92);
-            }
-            100% {
-              opacity: 0.7;
-              transform: translate(-50%, -50%) scale(1);
-            }
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.05); }
+            25% { opacity: 0.5; transform: translate(-50%, -50%) scale(0.4); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(0.75); }
+            75% { opacity: 0.9; transform: translate(-50%, -50%) scale(0.92); }
+            100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
           }
 
-          /* 오로라 배경 페이드 인 */
           @keyframes auroraBackgroundFadeIn {
             0% { opacity: 0; }
             100% { opacity: 1; }
@@ -826,9 +761,6 @@ export default function Home() {
         filter: exiting ? 'blur(8px)' : 'blur(0)',
       }}>
 
-      {/* ⭐⭐⭐ 오로라 배경 ⭐⭐⭐ */}
-
-      {/* 메시 그라디언트 (오로라) */}
       <div className="fixed inset-0 pointer-events-none"
         style={{
           background: `
@@ -838,47 +770,25 @@ export default function Home() {
           `,
         }} />
 
-      {/* 빛 신호 4개 (오로라 색) */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
         <div className="absolute landing-signal-1"
-          style={{
-            top: '15%',
-            left: 0,
-            width: '100px',
-            height: '2px',
+          style={{ top: '15%', left: 0, width: '100px', height: '2px',
             background: `linear-gradient(90deg, transparent, #06B6D4, transparent)`,
-            boxShadow: `0 0 14px #06B6D4, 0 0 28px #06B6D466`,
-          }} />
+            boxShadow: `0 0 14px #06B6D4, 0 0 28px #06B6D466` }} />
         <div className="absolute landing-signal-2"
-          style={{
-            top: '45%',
-            right: 0,
-            width: '120px',
-            height: '2px',
+          style={{ top: '45%', right: 0, width: '120px', height: '2px',
             background: `linear-gradient(90deg, transparent, #8B5CF6, transparent)`,
-            boxShadow: `0 0 14px #8B5CF6, 0 0 28px #8B5CF666`,
-          }} />
+            boxShadow: `0 0 14px #8B5CF6, 0 0 28px #8B5CF666` }} />
         <div className="absolute landing-signal-3"
-          style={{
-            top: '78%',
-            left: 0,
-            width: '90px',
-            height: '2px',
+          style={{ top: '78%', left: 0, width: '90px', height: '2px',
             background: `linear-gradient(90deg, transparent, #3B82F6, transparent)`,
-            boxShadow: `0 0 14px #3B82F6, 0 0 28px #3B82F666`,
-          }} />
+            boxShadow: `0 0 14px #3B82F6, 0 0 28px #3B82F666` }} />
         <div className="absolute landing-signal-vertical"
-          style={{
-            left: '15%',
-            top: 0,
-            width: '2px',
-            height: '80px',
+          style={{ left: '15%', top: 0, width: '2px', height: '80px',
             background: `linear-gradient(180deg, transparent, #06B6D4, transparent)`,
-            boxShadow: `0 0 14px #06B6D4, 0 0 28px #06B6D466`,
-          }} />
+            boxShadow: `0 0 14px #06B6D4, 0 0 28px #06B6D466` }} />
       </div>
 
-      {/* 떠다니는 빛 입자 (오로라 색) */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
         {Array.from({ length: 18 }).map((_, i) => {
           const colors = ['#06B6D4', '#8B5CF6', '#3B82F6', '#C1E8EB'];
@@ -890,10 +800,8 @@ export default function Home() {
           return (
             <div key={i} className="absolute rounded-full landing-particle"
               style={{
-                left: `${left}%`,
-                top: `${top}%`,
-                width: `${size}px`,
-                height: `${size}px`,
+                left: `${left}%`, top: `${top}%`,
+                width: `${size}px`, height: `${size}px`,
                 background: colors[i % 4],
                 boxShadow: `0 0 ${size * 4}px ${colors[i % 4]}`,
                 animationDuration: `${duration}s`,
@@ -903,7 +811,6 @@ export default function Home() {
         })}
       </div>
 
-      {/* 로고 뒤 거대한 오로라 글로우 */}
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] md:w-[700px] h-[400px] md:h-[700px] rounded-full pointer-events-none"
         style={{
           background: `radial-gradient(circle, #06B6D415 0%, #8B5CF60D 40%, transparent 70%)`,
@@ -943,25 +850,14 @@ export default function Home() {
                 boxShadow: `0 4px 20px ${CARD_COLORS[id].bg}66, 0 0 24px ${CARD_COLORS[id].bg}44`,
                 animationDelay: `${i * 0.3}s`,
               }}>
-              {/* 사이버 회로 패턴 (홀로그램) */}
               <div className="absolute inset-0 pointer-events-none opacity-30"
                 style={{
-                  backgroundImage: `
-                    linear-gradient(90deg, rgba(255,255,255,0.3) 1px, transparent 1px),
-                    linear-gradient(0deg, rgba(255,255,255,0.3) 1px, transparent 1px)
-                  `,
+                  backgroundImage: `linear-gradient(90deg, rgba(255,255,255,0.3) 1px, transparent 1px), linear-gradient(0deg, rgba(255,255,255,0.3) 1px, transparent 1px)`,
                   backgroundSize: '8px 8px',
                 }} />
-
-              {/* 사선 회로 라인 */}
               <div className="absolute inset-0 pointer-events-none opacity-40"
-                style={{
-                  backgroundImage: `
-                    linear-gradient(135deg, transparent 30%, rgba(255,255,255,0.2) 50%, transparent 70%)
-                  `,
-                }} />
+                style={{ backgroundImage: `linear-gradient(135deg, transparent 30%, rgba(255,255,255,0.2) 50%, transparent 70%)` }} />
 
-              {/* 4모서리 사이버 코너 */}
               <span className="absolute top-1 left-1 w-2 h-[1.5px] bg-white/80" style={{ boxShadow: '0 0 4px white' }} />
               <span className="absolute top-1 left-1 w-[1.5px] h-2 bg-white/80" style={{ boxShadow: '0 0 4px white' }} />
               <span className="absolute top-1 right-1 w-2 h-[1.5px] bg-white/80" style={{ boxShadow: '0 0 4px white' }} />
@@ -971,7 +867,6 @@ export default function Home() {
               <span className="absolute bottom-1 right-1 w-2 h-[1.5px] bg-white/80" style={{ boxShadow: '0 0 4px white' }} />
               <span className="absolute bottom-1 right-1 w-[1.5px] h-2 bg-white/80" style={{ boxShadow: '0 0 4px white' }} />
 
-              {/* 스캔라인 효과 (위→아래 가로 빛) */}
               <div className="absolute left-0 right-0 pointer-events-none cyber-card-scanline"
                 style={{
                   height: '6px',
@@ -980,7 +875,6 @@ export default function Home() {
                   animationDelay: `${i * 0.6}s`,
                 }} />
 
-              {/* 카드 번호 */}
               <div className="absolute inset-0 flex items-center justify-center text-white text-[10px] md:text-[11px] font-black font-mono z-10"
                 style={{ textShadow: '0 0 8px rgba(255,255,255,0.8), 0 0 16px rgba(255,255,255,0.4)' }}>
                 {id}
@@ -1029,13 +923,8 @@ export default function Home() {
       </div>
 
       <style jsx>{`
-        /* ⭐ 빛 신호 흐름 */
-        .landing-signal-1 {
-          animation: landingSignalRight 5s linear infinite;
-        }
-        .landing-signal-3 {
-          animation: landingSignalRight 7s linear infinite 1.5s;
-        }
+        .landing-signal-1 { animation: landingSignalRight 5s linear infinite; }
+        .landing-signal-3 { animation: landingSignalRight 7s linear infinite 1.5s; }
         @keyframes landingSignalRight {
           0% { transform: translateX(-100px); opacity: 0; }
           10% { opacity: 1; }
@@ -1043,9 +932,7 @@ export default function Home() {
           100% { transform: translateX(100vw); opacity: 0; }
         }
 
-        .landing-signal-2 {
-          animation: landingSignalLeft 6s linear infinite 0.5s;
-        }
+        .landing-signal-2 { animation: landingSignalLeft 6s linear infinite 0.5s; }
         @keyframes landingSignalLeft {
           0% { transform: translateX(120px); opacity: 0; }
           10% { opacity: 1; }
@@ -1053,9 +940,7 @@ export default function Home() {
           100% { transform: translateX(-100vw); opacity: 0; }
         }
 
-        .landing-signal-vertical {
-          animation: landingSignalDown 6s linear infinite;
-        }
+        .landing-signal-vertical { animation: landingSignalDown 6s linear infinite; }
         @keyframes landingSignalDown {
           0% { transform: translateY(-80px); opacity: 0; }
           10% { opacity: 1; }
@@ -1063,7 +948,6 @@ export default function Home() {
           100% { transform: translateY(100vh); opacity: 0; }
         }
 
-        /* 떠다니는 입자 */
         .landing-particle {
           animation-name: landingParticleTwinkle;
           animation-iteration-count: infinite;
@@ -1074,91 +958,44 @@ export default function Home() {
           50% { opacity: 1; transform: scale(1.5); }
         }
 
-        /* ⭐ 사이버 미니 카드 (5장) - 스캔라인 흐름 */
-        .cyber-card-scanline {
-          animation: cardScanlineFlow 3s ease-in-out infinite;
-          top: 0;
-          opacity: 0;
-        }
+        .cyber-card-scanline { animation: cardScanlineFlow 3s ease-in-out infinite; top: 0; opacity: 0; }
         @keyframes cardScanlineFlow {
-          0% {
-            top: -10%;
-            opacity: 0;
-          }
-          15% {
-            opacity: 1;
-          }
-          85% {
-            opacity: 1;
-          }
-          100% {
-            top: 110%;
-            opacity: 0;
-          }
+          0% { top: -10%; opacity: 0; }
+          15% { opacity: 1; }
+          85% { opacity: 1; }
+          100% { top: 110%; opacity: 0; }
         }
 
-        /* ⭐ 메인 버튼 - 자체 펄스 글로우 */
-        .cyber-btn-primary {
-          animation: cyberPrimaryPulse 2.5s ease-in-out infinite;
-        }
+        .cyber-btn-primary { animation: cyberPrimaryPulse 2.5s ease-in-out infinite; }
         @keyframes cyberPrimaryPulse {
-          0%, 100% {
-            box-shadow: 0 10px 30px -5px ${S.green}66, 0 0 30px ${S.green}55;
-          }
-          50% {
-            box-shadow: 0 10px 40px -5px ${S.green}88, 0 0 50px ${S.green}88;
-          }
+          0%, 100% { box-shadow: 0 10px 30px -5px ${S.green}66, 0 0 30px ${S.green}55; }
+          50% { box-shadow: 0 10px 40px -5px ${S.green}88, 0 0 50px ${S.green}88; }
         }
 
-        /* ⭐ 보조 버튼 - 사이안 펄스 */
-        .cyber-btn-secondary {
-          animation: cyberSecondaryPulse 3s ease-in-out infinite;
-        }
+        .cyber-btn-secondary { animation: cyberSecondaryPulse 3s ease-in-out infinite; }
         @keyframes cyberSecondaryPulse {
-          0%, 100% {
-            box-shadow: 0 0 20px #06B6D422, inset 0 0 12px #06B6D411;
-          }
-          50% {
-            box-shadow: 0 0 30px #06B6D466, inset 0 0 16px #06B6D422;
-          }
+          0%, 100% { box-shadow: 0 0 20px #06B6D422, inset 0 0 12px #06B6D411; }
+          50% { box-shadow: 0 0 30px #06B6D466, inset 0 0 16px #06B6D422; }
         }
 
-        /* ⭐ 가이드 버튼 - 보라 펄스 */
-        .cyber-btn-tertiary {
-          animation: cyberTertiaryPulse 3.5s ease-in-out infinite;
-        }
+        .cyber-btn-tertiary { animation: cyberTertiaryPulse 3.5s ease-in-out infinite; }
         @keyframes cyberTertiaryPulse {
-          0%, 100% {
-            box-shadow: 0 0 20px #8B5CF622, inset 0 0 12px #8B5CF611;
-          }
-          50% {
-            box-shadow: 0 0 30px #8B5CF666, inset 0 0 16px #8B5CF622;
-          }
+          0%, 100% { box-shadow: 0 0 20px #8B5CF622, inset 0 0 12px #8B5CF611; }
+          50% { box-shadow: 0 0 30px #8B5CF666, inset 0 0 16px #8B5CF622; }
         }
 
         .btn-orbit::before {
           content: '';
           position: absolute;
-          top: -2px;
-          left: -2px;
-          right: -2px;
-          bottom: -2px;
+          top: -2px; left: -2px; right: -2px; bottom: -2px;
           border-radius: 16px;
-          background: conic-gradient(
-            from 0deg,
-            transparent 0deg,
-            rgba(255, 255, 255, 0.6) 30deg,
-            transparent 60deg,
-            transparent 360deg
-          );
+          background: conic-gradient(from 0deg, transparent 0deg, rgba(255, 255, 255, 0.6) 30deg, transparent 60deg, transparent 360deg);
           animation: btnOrbit 3s linear infinite;
           z-index: 0;
           opacity: 0;
           transition: opacity 0.3s;
         }
-        .btn-orbit:hover::before {
-          opacity: 1;
-        }
+        .btn-orbit:hover::before { opacity: 1; }
         .btn-orbit::after {
           content: '';
           position: absolute;
@@ -1167,31 +1004,20 @@ export default function Home() {
           background: ${S.green};
           z-index: 1;
         }
-        .btn-orbit > * {
-          position: relative;
-          z-index: 2;
-        }
+        .btn-orbit > * { position: relative; z-index: 2; }
 
         .btn-orbit-aqua::before {
           content: '';
           position: absolute;
           inset: 0;
           border-radius: 16px;
-          background: conic-gradient(
-            from 0deg,
-            transparent 0deg,
-            #06B6D488 30deg,
-            transparent 60deg,
-            transparent 360deg
-          );
+          background: conic-gradient(from 0deg, transparent 0deg, #06B6D488 30deg, transparent 60deg, transparent 360deg);
           animation: btnOrbit 4s linear infinite;
           opacity: 0;
           transition: opacity 0.3s;
           z-index: 0;
         }
-        .btn-orbit-aqua:hover::before {
-          opacity: 1;
-        }
+        .btn-orbit-aqua:hover::before { opacity: 1; }
 
         @keyframes btnOrbit {
           0% { transform: rotate(0deg); }
@@ -1200,7 +1026,6 @@ export default function Home() {
       `}</style>
     </div>
   );
-
   if (screen === 'guide') return (
     <div className="min-h-screen px-3 md:px-4 py-4 md:py-6 overflow-auto">
       <div className="max-w-2xl mx-auto">
@@ -1237,9 +1062,6 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col items-center px-3 md:px-4 py-3 md:py-4 relative overflow-hidden">
 
-      {/* ⭐⭐⭐ 오로라 배경 ⭐⭐⭐ */}
-
-      {/* 메시 그라디언트 */}
       <div className="fixed inset-0 pointer-events-none"
         style={{
           background: `
@@ -1250,7 +1072,6 @@ export default function Home() {
           zIndex: 0,
         }} />
 
-      {/* 떠다니는 빛 입자 */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
         {Array.from({ length: 14 }).map((_, i) => {
           const colors = [S.cyan, S.purple, S.blue];
@@ -1262,10 +1083,8 @@ export default function Home() {
           return (
             <div key={i} className="absolute rounded-full game-particle"
               style={{
-                left: `${left}%`,
-                top: `${top}%`,
-                width: `${size}px`,
-                height: `${size}px`,
+                left: `${left}%`, top: `${top}%`,
+                width: `${size}px`, height: `${size}px`,
                 background: colors[i % 3],
                 boxShadow: `0 0 ${size * 4}px ${colors[i % 3]}`,
                 animationDuration: `${duration}s`,
@@ -1275,7 +1094,6 @@ export default function Home() {
         })}
       </div>
 
-      {/* 카드 색깔 글로우 (현재 카드 컬러 따라감) */}
       <div className="fixed top-[20%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 md:w-96 md:h-96 rounded-full pointer-events-none"
         style={{ background: `radial-gradient(circle, ${color}25 0%, transparent 70%)`, zIndex: 1 }} />
 
@@ -1428,6 +1246,13 @@ export default function Home() {
           displayItem={displayItem}
           level={level}
           minChars={lv.minChars}
+          teamId={teamId || ''}
+          myMemberId={myMemberId}
+          myRoleCode={roleCode}
+          teamMembers={teamMembers}
+          memberInsights={memberInsights}
+          subCardLocks={subCardLocks}
+          onLeaderCompleteSubCard={handleLeaderCompleteSubCard}
         />
       </div>
 
@@ -1487,7 +1312,6 @@ export default function Home() {
       )}
 
       <style jsx>{`
-        /* 떠다니는 입자 */
         .game-particle {
           animation-name: gameParticleTwinkle;
           animation-iteration-count: infinite;
