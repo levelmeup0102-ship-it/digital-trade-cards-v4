@@ -42,7 +42,7 @@ interface SignalCardProps {
   teamId: string;
   myMemberId: string;
   myRoleCode: RoleCode | null;
-  teamMembers: Array<{ id: string; name: string; is_leader: boolean; role_code: string | null | undefined }>;
+  teamMembers: Array<{ id: string; name: string; is_leader: boolean; role_code?: string | null }>;
   memberInsights: MemberInsight[];
   subCardLocks: SubCardLock[];
   onLeaderCompleteSubCard: (subCardId: string) => Promise<void>;
@@ -502,7 +502,7 @@ interface LeaderQViewProps {
   displayItem: string;
   minChars: number;
   memberInsights: MemberInsight[];
-  teamMembers: Array<{ id: string; name: string; is_leader: boolean; role_code: string | null | undefined }>;
+  teamMembers: Array<{ id: string; name: string; is_leader: boolean; role_code?: string | null }>;
   allMembersDone: boolean;
   isCurrentSubCompleted: boolean;
   canComplete: boolean;
@@ -655,7 +655,7 @@ interface SidebarProps {
   subId: string;
   color: string;
   memberInsights: MemberInsight[];
-  teamMembers: Array<{ id: string; name: string; is_leader: boolean; role_code: string | null | undefined }>;
+  teamMembers: Array<{ id: string; name: string; is_leader: boolean; role_code?: string | null }>;
   onClose: () => void;
 }
 
