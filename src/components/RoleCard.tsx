@@ -69,16 +69,6 @@ export default function RoleCard({ role, memberName, isMobile, isCompact }: Role
         </span>
       </div>
 
-      {/* 4모서리 ㄱ자 코너 */}
-      <span className="absolute top-0 left-0 w-3 h-3 pointer-events-none"
-        style={{ borderTop: `2px solid ${role.color}`, borderLeft: `2px solid ${role.color}` }} />
-      <span className="absolute top-0 right-0 w-3 h-3 pointer-events-none"
-        style={{ borderTop: `2px solid ${role.color}`, borderRight: `2px solid ${role.color}` }} />
-      <span className="absolute bottom-0 left-0 w-3 h-3 pointer-events-none"
-        style={{ borderBottom: `2px solid ${role.color}`, borderLeft: `2px solid ${role.color}` }} />
-      <span className="absolute bottom-0 right-0 w-3 h-3 pointer-events-none"
-        style={{ borderBottom: `2px solid ${role.color}`, borderRight: `2px solid ${role.color}` }} />
-
       {/* 이미지 영역 */}
       <div className="flex justify-center pt-3 pb-2 relative">
         {/* 이미지 뒤 글로우 */}
