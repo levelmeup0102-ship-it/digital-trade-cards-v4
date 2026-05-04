@@ -70,13 +70,9 @@ const PARTICLES = Array.from({ length: 15 }, (_, i) => ({
 
 type Step = 'code' | 'confirm' | 'select' | 'leader-setup' | 'waiting' | 'countdown' | 'welcome';
 
-// ⭐ 리플 효과 타입
 type Ripple = { id: number; x: number; y: number; key: string };
-
-// ⭐ 클릭 시 빛 입자 터짐 타입
 type BurstEffect = { id: number; key: string };
 
-// ⭐ 인터랙티브 버튼 컴포넌트 — 오로라 파동만
 function InteractiveButton({
   isSelected,
   onClick,
@@ -98,19 +94,11 @@ function InteractiveButton({
   const [auroraOpacity, setAuroraOpacity] = useState(0);
 
   const handleClick = () => {
-    // 오로라 펄스 (JS로 직접 opacity 제어 - CSS 의존 없음)
     setAuroraWave(true);
     setAuroraOpacity(0);
-
-    // 진해짐 (transition으로 1초간)
     setTimeout(() => setAuroraOpacity(1), 50);
-
-    // 사라짐 (transition으로 1초간)
     setTimeout(() => setAuroraOpacity(0), 1500);
-
-    // div 제거
     setTimeout(() => setAuroraWave(false), 2500);
-
     onClick();
   };
 
@@ -118,13 +106,10 @@ function InteractiveButton({
     <button onClick={handleClick}
       className={`relative overflow-hidden interactive-btn ${isSelected ? 'is-selected' : ''} ${className || ''}`}
       style={style}>
-      {/* 호버 시 빛 흐름 (광택) */}
       <span className="absolute inset-0 -translate-x-full hover-shine pointer-events-none"
         style={{
           background: `linear-gradient(90deg, transparent 0%, ${color}55 50%, transparent 100%)`,
         }} />
-
-      {/* ⭐ 오로라 펄스 (JS state로 opacity 직접 제어) */}
       {auroraWave && (
         <div className="absolute inset-0 pointer-events-none"
           style={{
@@ -135,7 +120,6 @@ function InteractiveButton({
             transition: 'opacity 1s ease-in-out',
           }} />
       )}
-
       <span className="relative z-10">{children}</span>
     </button>
   );
@@ -148,7 +132,6 @@ export default function StudentJoin() {
   const [codeError, setCodeError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // 모바일 감지
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768);
@@ -157,7 +140,6 @@ export default function StudentJoin() {
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  // ⭐ 캐릭터 이미지 미리 로드 (페이지 진입 즉시 백그라운드 다운로드)
   useEffect(() => {
     const imageUrls = [
       '/roles/ceo.jpg',
@@ -186,7 +168,6 @@ export default function StudentJoin() {
 
   const [waitingMsgIdx, setWaitingMsgIdx] = useState(0);
 
-  // 카운트다운 (5→4→3→2→1→0)
   const [countdown, setCountdown] = useState(5);
   const [recentJoiners, setRecentJoiners] = useState<TeamMember[]>([]);
   const previousMembersRef = useRef<Set<string>>(new Set());
@@ -199,7 +180,6 @@ export default function StudentJoin() {
     return () => clearInterval(interval);
   }, [step]);
 
-  // ⭐ 카운트다운 - 5초마다 줄어들고 0이 되면 welcome으로
   useEffect(() => {
     if (step !== 'countdown') return;
     setCountdown(5);
@@ -207,7 +187,6 @@ export default function StudentJoin() {
       setCountdown(prev => {
         if (prev <= 1) {
           clearInterval(interval);
-          // 0초 보여주고 0.7초 후 welcome으로
           setTimeout(() => setStep('welcome'), 700);
           return 0;
         }
@@ -357,6 +336,7 @@ export default function StudentJoin() {
 
     localStorage.setItem('dtc_session_token_v2', JSON.stringify({
       teamId: team.id,
+      teamName: team.name,
       memberId: selectedMember.id,
       memberName: selectedMember.name,
       isLeader: selectedMember.is_leader,
@@ -386,6 +366,7 @@ export default function StudentJoin() {
 
     localStorage.setItem('dtc_session_token_v2', JSON.stringify({
       teamId: team.id,
+      teamName: team.name,
       memberId: selectedMember.id,
       memberName: selectedMember.name,
       isLeader: selectedMember.is_leader,
@@ -395,7 +376,6 @@ export default function StudentJoin() {
       roleCode: myRole,
     }));
 
-    // 카운트다운 시작!
     setStep('countdown');
   };
 
@@ -415,53 +395,33 @@ export default function StudentJoin() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8 relative overflow-hidden">
 
-      {/* ⭐⭐⭐ 사이버틱 배경 효과 ⭐⭐⭐ */}
-
-      {/* ⭐ 빛나며 흐르는 회로 신호 (펄스 - 가로 방향) */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
-        {/* 신호 1 — 위쪽 */}
         <div className="absolute circuit-signal-1"
           style={{
-            top: '15%',
-            left: 0,
-            width: '80px',
-            height: '2px',
+            top: '15%', left: 0, width: '80px', height: '2px',
             background: `linear-gradient(90deg, transparent, ${S.green}, transparent)`,
             boxShadow: `0 0 12px ${S.green}, 0 0 20px ${S.green}66`,
           }} />
-        {/* 신호 2 — 중간 */}
         <div className="absolute circuit-signal-2"
           style={{
-            top: '50%',
-            right: 0,
-            width: '100px',
-            height: '2px',
+            top: '50%', right: 0, width: '100px', height: '2px',
             background: `linear-gradient(90deg, transparent, ${S.aqua}, transparent)`,
             boxShadow: `0 0 12px ${S.aqua}, 0 0 20px ${S.aqua}66`,
           }} />
-        {/* 신호 3 — 아래 */}
         <div className="absolute circuit-signal-3"
           style={{
-            top: '80%',
-            left: 0,
-            width: '60px',
-            height: '2px',
+            top: '80%', left: 0, width: '60px', height: '2px',
             background: `linear-gradient(90deg, transparent, ${S.green}, transparent)`,
             boxShadow: `0 0 12px ${S.green}, 0 0 20px ${S.green}66`,
           }} />
-        {/* 신호 4 — 세로 방향 */}
         <div className="absolute circuit-signal-vertical"
           style={{
-            left: '20%',
-            top: 0,
-            width: '2px',
-            height: '60px',
+            left: '20%', top: 0, width: '2px', height: '60px',
             background: `linear-gradient(180deg, transparent, ${S.aqua}, transparent)`,
             boxShadow: `0 0 12px ${S.aqua}, 0 0 20px ${S.aqua}66`,
           }} />
       </div>
 
-      {/* 메시 그라디언트 */}
       <div className="fixed inset-0 pointer-events-none"
         style={{
           background: `
@@ -471,14 +431,12 @@ export default function StudentJoin() {
           `,
         }} />
 
-      {/* 스캔라인 (위→아래) */}
       <div className="fixed inset-0 pointer-events-none scanline"
         style={{
           background: `linear-gradient(to bottom, transparent 0%, ${S.green}06 50%, transparent 100%)`,
           height: '120px',
         }} />
 
-      {/* 네온 입자 별들 */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         {Array.from({ length: 20 }).map((_, i) => {
           const colors = [S.green, S.aqua, '#C1A8F0'];
@@ -490,10 +448,8 @@ export default function StudentJoin() {
           return (
             <div key={i} className="absolute rounded-full neon-particle"
               style={{
-                left: `${left}%`,
-                top: `${top}%`,
-                width: `${size}px`,
-                height: `${size}px`,
+                left: `${left}%`, top: `${top}%`,
+                width: `${size}px`, height: `${size}px`,
                 background: colors[i % 3],
                 boxShadow: `0 0 ${size * 4}px ${colors[i % 3]}`,
                 animationDuration: `${duration}s`,
@@ -503,28 +459,24 @@ export default function StudentJoin() {
         })}
       </div>
 
-      {/* 코너 HUD 장식 (좌상) */}
       <div className="fixed top-4 left-4 pointer-events-none z-0">
         <div className="w-12 h-12 relative">
           <div className="absolute top-0 left-0 w-6 h-[2px]" style={{ background: S.green, boxShadow: `0 0 8px ${S.green}` }} />
           <div className="absolute top-0 left-0 w-[2px] h-6" style={{ background: S.green, boxShadow: `0 0 8px ${S.green}` }} />
         </div>
       </div>
-      {/* 코너 HUD 장식 (우상) */}
       <div className="fixed top-4 right-4 pointer-events-none z-0">
         <div className="w-12 h-12 relative">
           <div className="absolute top-0 right-0 w-6 h-[2px]" style={{ background: S.aqua, boxShadow: `0 0 8px ${S.aqua}` }} />
           <div className="absolute top-0 right-0 w-[2px] h-6" style={{ background: S.aqua, boxShadow: `0 0 8px ${S.aqua}` }} />
         </div>
       </div>
-      {/* 코너 HUD 장식 (좌하) */}
       <div className="fixed bottom-4 left-4 pointer-events-none z-0">
         <div className="w-12 h-12 relative">
           <div className="absolute bottom-0 left-0 w-6 h-[2px]" style={{ background: S.aqua, boxShadow: `0 0 8px ${S.aqua}` }} />
           <div className="absolute bottom-0 left-0 w-[2px] h-6" style={{ background: S.aqua, boxShadow: `0 0 8px ${S.aqua}` }} />
         </div>
       </div>
-      {/* 코너 HUD 장식 (우하) */}
       <div className="fixed bottom-4 right-4 pointer-events-none z-0">
         <div className="w-12 h-12 relative">
           <div className="absolute bottom-0 right-0 w-6 h-[2px]" style={{ background: S.green, boxShadow: `0 0 8px ${S.green}` }} />
@@ -534,16 +486,13 @@ export default function StudentJoin() {
 
       <div className="w-full max-w-sm relative z-10">
 
-        {/* 로고 — 사이버틱 네온 */}
         <div className="text-center mb-8 relative">
-          {/* 로고 뒤 글로우 */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-32 pointer-events-none"
             style={{
               background: `radial-gradient(ellipse, ${S.green}25 0%, transparent 70%)`,
               filter: 'blur(20px)',
             }} />
 
-          {/* 양쪽 장식 라인 */}
           <div className="flex items-center justify-center gap-3 mb-1.5 relative">
             <div className="flex-1 h-[1px] max-w-[60px]"
               style={{ background: `linear-gradient(90deg, transparent, ${S.green}AA)` }} />
@@ -555,7 +504,6 @@ export default function StudentJoin() {
               style={{ background: `linear-gradient(90deg, ${S.green}AA, transparent)` }} />
           </div>
 
-          {/* SIGNAL — 글리치 효과 */}
           <h1 className="text-5xl font-black text-white tracking-tight relative inline-block glitch-text"
             style={{
               textShadow: `0 0 20px ${S.green}66, 0 0 40px ${S.green}33`,
@@ -573,17 +521,14 @@ export default function StudentJoin() {
           </div>
         </div>
 
-        {/* ── Step 1: 코드 입력 ── */}
         {step === 'code' && (
           <div>
-            {/* Step 카드 — HUD 스타일 */}
             <div className="rounded-2xl p-5 mb-4 relative overflow-hidden cyber-card"
               style={{
                 background: `linear-gradient(135deg, ${S.green}08 0%, ${S.aqua}05 100%)`,
                 border: `1px solid ${S.green}40`,
                 boxShadow: `0 0 30px ${S.green}15, inset 0 0 20px ${S.green}08`,
               }}>
-              {/* 코너 장식 */}
               <div className="absolute top-2 left-2 w-4 h-4 pointer-events-none"
                 style={{ borderTop: `2px solid ${S.green}`, borderLeft: `2px solid ${S.green}` }} />
               <div className="absolute top-2 right-2 w-4 h-4 pointer-events-none"
@@ -637,7 +582,6 @@ export default function StudentJoin() {
           </div>
         )}
 
-        {/* ── Step 2: 팀 확인 ── */}
         {step === 'confirm' && team && (
           <div>
             <div className="rounded-2xl p-5 mb-4" style={{ background: `${S.green}08`, border: `1px solid ${S.green}20` }}>
@@ -674,7 +618,6 @@ export default function StudentJoin() {
           </div>
         )}
 
-        {/* ── Step 3: 이름 선택 ── */}
         {step === 'select' && (
           <div>
             <div className="rounded-2xl p-5 mb-4" style={{ background: `${S.green}08`, border: `1px solid ${S.green}20` }}>
@@ -745,7 +688,6 @@ export default function StudentJoin() {
           </div>
         )}
 
-        {/* ── Step 3.5: 팀장 설정 ── */}
         {step === 'leader-setup' && (
           <div>
             <div className="rounded-2xl p-5 mb-4" style={{ background: `${S.green}08`, border: `1px solid ${S.green}20` }}>
@@ -754,7 +696,6 @@ export default function StudentJoin() {
               <p className="text-[12px] text-gray-500">팀장만 설정할 수 있어요. 팀원들에게도 적용됩니다.</p>
             </div>
 
-            {/* ⭐ ① 아이템 — 인터랙티브 버튼 */}
             <div className="mb-5">
               <p className="text-sm font-bold text-white mb-2">① 팀 아이템 선택</p>
               <div className="grid grid-cols-2 gap-2">
@@ -784,7 +725,6 @@ export default function StudentJoin() {
               )}
             </div>
 
-            {/* ⭐ ② 수준 — 인터랙티브 버튼 */}
             <div className="mb-5">
               <p className="text-sm font-bold text-white mb-2">② 수업 수준</p>
               {Object.entries(LEVELS).map(([k, v]) => (
@@ -806,7 +746,6 @@ export default function StudentJoin() {
               ))}
             </div>
 
-            {/* ③ 직무 */}
             <div className="mb-6">
               <p className="text-sm font-bold text-white mb-1">③ 팀원 직무 배정</p>
               <p className="text-[11px] text-gray-500 mb-3">팀장은 자동으로 CEO입니다. 팀원들의 직무를 정해주세요.</p>
@@ -884,21 +823,17 @@ export default function StudentJoin() {
           </div>
         )}
 
-        {/* 대기실 */}
         {step === 'waiting' && team && selectedMember && (
           <div className="text-center relative">
             <div className="absolute top-12 left-1/2 -translate-x-1/2 pointer-events-none">
               <div className="halo-pulse"
                 style={{
-                  width: '320px',
-                  height: '320px',
-                  borderRadius: '50%',
+                  width: '320px', height: '320px', borderRadius: '50%',
                   background: `radial-gradient(circle, ${S.cyan}25 0%, ${S.purple}15 40%, transparent 70%)`,
                   filter: 'blur(20px)',
                 }} />
             </div>
 
-            {/* 내 직무 카드 (사이버 명함) */}
             <div className="relative z-10 mb-5 flex justify-center">
               {(() => {
                 const myMember = members.find(m => m.id === selectedMember.id);
@@ -907,7 +842,6 @@ export default function StudentJoin() {
                 if (myRole) {
                   return <RoleCard role={myRole} memberName={selectedMember.name} isMobile={isMobile} />;
                 }
-                // 직무 미배정 시 - 사이버 스캔 카드 (살아있는 효과)
                 return (
                   <div className="relative rounded-2xl overflow-hidden waiting-role-card"
                     style={{
@@ -917,43 +851,26 @@ export default function StudentJoin() {
                       border: `2px solid ${S.cyan}66`,
                       boxShadow: `0 0 24px ${S.cyan}33, inset 0 0 20px ${S.cyan}11`,
                     }}>
-
-                    {/* 격자 패턴 배경 */}
                     <div className="absolute inset-0 opacity-30 pointer-events-none"
                       style={{
-                        backgroundImage: `
-                          linear-gradient(${S.cyan}44 1px, transparent 1px),
-                          linear-gradient(90deg, ${S.cyan}44 1px, transparent 1px)
-                        `,
+                        backgroundImage: `linear-gradient(${S.cyan}44 1px, transparent 1px), linear-gradient(90deg, ${S.cyan}44 1px, transparent 1px)`,
                         backgroundSize: '14px 14px',
                       }} />
-
-                    {/* 4모서리 데이터 비트 (깜빡임) */}
-                    <div className="absolute top-2 left-2 font-mono text-[8px] waiting-bit-1"
-                      style={{ color: `${S.cyan}AA` }}>01010111</div>
-                    <div className="absolute top-2 right-2 font-mono text-[8px] waiting-bit-2"
-                      style={{ color: `${S.cyan}AA` }}>10110001</div>
-                    <div className="absolute bottom-2 left-2 font-mono text-[8px] waiting-bit-3"
-                      style={{ color: `${S.cyan}AA` }}>11001010</div>
-                    <div className="absolute bottom-2 right-2 font-mono text-[8px] waiting-bit-4"
-                      style={{ color: `${S.cyan}AA` }}>00101101</div>
-
-                    {/* 스캔라인 (위→아래 흐름) */}
+                    <div className="absolute top-2 left-2 font-mono text-[8px] waiting-bit-1" style={{ color: `${S.cyan}AA` }}>01010111</div>
+                    <div className="absolute top-2 right-2 font-mono text-[8px] waiting-bit-2" style={{ color: `${S.cyan}AA` }}>10110001</div>
+                    <div className="absolute bottom-2 left-2 font-mono text-[8px] waiting-bit-3" style={{ color: `${S.cyan}AA` }}>11001010</div>
+                    <div className="absolute bottom-2 right-2 font-mono text-[8px] waiting-bit-4" style={{ color: `${S.cyan}AA` }}>00101101</div>
                     <div className="absolute left-0 right-0 pointer-events-none waiting-scan-line"
                       style={{
                         height: '3px',
                         background: `linear-gradient(180deg, transparent, ${S.cyan}, transparent)`,
                         boxShadow: `0 0 12px ${S.cyan}, 0 0 24px ${S.cyan}66`,
                       }} />
-
-                    {/* 중앙 컨텐츠 */}
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                      {/* 회전하는 사이버 링 */}
                       <div className="relative mb-3">
                         <div className="rounded-full waiting-ring-outer"
                           style={{
-                            width: '50px',
-                            height: '50px',
+                            width: '50px', height: '50px',
                             border: `2px solid ${S.cyan}`,
                             borderTopColor: 'transparent',
                             borderRightColor: 'transparent',
@@ -961,51 +878,30 @@ export default function StudentJoin() {
                           }} />
                         <div className="absolute inset-0 m-auto rounded-full waiting-ring-inner"
                           style={{
-                            width: '30px',
-                            height: '30px',
-                            top: '10px',
-                            left: '10px',
+                            width: '30px', height: '30px', top: '10px', left: '10px',
                             border: `2px solid ${S.purple}`,
                             borderBottomColor: 'transparent',
                             borderLeftColor: 'transparent',
                             boxShadow: `0 0 10px ${S.purple}`,
                           }} />
-                        {/* 중앙 점 (펄스) */}
                         <div className="absolute inset-0 m-auto rounded-full waiting-center-dot"
                           style={{
-                            width: '8px',
-                            height: '8px',
-                            top: '21px',
-                            left: '21px',
+                            width: '8px', height: '8px', top: '21px', left: '21px',
                             background: S.cyan,
                             boxShadow: `0 0 12px ${S.cyan}, 0 0 24px ${S.cyan}AA`,
                           }} />
                       </div>
-
-                      {/* SCAN 텍스트 + 점 */}
                       <p className="font-mono font-bold tracking-[3px] mb-1 waiting-scan-text"
-                        style={{
-                          fontSize: '11px',
-                          color: S.cyan,
-                          textShadow: `0 0 8px ${S.cyan}`,
-                        }}>
+                        style={{ fontSize: '11px', color: S.cyan, textShadow: `0 0 8px ${S.cyan}` }}>
                         ASSIGNING ROLE
                       </p>
                       <p className="font-mono font-bold tracking-widest waiting-dots"
-                        style={{
-                          fontSize: '14px',
-                          color: S.cyan,
-                          textShadow: `0 0 6px ${S.cyan}`,
-                        }}>
+                        style={{ fontSize: '14px', color: S.cyan, textShadow: `0 0 6px ${S.cyan}` }}>
                         ▰▰▰
                       </p>
                     </div>
-
-                    {/* 글리치 효과 */}
                     <div className="absolute inset-0 pointer-events-none waiting-glitch"
-                      style={{
-                        background: `linear-gradient(90deg, transparent 49%, ${S.cyan}33 50%, transparent 51%)`,
-                      }} />
+                      style={{ background: `linear-gradient(90deg, transparent 49%, ${S.cyan}33 50%, transparent 51%)` }} />
                   </div>
                 );
               })()}
@@ -1039,7 +935,6 @@ export default function StudentJoin() {
               </p>
             </div>
 
-            {/* 팀원 입장 현황 - 직무 표시 */}
             <div className="rounded-xl p-4 mb-4 text-left relative z-10"
               style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${S.cyan}22` }}>
               <p className="text-[10px] font-mono tracking-widest mb-2 font-bold"
@@ -1052,12 +947,10 @@ export default function StudentJoin() {
                   const memberRole = m.role_code ? getRole(m.role_code) : (m.is_leader ? getRole('ceo') : null);
                   return (
                     <div key={m.id} className="flex items-center gap-2.5">
-                      {/* 캐릭터 미니 이미지 */}
                       {memberRole && (
                         <div className="rounded-lg overflow-hidden flex-shrink-0"
                           style={{
-                            width: '32px',
-                            height: '32px',
+                            width: '32px', height: '32px',
                             border: `1.5px solid ${joined ? memberRole.color : 'rgba(255,255,255,0.1)'}`,
                             boxShadow: joined ? `0 0 8px ${memberRole.color}66` : 'none',
                             opacity: joined ? 1 : 0.3,
@@ -1096,7 +989,6 @@ export default function StudentJoin() {
               ⚡ 게임이 시작되면 자동으로 화면이 전환됩니다
             </p>
 
-            {/* 입장 토스트 */}
             <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] flex flex-col gap-2 pointer-events-none">
               {recentJoiners.map(joiner => {
                 const joinerRole = joiner.role_code ? getRole(joiner.role_code) : (joiner.is_leader ? getRole('ceo') : null);
@@ -1126,9 +1018,7 @@ export default function StudentJoin() {
           </div>
         )}
 
-        {/* ⭐ 카운트다운 (5→4→3→2→1→0) */}
         {step === 'countdown' && (() => {
-          // 매 초마다 색상이 바뀜 (5→4→3→2→1→0)
           const colorMap: Record<number, { main: string; glow: string; label: string }> = {
             5: { main: S.cyan,   glow: S.cyan,   label: 'STANDBY' },
             4: { main: S.blue,   glow: S.blue,   label: 'STANDBY' },
@@ -1145,7 +1035,6 @@ export default function StudentJoin() {
             <div className="fixed inset-0 z-[300] flex items-center justify-center"
               style={{ background: 'rgba(0,0,0,0.92)' }}>
 
-              {/* 화면 전체 오로라 펄스 */}
               <div className="fixed inset-0 pointer-events-none"
                 style={{
                   background: `radial-gradient(circle at center, ${c.main}1F 0%, ${c.main}0A 40%, transparent 75%)`,
@@ -1153,18 +1042,14 @@ export default function StudentJoin() {
                   transition: 'background 0.4s ease',
                 }} />
 
-              {/* 카운트다운 컨테이너 */}
               <div className="relative flex items-center justify-center"
                 style={{ width: `${ringSize}px`, height: `${ringSize}px` }}>
 
-                {/* 60개 눈금 (둥글게) */}
                 {Array.from({ length: ticksCount }).map((_, i) => {
-                  // 매 5번째 눈금은 길고 두껍게
                   const isMajor = i % 5 === 0;
                   const tickH = isMajor ? (isMobile ? 16 : 22) : (isMobile ? 8 : 12);
                   const tickW = isMajor ? 3 : 1.5;
                   const angle = (i / ticksCount) * 360;
-
                   return (
                     <div key={i} className="absolute top-1/2 left-1/2 origin-center pointer-events-none countdown-tick"
                       style={{
@@ -1180,14 +1065,12 @@ export default function StudentJoin() {
                   );
                 })}
 
-                {/* 외곽 빛 글로우 */}
                 <div className="absolute inset-0 rounded-full pointer-events-none"
                   style={{
                     boxShadow: `0 0 60px ${c.glow}33, inset 0 0 80px ${c.glow}11`,
                     transition: 'box-shadow 0.4s ease',
                   }} />
 
-                {/* 디지털 시계 숫자 */}
                 <div key={countdown}
                   className="relative countdown-digital-number"
                   style={{
@@ -1196,12 +1079,7 @@ export default function StudentJoin() {
                     fontWeight: 700,
                     fontSize: countdown === 0 ? (isMobile ? '64px' : '100px') : (isMobile ? '110px' : '170px'),
                     letterSpacing: countdown === 0 ? '4px' : '0',
-                    textShadow: `
-                      0 0 20px ${c.glow},
-                      0 0 40px ${c.glow},
-                      0 0 80px ${c.glow}AA,
-                      0 0 120px ${c.glow}66
-                    `,
+                    textShadow: `0 0 20px ${c.glow}, 0 0 40px ${c.glow}, 0 0 80px ${c.glow}AA, 0 0 120px ${c.glow}66`,
                     transition: 'color 0.4s ease, text-shadow 0.4s ease',
                     zIndex: 10,
                   }}>
@@ -1209,7 +1087,6 @@ export default function StudentJoin() {
                 </div>
               </div>
 
-              {/* 하단 라벨 */}
               <div className="fixed bottom-20 left-1/2 -translate-x-1/2 text-center pointer-events-none">
                 <p className="font-mono tracking-[4px] md:tracking-[6px] font-bold"
                   style={{
@@ -1226,7 +1103,6 @@ export default function StudentJoin() {
           );
         })()}
 
-        {/* 환영 */}
         {step === 'welcome' && selectedMember && team && (
           <div className="text-center">
             <p className="text-[10px] font-mono tracking-widest mb-2 font-bold"
@@ -1236,7 +1112,6 @@ export default function StudentJoin() {
             <h2 className="text-2xl font-black text-white mb-1">환영해요, {selectedMember.name}!</h2>
             <p className="text-[13px] text-gray-400 mb-5">{team.name} · {selectedMember.is_leader ? '팀장' : '팀원'}</p>
 
-            {/* 사이버 명함 직무 카드 */}
             {(() => {
               const myMember = members.find(m => m.id === selectedMember.id);
               const myRoleCode = myMember?.role_code || (selectedMember.is_leader ? 'ceo' : null);
@@ -1268,7 +1143,6 @@ export default function StudentJoin() {
         <p className="text-center text-gray-700 text-[10px] mt-8 font-mono relative z-10">© 2026 SIGNAL — ConnectAI</p>
       </div>
 
-      {/* 대기실 배경 효과 */}
       {step === 'waiting' && (
         <>
           <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
@@ -1311,7 +1185,6 @@ export default function StudentJoin() {
         </>
       )}
 
-      {/* 키프레임 + 인터랙티브 버튼 스타일 */}
       <style jsx>{`
         @keyframes cardShuffle {
           0% { transform: translateY(0) rotate(-15deg) translateX(-60px); opacity: 0.7; }
@@ -1320,48 +1193,31 @@ export default function StudentJoin() {
           75% { transform: translateY(-20px) rotate(5deg) translateX(30px); opacity: 1; }
           100% { transform: translateY(0) rotate(15deg) translateX(60px); opacity: 0.7; }
         }
-
         @keyframes slideDownFade {
           0% { opacity: 0; transform: translateY(-20px); }
           15% { opacity: 1; transform: translateY(0); }
           85% { opacity: 1; transform: translateY(0); }
           100% { opacity: 0; transform: translateY(-20px); }
         }
-
         @keyframes floatCard {
           0%, 100% { transform: translateY(0) translateX(0) rotate(var(--rotate, 0deg)); }
           25% { transform: translateY(-30px) translateX(15px) rotate(calc(var(--rotate, 0deg) + 8deg)); }
           50% { transform: translateY(-15px) translateX(-20px) rotate(calc(var(--rotate, 0deg) - 5deg)); }
           75% { transform: translateY(-25px) translateX(10px) rotate(calc(var(--rotate, 0deg) + 5deg)); }
         }
-
         @keyframes particleFloat {
           0%, 100% { transform: translateY(0) translateX(0); opacity: 0.4; }
           25% { transform: translateY(-40px) translateX(20px); opacity: 1; }
           50% { transform: translateY(-80px) translateX(-15px); opacity: 0.7; }
           75% { transform: translateY(-50px) translateX(25px); opacity: 1; }
         }
-
-        .halo-pulse {
-          animation: haloPulse 4s ease-in-out infinite;
-        }
-
+        .halo-pulse { animation: haloPulse 4s ease-in-out infinite; }
         @keyframes haloPulse {
           0%, 100% { opacity: 0.5; transform: scale(1); }
           50% { opacity: 0.9; transform: scale(1.15); }
         }
-
-        /* ⭐⭐⭐ 인터랙티브 버튼 효과 ⭐⭐⭐ */
-
-        /* 호버 시 빛 흐름 (광택) */
-        .interactive-btn .hover-shine {
-          transition: transform 0.7s ease-out;
-        }
-        .interactive-btn:hover .hover-shine {
-          transform: translateX(100%);
-        }
-
-        /* 클릭 시 살짝 눌림 효과 */
+        .interactive-btn .hover-shine { transition: transform 0.7s ease-out; }
+        .interactive-btn:hover .hover-shine { transform: translateX(100%); }
         .interactive-btn {
           transition: transform 0.15s ease-out;
           outline: none;
@@ -1369,19 +1225,9 @@ export default function StudentJoin() {
           -webkit-appearance: none;
           appearance: none;
         }
-        .interactive-btn:focus,
-        .interactive-btn:focus-visible {
-          outline: none;
-          box-shadow: none;
-        }
-        .interactive-btn::-moz-focus-inner {
-          border: 0;
-        }
-        .interactive-btn:active {
-          transform: scale(0.97);
-        }
-
-        /* 선택된 상태 — 펄스 글로우 */
+        .interactive-btn:focus, .interactive-btn:focus-visible { outline: none; box-shadow: none; }
+        .interactive-btn::-moz-focus-inner { border: 0; }
+        .interactive-btn:active { transform: scale(0.97); }
         .interactive-btn.is-selected {
           animation:
             selectedPulse 2s ease-in-out infinite,
@@ -1391,34 +1237,12 @@ export default function StudentJoin() {
           0%, 100% { filter: brightness(1); }
           50% { filter: brightness(1.1); }
         }
-
-        /* ⭐⭐⭐ 선택 시 박스 테두리 오로라 색 순환 글로우 ⭐⭐⭐ */
         @keyframes auroraSelectedGlow {
-          0%, 100% {
-            box-shadow:
-              0 0 16px #06B6D4AA,
-              0 0 32px #06B6D466,
-              0 0 56px #8B5CF644;
-          }
-          33% {
-            box-shadow:
-              0 0 16px #8B5CF6AA,
-              0 0 32px #8B5CF666,
-              0 0 56px #3B82F644;
-          }
-          66% {
-            box-shadow:
-              0 0 16px #3B82F6AA,
-              0 0 32px #3B82F666,
-              0 0 56px #06B6D444;
-          }
+          0%, 100% { box-shadow: 0 0 16px #06B6D4AA, 0 0 32px #06B6D466, 0 0 56px #8B5CF644; }
+          33% { box-shadow: 0 0 16px #8B5CF6AA, 0 0 32px #8B5CF666, 0 0 56px #3B82F644; }
+          66% { box-shadow: 0 0 16px #3B82F6AA, 0 0 32px #3B82F666, 0 0 56px #06B6D444; }
         }
-
-        /* ⭐⭐⭐ 오로라 펄스 (숨쉬듯 깜빡임) ⭐⭐⭐ */
-        .aurora-wave {
-          animation: auroraPulse 2.5s ease-in-out forwards;
-          opacity: 0;
-        }
+        .aurora-wave { animation: auroraPulse 2.5s ease-in-out forwards; opacity: 0; }
         @keyframes auroraPulse {
           0% { opacity: 0; }
           15% { opacity: 0.5; }
@@ -1428,59 +1252,33 @@ export default function StudentJoin() {
           85% { opacity: 0.5; }
           100% { opacity: 0; }
         }
-
-        /* ⭐⭐⭐ 회로 신호 (라인을 따라 빛이 흐름) ⭐⭐⭐ */
-
-        /* 신호 1 - 좌→우 (위쪽) */
-        .circuit-signal-1 {
-          animation: signalRight 4s linear infinite;
-        }
+        .circuit-signal-1 { animation: signalRight 4s linear infinite; }
         @keyframes signalRight {
           0% { transform: translateX(-80px); opacity: 0; }
           10% { opacity: 1; }
           90% { opacity: 1; }
           100% { transform: translateX(100vw); opacity: 0; }
         }
-
-        /* 신호 2 - 우→좌 (중간) */
-        .circuit-signal-2 {
-          animation: signalLeft 5s linear infinite 1s;
-        }
+        .circuit-signal-2 { animation: signalLeft 5s linear infinite 1s; }
         @keyframes signalLeft {
           0% { transform: translateX(100px); opacity: 0; }
           10% { opacity: 1; }
           90% { opacity: 1; }
           100% { transform: translateX(-100vw); opacity: 0; }
         }
-
-        /* 신호 3 - 좌→우 (아래) */
-        .circuit-signal-3 {
-          animation: signalRight 6s linear infinite 2s;
-        }
-
-        /* 세로 신호 - 위→아래 */
-        .circuit-signal-vertical {
-          animation: signalDown 5s linear infinite 0.5s;
-        }
+        .circuit-signal-3 { animation: signalRight 6s linear infinite 2s; }
+        .circuit-signal-vertical { animation: signalDown 5s linear infinite 0.5s; }
         @keyframes signalDown {
           0% { transform: translateY(-60px); opacity: 0; }
           10% { opacity: 1; }
           90% { opacity: 1; }
           100% { transform: translateY(100vh); opacity: 0; }
         }
-
-        /* ⭐⭐⭐ 사이버틱 효과 ⭐⭐⭐ */
-
-        /* 스캔라인 — 위에서 아래로 빛이 흐름 */
-        .scanline {
-          animation: scanlineMove 4s linear infinite;
-        }
+        .scanline { animation: scanlineMove 4s linear infinite; }
         @keyframes scanlineMove {
           0% { transform: translateY(-120px); }
           100% { transform: translateY(100vh); }
         }
-
-        /* 네온 입자 깜빡임 */
         .neon-particle {
           animation-name: neonTwinkle;
           animation-iteration-count: infinite;
@@ -1490,17 +1288,10 @@ export default function StudentJoin() {
           0%, 100% { opacity: 0.3; transform: scale(1); }
           50% { opacity: 1; transform: scale(1.5); }
         }
-
-        /* SIGNAL 글리치 텍스트 */
-        .glitch-text {
-          position: relative;
-          animation: glitchPulse 5s ease-in-out infinite;
-        }
+        .glitch-text { position: relative; animation: glitchPulse 5s ease-in-out infinite; }
         @keyframes glitchPulse {
           0%, 100% {
-            text-shadow:
-              0 0 20px rgba(231, 254, 85, 0.4),
-              0 0 40px rgba(231, 254, 85, 0.2);
+            text-shadow: 0 0 20px rgba(231, 254, 85, 0.4), 0 0 40px rgba(231, 254, 85, 0.2);
           }
           50% {
             text-shadow:
@@ -1510,18 +1301,11 @@ export default function StudentJoin() {
               0 0 60px rgba(193, 232, 235, 0.3);
           }
         }
-
-        /* 사이버 카드 — 미세하게 빛이 흐름 */
         .cyber-card::before {
           content: '';
           position: absolute;
           inset: 0;
-          background: linear-gradient(
-            120deg,
-            transparent 30%,
-            rgba(231, 254, 85, 0.05) 50%,
-            transparent 70%
-          );
+          background: linear-gradient(120deg, transparent 30%, rgba(231, 254, 85, 0.05) 50%, transparent 70%);
           animation: cardSweep 4s linear infinite;
           pointer-events: none;
         }
@@ -1529,51 +1313,28 @@ export default function StudentJoin() {
           0% { transform: translateX(-100%); }
           100% { transform: translateX(100%); }
         }
-
-        /* 사이버 인풋 — 포커스 시 펄스 */
-        .cyber-input:focus {
-          animation: inputPulse 1.5s ease-in-out infinite;
-        }
+        .cyber-input:focus { animation: inputPulse 1.5s ease-in-out infinite; }
         @keyframes inputPulse {
           0%, 100% { box-shadow: 0 0 20px rgba(231, 254, 85, 0.4), inset 0 0 12px rgba(231, 254, 85, 0.1); }
           50% { box-shadow: 0 0 30px rgba(231, 254, 85, 0.7), inset 0 0 18px rgba(231, 254, 85, 0.2); }
         }
-
-        /* 사이버 버튼 — 글로우 펄스 */
-        .cyber-btn {
-          animation: btnNeonPulse 2.5s ease-in-out infinite;
-        }
+        .cyber-btn { animation: btnNeonPulse 2.5s ease-in-out infinite; }
         @keyframes btnNeonPulse {
           0%, 100% { box-shadow: 0 0 20px rgba(231, 254, 85, 0.4), 0 10px 30px -5px rgba(231, 254, 85, 0.5); }
           50% { box-shadow: 0 0 40px rgba(231, 254, 85, 0.7), 0 10px 40px -5px rgba(231, 254, 85, 0.8); }
         }
-
-        /* ⭐⭐⭐ 대기 중 직무 카드 (사이버 스캔 효과) ⭐⭐⭐ */
-        .waiting-role-card {
-          animation: waitingCardPulse 2s ease-in-out infinite;
-        }
+        .waiting-role-card { animation: waitingCardPulse 2s ease-in-out infinite; }
         @keyframes waitingCardPulse {
-          0%, 100% {
-            box-shadow: 0 0 24px rgba(6, 182, 212, 0.2), inset 0 0 20px rgba(6, 182, 212, 0.07);
-          }
-          50% {
-            box-shadow: 0 0 36px rgba(6, 182, 212, 0.4), inset 0 0 30px rgba(6, 182, 212, 0.15);
-          }
+          0%, 100% { box-shadow: 0 0 24px rgba(6, 182, 212, 0.2), inset 0 0 20px rgba(6, 182, 212, 0.07); }
+          50% { box-shadow: 0 0 36px rgba(6, 182, 212, 0.4), inset 0 0 30px rgba(6, 182, 212, 0.15); }
         }
-
-        /* 스캔라인 위→아래 흐름 */
-        .waiting-scan-line {
-          animation: waitingScanFlow 1.8s ease-in-out infinite;
-          top: 0;
-        }
+        .waiting-scan-line { animation: waitingScanFlow 1.8s ease-in-out infinite; top: 0; }
         @keyframes waitingScanFlow {
           0% { top: 0; opacity: 0; }
           15% { opacity: 1; }
           85% { opacity: 1; }
           100% { top: 100%; opacity: 0; }
         }
-
-        /* 데이터 비트 깜빡임 (시간차) */
         .waiting-bit-1 { animation: waitingBitBlink 1s ease-in-out infinite 0s; }
         .waiting-bit-2 { animation: waitingBitBlink 1s ease-in-out infinite 0.25s; }
         .waiting-bit-3 { animation: waitingBitBlink 1s ease-in-out infinite 0.5s; }
@@ -1582,63 +1343,32 @@ export default function StudentJoin() {
           0%, 100% { opacity: 0.3; }
           50% { opacity: 0.9; }
         }
-
-        /* 회전 링 (외곽 - 정방향) */
-        .waiting-ring-outer {
-          animation: waitingRingSpin 2s linear infinite;
-        }
+        .waiting-ring-outer { animation: waitingRingSpin 2s linear infinite; }
         @keyframes waitingRingSpin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
-
-        /* 회전 링 (내부 - 역방향) */
-        .waiting-ring-inner {
-          animation: waitingRingSpinReverse 1.5s linear infinite;
-        }
+        .waiting-ring-inner { animation: waitingRingSpinReverse 1.5s linear infinite; }
         @keyframes waitingRingSpinReverse {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(-360deg); }
         }
-
-        /* 중앙 점 펄스 */
-        .waiting-center-dot {
-          animation: waitingDotPulse 1s ease-in-out infinite;
-        }
+        .waiting-center-dot { animation: waitingDotPulse 1s ease-in-out infinite; }
         @keyframes waitingDotPulse {
-          0%, 100% {
-            transform: scale(1);
-            opacity: 0.8;
-          }
-          50% {
-            transform: scale(1.4);
-            opacity: 1;
-          }
+          0%, 100% { transform: scale(1); opacity: 0.8; }
+          50% { transform: scale(1.4); opacity: 1; }
         }
-
-        /* SCAN 텍스트 펄스 */
-        .waiting-scan-text {
-          animation: waitingScanTextPulse 1.5s ease-in-out infinite;
-        }
+        .waiting-scan-text { animation: waitingScanTextPulse 1.5s ease-in-out infinite; }
         @keyframes waitingScanTextPulse {
           0%, 100% { opacity: 0.7; }
           50% { opacity: 1; }
         }
-
-        /* 점 3개 흐름 */
-        .waiting-dots {
-          animation: waitingDotsFlow 0.8s ease-in-out infinite;
-        }
+        .waiting-dots { animation: waitingDotsFlow 0.8s ease-in-out infinite; }
         @keyframes waitingDotsFlow {
           0%, 100% { letter-spacing: 4px; opacity: 0.5; }
           50% { letter-spacing: 8px; opacity: 1; }
         }
-
-        /* 글리치 효과 (가끔 한 번씩) */
-        .waiting-glitch {
-          animation: waitingGlitchEffect 3s ease-in-out infinite;
-          opacity: 0;
-        }
+        .waiting-glitch { animation: waitingGlitchEffect 3s ease-in-out infinite; opacity: 0; }
         @keyframes waitingGlitchEffect {
           0%, 95% { opacity: 0; transform: translateX(0); }
           96% { opacity: 1; transform: translateX(-2px); }
@@ -1646,47 +1376,21 @@ export default function StudentJoin() {
           98% { opacity: 1; transform: translateX(-1px); }
           100% { opacity: 0; transform: translateX(0); }
         }
-
-        /* ⭐⭐⭐ 카운트다운 애니메이션 ⭐⭐⭐ */
-
-        /* 화면 오로라 플래시 */
         @keyframes screenAuroraFlash {
           0%, 100% { opacity: 0.4; }
           50% { opacity: 1; }
         }
-
-        /* 60개 눈금 - 차례로 깜빡 (시계 초침 같은 느낌) */
-        .countdown-tick {
-          animation: tickPulse 1s ease-in-out infinite;
-        }
+        .countdown-tick { animation: tickPulse 1s ease-in-out infinite; }
         @keyframes tickPulse {
           0%, 100% { opacity: 0.5; }
           50% { opacity: 1; }
         }
-
-        /* 디지털 숫자 등장 - 글리치 + 페이드 */
-        .countdown-digital-number {
-          animation: digitalNumberEnter 0.4s ease-out forwards;
-        }
+        .countdown-digital-number { animation: digitalNumberEnter 0.4s ease-out forwards; }
         @keyframes digitalNumberEnter {
-          0% {
-            opacity: 0;
-            transform: scale(0.85);
-            filter: blur(6px);
-          }
-          50% {
-            opacity: 1;
-            transform: scale(1.05);
-            filter: blur(0);
-          }
-          100% {
-            opacity: 1;
-            transform: scale(1);
-            filter: blur(0);
-          }
+          0% { opacity: 0; transform: scale(0.85); filter: blur(6px); }
+          50% { opacity: 1; transform: scale(1.05); filter: blur(0); }
+          100% { opacity: 1; transform: scale(1); filter: blur(0); }
         }
-
-        /* 하단 텍스트 펄스 */
         @keyframes countdownTextPulse {
           0%, 100% { opacity: 0.6; }
           50% { opacity: 1; }
