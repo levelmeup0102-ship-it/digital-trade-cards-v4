@@ -162,6 +162,7 @@ export default function Home() {
 
   // ⭐ 협업 시스템 state
   const [myMemberId, setMyMemberId] = useState<string>('');
+  const [teamName, setTeamName] = useState<string>('');
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [memberInsights, setMemberInsights] = useState<MemberInsight[]>([]);
   const [subCardLocks, setSubCardLocks] = useState<SubCardLock[]>([]);
@@ -264,6 +265,8 @@ export default function Home() {
 
             // ⭐ myMemberId 저장 (협업 시스템 핵심!)
             if (v2.memberId) setMyMemberId(v2.memberId);
+            // ⭐ 팀 이름 저장 (헤더 표시용)
+            if (v2.teamName) setTeamName(v2.teamName);
 
             if (v2.isLeader) {
               await ensureFirstSubCardUnlocked(v2.teamId);
@@ -1098,12 +1101,24 @@ export default function Home() {
         style={{ background: `radial-gradient(circle, ${color}25 0%, transparent 70%)`, zIndex: 1 }} />
 
       <div className="w-full max-w-md mb-3 relative z-10">
-        <div className="flex items-center justify-between mb-2">
-          <div>
-            <p className="text-[10px] md:text-[11px] tracking-[4px] text-gray-600 font-mono">SIGNAL</p>
+        {/* ⭐ 상단: SIGNAL · 팀이름 + 표준 + 목록 */}
+        <div className="flex items-start justify-between mb-2.5 gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+              <p className="text-[9px] md:text-[10px] tracking-[3px] md:tracking-[4px] text-gray-600 font-mono">SIGNAL</p>
+              {teamName && (
+                <>
+                  <span className="text-gray-700 text-[10px]">·</span>
+                  <p className="text-[10px] md:text-[11px] font-bold font-mono tracking-wide truncate"
+                    style={{ color: S.cyan, textShadow: `0 0 6px ${S.cyan}66` }}>
+                    {teamName}
+                  </p>
+                </>
+              )}
+            </div>
             <h1 className="text-xs md:text-sm font-extrabold text-white">디지털 무역 전략카드</h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <span className="text-[9px] px-2 py-1 rounded-md font-bold" style={{ background: lv.color + '22', color: lv.color }}>{lv.emoji} {lv.label}</span>
             <button onClick={() => setShowList(!showList)}
               className="rounded-lg px-2.5 py-1 text-[11px] text-gray-400 transition"
@@ -1113,23 +1128,62 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 mb-2">
+        {/* ⭐ 직무 카드 + 아이템 카드 (모바일 2줄, 데스크탑 1줄) */}
+        <div className="flex flex-col md:flex-row gap-2 mb-2">
+          {/* 직무 카드 */}
           {myRole ? (
-            <div className="flex items-center gap-1.5 rounded-lg px-2 py-1"
-              style={{ background: `${myRole.color}18`, border: `1px solid ${myRole.color}40` }}>
-              <span className="text-[14px]">{myRole.icon}</span>
-              <div className="flex flex-col leading-tight">
-                <span className="text-[11px] font-bold text-white">{playerName}</span>
-                <span className="text-[9px] font-mono" style={{ color: myRole.color }}>{myRole.nameKr}</span>
+            <div className="flex items-center gap-2.5 rounded-xl px-3 py-2 transition"
+              style={{
+                background: `linear-gradient(135deg, ${myRole.color}30 0%, ${myRole.color}10 100%)`,
+                border: `1.5px solid ${myRole.color}`,
+                boxShadow: `0 0 14px ${myRole.color}30`,
+              }}>
+              <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0"
+                style={{
+                  background: `${myRole.color}40`,
+                  border: `1px solid ${myRole.color}`,
+                  boxShadow: `0 0 8px ${myRole.color}55`,
+                }}>
+                {myRole.icon}
+              </div>
+              <div className="flex flex-col leading-tight min-w-0">
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <span className="text-[8px] px-1.5 py-0.5 rounded font-bold tracking-wider"
+                    style={{
+                      background: isLeader ? `${S.green}25` : `${S.pink}20`,
+                      border: `1px solid ${isLeader ? S.green : S.pink}60`,
+                      color: isLeader ? S.green : S.pink,
+                    }}>
+                    {isLeader ? '팀장' : '팀원'}
+                  </span>
+                  <span className="text-[12px] font-bold text-white truncate">{playerName}</span>
+                </div>
+                <span className="text-[9px] font-mono font-semibold truncate" style={{ color: myRole.color }}>
+                  {myRole.nameKr}
+                  <span className="hidden md:inline"> · {myRole.nameEn}</span>
+                </span>
               </div>
             </div>
           ) : (
-            <span className="text-[10px] text-gray-400 px-2 py-1 rounded-md" style={{ background: 'rgba(255,255,255,0.05)' }}>
-              {isLeader ? '👑' : '💬'} {playerName}
-            </span>
+            <div className="flex items-center gap-2 rounded-xl px-3 py-2"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
+              <span className="text-lg">{isLeader ? '👑' : '💬'}</span>
+              <span className="text-[12px] font-bold text-white">{playerName}</span>
+            </div>
           )}
-          <span className="text-[10px] px-2 py-0.5 rounded-md truncate flex-1"
-            style={{ color: S.green, background: `${S.green}10` }}>{displayItem}</span>
+
+          {/* 아이템 카드 */}
+          <div className="flex items-center gap-2 rounded-xl px-3 py-2 flex-1 min-w-0"
+            style={{
+              background: `${S.green}08`,
+              border: `1px solid ${S.green}30`,
+            }}>
+            <span className="text-[8px] font-mono text-gray-500 tracking-wider flex-shrink-0">아이템</span>
+            <span className="text-[11px] md:text-[12px] font-bold truncate"
+              style={{ color: S.green, textShadow: `0 0 4px ${S.green}33` }}>
+              {displayItem}
+            </span>
+          </div>
         </div>
 
         <div className="flex items-center gap-2 mb-2">
