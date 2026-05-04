@@ -64,10 +64,12 @@ export default function RoleCard({ role, memberName, isMobile, isCompact }: Role
             height: `${imgSize}px`,
             border: `2px solid ${role.color}`,
             boxShadow: `0 0 20px ${role.color}88`,
+            background: `linear-gradient(135deg, ${role.color}33, ${role.color}11)`,
           }}>
           <img src={role.image} alt={role.nameKr}
-            className="w-full h-full object-cover"
-            style={{ filter: 'saturate(1.1) contrast(1.05)' }} />
+            className="w-full h-full object-cover role-card-img"
+            style={{ filter: 'saturate(1.1) contrast(1.05)' }}
+            loading="eager" />
 
           {/* 스캔라인 오버레이 */}
           <div className="absolute inset-0 pointer-events-none cyber-scanline-overlay"
@@ -161,6 +163,16 @@ export default function RoleCard({ role, memberName, isMobile, isCompact }: Role
             opacity: 1;
             transform: scale(1) translateY(0);
           }
+        }
+
+        /* 이미지 부드러운 페이드 인 */
+        .role-card-img {
+          opacity: 0;
+          animation: imgFadeIn 0.4s ease-out 0.2s forwards;
+        }
+        @keyframes imgFadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
         }
 
         .cyber-scanline-overlay {
