@@ -10,8 +10,18 @@ import {
 import { supabase } from '@/lib/supabase';
 import type { Team, TeamMember } from '@/lib/teacher';
 import { ROLES, MEMBER_ROLE_SETS, getRecommendedRoles, getRole, type RoleCode } from '@/data/roleData';
+import RoleCard from '@/components/RoleCard';
 
-const S = { green: '#E7FE55', aqua: '#C1E8EB', navy: '#111111', bg: '#0A0A0A' };
+const S = {
+  green: '#E7FE55',
+  aqua: '#C1E8EB',
+  cyan: '#06B6D4',
+  purple: '#8B5CF6',
+  blue: '#3B82F6',
+  pink: '#FF6FB5',
+  navy: '#111111',
+  bg: '#0A0A0A',
+};
 
 const ITEMS = ['💄 K-뷰티 (스킨케어)', '🍜 K-푸드 (라면·스낵)', '🧬 바이오/디지털 헬스케어', '🎮 디지털 콘텐츠 (웹툰·게임)', '📱 스마트 기기 (IoT)', '✏️ 직접 입력'];
 const LEVELS: Record<string, { label: string; emoji: string; timer: number; minChars: number; color: string }> = {
@@ -137,6 +147,15 @@ export default function StudentJoin() {
   const [joinCode, setJoinCode] = useState('');
   const [codeError, setCodeError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // 모바일 감지
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
 
   const [team, setTeam] = useState<Team | null>(null);
   const [members, setMembers] = useState<TeamMember[]>([]);
@@ -832,92 +851,145 @@ export default function StudentJoin() {
             <div className="absolute top-12 left-1/2 -translate-x-1/2 pointer-events-none">
               <div className="halo-pulse"
                 style={{
-                  width: '280px',
-                  height: '280px',
+                  width: '320px',
+                  height: '320px',
                   borderRadius: '50%',
-                  background: `radial-gradient(circle, ${S.green}25 0%, ${S.aqua}15 40%, transparent 70%)`,
+                  background: `radial-gradient(circle, ${S.cyan}25 0%, ${S.purple}15 40%, transparent 70%)`,
+                  filter: 'blur(20px)',
                 }} />
             </div>
 
-            <div className="relative h-48 mb-6 flex items-center justify-center z-10">
-              {[0, 1, 2, 3, 4].map((i) => {
-                const cardColor = CARD_COLORS_LIST[i * 3];
+            {/* 내 직무 카드 (사이버 명함) */}
+            <div className="relative z-10 mb-5 flex justify-center">
+              {(() => {
+                const myMember = members.find(m => m.id === selectedMember.id);
+                const myRoleCode = myMember?.role_code || (selectedMember.is_leader ? 'ceo' : null);
+                const myRole = myRoleCode ? getRole(myRoleCode) : null;
+                if (myRole) {
+                  return <RoleCard role={myRole} memberName={selectedMember.name} isMobile={isMobile} />;
+                }
+                // 직무 미배정 시 임시 카드
                 return (
-                  <div
-                    key={i}
-                    className="absolute rounded-xl flex items-center justify-center text-white font-black text-sm font-mono"
-                    style={{
-                      background: cardColor,
-                      boxShadow: `0 8px 24px ${cardColor}66, 0 0 20px ${cardColor}44`,
-                      animation: `cardShuffle 3s cubic-bezier(0.4, 0, 0.2, 1) infinite`,
-                      animationDelay: `${i * 0.15}s`,
-                      width: '60px',
-                      height: '84px',
-                    }}
-                  >
-                    {String(i + 1).padStart(2, '0')}
+                  <div className="rounded-2xl p-6"
+                    style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${S.cyan}33` }}>
+                    <p className="text-3xl mb-2">⏳</p>
+                    <p className="text-[13px] text-gray-400">직무 배정 대기 중...</p>
                   </div>
                 );
-              })}
+              })()}
             </div>
 
-            <div className="rounded-2xl p-5 mb-4 relative z-10" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <p className="text-[10px] font-mono tracking-widest mb-1" style={{ color: S.green }}>WAITING ROOM</p>
-              <h2 className="text-lg font-black text-white mb-1">
-                {team.name} · {selectedMember.name}님
+            <div className="rounded-2xl p-4 mb-4 relative z-10"
+              style={{
+                background: `${S.cyan}08`,
+                border: `1px solid ${S.cyan}33`,
+                boxShadow: `inset 0 0 12px ${S.cyan}11`,
+              }}>
+              <p className="text-[10px] font-mono tracking-widest mb-1 font-bold"
+                style={{ color: S.cyan, textShadow: `0 0 6px ${S.cyan}AA` }}>
+                {`>`} WAITING ROOM
+              </p>
+              <h2 className="text-base font-black text-white">
+                {team.name}
               </h2>
-              <p className="text-[12px] text-gray-500">팀장이 게임을 준비하고 있어요</p>
+              <p className="text-[12px] mt-0.5" style={{ color: '#888' }}>팀장이 게임을 준비하고 있어요</p>
             </div>
 
             <div className="rounded-xl p-4 mb-4 min-h-[60px] flex items-center justify-center relative z-10"
-              style={{ background: `${S.green}08`, border: `1px solid ${S.green}20` }}>
+              style={{
+                background: `${S.purple}08`,
+                border: `1px solid ${S.purple}33`,
+                boxShadow: `inset 0 0 12px ${S.purple}11`,
+              }}>
               <p key={waitingMsgIdx} className="text-[13px] font-bold text-white"
                 style={{ animation: 'fadeIn 0.5s ease-out' }}>
                 {WAITING_MESSAGES[waitingMsgIdx]}
               </p>
             </div>
 
+            {/* 팀원 입장 현황 - 직무 표시 */}
             <div className="rounded-xl p-4 mb-4 text-left relative z-10"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <p className="text-[10px] font-mono tracking-widest text-gray-500 mb-2">
-                입장 현황 ({members.filter(m => m.joined_at).length} / {members.length})
+              style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${S.cyan}22` }}>
+              <p className="text-[10px] font-mono tracking-widest mb-2 font-bold"
+                style={{ color: S.cyan }}>
+                {`>`} 입장 현황 ({members.filter(m => m.joined_at).length} / {members.length})
               </p>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 {members.map(m => {
                   const joined = !!m.joined_at;
+                  const memberRole = m.role_code ? getRole(m.role_code) : (m.is_leader ? getRole('ceo') : null);
                   return (
-                    <div key={m.id} className="flex items-center gap-2 text-[12px]">
-                      <div className="w-2 h-2 rounded-full"
-                        style={{ background: joined ? S.green : 'rgba(255,255,255,0.15)', boxShadow: joined ? `0 0 8px ${S.green}` : 'none' }} />
-                      <span className={joined ? 'text-white font-bold' : 'text-gray-600'}>
-                        {m.is_leader ? '👑 ' : ''}{m.name}
-                      </span>
-                      {joined && <span className="text-[10px] ml-auto" style={{ color: S.aqua }}>입장 완료</span>}
+                    <div key={m.id} className="flex items-center gap-2.5">
+                      {/* 캐릭터 미니 이미지 */}
+                      {memberRole && (
+                        <div className="rounded-lg overflow-hidden flex-shrink-0"
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            border: `1.5px solid ${joined ? memberRole.color : 'rgba(255,255,255,0.1)'}`,
+                            boxShadow: joined ? `0 0 8px ${memberRole.color}66` : 'none',
+                            opacity: joined ? 1 : 0.3,
+                          }}>
+                          <img src={memberRole.image} alt={memberRole.nameKr}
+                            className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                            style={{
+                              background: joined ? S.cyan : 'rgba(255,255,255,0.15)',
+                              boxShadow: joined ? `0 0 6px ${S.cyan}` : 'none',
+                            }} />
+                          <span className={`text-[12px] truncate ${joined ? 'text-white font-bold' : 'text-gray-600'}`}>
+                            {m.is_leader ? '👑 ' : ''}{m.name}
+                          </span>
+                        </div>
+                        {memberRole && (
+                          <p className="text-[10px] font-mono ml-3 truncate"
+                            style={{ color: joined ? memberRole.color : '#444' }}>
+                            {memberRole.nameKr}
+                          </p>
+                        )}
+                      </div>
+                      {joined && <span className="text-[9px] font-mono flex-shrink-0"
+                        style={{ color: S.cyan }}>✓ READY</span>}
                     </div>
                   );
                 })}
               </div>
             </div>
 
-            <p className="text-[10px] text-gray-600 font-mono relative z-10">
+            <p className="text-[10px] font-mono relative z-10" style={{ color: '#666' }}>
               ⚡ 게임이 시작되면 자동으로 화면이 전환됩니다
             </p>
 
+            {/* 입장 토스트 */}
             <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] flex flex-col gap-2 pointer-events-none">
-              {recentJoiners.map(joiner => (
-                <div key={joiner.id}
-                  className="rounded-xl px-4 py-2.5 flex items-center gap-2 backdrop-blur-md"
-                  style={{
-                    background: `${S.green}15`,
-                    border: `1px solid ${S.green}40`,
-                    animation: 'slideDownFade 3s ease-out forwards',
-                  }}>
-                  <span className="text-lg">✨</span>
-                  <span className="text-[13px] font-bold text-white">
-                    <span style={{ color: S.green }}>{joiner.name}</span>님 입장!
-                  </span>
-                </div>
-              ))}
+              {recentJoiners.map(joiner => {
+                const joinerRole = joiner.role_code ? getRole(joiner.role_code) : (joiner.is_leader ? getRole('ceo') : null);
+                const toastColor = joinerRole?.color || S.cyan;
+                return (
+                  <div key={joiner.id}
+                    className="rounded-xl px-4 py-2.5 flex items-center gap-2 backdrop-blur-md"
+                    style={{
+                      background: `${toastColor}15`,
+                      border: `1px solid ${toastColor}66`,
+                      boxShadow: `0 0 16px ${toastColor}33`,
+                      animation: 'slideDownFade 3s ease-out forwards',
+                    }}>
+                    {joinerRole && (
+                      <div className="rounded-md overflow-hidden flex-shrink-0"
+                        style={{ width: '24px', height: '24px', border: `1px solid ${toastColor}` }}>
+                        <img src={joinerRole.image} alt="" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                    <span className="text-[13px] font-bold text-white">
+                      <span style={{ color: toastColor }}>{joiner.name}</span>님 입장!
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -925,26 +997,22 @@ export default function StudentJoin() {
         {/* 환영 */}
         {step === 'welcome' && selectedMember && team && (
           <div className="text-center">
-            <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl pulse-glow"
-              style={{ background: `${S.green}20`, border: `2px solid ${S.green}40` }}>
-              {selectedMember.is_leader ? '👑' : '👋'}
-            </div>
-            <h2 className="text-2xl font-black text-white mb-2">환영해요, {selectedMember.name}!</h2>
-            <p className="text-[13px] text-gray-400 mb-1">{team.name} · {selectedMember.is_leader ? '팀장' : '팀원'}</p>
+            <p className="text-[10px] font-mono tracking-widest mb-2 font-bold"
+              style={{ color: S.cyan, textShadow: `0 0 8px ${S.cyan}AA` }}>
+              {`>`} WELCOME ABOARD
+            </p>
+            <h2 className="text-2xl font-black text-white mb-1">환영해요, {selectedMember.name}!</h2>
+            <p className="text-[13px] text-gray-400 mb-5">{team.name} · {selectedMember.is_leader ? '팀장' : '팀원'}</p>
 
+            {/* 사이버 명함 직무 카드 */}
             {(() => {
               const myMember = members.find(m => m.id === selectedMember.id);
               const myRoleCode = myMember?.role_code || (selectedMember.is_leader ? 'ceo' : null);
               const myRole = myRoleCode ? getRole(myRoleCode) : null;
               if (myRole) {
                 return (
-                  <div className="rounded-xl px-4 py-3 mt-4 mb-6"
-                    style={{ background: `${myRole.color}15`, border: `1px solid ${myRole.color}40` }}>
-                    <p className="text-[10px] font-mono tracking-widest mb-1" style={{ color: myRole.color }}>YOUR ROLE</p>
-                    <p className="text-2xl mb-1">{myRole.icon}</p>
-                    <p className="text-[15px] font-black text-white">{myRole.nameKr}</p>
-                    <p className="text-[11px] font-mono mb-2" style={{ color: myRole.color }}>{myRole.nameEn}</p>
-                    <p className="text-[11px] text-gray-400">{myRole.description}</p>
+                  <div className="flex justify-center mb-6">
+                    <RoleCard role={myRole} memberName={selectedMember.name} isMobile={isMobile} />
                   </div>
                 );
               }
@@ -952,9 +1020,13 @@ export default function StudentJoin() {
             })()}
 
             <button onClick={handleStart}
-              className="relative w-full py-4 font-black rounded-2xl text-[15px] transition-all hover:scale-[1.02] overflow-hidden group"
-              style={{ background: S.green, color: S.navy, boxShadow: `0 10px 30px -5px ${S.green}66` }}>
-              <span className="relative z-10">카드게임 시작하기 →</span>
+              className="cyber-cta-btn relative w-full py-4 font-black rounded-2xl text-[15px] transition-all hover:scale-[1.02] overflow-hidden group"
+              style={{
+                background: S.green,
+                color: S.navy,
+                boxShadow: `0 10px 30px -5px ${S.green}66, 0 0 24px ${S.green}55`,
+              }}>
+              <span className="relative z-10">{`>`} 카드게임 시작하기 →</span>
               <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700"
                 style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)' }} />
             </button>
