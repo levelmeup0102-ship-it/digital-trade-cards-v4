@@ -366,7 +366,7 @@ export default function StudentJoin() {
       roleCode: myRole,
     }));
 
-    setStep('welcome');
+    setStep('countdown');
     setLoading(false);
   };
 
