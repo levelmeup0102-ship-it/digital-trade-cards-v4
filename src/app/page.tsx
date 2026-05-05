@@ -8,7 +8,7 @@ import {
   getOrCreateSession, restoreSession,
   saveCardResponse, loadCardResponses, saveCardProgress, loadCardProgress,
 } from '@/lib/session';
-import type { Session } from '@/lib/supabase';
+import { supabase, type Session } from '@/lib/supabase';
 import { getRole, type RoleCode } from '@/data/roleData';
 import {
   loadTeamInsights,
@@ -48,12 +48,154 @@ const SHOW_PDF_BUTTON = false;
 function fmt(s: number) { return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`; }
 
 const defaultLeaderConclusion = (): LeaderConclusionState => ({
-  fields: ['', '', '', ''],
+  fields: [],
   oneSentence: '',
   isEditing: false,
-  judgments: [false, false, false, false],
+  judgments: [],
 });
 
+// ═══════════════════════════════════════════════════════
+// ⭐ V3 동기화 함수 (빈칸 채우기 string[] 처리)
+// ═══════════════════════════════════════════════════════
+
+// 중간 결론 저장 — values를 JSON으로 직렬화
+async function saveInterimConclusionDB(teamId: string, subCardId: string, values: string[]) {
+  try {
+    await supabase.from('sub_card_interim_conclusions').upsert({
+      team_id: teamId,
+      sub_card_id: subCardId,
+      content: JSON.stringify(values),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'team_id,sub_card_id' });
+  } catch (e) {
+    console.error('interim 저장 실패', e);
+  }
+}
+
+// 중간 결론 로드 — JSON 파싱해서 string[]로 반환
+async function loadInterimConclusionsDB(teamId: string): Promise<Record<string, string[]>> {
+  try {
+    const { data } = await supabase
+      .from('sub_card_interim_conclusions')
+      .select('sub_card_id, content')
+      .eq('team_id', teamId);
+    const map: Record<string, string[]> = {};
+    (data || []).forEach((r: any) => {
+      try {
+        const parsed = JSON.parse(r.content || '[]');
+        map[r.sub_card_id] = Array.isArray(parsed) ? parsed : [];
+      } catch {
+        map[r.sub_card_id] = [];
+      }
+    });
+    return map;
+  } catch (e) {
+    console.error('interim 로드 실패', e);
+    return {};
+  }
+}
+
+// 한 문장 전략 저장 — fields[] + oneSentence 모두 저장
+async function saveLeaderConclusionDB(
+  teamId: string,
+  cardId: string,
+  fields: string[],
+  oneSentence: string,
+) {
+  try {
+    await supabase.from('card_leader_conclusions').upsert({
+      team_id: teamId,
+      card_id: cardId,
+      one_sentence: oneSentence,
+      fields_json: JSON.stringify(fields),
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'team_id,card_id' });
+  } catch (e) {
+    console.error('leader 결론 저장 실패', e);
+  }
+}
+
+// 한 문장 전략 로드 — fields[] 복원
+async function loadLeaderConclusionsDB(teamId: string): Promise<Record<string, LeaderConclusionState>> {
+  try {
+    const { data } = await supabase
+      .from('card_leader_conclusions')
+      .select('card_id, one_sentence, fields_json')
+      .eq('team_id', teamId);
+    const map: Record<string, LeaderConclusionState> = {};
+    (data || []).forEach((r: any) => {
+      let fields: string[] = [];
+      try {
+        const parsed = JSON.parse(r.fields_json || '[]');
+        fields = Array.isArray(parsed) ? parsed : [];
+      } catch {}
+      map[r.card_id] = {
+        ...defaultLeaderConclusion(),
+        fields,
+        oneSentence: r.one_sentence || '',
+      };
+    });
+    return map;
+  } catch (e) {
+    console.error('leader 결론 로드 실패', e);
+    return {};
+  }
+}
+
+// Realtime 구독 - 중간 결론
+function subscribeInterimConclusions(
+  teamId: string,
+  callback: (m: Record<string, string[]>) => void,
+) {
+  const channel = supabase
+    .channel(`interim:${teamId}`)
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'sub_card_interim_conclusions', filter: `team_id=eq.${teamId}` },
+      async () => {
+        const map = await loadInterimConclusionsDB(teamId);
+        callback(map);
+      }
+    )
+    .subscribe();
+  return () => { supabase.removeChannel(channel); };
+}
+
+// Realtime 구독 - 한 문장 전략
+function subscribeLeaderConclusions(
+  teamId: string,
+  callback: (m: Record<string, LeaderConclusionState>) => void,
+) {
+  const channel = supabase
+    .channel(`leader_conc:${teamId}`)
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'card_leader_conclusions', filter: `team_id=eq.${teamId}` },
+      async () => {
+        const map = await loadLeaderConclusionsDB(teamId);
+        callback(map);
+      }
+    )
+    .subscribe();
+  return () => { supabase.removeChannel(channel); };
+}
+
+// Realtime 구독 - Q1/Q2/Q3 답변
+function subscribeCardResponses(teamId: string, callback: (m: Record<string, any>) => void) {
+  const channel = supabase
+    .channel(`responses:${teamId}`)
+    .on('postgres_changes',
+      { event: '*', schema: 'public', table: 'card_responses', filter: `team_id=eq.${teamId}` },
+      async () => {
+        const map = await loadCardResponses(teamId);
+        callback(map);
+      }
+    )
+    .subscribe();
+  return () => { supabase.removeChannel(channel); };
+}
+
+// ═══════════════════════════════════════════════════════
+// 모바일 검사 훅
+// ═══════════════════════════════════════════════════════
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
@@ -65,6 +207,9 @@ function useIsMobile() {
   return isMobile;
 }
 
+// ═══════════════════════════════════════════════════════
+// 인트로 애니메이션 데이터
+// ═══════════════════════════════════════════════════════
 function getIntroCards(isMobile: boolean) {
   const distance = isMobile ? 130 : 240;
   return Array.from({ length: 16 }, (_, i) => {
@@ -103,44 +248,9 @@ function getFireworkParticles(isMobile: boolean) {
   });
 }
 
-function getLightRays(isMobile: boolean) {
-  return Array.from({ length: 8 }, (_, i) => ({
-    id: i,
-    angle: -90 + (i - 3.5) * 12,
-    width: (isMobile ? 5 : 8) + Math.random() * (isMobile ? 6 : 10),
-    delay: Math.random() * 0.1,
-  }));
-}
-
-function getRainbowParticles(isMobile: boolean) {
-  const distance = isMobile ? 130 : 240;
-  return Array.from({ length: 16 }, (_, i) => {
-    const id = String(i + 1).padStart(2, '0');
-    const angle = (360 / 16) * i - 90;
-    return {
-      id: i,
-      color: CARD_COLORS[id]?.bg || '#4FB0C6',
-      startX: Math.cos((angle * Math.PI) / 180) * distance,
-      startY: Math.sin((angle * Math.PI) / 180) * distance,
-      size: isMobile ? 10 : 14,
-    };
-  });
-}
-
-function getSignalLines(isMobile: boolean) {
-  const distance = isMobile ? 130 : 240;
-  return Array.from({ length: 16 }, (_, i) => {
-    const id = String(i + 1).padStart(2, '0');
-    const angle = (360 / 16) * i - 90;
-    return {
-      id: i,
-      color: CARD_COLORS[id]?.bg || '#4FB0C6',
-      angle: angle + 180,
-      length: distance,
-    };
-  });
-}
-
+// ═══════════════════════════════════════════════════════
+// 메인 컴포넌트
+// ═══════════════════════════════════════════════════════
 export default function Home() {
   const router = useRouter();
   const isMobile = useIsMobile();
@@ -160,7 +270,7 @@ export default function Home() {
   const [session, setSession] = useState<Session | null>(null);
   const [teamId, setTeamId] = useState<string | null>(null);
 
-  // ⭐ 협업 시스템 state
+  // 협업 시스템 state
   const [myMemberId, setMyMemberId] = useState<string>('');
   const [teamName, setTeamName] = useState<string>('');
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -173,9 +283,10 @@ export default function Home() {
   const [showList, setShowList] = useState(false);
   const [savedToast, setSavedToast] = useState(false);
   const [showPdfToast, setShowPdfToast] = useState(false);
-  const [checkStates, setCheckStates] = useState<Record<string, Record<number, boolean>>>({});
   const [responses, setResponses] = useState<Record<string, any>>({});
-  const [interimConclusions, setInterimConclusions] = useState<Record<string, string>>({});
+
+  // ⭐ V3: interimConclusions를 string[]로 다룸
+  const [interimConclusions, setInterimConclusions] = useState<Record<string, string[]>>({});
   const [leaderConclusions, setLeaderConclusions] = useState<Record<string, LeaderConclusionState>>({});
   const [completedCards, setCompletedCards] = useState<Set<string>>(new Set());
   const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -184,6 +295,10 @@ export default function Home() {
   const [timer, setTimer] = useState(1200);
   const [timerActive, setTimerActive] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // debounce용 ref
+  const interimSaveTimers = useRef<Record<string, NodeJS.Timeout>>({});
+  const leaderSaveTimers = useRef<Record<string, NodeJS.Timeout>>({});
 
   const topic = TOPICS[currentCardIdx];
   const color = CARD_COLORS[topic.id].bg;
@@ -197,18 +312,17 @@ export default function Home() {
 
   const introCards = getIntroCards(isMobile);
   const fireworkParticles = getFireworkParticles(isMobile);
-  const lightRays = getLightRays(isMobile);
 
   useEffect(() => {
     if (screen !== 'intro') return;
-    const timer = setTimeout(() => {
+    const t = setTimeout(() => {
       setIntroDone(true);
       setTimeout(() => setScreen('landing'), 300);
     }, 9000);
-    return () => clearTimeout(timer);
+    return () => clearTimeout(t);
   }, [screen]);
 
-  // ⭐ 게임 시작 시 데이터 로드 (협업 시스템 포함)
+  // 데이터 로드
   useEffect(() => {
     (async () => {
       try {
@@ -222,19 +336,22 @@ export default function Home() {
             await ensureFirstSubCardUnlocked(saved.team_id);
           }
 
-          const [resps, prog, members, insights, locks] = await Promise.all([
+          const [resps, prog, members, insights, locks, interims, leaderConcs] = await Promise.all([
             loadCardResponses(saved.team_id),
             loadCardProgress(saved.team_id),
             getTeamMembers(saved.team_id),
             loadTeamInsights(saved.team_id),
             loadSubCardLocks(saved.team_id),
+            loadInterimConclusionsDB(saved.team_id),
+            loadLeaderConclusionsDB(saved.team_id),
           ]);
           setResponses(resps);
-          setCheckStates(prog.checkStates);
           setCompletedCards(prog.completedCards);
           setTeamMembers(members);
           setMemberInsights(insights);
           setSubCardLocks(locks);
+          setInterimConclusions(interims);
+          setLeaderConclusions(leaderConcs);
 
           const myMember = members.find(m => m.name === saved.player_name);
           if (myMember) setMyMemberId(myMember.id);
@@ -263,28 +380,29 @@ export default function Home() {
             setLevel(v2Level); setItem(v2.item || '');
             if (v2.roleCode) setRoleCode(v2.roleCode as RoleCode);
 
-            // ⭐ myMemberId 저장 (협업 시스템 핵심!)
             if (v2.memberId) setMyMemberId(v2.memberId);
-            // ⭐ 팀 이름 저장 (헤더 표시용)
             if (v2.teamName) setTeamName(v2.teamName);
 
             if (v2.isLeader) {
               await ensureFirstSubCardUnlocked(v2.teamId);
             }
 
-            const [resps, prog, members, insights, locks] = await Promise.all([
+            const [resps, prog, members, insights, locks, interims, leaderConcs] = await Promise.all([
               loadCardResponses(v2.teamId),
               loadCardProgress(v2.teamId),
               getTeamMembers(v2.teamId),
               loadTeamInsights(v2.teamId),
               loadSubCardLocks(v2.teamId),
+              loadInterimConclusionsDB(v2.teamId),
+              loadLeaderConclusionsDB(v2.teamId),
             ]);
             setResponses(resps);
-            setCheckStates(prog.checkStates);
             setCompletedCards(prog.completedCards);
             setTeamMembers(members);
             setMemberInsights(insights);
             setSubCardLocks(locks);
+            setInterimConclusions(interims);
+            setLeaderConclusions(leaderConcs);
             setTimer(LEVELS[v2Level]?.timer || 1200);
             setScreen('game');
             setSessionLoading(false);
@@ -299,7 +417,7 @@ export default function Home() {
     })();
   }, []);
 
-  // ⭐ Realtime 구독: 팀원 인사이트 + 잠금 상태
+  // ⭐ Realtime 구독: 5종류 (인사이트/잠금/답변/중간결론/한문장전략)
   useEffect(() => {
     if (screen !== 'game' || !teamId) return;
 
@@ -311,9 +429,35 @@ export default function Home() {
       setSubCardLocks(locks);
     });
 
+    const unsubResponses = subscribeCardResponses(teamId, (resps) => {
+      setResponses(resps);
+    });
+
+    const unsubInterims = subscribeInterimConclusions(teamId, (interims) => {
+      setInterimConclusions(interims);
+    });
+
+    const unsubLeaderConcs = subscribeLeaderConclusions(teamId, (leaderConcs) => {
+      setLeaderConclusions(prev => {
+        const merged = { ...prev };
+        Object.keys(leaderConcs).forEach(cardId => {
+          merged[cardId] = {
+            ...defaultLeaderConclusion(),
+            ...merged[cardId],
+            fields: leaderConcs[cardId].fields || [],
+            oneSentence: leaderConcs[cardId].oneSentence,
+          };
+        });
+        return merged;
+      });
+    });
+
     return () => {
       unsubInsights();
       unsubLocks();
+      unsubResponses();
+      unsubInterims();
+      unsubLeaderConcs();
     };
   }, [screen, teamId]);
 
@@ -333,14 +477,6 @@ export default function Home() {
     }
   }, []);
 
-  const handleCheck = async (cardId: string, i: number) => {
-    const newChecks = { ...(checkStates[cardId] || {}), [i]: !(checkStates[cardId]?.[i]) };
-    setCheckStates(prev => ({ ...prev, [cardId]: newChecks }));
-    if (session && teamId) {
-      await saveCardProgress({ teamId, sessionId: session.id, cardId, checklistStatus: newChecks, completed: completedCards.has(cardId) });
-    }
-  };
-
   const handleSaveResponse = async (cardId: string, text: string) => {
     setResponses(prev => ({ ...prev, [cardId]: { texts: { '0': text }, images: {} } }));
     if (session && teamId) {
@@ -348,15 +484,46 @@ export default function Home() {
     }
   };
 
-  const handleSaveInterim = (cardId: string, text: string) => {
-    setInterimConclusions(prev => ({ ...prev, [cardId]: text }));
+  // ⭐ 중간 결론 저장 — 빈칸 채우기 values 배열
+  const handleSaveInterim = (cardId: string, values: string[]) => {
+    setInterimConclusions(prev => ({ ...prev, [cardId]: values }));
+
+    if (!teamId) return;
+    if (interimSaveTimers.current[cardId]) {
+      clearTimeout(interimSaveTimers.current[cardId]);
+    }
+    interimSaveTimers.current[cardId] = setTimeout(() => {
+      saveInterimConclusionDB(teamId, cardId, values);
+    }, 600);
   };
 
+  // ⭐ 한 문장 전략 변경 (fields 배열 또는 oneSentence)
   const handleLeaderConclusionChange = (key: keyof LeaderConclusionState, value: any) => {
-    setLeaderConclusions(prev => ({
-      ...prev,
-      [topic.id]: { ...(prev[topic.id] || defaultLeaderConclusion()), [key]: value },
-    }));
+    setLeaderConclusions(prev => {
+      const next = {
+        ...prev,
+        [topic.id]: { ...(prev[topic.id] || defaultLeaderConclusion()), [key]: value },
+      };
+
+      // fields 변경 시 DB 저장 (debounced)
+      if ((key === 'fields' || key === 'oneSentence') && teamId) {
+        const cardId = topic.id;
+        if (leaderSaveTimers.current[cardId]) {
+          clearTimeout(leaderSaveTimers.current[cardId]);
+        }
+        leaderSaveTimers.current[cardId] = setTimeout(() => {
+          const state = next[cardId];
+          saveLeaderConclusionDB(
+            teamId,
+            cardId,
+            state.fields || [],
+            state.oneSentence || '',
+          );
+        }, 600);
+      }
+
+      return next;
+    });
   };
 
   const handleComplete = async () => {
@@ -364,9 +531,12 @@ export default function Home() {
     setSavedToast(true); setTimeout(() => setSavedToast(false), 2000);
     if (session && teamId) {
       await saveCardProgress({ teamId, sessionId: session.id, cardId: topic.id, checklistStatus: {}, completed: true });
+      // 한 문장 전략 즉시 저장
+      const lc = leaderConclusions[topic.id] || defaultLeaderConclusion();
+      await saveLeaderConclusionDB(teamId, topic.id, lc.fields || [], lc.oneSentence || '');
     }
 
-    // ⭐ 카드 완료 시 다음 카드의 Q1 자동 잠금 해제
+    // 다음 카드 Q1 잠금 해제
     if (teamId && currentCardIdx < TOPICS.length - 1) {
       const nextTopicId = TOPICS[currentCardIdx + 1].id;
       const nextSubCardId = `${nextTopicId}-1`;
@@ -379,9 +549,16 @@ export default function Home() {
     }
   };
 
-  // ⭐ 팀장 Q1/Q2/Q3 완료 핸들러
+  // 팀장 Q1/Q2/Q3 완료
   const handleLeaderCompleteSubCard = useCallback(async (subCardId: string) => {
     if (!teamId || !isLeader) return;
+
+    // 완료 직전 interim 즉시 저장
+    const currentValues = interimConclusions[subCardId] || [];
+    if (currentValues.length > 0) {
+      await saveInterimConclusionDB(teamId, subCardId, currentValues);
+    }
+
     const nextSubCardId = getNextSubCardId(subCardId);
     await leaderCompleteSubCard({ teamId, subCardId, nextSubCardId });
 
@@ -389,7 +566,7 @@ export default function Home() {
     if (qNum === 1) setCurrentTab('Q2');
     else if (qNum === 2) setCurrentTab('Q3');
     else if (qNum === 3) setCurrentTab('결론');
-  }, [teamId, isLeader]);
+  }, [teamId, isLeader, interimConclusions]);
 
   const onTouchStart = (e: React.TouchEvent) => setTouchStart(e.touches[0].clientX);
   const onTouchMove = (e: React.TouchEvent) => { if (touchStart !== null) setSwipeOffset(e.touches[0].clientX - touchStart); };
@@ -429,7 +606,8 @@ export default function Home() {
       <p className="text-gray-500 font-mono text-sm">불러오는 중...</p>
     </div>
   );
-  // ─── ⭐ INTRO ⭐ ───
+
+  // ─── INTRO 화면 ───
   if (screen === 'intro') {
     const cardOneW = isMobile ? 70 : 110;
     const cardOneH = isMobile ? 100 : 155;
@@ -574,18 +752,6 @@ export default function Home() {
             filter: 'blur(40px)',
           }} />
 
-        <div className="fixed inset-0 pointer-events-none"
-          style={{
-            opacity: 0,
-            animation: 'auroraBackgroundFadeIn 1.5s ease-out 6.5s forwards',
-            zIndex: 1,
-            background: `
-              radial-gradient(circle at 20% 30%, #06B6D420 0%, transparent 50%),
-              radial-gradient(circle at 80% 60%, #8B5CF620 0%, transparent 50%),
-              radial-gradient(circle at 50% 90%, #3B82F620 0%, transparent 60%)
-            `,
-          }} />
-
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none"
           style={{
             opacity: 0,
@@ -594,34 +760,24 @@ export default function Home() {
           }}>
           <div className="text-center relative">
             <p className="text-[10px] md:text-[12px] tracking-[5px] md:tracking-[7px] uppercase mb-2 md:mb-3 font-mono font-bold relative"
-              style={{
-                color: '#06B6D4',
-                textShadow: '0 0 12px #06B6D4AA, 0 0 24px #06B6D466',
-              }}>
+              style={{ color: '#06B6D4', textShadow: '0 0 12px #06B6D4AA' }}>
               ConnectAI
             </p>
             <h1 className="font-black text-white tracking-tight mb-2 md:mb-3 relative logo-glow-text"
               style={{
                 fontSize: isMobile ? '4rem' : '7rem',
                 lineHeight: 1,
-                textShadow: `
-                  0 0 20px #FFFFFFAA,
-                  0 0 40px #06B6D488,
-                  0 0 80px #8B5CF666,
-                  0 0 120px #3B82F644
-                `,
+                textShadow: `0 0 20px #FFFFFFAA, 0 0 40px #06B6D488, 0 0 80px #8B5CF666, 0 0 120px #3B82F644`,
               }}>
               SIGNAL
             </h1>
             <div className="flex items-center justify-center gap-2 md:gap-3 relative">
-              <div className="h-[1px] w-8 md:w-12"
-                style={{ background: `linear-gradient(to right, transparent, #06B6D4)` }} />
+              <div className="h-[1px] w-8 md:w-12" style={{ background: `linear-gradient(to right, transparent, #06B6D4)` }} />
               <p className="text-[12px] md:text-base font-bold tracking-[2px] md:tracking-[3px] font-mono"
                 style={{ color: '#C1E8EB', textShadow: '0 0 12px #06B6D466' }}>
                 DIGITAL TRADE CARDS
               </p>
-              <div className="h-[1px] w-8 md:w-12"
-                style={{ background: `linear-gradient(to left, transparent, #8B5CF6)` }} />
+              <div className="h-[1px] w-8 md:w-12" style={{ background: `linear-gradient(to left, transparent, #8B5CF6)` }} />
             </div>
           </div>
         </div>
@@ -630,9 +786,7 @@ export default function Home() {
           .signal-pulse-ring {
             opacity: 0;
             transform: translate(-50%, -50%) scale(0);
-            animation:
-              signalPulseExpand 2.5s ease-out infinite,
-              signalPulseFinalHide 0.3s ease-out 3.6s forwards;
+            animation: signalPulseExpand 2.5s ease-out infinite, signalPulseFinalHide 0.3s ease-out 3.6s forwards;
           }
           @keyframes signalPulseExpand {
             0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0; }
@@ -641,15 +795,11 @@ export default function Home() {
           }
           @keyframes signalPulseFinalHide {
             0% { opacity: 0; }
-            100% { opacity: 0; display: none; visibility: hidden; }
+            100% { opacity: 0; visibility: hidden; }
           }
-
           .card-aurora-glow {
             opacity: 0;
-            animation:
-              auroraGlowEnter 1.2s ease-out 1.2s forwards,
-              auroraGlowPulse 2.5s ease-in-out 2.4s 1,
-              auroraGlowFinalHide 0.6s ease-in 3.6s forwards;
+            animation: auroraGlowEnter 1.2s ease-out 1.2s forwards, auroraGlowPulse 2.5s ease-in-out 2.4s 1, auroraGlowFinalHide 0.6s ease-in 3.6s forwards;
           }
           @keyframes auroraGlowEnter {
             0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
@@ -664,12 +814,8 @@ export default function Home() {
             40% { opacity: 1; transform: translate(-50%, -50%) scale(1.6); filter: brightness(2); }
             100% { opacity: 0; transform: translate(-50%, -50%) scale(2.2); filter: brightness(3); visibility: hidden; }
           }
-
           .cube-inner-card {
-            animation:
-              cubeInnerCardEnter 1s ease-out 1.4s forwards,
-              cubeInnerCardPulse 1.4s ease-in-out 2.4s infinite,
-              cubeInnerCardExplode 0.6s ease-in 3.6s forwards;
+            animation: cubeInnerCardEnter 1s ease-out 1.4s forwards, cubeInnerCardPulse 1.4s ease-in-out 2.4s infinite, cubeInnerCardExplode 0.6s ease-in 3.6s forwards;
           }
           @keyframes cubeInnerCardEnter {
             0% { opacity: 0; transform: translate(-50%, -50%) scale(0) rotate(-180deg); }
@@ -684,7 +830,6 @@ export default function Home() {
             0% { opacity: 1; transform: translate(-50%, -50%) scale(1); filter: brightness(1); }
             100% { opacity: 0; transform: translate(-50%, -50%) scale(2.5); filter: brightness(8); }
           }
-
           @keyframes cardElegantSpread {
             0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3) rotate(0deg); }
             15% { opacity: 1; transform: translate(-50%, -50%) scale(1.1) rotate(0deg); }
@@ -697,33 +842,26 @@ export default function Home() {
               transform: translate(calc(-50% + var(--final-x)), calc(-50% + var(--final-y))) scale(1) rotate(var(--final-rotate));
             }
           }
-
           @keyframes cardDimAndBrighten {
             0% { filter: brightness(1); }
             30% { filter: brightness(0.4); }
             60% { filter: brightness(0.4); }
             100% { filter: brightness(1.1); }
           }
-
           @keyframes particleBurst {
             0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
             20% { opacity: 1; transform: translate(calc(-50% + var(--burst-x) * 0.3), calc(-50% + var(--burst-y) * 0.3)) scale(1.5); }
             100% { opacity: 0; transform: translate(calc(-50% + var(--burst-x)), calc(-50% + var(--burst-y))) scale(0.3); }
           }
-
           @keyframes introLogoFade {
             0% { opacity: 0; transform: scale(0.92); }
             100% { opacity: 1; transform: scale(1); }
           }
-
-          .logo-glow-text {
-            animation: logoGlowPulse 3s ease-in-out 8s infinite;
-          }
+          .logo-glow-text { animation: logoGlowPulse 3s ease-in-out 8s infinite; }
           @keyframes logoGlowPulse {
-            0%, 100% { text-shadow: 0 0 20px #FFFFFFAA, 0 0 40px #06B6D488, 0 0 80px #8B5CF666, 0 0 120px #3B82F644; }
-            50% { text-shadow: 0 0 30px #FFFFFFFF, 0 0 60px #06B6D4DD, 0 0 100px #8B5CF688, 0 0 160px #3B82F666; }
+            0%, 100% { text-shadow: 0 0 20px #FFFFFFAA, 0 0 40px #06B6D488, 0 0 80px #8B5CF666; }
+            50% { text-shadow: 0 0 30px #FFFFFFFF, 0 0 60px #06B6D4DD, 0 0 100px #8B5CF688; }
           }
-
           .light-burst {
             transform: translate(-50%, -50%) scale(0.05);
             animation: lightBurstScale 0.8s ease-out 6.5s forwards;
@@ -733,28 +871,21 @@ export default function Home() {
             40% { opacity: 1; transform: translate(-50%, -50%) scale(0.7); }
             100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
           }
-
           .aurora-halo {
             transform: translate(-50%, -50%) scale(0.05);
             animation: auroraHaloScale 2.2s ease-out 6.7s forwards;
           }
           @keyframes auroraHaloScale {
             0% { opacity: 0; transform: translate(-50%, -50%) scale(0.05); }
-            25% { opacity: 0.5; transform: translate(-50%, -50%) scale(0.4); }
             50% { opacity: 1; transform: translate(-50%, -50%) scale(0.75); }
-            75% { opacity: 0.9; transform: translate(-50%, -50%) scale(0.92); }
             100% { opacity: 0.7; transform: translate(-50%, -50%) scale(1); }
-          }
-
-          @keyframes auroraBackgroundFadeIn {
-            0% { opacity: 0; }
-            100% { opacity: 1; }
           }
         `}</style>
       </div>
     );
   }
 
+  // ─── LANDING 화면 ───
   if (screen === 'landing') return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4 md:p-6 relative overflow-hidden"
       style={{
@@ -773,61 +904,13 @@ export default function Home() {
           `,
         }} />
 
-      <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
-        <div className="absolute landing-signal-1"
-          style={{ top: '15%', left: 0, width: '100px', height: '2px',
-            background: `linear-gradient(90deg, transparent, #06B6D4, transparent)`,
-            boxShadow: `0 0 14px #06B6D4, 0 0 28px #06B6D466` }} />
-        <div className="absolute landing-signal-2"
-          style={{ top: '45%', right: 0, width: '120px', height: '2px',
-            background: `linear-gradient(90deg, transparent, #8B5CF6, transparent)`,
-            boxShadow: `0 0 14px #8B5CF6, 0 0 28px #8B5CF666` }} />
-        <div className="absolute landing-signal-3"
-          style={{ top: '78%', left: 0, width: '90px', height: '2px',
-            background: `linear-gradient(90deg, transparent, #3B82F6, transparent)`,
-            boxShadow: `0 0 14px #3B82F6, 0 0 28px #3B82F666` }} />
-        <div className="absolute landing-signal-vertical"
-          style={{ left: '15%', top: 0, width: '2px', height: '80px',
-            background: `linear-gradient(180deg, transparent, #06B6D4, transparent)`,
-            boxShadow: `0 0 14px #06B6D4, 0 0 28px #06B6D466` }} />
-      </div>
-
-      <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
-        {Array.from({ length: 18 }).map((_, i) => {
-          const colors = ['#06B6D4', '#8B5CF6', '#3B82F6', '#C1E8EB'];
-          const left = (i * 11 + 7) % 100;
-          const top = (i * 17 + 13) % 100;
-          const size = 1.5 + (i % 3) * 0.8;
-          const duration = 4 + (i % 4);
-          const delay = (i % 5) * 0.7;
-          return (
-            <div key={i} className="absolute rounded-full landing-particle"
-              style={{
-                left: `${left}%`, top: `${top}%`,
-                width: `${size}px`, height: `${size}px`,
-                background: colors[i % 4],
-                boxShadow: `0 0 ${size * 4}px ${colors[i % 4]}`,
-                animationDuration: `${duration}s`,
-                animationDelay: `${delay}s`,
-              }} />
-          );
-        })}
-      </div>
-
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] md:w-[700px] h-[400px] md:h-[700px] rounded-full pointer-events-none"
-        style={{
-          background: `radial-gradient(circle, #06B6D415 0%, #8B5CF60D 40%, transparent 70%)`,
-          filter: 'blur(40px)',
-        }} />
-
-      <div className="relative z-10 text-center max-w-md w-full"
-        style={{ animation: 'fadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards' }}>
+      <div className="relative z-10 text-center max-w-md w-full">
         <p className="text-[10px] md:text-[11px] tracking-[4px] md:tracking-[6px] uppercase mb-3 md:mb-4 font-mono font-bold"
           style={{ color: '#06B6D4', textShadow: '0 0 10px #06B6D4AA' }}>
           ConnectAI
         </p>
         <h1 className="text-5xl md:text-6xl font-black text-white mb-2 tracking-tight"
-          style={{ textShadow: '0 0 20px #FFFFFF66, 0 0 40px #06B6D466, 0 0 80px #8B5CF633' }}>
+          style={{ textShadow: '0 0 20px #FFFFFF66, 0 0 40px #06B6D466' }}>
           SIGNAL
         </h1>
         <div className="flex items-center justify-center gap-2 mb-2">
@@ -844,42 +927,16 @@ export default function Home() {
 
         <div className="flex justify-center gap-2 md:gap-3 mb-8 md:mb-10">
           {['01','02','03','04','05'].map((id, i) => (
-            <div key={id} className="relative rounded-xl overflow-hidden cyber-card-mini hover-lift"
+            <div key={id} className="relative rounded-xl overflow-hidden"
               style={{
                 width: isMobile ? '40px' : '48px',
                 height: isMobile ? '56px' : '64px',
                 background: CARD_COLORS[id].bg,
                 transform: `rotate(${(i-2)*6}deg)`,
-                boxShadow: `0 4px 20px ${CARD_COLORS[id].bg}66, 0 0 24px ${CARD_COLORS[id].bg}44`,
-                animationDelay: `${i * 0.3}s`,
+                boxShadow: `0 4px 20px ${CARD_COLORS[id].bg}66`,
               }}>
-              <div className="absolute inset-0 pointer-events-none opacity-30"
-                style={{
-                  backgroundImage: `linear-gradient(90deg, rgba(255,255,255,0.3) 1px, transparent 1px), linear-gradient(0deg, rgba(255,255,255,0.3) 1px, transparent 1px)`,
-                  backgroundSize: '8px 8px',
-                }} />
-              <div className="absolute inset-0 pointer-events-none opacity-40"
-                style={{ backgroundImage: `linear-gradient(135deg, transparent 30%, rgba(255,255,255,0.2) 50%, transparent 70%)` }} />
-
-              <span className="absolute top-1 left-1 w-2 h-[1.5px] bg-white/80" style={{ boxShadow: '0 0 4px white' }} />
-              <span className="absolute top-1 left-1 w-[1.5px] h-2 bg-white/80" style={{ boxShadow: '0 0 4px white' }} />
-              <span className="absolute top-1 right-1 w-2 h-[1.5px] bg-white/80" style={{ boxShadow: '0 0 4px white' }} />
-              <span className="absolute top-1 right-1 w-[1.5px] h-2 bg-white/80" style={{ boxShadow: '0 0 4px white' }} />
-              <span className="absolute bottom-1 left-1 w-2 h-[1.5px] bg-white/80" style={{ boxShadow: '0 0 4px white' }} />
-              <span className="absolute bottom-1 left-1 w-[1.5px] h-2 bg-white/80" style={{ boxShadow: '0 0 4px white' }} />
-              <span className="absolute bottom-1 right-1 w-2 h-[1.5px] bg-white/80" style={{ boxShadow: '0 0 4px white' }} />
-              <span className="absolute bottom-1 right-1 w-[1.5px] h-2 bg-white/80" style={{ boxShadow: '0 0 4px white' }} />
-
-              <div className="absolute left-0 right-0 pointer-events-none cyber-card-scanline"
-                style={{
-                  height: '6px',
-                  background: 'linear-gradient(180deg, transparent, rgba(255,255,255,0.6), transparent)',
-                  boxShadow: '0 0 8px rgba(255,255,255,0.8)',
-                  animationDelay: `${i * 0.6}s`,
-                }} />
-
-              <div className="absolute inset-0 flex items-center justify-center text-white text-[10px] md:text-[11px] font-black font-mono z-10"
-                style={{ textShadow: '0 0 8px rgba(255,255,255,0.8), 0 0 16px rgba(255,255,255,0.4)' }}>
+              <div className="absolute inset-0 flex items-center justify-center text-white text-[10px] md:text-[11px] font-black font-mono"
+                style={{ textShadow: '0 0 8px rgba(255,255,255,0.8)' }}>
                 {id}
               </div>
             </div>
@@ -887,148 +944,43 @@ export default function Home() {
         </div>
 
         <button onClick={() => handleStartClick('/student/join')}
-          className="cyber-btn-primary btn-orbit relative w-full py-3.5 md:py-4 font-black rounded-2xl text-[15px] md:text-base mb-3 transition-all hover:scale-[1.02] overflow-hidden group"
+          className="relative w-full py-3.5 md:py-4 font-black rounded-2xl text-[15px] md:text-base mb-3 transition-all hover:scale-[1.02]"
           style={{
             background: S.green,
             color: S.navy,
             boxShadow: `0 10px 30px -5px ${S.green}66, 0 0 30px ${S.green}55`,
           }}>
-          <span className="relative z-10 tracking-wider">{`>`} 학생으로 입장 →</span>
-          <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700"
-            style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)' }} />
+          {`>`} 학생으로 입장 →
         </button>
 
         <button onClick={() => handleStartClick('/teacher')}
-          className="cyber-btn-secondary btn-orbit-aqua relative w-full py-3 md:py-3.5 font-bold rounded-2xl text-[13px] md:text-[14px] transition-all hover:scale-[1.01] mb-3 overflow-hidden"
+          className="relative w-full py-3 md:py-3.5 font-bold rounded-2xl text-[13px] md:text-[14px] transition-all hover:scale-[1.01] mb-3"
           style={{
             background: 'rgba(6, 182, 212, 0.08)',
             border: `1px solid #06B6D466`,
             color: '#06B6D4',
             textShadow: '0 0 8px #06B6D466',
-            boxShadow: `0 0 20px #06B6D422, inset 0 0 12px #06B6D411`,
           }}>
-          <span className="relative z-10 tracking-wide">{`>`} 관리자 로그인</span>
+          {`>`} 관리자 로그인
         </button>
 
         <button onClick={() => setScreen('guide')}
-          className="cyber-btn-tertiary relative w-full py-3 md:py-3.5 rounded-2xl text-[13px] md:text-[14px] font-bold transition-all hover:scale-[1.01] overflow-hidden"
+          className="relative w-full py-3 md:py-3.5 rounded-2xl text-[13px] md:text-[14px] font-bold transition-all hover:scale-[1.01]"
           style={{
             background: 'rgba(139, 92, 246, 0.08)',
             border: `1px solid #8B5CF666`,
             color: '#8B5CF6',
             textShadow: '0 0 8px #8B5CF666',
-            boxShadow: `0 0 20px #8B5CF622, inset 0 0 12px #8B5CF611`,
           }}>
-          <span className="relative z-10 tracking-wide">{`>`} 퍼실리테이터 가이드</span>
+          {`>`} 퍼실리테이터 가이드
         </button>
 
         <p className="text-gray-700 text-[10px] mt-6 md:mt-8 font-mono">© 2026 SIGNAL — ConnectAI</p>
       </div>
-
-      <style jsx>{`
-        .landing-signal-1 { animation: landingSignalRight 5s linear infinite; }
-        .landing-signal-3 { animation: landingSignalRight 7s linear infinite 1.5s; }
-        @keyframes landingSignalRight {
-          0% { transform: translateX(-100px); opacity: 0; }
-          10% { opacity: 1; }
-          90% { opacity: 1; }
-          100% { transform: translateX(100vw); opacity: 0; }
-        }
-
-        .landing-signal-2 { animation: landingSignalLeft 6s linear infinite 0.5s; }
-        @keyframes landingSignalLeft {
-          0% { transform: translateX(120px); opacity: 0; }
-          10% { opacity: 1; }
-          90% { opacity: 1; }
-          100% { transform: translateX(-100vw); opacity: 0; }
-        }
-
-        .landing-signal-vertical { animation: landingSignalDown 6s linear infinite; }
-        @keyframes landingSignalDown {
-          0% { transform: translateY(-80px); opacity: 0; }
-          10% { opacity: 1; }
-          90% { opacity: 1; }
-          100% { transform: translateY(100vh); opacity: 0; }
-        }
-
-        .landing-particle {
-          animation-name: landingParticleTwinkle;
-          animation-iteration-count: infinite;
-          animation-timing-function: ease-in-out;
-        }
-        @keyframes landingParticleTwinkle {
-          0%, 100% { opacity: 0.3; transform: scale(1); }
-          50% { opacity: 1; transform: scale(1.5); }
-        }
-
-        .cyber-card-scanline { animation: cardScanlineFlow 3s ease-in-out infinite; top: 0; opacity: 0; }
-        @keyframes cardScanlineFlow {
-          0% { top: -10%; opacity: 0; }
-          15% { opacity: 1; }
-          85% { opacity: 1; }
-          100% { top: 110%; opacity: 0; }
-        }
-
-        .cyber-btn-primary { animation: cyberPrimaryPulse 2.5s ease-in-out infinite; }
-        @keyframes cyberPrimaryPulse {
-          0%, 100% { box-shadow: 0 10px 30px -5px ${S.green}66, 0 0 30px ${S.green}55; }
-          50% { box-shadow: 0 10px 40px -5px ${S.green}88, 0 0 50px ${S.green}88; }
-        }
-
-        .cyber-btn-secondary { animation: cyberSecondaryPulse 3s ease-in-out infinite; }
-        @keyframes cyberSecondaryPulse {
-          0%, 100% { box-shadow: 0 0 20px #06B6D422, inset 0 0 12px #06B6D411; }
-          50% { box-shadow: 0 0 30px #06B6D466, inset 0 0 16px #06B6D422; }
-        }
-
-        .cyber-btn-tertiary { animation: cyberTertiaryPulse 3.5s ease-in-out infinite; }
-        @keyframes cyberTertiaryPulse {
-          0%, 100% { box-shadow: 0 0 20px #8B5CF622, inset 0 0 12px #8B5CF611; }
-          50% { box-shadow: 0 0 30px #8B5CF666, inset 0 0 16px #8B5CF622; }
-        }
-
-        .btn-orbit::before {
-          content: '';
-          position: absolute;
-          top: -2px; left: -2px; right: -2px; bottom: -2px;
-          border-radius: 16px;
-          background: conic-gradient(from 0deg, transparent 0deg, rgba(255, 255, 255, 0.6) 30deg, transparent 60deg, transparent 360deg);
-          animation: btnOrbit 3s linear infinite;
-          z-index: 0;
-          opacity: 0;
-          transition: opacity 0.3s;
-        }
-        .btn-orbit:hover::before { opacity: 1; }
-        .btn-orbit::after {
-          content: '';
-          position: absolute;
-          inset: 2px;
-          border-radius: 14px;
-          background: ${S.green};
-          z-index: 1;
-        }
-        .btn-orbit > * { position: relative; z-index: 2; }
-
-        .btn-orbit-aqua::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          border-radius: 16px;
-          background: conic-gradient(from 0deg, transparent 0deg, #06B6D488 30deg, transparent 60deg, transparent 360deg);
-          animation: btnOrbit 4s linear infinite;
-          opacity: 0;
-          transition: opacity 0.3s;
-          z-index: 0;
-        }
-        .btn-orbit-aqua:hover::before { opacity: 1; }
-
-        @keyframes btnOrbit {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
+
+  // ─── GUIDE 화면 ───
   if (screen === 'guide') return (
     <div className="min-h-screen px-3 md:px-4 py-4 md:py-6 overflow-auto">
       <div className="max-w-2xl mx-auto">
@@ -1040,8 +992,8 @@ export default function Home() {
         </div>
         {[
           { time: '0–5분',   step: '주제 탭 — 카드 개념 확인', icon: '🎯', color: '#534AB7', tip: '주제 탭을 프로젝터에 띄워 핵심 통찰 질문을 함께 읽으세요.' },
-          { time: '5–25분',  step: 'Q1~Q3 탭 — 팀 토론 + 답변', icon: '💬', color: '#00B5AD', tip: '각 Q탭마다 10분씩. 중간 결론 빈칸을 꼭 채우게 하세요.' },
-          { time: '25–40분', step: '결론 탭 — 한 문장 전략', icon: '✏️', color: '#78BE20', tip: '4필드 입력 → 자동 합성 → 팀과 함께 다듬기 순서로 진행하세요.' },
+          { time: '5–25분',  step: 'Q1~Q3 탭 — 팀 토론 + 답변', icon: '💬', color: '#00B5AD', tip: '각 Q탭마다 빈칸을 채워 중간 결론을 만드세요.' },
+          { time: '25–40분', step: '결론 탭 — 한 문장 전략', icon: '✏️', color: '#78BE20', tip: '한 문장 전략 빈칸을 채워 카드를 마무리합니다.' },
           { time: '40–50분', step: '카드 완료 → 다음 카드', icon: '✅', color: '#4FB0C6', tip: 'Q1~Q3 답변 + 한 문장 전략 작성 후 카드 완료.' },
           { time: '50–60분', step: '팀별 발표', icon: '📌', color: '#FF6F61', tip: '각 팀의 한 문장 전략을 발표하고 강사가 피드백합니다.' },
         ].map((f, i) => (
@@ -1062,6 +1014,7 @@ export default function Home() {
     </div>
   );
 
+  // ─── GAME 화면 ───
   return (
     <div className="min-h-screen flex flex-col items-center px-3 md:px-4 py-3 md:py-4 relative overflow-hidden">
 
@@ -1075,33 +1028,11 @@ export default function Home() {
           zIndex: 0,
         }} />
 
-      <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
-        {Array.from({ length: 14 }).map((_, i) => {
-          const colors = [S.cyan, S.purple, S.blue];
-          const left = (i * 13 + 7) % 100;
-          const top = (i * 17 + 13) % 100;
-          const size = 1.5 + (i % 3) * 0.5;
-          const duration = 4 + (i % 4);
-          const delay = (i % 5) * 0.7;
-          return (
-            <div key={i} className="absolute rounded-full game-particle"
-              style={{
-                left: `${left}%`, top: `${top}%`,
-                width: `${size}px`, height: `${size}px`,
-                background: colors[i % 3],
-                boxShadow: `0 0 ${size * 4}px ${colors[i % 3]}`,
-                animationDuration: `${duration}s`,
-                animationDelay: `${delay}s`,
-              }} />
-          );
-        })}
-      </div>
-
       <div className="fixed top-[20%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 md:w-96 md:h-96 rounded-full pointer-events-none"
         style={{ background: `radial-gradient(circle, ${color}25 0%, transparent 70%)`, zIndex: 1 }} />
 
       <div className="w-full max-w-md mb-3 relative z-10">
-        {/* ⭐ 상단: SIGNAL · 팀이름 + 표준 + 목록 */}
+        {/* 헤더: SIGNAL · 팀이름 + 레벨 + 목록 */}
         <div className="flex items-start justify-between mb-2.5 gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
@@ -1128,9 +1059,8 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ⭐ 직무 카드 + 아이템 카드 (모바일 2줄, 데스크탑 1줄) */}
+        {/* 직무 카드 + 아이템 카드 */}
         <div className="flex flex-col md:flex-row gap-2 mb-2">
-          {/* 직무 카드 */}
           {myRole ? (
             <div className="flex items-center gap-2.5 rounded-xl px-3 py-2 transition"
               style={{
@@ -1139,11 +1069,7 @@ export default function Home() {
                 boxShadow: `0 0 14px ${myRole.color}30`,
               }}>
               <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0"
-                style={{
-                  background: `${myRole.color}40`,
-                  border: `1px solid ${myRole.color}`,
-                  boxShadow: `0 0 8px ${myRole.color}55`,
-                }}>
+                style={{ background: `${myRole.color}40`, border: `1px solid ${myRole.color}` }}>
                 {myRole.icon}
               </div>
               <div className="flex flex-col leading-tight min-w-0">
@@ -1172,12 +1098,8 @@ export default function Home() {
             </div>
           )}
 
-          {/* 아이템 카드 */}
           <div className="flex items-center gap-2 rounded-xl px-3 py-2 flex-1 min-w-0"
-            style={{
-              background: `${S.green}08`,
-              border: `1px solid ${S.green}30`,
-            }}>
+            style={{ background: `${S.green}08`, border: `1px solid ${S.green}30` }}>
             <span className="text-[8px] font-mono text-gray-500 tracking-wider flex-shrink-0">아이템</span>
             <span className="text-[11px] md:text-[12px] font-bold truncate"
               style={{ color: S.green, textShadow: `0 0 4px ${S.green}33` }}>
@@ -1186,6 +1108,7 @@ export default function Home() {
           </div>
         </div>
 
+        {/* 타이머 */}
         <div className="flex items-center gap-2 mb-2">
           <div className="flex-1" />
           <div className="flex items-center gap-1.5 rounded-lg px-2 py-1" style={{ background: 'rgba(255,255,255,0.06)' }}>
@@ -1197,25 +1120,20 @@ export default function Home() {
           </div>
         </div>
 
+        {/* 진행도 바 */}
         <div className="flex items-center gap-2 mb-2">
           <span className="text-[11px] text-gray-600 font-mono min-w-[50px]">{currentCardIdx + 1} / {TOPICS.length}</span>
-          <div className="flex-1 h-[4px] rounded-full overflow-hidden relative" style={{ background: 'rgba(255,255,255,0.08)' }}>
-            <div className="h-full rounded-full transition-all relative overflow-hidden"
+          <div className="flex-1 h-[4px] rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+            <div className="h-full rounded-full transition-all"
               style={{
                 width: `${((currentCardIdx+1)/TOPICS.length)*100}%`,
                 background: color,
                 boxShadow: `0 0 12px ${color}88`
-              }}>
-              <div className="absolute inset-0"
-                style={{
-                  background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.5) 50%, transparent 100%)',
-                  animation: 'shimmer 2.5s ease-in-out infinite',
-                }}
-              />
-            </div>
+              }} />
           </div>
         </div>
 
+        {/* 카드 번호 점프 */}
         <div className="flex gap-0.5 flex-wrap">
           {TOPICS.map((t, i) => (
             <button key={t.id} onClick={() => goToCard(i)}
@@ -1232,6 +1150,7 @@ export default function Home() {
         </div>
       </div>
 
+      {/* 직무 미션 안내 */}
       {myRole && myRole.primaryCards.includes(topic.id) && (
         <div className="w-full max-w-md mb-3 relative z-10">
           <div className="rounded-xl px-3 py-2 flex items-center gap-2 backdrop-blur-sm"
@@ -1249,6 +1168,7 @@ export default function Home() {
         </div>
       )}
 
+      {/* 카드 목록 모달 */}
       {showList && (
         <div className="fixed inset-0 backdrop-blur-xl z-[100] overflow-y-auto p-4 pt-14" style={{ background: 'rgba(0,0,0,0.92)' }}>
           <button onClick={() => setShowList(false)} className="fixed top-4 right-4 rounded-lg px-4 py-2 text-white text-sm z-10" style={{ background: 'rgba(255,255,255,0.1)' }}>닫기</button>
@@ -1279,14 +1199,13 @@ export default function Home() {
         </div>
       )}
 
-      <div key={topic.id} className="w-full max-w-[420px] relative z-10 card-enter"
+      {/* SignalCard */}
+      <div key={topic.id} className="w-full max-w-[420px] relative z-10"
         onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
         <SignalCard
           topic={topic}
           currentTab={currentTab}
           onTabChange={setCurrentTab}
-          checkStates={checkStates}
-          onCheck={handleCheck}
           responses={responses}
           onSaveResponse={handleSaveResponse}
           interimConclusions={interimConclusions}
@@ -1310,6 +1229,7 @@ export default function Home() {
         />
       </div>
 
+      {/* 카드 이동 컨트롤 */}
       <div className="flex gap-3 items-center mt-3 md:mt-4 relative z-10">
         <button onClick={() => goToCard(currentCardIdx - 1)} disabled={currentCardIdx === 0}
           className="w-10 h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center text-base md:text-lg transition-all disabled:opacity-20 hover:scale-110"
@@ -1327,55 +1247,19 @@ export default function Home() {
           }}>›</button>
       </div>
 
-      {SHOW_PDF_BUTTON && currentCardIdx === 15 && isLeader && (
-        <div className="mt-3 w-full max-w-[420px] relative z-10">
-          <button onClick={() => { setShowPdfToast(true); setTimeout(() => setShowPdfToast(false), 3000); }}
-            className="w-full py-2.5 font-bold rounded-xl text-[13px] transition"
-            style={completedCards.size === 16
-              ? { background: '#512D38', color: '#fff', border: '1px solid #6d3d4d' }
-              : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#555' }}>
-            📄 PDF 전략 리포트 생성 {completedCards.size === 16 ? '' : `(${completedCards.size}/16 완료)`}
-          </button>
-        </div>
-      )}
-
       <div className="mt-3 md:mt-4 text-[10px] text-gray-700 text-center relative z-10 font-mono">
         © 2026 SIGNAL — ConnectAI
-        <button onClick={exitGame}
-          className="ml-3 text-gray-700 underline hover:text-gray-500">나가기</button>
+        <button onClick={exitGame} className="ml-3 text-gray-700 underline hover:text-gray-500">나가기</button>
       </div>
 
+      {/* 토스트 */}
       {savedToast && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 rounded-xl px-5 py-2.5 z-[300] flex items-center gap-2 backdrop-blur-sm"
-          style={{ background: 'rgba(10,10,10,0.95)', border: '1px solid rgba(255,255,255,0.1)', animation: 'fadeIn 0.3s ease-out' }}>
+          style={{ background: 'rgba(10,10,10,0.95)', border: '1px solid rgba(255,255,255,0.1)' }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={S.green} strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
           <span className="text-[13px] text-white font-semibold">저장 완료!</span>
         </div>
       )}
-      {showPdfToast && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 rounded-xl px-5 py-3 z-[300] flex items-center gap-3 backdrop-blur-sm max-w-[320px]"
-          style={{ background: 'rgba(10,10,10,0.95)', border: '1px solid rgba(255,103,97,0.3)', animation: 'fadeIn 0.3s ease-out' }}>
-          <span className="text-xl">{completedCards.size === 16 ? '📄' : '🔒'}</span>
-          <div>
-            {completedCards.size === 16
-              ? <><div className="text-[13px] text-white font-semibold">PDF 리포트 준비 중</div><div className="text-[11px] text-amber-400">AI 전략 내러티브 완성 후 활성화됩니다</div></>
-              : <><div className="text-[13px] text-white font-semibold">아직 완료되지 않은 카드가 있어요</div><div className="text-[11px] text-amber-400">16개 카드 전부 완료 후 생성 가능 ({completedCards.size}/16)</div></>
-            }
-          </div>
-        </div>
-      )}
-
-      <style jsx>{`
-        .game-particle {
-          animation-name: gameParticleTwinkle;
-          animation-iteration-count: infinite;
-          animation-timing-function: ease-in-out;
-        }
-        @keyframes gameParticleTwinkle {
-          0%, 100% { opacity: 0.3; transform: scale(1); }
-          50% { opacity: 1; transform: scale(1.5); }
-        }
-      `}</style>
     </div>
   );
 }
