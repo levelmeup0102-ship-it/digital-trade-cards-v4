@@ -46,3 +46,9 @@ export interface FlatCard {
   data: TopicCard | SubCard;
   parentId: string;
 }
+
+// ⭐ V2 호환 — 카드 답변 데이터 구조
+export interface CardResponse {
+  texts?: Record<string, string>;
+  images?: Record<string, string>;
+}
