@@ -23,6 +23,9 @@ export interface Role {
   primaryCards: string[];
 }
 
+// ⭐ V2 호환 — RoleInfo는 Role의 별칭
+export type RoleInfo = Role;
+
 // ⭐ ROLES — 객체 형태 (V2 student/join 페이지와 호환)
 export const ROLES: Record<RoleCode, Role> = {
   ceo: {
