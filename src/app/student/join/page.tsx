@@ -1236,32 +1236,35 @@ export default function StudentJoin() {
           );
         })()}
 
-        {step === 'welcome' && selectedMember && team && (
-          <div className="text-center">
-            <p className="text-[10px] font-mono tracking-widest mb-2 font-bold"
-              style={{ color: S.cyan, textShadow: `0 0 8px ${S.cyan}AA` }}>
-              {`>`} WELCOME ABOARD
-            </p>
-            <h2 className="text-2xl font-black text-white mb-1">환영해요, {selectedMember.name}!</h2>
-            <p className="text-[13px] text-gray-400 mb-5">{team.name} · {selectedMember.is_leader ? '팀장' : '팀원'}</p>
+        {step === 'welcome' && selectedMember && team && (() => {
+          const myMember = members.find(m => m.id === selectedMember.id);
+          const myRoleCode = myMember?.role_code || (selectedMember.is_leader ? 'ceo' : null);
+          const myRole = myRoleCode ? getRole(myRoleCode) : null;
+          const myMission = getRoleMission(myRoleCode);
 
-            {(() => {
-              const myMember = members.find(m => m.id === selectedMember.id);
-              const myRoleCode = myMember?.role_code || (selectedMember.is_leader ? 'ceo' : null);
-              const myRole = myRoleCode ? getRole(myRoleCode) : null;
-              const myMission = getRoleMission(myRoleCode);
+          return (
+            <div className="text-center md:fixed md:inset-0 md:flex md:items-center md:justify-center md:p-6 md:overflow-y-auto md:z-20">
+              <div className="md:max-w-4xl md:w-full md:relative">
+                {/* 헤더 */}
+                <p className="text-[10px] font-mono tracking-widest mb-2 font-bold"
+                  style={{ color: S.cyan, textShadow: `0 0 8px ${S.cyan}AA` }}>
+                  {`>`} WELCOME ABOARD
+                </p>
+                <h2 className="text-2xl md:text-3xl font-black text-white mb-1">환영해요, {selectedMember.name}!</h2>
+                <p className="text-[13px] md:text-[14px] text-gray-400 mb-5 md:mb-6">{team.name} · {selectedMember.is_leader ? '팀장' : '팀원'}</p>
 
-              return (
-                <>
+                {/* ⭐ 좌우분할 영역 (PC) / 세로 배치 (모바일) */}
+                <div className="flex flex-col md:flex-row md:items-stretch gap-5 md:gap-6 mb-5 md:mb-6 md:text-left">
+                  {/* 왼쪽: 직무 카드 */}
                   {myRole && (
-                    <div className="flex justify-center mb-5">
+                    <div className="flex justify-center md:flex-shrink-0 md:items-start">
                       <RoleCard role={myRole} memberName={selectedMember.name} isMobile={isMobile} />
                     </div>
                   )}
 
-                  {/* ⭐ 미션 브리핑 카드 */}
+                  {/* 오른쪽: 미션 브리핑 카드 */}
                   {myMission && myRole && (
-                    <div className="rounded-2xl p-4 mb-5 text-left relative overflow-hidden"
+                    <div className="rounded-2xl p-4 md:p-5 text-left relative overflow-hidden md:flex-1 md:min-w-0"
                       style={{
                         background: `linear-gradient(135deg, ${myRole.color}15 0%, ${myRole.color}05 100%)`,
                         border: `1.5px solid ${myRole.color}50`,
@@ -1279,17 +1282,17 @@ export default function StudentJoin() {
                       </div>
 
                       {/* 태그라인 */}
-                      <p className="text-[14px] font-black text-white mb-2 leading-tight">
+                      <p className="text-[14px] md:text-[15px] font-black text-white mb-2 leading-tight">
                         "{myMission.tagline}"
                       </p>
 
                       {/* 본문 */}
-                      <p className="text-[12px] text-gray-300 leading-relaxed mb-3">
+                      <p className="text-[12px] md:text-[13px] text-gray-300 leading-relaxed mb-3">
                         {myMission.description}
                       </p>
 
                       {/* 인게임 미션 */}
-                      <div className="rounded-lg p-2.5 mb-3"
+                      <div className="rounded-lg p-2.5 md:p-3 mb-3"
                         style={{
                           background: `${myRole.color}10`,
                           borderLeft: `2px solid ${myRole.color}`,
@@ -1298,7 +1301,7 @@ export default function StudentJoin() {
                           style={{ color: myRole.color }}>
                           이번 게임에서 할 일
                         </p>
-                        <p className="text-[11.5px] text-gray-200 leading-relaxed">
+                        <p className="text-[11.5px] md:text-[12.5px] text-gray-200 leading-relaxed">
                           {myMission.inGameMission}
                         </p>
                       </div>
@@ -1320,23 +1323,24 @@ export default function StudentJoin() {
                       </div>
                     </div>
                   )}
-                </>
-              );
-            })()}
+                </div>
 
-            <button onClick={handleStart}
-              className="cyber-cta-btn relative w-full py-4 font-black rounded-2xl text-[15px] transition-all hover:scale-[1.02] overflow-hidden group"
-              style={{
-                background: S.green,
-                color: S.navy,
-                boxShadow: `0 10px 30px -5px ${S.green}66, 0 0 24px ${S.green}55`,
-              }}>
-              <span className="relative z-10">{`>`} 카드게임 시작하기 →</span>
-              <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700"
-                style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)' }} />
-            </button>
-          </div>
-        )}
+                {/* 시작 버튼 */}
+                <button onClick={handleStart}
+                  className="cyber-cta-btn relative w-full md:max-w-md md:mx-auto md:block py-4 font-black rounded-2xl text-[15px] transition-all hover:scale-[1.02] overflow-hidden group"
+                  style={{
+                    background: S.green,
+                    color: S.navy,
+                    boxShadow: `0 10px 30px -5px ${S.green}66, 0 0 24px ${S.green}55`,
+                  }}>
+                  <span className="relative z-10">{`>`} 카드게임 시작하기 →</span>
+                  <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700"
+                    style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)' }} />
+                </button>
+              </div>
+            </div>
+          );
+        })()}
 
         <p className="text-center text-gray-700 text-[10px] mt-8 font-mono relative z-10">© 2026 SIGNAL — ConnectAI</p>
       </div>
