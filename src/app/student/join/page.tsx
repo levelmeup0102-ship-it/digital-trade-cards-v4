@@ -1343,25 +1343,34 @@ export default function StudentJoin() {
                         ))}
                       </div>
 
-                      {/* 하단 여백 채우는 정보 바 (PC에서만 의미있게 보임) */}
-                      <div className="hidden md:flex md:flex-1 md:items-end md:mt-4 md:pt-3 md:border-t relative z-10"
+                      {/* 하단 여백 — 큼직한 직무 영문명 (PC에서만 표시) */}
+                      <div className="hidden md:flex md:flex-1 md:items-end md:mt-4 md:pt-3 md:border-t relative z-10 overflow-hidden"
                         style={{ borderColor: `${myRole.color}20` }}>
-                        <div className="w-full flex items-center justify-between text-[9px] font-mono"
-                          style={{ color: `${myRole.color}AA` }}>
-                          <div className="flex items-center gap-1.5">
-                            <span className="inline-block w-1.5 h-1.5 rounded-full animate-pulse"
+                        <div className="w-full relative">
+                          {/* 작은 라벨 */}
+                          <p className="text-[9px] font-mono tracking-[3px] mb-0.5"
+                            style={{ color: `${myRole.color}88` }}>
+                            ROLE
+                          </p>
+                          {/* 큰 영문 이름 */}
+                          <p className="font-black tracking-tight leading-none whitespace-nowrap overflow-hidden text-ellipsis"
+                            style={{
+                              color: myRole.color,
+                              fontSize: 'clamp(28px, 4vw, 44px)',
+                              letterSpacing: '-0.02em',
+                              textShadow: `0 0 24px ${myRole.color}66, 0 0 48px ${myRole.color}33, 0 2px 12px rgba(0,0,0,0.5)`,
+                              fontFamily: '"JetBrains Mono", "Courier New", monospace',
+                            }}>
+                            {myRole.nameEn.toUpperCase()}
+                          </p>
+                          {/* 우하단 데코 점 */}
+                          <div className="absolute bottom-1 right-0 flex items-center gap-1">
+                            <div className="w-1 h-1 rounded-full"
                               style={{ background: myRole.color, boxShadow: `0 0 4px ${myRole.color}` }} />
-                            <span>SYSTEM READY</span>
-                          </div>
-                          <span style={{ color: '#666' }}>·</span>
-                          <div className="flex items-center gap-1">
-                            <span style={{ color: '#666' }}>STATUS:</span>
-                            <span className="font-bold" style={{ color: myRole.color }}>BRIEFED</span>
-                          </div>
-                          <span style={{ color: '#666' }}>·</span>
-                          <div className="flex items-center gap-1">
-                            <span style={{ color: '#666' }}>READY TO DEPLOY</span>
-                            <span>→</span>
+                            <div className="w-1 h-1 rounded-full"
+                              style={{ background: `${myRole.color}88` }} />
+                            <div className="w-1 h-1 rounded-full"
+                              style={{ background: `${myRole.color}44` }} />
                           </div>
                         </div>
                       </div>
