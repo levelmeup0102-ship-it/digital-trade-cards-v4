@@ -1,334 +1,205 @@
-'use client';
-import { useState, useEffect } from 'react';
-import { RoleInfo } from '@/data/roleData';
+// src/data/roleData.ts
+// SIGNAL V3 — 7직무 정의 + 새 카드 16개 기준 담당 매핑
+// V2 호환: ROLES 객체 형태, RoleInfo alias, idCode/isLeader/skills/catchphrase 필드 포함
 
-interface RoleCardProps {
-  role: RoleInfo;
-  memberName: string;
-  isMobile?: boolean;
-  isCompact?: boolean;
+export type RoleCode =
+  | 'ceo'
+  | 'market_analyst'
+  | 'brand_strategist'
+  | 'customer_insight'
+  | 'global_sales'
+  | 'digital_marketer'
+  | 'compliance_officer';
+
+export interface Skill {
+  name: string;
+  level: number;  // 1~5
 }
 
-export default function RoleCard({ role, memberName, isMobile, isCompact }: RoleCardProps) {
-  const cardW = isCompact ? (isMobile ? 140 : 180) : (isMobile ? 280 : 340);
-  const imgSize = isCompact ? (isMobile ? 60 : 80) : (isMobile ? 140 : 180);
+export interface Role {
+  code: RoleCode;
+  idCode: string;             // V2 호환 — 화면 표시용 ID 코드
+  nameKr: string;
+  nameEn: string;
+  icon: string;
+  color: string;
+  image: string;
+  description: string;
+  isLeader?: boolean;         // V2 호환 — 팀장 여부
+  skills: Skill[];            // V2 호환 — 능력치 (각 1~5)
+  catchphrase: string;        // V2 호환 — 명대사
+  // ⭐ V3: 새 카드 16개 기준 핵심 담당 카드
+  primaryCards: string[];
+}
 
-  // ⭐ 이미지 로딩 상태
-  const [imgLoaded, setImgLoaded] = useState(false);
-  const [showImage, setShowImage] = useState(false);
+// ⭐ V2 호환 — RoleInfo는 Role의 별칭
+export type RoleInfo = Role;
 
-  // 이미지 로드 + 최소 0.6초 표시 (자연스러운 연출)
-  useEffect(() => {
-    const img = new window.Image();
-    img.src = role.image;
+// ⭐ ROLES — 객체 형태 (V2 student/join 페이지와 호환)
+export const ROLES: Record<RoleCode, Role> = {
+  ceo: {
+    code: 'ceo',
+    idCode: 'CEO-001',
+    nameKr: '대표이사',
+    nameEn: 'CEO',
+    icon: '👑',
+    color: '#E7FE55',
+    image: '/roles/ceo.jpg',
+    description: '팀 전체를 이끌고 최종 의사결정을 내립니다. SWOT·전략결론 카드를 주도해요.',
+    isLeader: true,
+    skills: [
+      { name: '의사결정', level: 5 },
+      { name: '통솔력',   level: 5 },
+      { name: '비전',     level: 4 },
+      { name: '협상력',   level: 4 },
+    ],
+    catchphrase: '결단은 내가, 영광은 모두에게.',
+    primaryCards: ['08', '09', '13', '15'],
+  },
+  market_analyst: {
+    code: 'market_analyst',
+    idCode: 'MA-002',
+    nameKr: '시장 분석가',
+    nameEn: 'Market Analyst',
+    icon: '📊',
+    color: '#06B6D4',
+    image: '/roles/analyst.jpg',
+    description: '데이터·통계로 시장을 분석하고 가능성을 예측합니다. 시장 이해 카테고리를 주도해요.',
+    isLeader: false,
+    skills: [
+      { name: '데이터 분석', level: 5 },
+      { name: '시장 조사',   level: 5 },
+      { name: '통계',         level: 4 },
+      { name: '예측력',       level: 4 },
+    ],
+    catchphrase: '숫자가 말해주는 진실을 읽습니다.',
+    primaryCards: ['01', '02', '03', '10'],
+  },
+  brand_strategist: {
+    code: 'brand_strategist',
+    idCode: 'BS-003',
+    nameKr: '브랜드 전략가',
+    nameEn: 'Brand Strategist',
+    icon: '🎨',
+    color: '#8B5CF6',
+    image: '/roles/brand.jpg',
+    description: '브랜드 정체성과 차별화 전략을 만듭니다. 경쟁환경·IP 보호 카드를 주도해요.',
+    isLeader: false,
+    skills: [
+      { name: '브랜딩',       level: 5 },
+      { name: '차별화',       level: 5 },
+      { name: '디자인 감각',  level: 4 },
+      { name: '스토리텔링',   level: 4 },
+    ],
+    catchphrase: '브랜드는 고객과의 약속입니다.',
+    primaryCards: ['04', '12', '15'],
+  },
+  customer_insight: {
+    code: 'customer_insight',
+    idCode: 'CI-004',
+    nameKr: '고객 인사이트 리드',
+    nameEn: 'Customer Insight',
+    icon: '💬',
+    color: '#FF6FB5',
+    image: '/roles/customer.jpg',
+    description: '고객의 진짜 욕구와 행동을 깊이 이해합니다. 타깃 선정·고객 분석 카드를 주도해요.',
+    isLeader: false,
+    skills: [
+      { name: '공감력',       level: 5 },
+      { name: '행동 분석',    level: 5 },
+      { name: '인터뷰',       level: 4 },
+      { name: '페르소나',     level: 4 },
+    ],
+    catchphrase: '고객의 마음을 읽는 것이 시작입니다.',
+    primaryCards: ['03', '07'],
+  },
+  global_sales: {
+    code: 'global_sales',
+    idCode: 'GS-005',
+    nameKr: '해외영업 매니저',
+    nameEn: 'Global Sales',
+    icon: '🌍',
+    color: '#3B82F6',
+    image: '/roles/global.jpg',
+    description: '글로벌 시장 진출과 바이어·파트너 발굴을 담당합니다. 진출국·확장 카드를 주도해요.',
+    isLeader: false,
+    skills: [
+      { name: '협상력',       level: 5 },
+      { name: '글로벌 감각',  level: 5 },
+      { name: '네트워킹',     level: 4 },
+      { name: '언어 능력',    level: 4 },
+    ],
+    catchphrase: '세계 어디든 다리를 놓습니다.',
+    primaryCards: ['11', '13', '14'],
+  },
+  digital_marketer: {
+    code: 'digital_marketer',
+    idCode: 'DM-006',
+    nameKr: '디지털 마케터',
+    nameEn: 'Digital Marketer',
+    icon: '📱',
+    color: '#FFC72C',
+    image: '/roles/marketer.jpg',
+    description: '디지털 채널과 콘텐츠로 브랜드를 알립니다. 시장 변화·바이어 접근 카드를 주도해요.',
+    isLeader: false,
+    skills: [
+      { name: '콘텐츠 기획',  level: 5 },
+      { name: '디지털 채널',  level: 5 },
+      { name: '트렌드 감각',  level: 4 },
+      { name: '광고 운영',    level: 4 },
+    ],
+    catchphrase: '1초 안에 마음을 사로잡습니다.',
+    primaryCards: ['05', '14'],
+  },
+  compliance_officer: {
+    code: 'compliance_officer',
+    idCode: 'CO-007',
+    nameKr: '무역 규제 전문가',
+    nameEn: 'Compliance Officer',
+    icon: '📋',
+    color: '#FF671F',
+    image: '/roles/compliance.jpg',
+    description: '규제·인증·통관 등 법적 요건을 해결합니다. 규제·TBT 카드를 주도해요.',
+    isLeader: false,
+    skills: [
+      { name: '법규 분석',    level: 5 },
+      { name: '인증 관리',    level: 5 },
+      { name: '통관',         level: 4 },
+      { name: '리스크 관리',  level: 4 },
+    ],
+    catchphrase: '안전이 곧 속도입니다.',
+    primaryCards: ['06', '16'],
+  },
+};
 
-    const minLoadTime = 600; // 최소 0.6초는 로딩 효과 보여주기
-    const startTime = Date.now();
+// 배열 형태 (V3 코드에서 .filter / .map 사용 시 활용)
+export const ROLES_LIST: Role[] = Object.values(ROLES);
 
-    img.onload = () => {
-      const elapsed = Date.now() - startTime;
-      const remaining = Math.max(0, minLoadTime - elapsed);
-      setTimeout(() => {
-        setImgLoaded(true);
-        // 살짝 후 이미지 표시 (글리치 → 이미지 전환)
-        setTimeout(() => setShowImage(true), 150);
-      }, remaining);
-    };
+// ⭐ MEMBER_ROLE_SETS — 팀원 수에 따른 추천 직무 세트 (CEO 제외)
+export const MEMBER_ROLE_SETS: Record<number, RoleCode[]> = {
+  0: [],
+  1: ['market_analyst'],
+  2: ['market_analyst', 'global_sales'],
+  3: ['market_analyst', 'brand_strategist', 'global_sales'],
+  4: ['market_analyst', 'brand_strategist', 'global_sales', 'compliance_officer'],
+  5: ['market_analyst', 'brand_strategist', 'customer_insight', 'global_sales', 'digital_marketer'],
+  6: ['market_analyst', 'brand_strategist', 'customer_insight', 'global_sales', 'digital_marketer', 'compliance_officer'],
+};
 
-    img.onerror = () => {
-      // 에러여도 일단 보여줌
-      setTimeout(() => {
-        setImgLoaded(true);
-        setShowImage(true);
-      }, minLoadTime);
-    };
-  }, [role.image]);
+// ⭐ getRecommendedRoles — 팀원 수 기반 추천 직무 배열 반환
+export function getRecommendedRoles(nonLeaderCount: number): RoleCode[] {
+  if (nonLeaderCount <= 0) return [];
+  if (nonLeaderCount >= 6) return MEMBER_ROLE_SETS[6];
+  return MEMBER_ROLE_SETS[nonLeaderCount] || [];
+}
 
-  return (
-    <div className="cyber-role-card relative rounded-2xl overflow-hidden"
-      style={{
-        width: `${cardW}px`,
-        background: `linear-gradient(135deg, rgba(10,10,10,0.95) 0%, rgba(20,20,40,0.9) 100%)`,
-        border: `2px solid ${role.color}66`,
-        boxShadow: `0 0 24px ${role.color}33, inset 0 0 20px ${role.color}11`,
-      }}>
+// ⭐ getRole — 코드로 Role 찾기
+export function getRole(code: RoleCode | string | null | undefined): Role | null {
+  if (!code) return null;
+  return ROLES[code as RoleCode] || null;
+}
 
-      {/* 헤더 */}
-      <div className="px-3 py-1.5 flex items-center justify-between"
-        style={{
-          background: `${role.color}1A`,
-          borderBottom: `1px solid ${role.color}44`,
-        }}>
-        <span className="text-[8px] md:text-[9px] font-mono font-bold tracking-wider"
-          style={{ color: role.color, textShadow: `0 0 6px ${role.color}` }}>
-          SIGNAL.TRADE.CO
-        </span>
-        <span className="text-[8px] font-mono"
-          style={{ color: role.color }}>
-          ID·{role.idCode}
-        </span>
-      </div>
-
-      {/* 이미지 영역 */}
-      <div className="flex justify-center pt-3 pb-2 relative">
-        {/* 이미지 뒤 글로우 */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full pointer-events-none"
-          style={{
-            width: `${imgSize * 1.3}px`,
-            height: `${imgSize * 1.3}px`,
-            background: `radial-gradient(circle, ${role.color}44 0%, transparent 70%)`,
-            filter: 'blur(15px)',
-          }} />
-
-        <div className="relative rounded-xl overflow-hidden"
-          style={{
-            width: `${imgSize}px`,
-            height: `${imgSize}px`,
-            border: `2px solid ${role.color}`,
-            boxShadow: `0 0 20px ${role.color}88`,
-            background: `linear-gradient(135deg, ${role.color}33, ${role.color}11)`,
-          }}>
-
-            {/* ⭐ 로딩 효과 (이미지 로드 전) */}
-            {!showImage && (
-              <div className="absolute inset-0">
-                {/* 격자 패턴 */}
-                <div className="absolute inset-0 opacity-40"
-                  style={{
-                    backgroundImage: `
-                      linear-gradient(${role.color}66 1px, transparent 1px),
-                      linear-gradient(90deg, ${role.color}66 1px, transparent 1px)
-                    `,
-                    backgroundSize: '12px 12px',
-                  }} />
-
-                {/* 데이터 비트 (0과 1) */}
-                <div className="absolute inset-0 flex flex-col justify-center items-center font-mono text-[8px] data-bits"
-                  style={{ color: `${role.color}AA` }}>
-                  <div className="absolute top-2 left-2 opacity-60">01010111</div>
-                  <div className="absolute top-2 right-2 opacity-60">10110001</div>
-                  <div className="absolute bottom-2 left-2 opacity-60">11001010</div>
-                  <div className="absolute bottom-2 right-2 opacity-60">00101101</div>
-                </div>
-
-                {/* 스캔라인 (위→아래) */}
-                <div className="absolute left-0 right-0 h-1 cyber-scan-line"
-                  style={{
-                    background: `linear-gradient(180deg, transparent, ${role.color}, ${role.color}, transparent)`,
-                    boxShadow: `0 0 12px ${role.color}, 0 0 24px ${role.color}`,
-                  }} />
-
-                {/* 중앙 LOADING 텍스트 */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center">
-                    <p className="font-mono font-bold loading-text"
-                      style={{
-                        fontSize: imgSize > 100 ? '11px' : '8px',
-                        color: role.color,
-                        textShadow: `0 0 8px ${role.color}`,
-                        letterSpacing: '2px',
-                      }}>
-                      SCAN
-                    </p>
-                    <p className="font-mono loading-dots mt-0.5"
-                      style={{
-                        fontSize: imgSize > 100 ? '14px' : '10px',
-                        color: role.color,
-                        textShadow: `0 0 6px ${role.color}`,
-                        fontWeight: 'bold',
-                      }}>
-                      ▰▰▰
-                    </p>
-                  </div>
-                </div>
-
-                {/* 글리치 효과 */}
-                <div className="absolute inset-0 cyber-glitch-overlay pointer-events-none"
-                  style={{
-                    background: `linear-gradient(90deg, transparent 49%, ${role.color}33 50%, transparent 51%)`,
-                  }} />
-              </div>
-            )}
-
-            {/* 실제 이미지 */}
-            <img src={role.image} alt={role.nameKr}
-              className="w-full h-full object-cover absolute inset-0 role-card-img"
-              style={{
-                filter: 'saturate(1.1) contrast(1.05)',
-                opacity: showImage ? 1 : 0,
-                transition: 'opacity 0.5s ease-out',
-              }}
-              loading="eager"
-              onLoad={() => {
-                if (imgLoaded) setShowImage(true);
-              }} />
-
-            {/* 스캔라인 오버레이 (이미지 보일 때) */}
-            {showImage && (
-              <div className="absolute inset-0 pointer-events-none cyber-scanline-overlay"
-                style={{
-                  background: `linear-gradient(180deg, transparent 0%, ${role.color}15 50%, transparent 100%)`,
-                  backgroundSize: '100% 4px',
-                }} />
-            )}
-        </div>
-      </div>
-
-      {/* 이름 + 직무 */}
-      <div className="px-3 pb-2 text-center">
-        <p className={`${isCompact ? 'text-[13px] md:text-sm' : 'text-base md:text-lg'} font-black text-white`}>
-          {memberName}
-        </p>
-        <div className="flex items-center justify-center gap-1.5 mt-0.5">
-          <span className="text-[9px]">{role.icon}</span>
-          <p className="text-[10px] md:text-[11px] font-bold font-mono tracking-wide"
-            style={{ color: role.color, textShadow: `0 0 6px ${role.color}88` }}>
-            {role.nameKr}{role.isLeader ? ' · 팀장' : ''}
-          </p>
-        </div>
-      </div>
-
-      {/* 사이버 게이지 */}
-      {!isCompact && (
-        <div className="px-4 pb-3 space-y-1.5"
-          style={{ borderTop: `1px solid ${role.color}22`, paddingTop: '10px' }}>
-          {role.skills.map((skill, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <span className="text-[10px] font-mono w-20 truncate"
-                style={{ color: role.color }}>
-                {skill.name}
-              </span>
-              <div className="flex-1 flex gap-0.5">
-                {Array.from({ length: 5 }).map((_, j) => (
-                  <div key={j} className="flex-1 h-1.5 rounded-sm transition-all"
-                    style={{
-                      background: j < skill.level ? role.color : `${role.color}22`,
-                      boxShadow: j < skill.level ? `0 0 4px ${role.color}` : 'none',
-                    }} />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* 명대사 */}
-      {!isCompact && (
-        <div className="px-4 pb-3">
-          <div className="rounded-lg px-3 py-2"
-            style={{
-              background: `${role.color}0D`,
-              border: `1px solid ${role.color}33`,
-            }}>
-            <p className="text-[11px] md:text-[12px] italic text-center leading-relaxed"
-              style={{ color: '#E0E0E0' }}>
-              "{role.catchphrase}"
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* 하단 PASS */}
-      <div className="px-3 py-1.5 flex items-center justify-between"
-        style={{
-          background: `${role.color}1A`,
-          borderTop: `1px solid ${role.color}44`,
-        }}>
-        <span className="text-[8px] md:text-[9px] font-mono"
-          style={{ color: '#888' }}>
-          AUTH·{showImage ? 'OK' : '...'}
-        </span>
-        <span className="text-[8px] md:text-[9px] font-mono font-bold"
-          style={{ color: role.color, textShadow: `0 0 6px ${role.color}` }}>
-          {showImage ? '✓ PASS' : '⏳ SCAN'}
-        </span>
-      </div>
-
-      <style jsx>{`
-        .cyber-role-card {
-          animation: cyberCardEnter 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-        @keyframes cyberCardEnter {
-          0% {
-            opacity: 0;
-            transform: scale(0.85) translateY(20px);
-          }
-          100% {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
-        }
-
-        /* ⭐ 스캔라인 위→아래 흐름 (로딩 중) */
-        .cyber-scan-line {
-          animation: scanLineFlow 1.2s ease-in-out infinite;
-          top: 0;
-        }
-        @keyframes scanLineFlow {
-          0% { top: 0; opacity: 0; }
-          15% { opacity: 1; }
-          85% { opacity: 1; }
-          100% { top: 100%; opacity: 0; }
-        }
-
-        /* ⭐ 데이터 비트 깜빡임 */
-        .data-bits > div {
-          animation: dataBitsBlink 0.8s ease-in-out infinite;
-        }
-        .data-bits > div:nth-child(1) { animation-delay: 0s; }
-        .data-bits > div:nth-child(2) { animation-delay: 0.2s; }
-        .data-bits > div:nth-child(3) { animation-delay: 0.4s; }
-        .data-bits > div:nth-child(4) { animation-delay: 0.6s; }
-        @keyframes dataBitsBlink {
-          0%, 100% { opacity: 0.3; }
-          50% { opacity: 0.8; }
-        }
-
-        /* ⭐ LOADING 텍스트 펄스 */
-        .loading-text {
-          animation: loadingTextPulse 1s ease-in-out infinite;
-        }
-        @keyframes loadingTextPulse {
-          0%, 100% { opacity: 0.7; }
-          50% { opacity: 1; }
-        }
-
-        /* ⭐ 점 3개 흐름 */
-        .loading-dots {
-          animation: dotsFlow 0.8s ease-in-out infinite;
-        }
-        @keyframes dotsFlow {
-          0%, 100% { letter-spacing: 2px; opacity: 0.5; }
-          50% { letter-spacing: 4px; opacity: 1; }
-        }
-
-        /* ⭐ 글리치 오버레이 (가끔 한 번씩) */
-        .cyber-glitch-overlay {
-          animation: glitchEffect 2s ease-in-out infinite;
-          opacity: 0;
-        }
-        @keyframes glitchEffect {
-          0%, 95% { opacity: 0; transform: translateX(0); }
-          96% { opacity: 1; transform: translateX(-2px); }
-          97% { opacity: 1; transform: translateX(2px); }
-          98% { opacity: 1; transform: translateX(-1px); }
-          100% { opacity: 0; transform: translateX(0); }
-        }
-
-        /* 이미지 보일 때 스캔라인 */
-        .cyber-scanline-overlay {
-          animation: scanlineFlow 3s linear infinite;
-        }
-        @keyframes scanlineFlow {
-          0% { background-position: 0 0; }
-          100% { background-position: 0 100%; }
-        }
-
-        .cyber-role-card:hover {
-          transform: translateY(-2px);
-          transition: transform 0.2s;
-        }
-      `}</style>
-    </div>
-  );
+// ⭐ getRolesForCard — 카드 ID로 핵심 담당 직무들 찾기 (V3 신규)
+export function getRolesForCard(cardId: string): Role[] {
+  return Object.values(ROLES).filter(r => r.primaryCards.includes(cardId));
 }
