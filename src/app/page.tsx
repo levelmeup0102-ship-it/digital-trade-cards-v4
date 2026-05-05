@@ -470,6 +470,31 @@ export default function Home() {
     if (timer <= 0 && timerRef.current) clearInterval(timerRef.current);
   }, [timerActive, timer]);
 
+  // ⭐ 카드 이동 전 모든 pending save 즉시 실행 (저장 못한 데이터 보호)
+  const flushPendingSaves = useCallback(() => {
+    if (!teamId) return;
+
+    // interim pending saves 즉시 실행
+    Object.entries(interimSaveTimers.current).forEach(([subCardId, timer]) => {
+      clearTimeout(timer);
+      const values = interimConclusions[subCardId];
+      if (values && values.length > 0) {
+        saveInterimConclusionDB(teamId, subCardId, values);
+      }
+    });
+    interimSaveTimers.current = {};
+
+    // leader pending saves 즉시 실행
+    Object.entries(leaderSaveTimers.current).forEach(([cardId, timer]) => {
+      clearTimeout(timer);
+      const lc = leaderConclusions[cardId];
+      if (lc) {
+        saveLeaderConclusionDB(teamId, cardId, lc.fields || [], lc.oneSentence || '');
+      }
+    });
+    leaderSaveTimers.current = {};
+  }, [teamId, interimConclusions, leaderConclusions]);
+
   const goToCard = useCallback((idx: number) => {
     if (idx >= 0 && idx < TOPICS.length) {
       // ⭐ 이전 카드의 pending save 즉시 실행 (이동 전에 데이터 보호)
@@ -546,30 +571,6 @@ export default function Home() {
   };
 
   // ⭐ 카드 이동 전 모든 pending save 즉시 실행 (저장 못한 데이터 보호)
-  const flushPendingSaves = useCallback(() => {
-    if (!teamId) return;
-
-    // interim pending saves 즉시 실행
-    Object.entries(interimSaveTimers.current).forEach(([subCardId, timer]) => {
-      clearTimeout(timer);
-      const values = interimConclusions[subCardId];
-      if (values && values.length > 0) {
-        saveInterimConclusionDB(teamId, subCardId, values);
-      }
-    });
-    interimSaveTimers.current = {};
-
-    // leader pending saves 즉시 실행
-    Object.entries(leaderSaveTimers.current).forEach(([cardId, timer]) => {
-      clearTimeout(timer);
-      const lc = leaderConclusions[cardId];
-      if (lc) {
-        saveLeaderConclusionDB(teamId, cardId, lc.fields || [], lc.oneSentence || '');
-      }
-    });
-    leaderSaveTimers.current = {};
-  }, [teamId, interimConclusions, leaderConclusions]);
-
   const handleComplete = async () => {
     setCompletedCards(prev => new Set([...prev, topic.id]));
     setSavedToast(true); setTimeout(() => setSavedToast(false), 2000);
