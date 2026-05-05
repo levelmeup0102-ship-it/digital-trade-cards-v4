@@ -1352,17 +1352,30 @@ export default function StudentJoin() {
                             style={{ color: `${myRole.color}88` }}>
                             ROLE
                           </p>
-                          {/* 큰 영문 이름 */}
-                          <p className="font-black tracking-tight leading-none whitespace-nowrap overflow-hidden text-ellipsis"
-                            style={{
-                              color: myRole.color,
-                              fontSize: 'clamp(28px, 4vw, 44px)',
-                              letterSpacing: '-0.02em',
-                              textShadow: `0 0 24px ${myRole.color}66, 0 0 48px ${myRole.color}33, 0 2px 12px rgba(0,0,0,0.5)`,
-                              fontFamily: '"JetBrains Mono", "Courier New", monospace',
-                            }}>
-                            {myRole.nameEn.toUpperCase()}
-                          </p>
+                          {/* 큰 영문 이름 — 글자 수에 따라 자동 크기 조절 */}
+                          {(() => {
+                            const nameUpper = myRole.nameEn.toUpperCase();
+                            const len = nameUpper.length;
+                            // 글자 수 기준 폰트 크기 (clamp으로 반응형)
+                            // 짧은 이름(CEO 3자)은 크게, 긴 이름(GLOBAL SALES MANAGER 20자)은 작게
+                            const fontSize = len <= 5 ? 'clamp(36px, 5vw, 56px)'
+                              : len <= 10 ? 'clamp(30px, 4.2vw, 46px)'
+                              : len <= 14 ? 'clamp(26px, 3.6vw, 38px)'
+                              : len <= 18 ? 'clamp(22px, 3vw, 32px)'
+                              : 'clamp(18px, 2.4vw, 26px)';
+                            return (
+                              <p className="font-black tracking-tight leading-none whitespace-nowrap"
+                                style={{
+                                  color: myRole.color,
+                                  fontSize,
+                                  letterSpacing: '-0.02em',
+                                  textShadow: `0 0 24px ${myRole.color}66, 0 0 48px ${myRole.color}33, 0 2px 12px rgba(0,0,0,0.5)`,
+                                  fontFamily: '"JetBrains Mono", "Courier New", monospace',
+                                }}>
+                                {nameUpper}
+                              </p>
+                            );
+                          })()}
                           {/* 우하단 데코 점 */}
                           <div className="absolute bottom-1 right-0 flex items-center gap-1">
                             <div className="w-1 h-1 rounded-full"
