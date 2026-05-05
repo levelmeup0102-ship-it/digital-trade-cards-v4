@@ -435,42 +435,55 @@ export default function SignalCard({
               </>
             ) : (
               /* 팀원: 한 문장 전략 읽기 전용 */
-              <div className="mb-4">
-                <p className="text-[10px] font-bold mb-1.5 font-mono tracking-widest text-gray-500">
-                  한 문장 전략
-                </p>
-                {isFinalStrategyFilled ? (
-                  <div className="rounded-xl p-3 transition-all"
-                    style={{
-                      background: `${color}15`,
-                      border: `1.5px solid ${color}80`,
-                      boxShadow: `0 0 16px ${color}25`,
-                    }}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-[9px] font-mono font-bold tracking-widest px-1.5 py-0.5 rounded"
-                        style={{ background: `${S.green}20`, color: S.green }}>
-                        팀장 작성
-                      </span>
-                      <span className="text-[9px] font-mono text-gray-500">읽기 전용</span>
-                    </div>
-                    <p className="text-[13px] text-gray-200 leading-relaxed font-medium">
-                      {composeInterim(topic.finalStrategyTemplate, leaderConclusion.fields || [])}
+              (() => {
+                // ⭐ 팀원 동기화: oneSentence 우선, 없으면 fields 합성
+                const composed = leaderConclusion.oneSentence ||
+                  composeInterim(topic.finalStrategyTemplate, leaderConclusion.fields || []);
+                const hasContent = (
+                  // fields가 모두 채워졌거나
+                  isFinalStrategyFilled ||
+                  // oneSentence가 있고 ___ (빈칸)이 없으면
+                  (leaderConclusion.oneSentence && leaderConclusion.oneSentence.trim() && !leaderConclusion.oneSentence.includes('___'))
+                );
+                return (
+                  <div className="mb-4">
+                    <p className="text-[10px] font-bold mb-1.5 font-mono tracking-widest text-gray-500">
+                      한 문장 전략
                     </p>
+                    {hasContent ? (
+                      <div className="rounded-xl p-3 transition-all"
+                        style={{
+                          background: `${color}15`,
+                          border: `1.5px solid ${color}80`,
+                          boxShadow: `0 0 16px ${color}25`,
+                        }}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-[9px] font-mono font-bold tracking-widest px-1.5 py-0.5 rounded"
+                            style={{ background: `${S.green}20`, color: S.green }}>
+                            팀장 작성
+                          </span>
+                          <span className="text-[9px] font-mono text-gray-500">읽기 전용</span>
+                        </div>
+                        <p className="text-[13px] text-gray-200 leading-relaxed font-medium">
+                          {composed}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="rounded-xl p-4 text-center"
+                        style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.1)' }}>
+                        <p className="text-[12px] text-gray-500">⏳ 팀장이 작성 중이에요</p>
+                        <p className="text-[10px] text-gray-700 mt-1">조금만 기다려주세요</p>
+                      </div>
+                    )}
+                    {isCardCompleted && (
+                      <div className="mt-3 w-full py-2.5 rounded-xl text-center font-bold text-[12px]"
+                        style={{ background: `${S.green}15`, color: S.green, border: `1px solid ${S.green}30` }}>
+                        ✓ 이 카드 완료됨
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <div className="rounded-xl p-4 text-center"
-                    style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.1)' }}>
-                    <p className="text-[12px] text-gray-500">⏳ 팀장이 작성 중이에요</p>
-                    <p className="text-[10px] text-gray-700 mt-1">조금만 기다려주세요</p>
-                  </div>
-                )}
-                {isCardCompleted && (
-                  <div className="mt-3 w-full py-2.5 rounded-xl text-center font-bold text-[12px]"
-                    style={{ background: `${S.green}15`, color: S.green, border: `1px solid ${S.green}30` }}>
-                    ✓ 이 카드 완료됨
-                  </div>
-                )}
-              </div>
+                );
+              })()
             )}
           </div>
         )}
@@ -521,7 +534,7 @@ function FillInBlankForm({
   );
 }
 
-// 빈칸 입력 박스 (자동 너비 조절)
+// 빈칸 입력 박스 (자동 너비 조절, 네온 노란 테마)
 function BlankInput({
   value,
   onChange,
@@ -539,6 +552,9 @@ function BlankInput({
     return Math.max(60, Math.min(280, chars * 14 + 24));
   };
 
+  // ⭐ 네온 노란색 테마 (다른 답변 박스와 통일된 느낌)
+  const NEON_YELLOW = '#FFE680';
+
   return (
     <input
       type="text"
@@ -548,9 +564,9 @@ function BlankInput({
       style={{
         display: 'inline-block',
         width: `${calcWidth(value)}px`,
-        background: value ? '#FFE680' : '#FAEEDA',
-        color: '#1A1A1A',
-        border: `1.5px solid ${value ? '#BA7517' : '#D4A547'}`,
+        background: value ? `${NEON_YELLOW}15` : `${NEON_YELLOW}08`,
+        color: value ? NEON_YELLOW : '#888',
+        border: `1.5px solid ${value ? NEON_YELLOW : NEON_YELLOW + '44'}`,
         borderRadius: '6px',
         padding: '2px 8px',
         margin: '0 2px',
@@ -560,14 +576,26 @@ function BlankInput({
         verticalAlign: 'baseline',
         minWidth: '60px',
         maxWidth: '280px',
-        transition: 'all 0.15s',
-        boxShadow: value ? '0 0 0 2px rgba(255, 230, 128, 0.2)' : 'none',
+        transition: 'all 0.2s',
+        boxShadow: value
+          ? `0 0 12px ${NEON_YELLOW}55, inset 0 0 6px ${NEON_YELLOW}10`
+          : 'none',
+        textShadow: value ? `0 0 6px ${NEON_YELLOW}AA` : 'none',
       }}
       onFocus={(e) => {
-        e.currentTarget.style.boxShadow = `0 0 0 3px ${cardColor}40`;
+        e.currentTarget.style.boxShadow = `0 0 18px ${NEON_YELLOW}AA, inset 0 0 8px ${NEON_YELLOW}22`;
+        e.currentTarget.style.borderColor = NEON_YELLOW;
+        e.currentTarget.style.background = `${NEON_YELLOW}1A`;
       }}
       onBlur={(e) => {
-        e.currentTarget.style.boxShadow = value ? '0 0 0 2px rgba(255, 230, 128, 0.2)' : 'none';
+        if (value) {
+          e.currentTarget.style.boxShadow = `0 0 12px ${NEON_YELLOW}55, inset 0 0 6px ${NEON_YELLOW}10`;
+          e.currentTarget.style.background = `${NEON_YELLOW}15`;
+        } else {
+          e.currentTarget.style.boxShadow = 'none';
+          e.currentTarget.style.borderColor = `${NEON_YELLOW}44`;
+          e.currentTarget.style.background = `${NEON_YELLOW}08`;
+        }
       }}
     />
   );
