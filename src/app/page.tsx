@@ -500,9 +500,25 @@ export default function Home() {
   // ⭐ 한 문장 전략 변경 (fields 배열 또는 oneSentence)
   const handleLeaderConclusionChange = (key: keyof LeaderConclusionState, value: any) => {
     setLeaderConclusions(prev => {
+      const existing = prev[topic.id] || defaultLeaderConclusion();
+      const updated = { ...existing, [key]: value };
+
+      // ⭐ fields 변경 시 oneSentence도 자동으로 합성 (팀원 동기화 강화)
+      if (key === 'fields' && Array.isArray(value)) {
+        const parts = topic.finalStrategyTemplate.split('___');
+        let composed = '';
+        for (let i = 0; i < parts.length; i++) {
+          composed += parts[i];
+          if (i < parts.length - 1) {
+            composed += value[i] || '___';
+          }
+        }
+        updated.oneSentence = composed;
+      }
+
       const next = {
         ...prev,
-        [topic.id]: { ...(prev[topic.id] || defaultLeaderConclusion()), [key]: value },
+        [topic.id]: updated,
       };
 
       // fields 변경 시 DB 저장 (debounced)
@@ -895,36 +911,127 @@ export default function Home() {
         filter: exiting ? 'blur(8px)' : 'blur(0)',
       }}>
 
+      {/* ⭐ 사이버틱 회로 신호 라인 */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
+        <div className="absolute landing-circuit-1"
+          style={{
+            top: '15%', left: 0, width: '80px', height: '2px',
+            background: `linear-gradient(90deg, transparent, ${S.green}, transparent)`,
+            boxShadow: `0 0 12px ${S.green}, 0 0 20px ${S.green}66`,
+          }} />
+        <div className="absolute landing-circuit-2"
+          style={{
+            top: '50%', right: 0, width: '100px', height: '2px',
+            background: `linear-gradient(90deg, transparent, ${S.aqua}, transparent)`,
+            boxShadow: `0 0 12px ${S.aqua}, 0 0 20px ${S.aqua}66`,
+          }} />
+        <div className="absolute landing-circuit-3"
+          style={{
+            top: '80%', left: 0, width: '60px', height: '2px',
+            background: `linear-gradient(90deg, transparent, ${S.green}, transparent)`,
+            boxShadow: `0 0 12px ${S.green}, 0 0 20px ${S.green}66`,
+          }} />
+        <div className="absolute landing-circuit-vertical"
+          style={{
+            left: '20%', top: 0, width: '2px', height: '60px',
+            background: `linear-gradient(180deg, transparent, ${S.aqua}, transparent)`,
+            boxShadow: `0 0 12px ${S.aqua}, 0 0 20px ${S.aqua}66`,
+          }} />
+      </div>
+
+      {/* ⭐ 카드 색상 기반 그라디언트 배경 */}
       <div className="fixed inset-0 pointer-events-none"
         style={{
           background: `
-            radial-gradient(circle at 20% 25%, #06B6D420 0%, transparent 45%),
-            radial-gradient(circle at 80% 60%, #8B5CF620 0%, transparent 50%),
-            radial-gradient(circle at 50% 95%, #3B82F61A 0%, transparent 60%)
+            radial-gradient(circle at 15% 25%, #00A9E020 0%, transparent 45%),
+            radial-gradient(circle at 85% 30%, #003DA520 0%, transparent 50%),
+            radial-gradient(circle at 50% 60%, #00B5AD18 0%, transparent 55%),
+            radial-gradient(circle at 25% 80%, #582C8320 0%, transparent 50%),
+            radial-gradient(circle at 80% 90%, #FFC72C12 0%, transparent 45%)
           `,
         }} />
 
+      {/* ⭐ 스캔라인 */}
+      <div className="fixed inset-0 pointer-events-none landing-scanline"
+        style={{
+          background: `linear-gradient(to bottom, transparent 0%, ${S.green}06 50%, transparent 100%)`,
+          height: '120px',
+        }} />
+
+      {/* ⭐ 네온 파티클 */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        {Array.from({ length: 20 }).map((_, i) => {
+          const colors = [S.green, S.aqua, '#C1A8F0'];
+          const left = (i * 7 + 13) % 100;
+          const top = (i * 13 + 7) % 100;
+          const size = 1.5 + (i % 3) * 0.5;
+          const duration = 4 + (i % 4);
+          const delay = (i % 5) * 0.7;
+          return (
+            <div key={i} className="absolute rounded-full landing-neon-particle"
+              style={{
+                left: `${left}%`, top: `${top}%`,
+                width: `${size}px`, height: `${size}px`,
+                background: colors[i % 3],
+                boxShadow: `0 0 ${size * 4}px ${colors[i % 3]}`,
+                animationDuration: `${duration}s`,
+                animationDelay: `${delay}s`,
+              }} />
+          );
+        })}
+      </div>
+
+      {/* ⭐ 4개 코너 L자 장식 */}
+      <div className="fixed top-4 left-4 pointer-events-none z-0">
+        <div className="w-12 h-12 relative">
+          <div className="absolute top-0 left-0 w-6 h-[2px]" style={{ background: S.green, boxShadow: `0 0 8px ${S.green}` }} />
+          <div className="absolute top-0 left-0 w-[2px] h-6" style={{ background: S.green, boxShadow: `0 0 8px ${S.green}` }} />
+        </div>
+      </div>
+      <div className="fixed top-4 right-4 pointer-events-none z-0">
+        <div className="w-12 h-12 relative">
+          <div className="absolute top-0 right-0 w-6 h-[2px]" style={{ background: S.aqua, boxShadow: `0 0 8px ${S.aqua}` }} />
+          <div className="absolute top-0 right-0 w-[2px] h-6" style={{ background: S.aqua, boxShadow: `0 0 8px ${S.aqua}` }} />
+        </div>
+      </div>
+      <div className="fixed bottom-4 left-4 pointer-events-none z-0">
+        <div className="w-12 h-12 relative">
+          <div className="absolute bottom-0 left-0 w-6 h-[2px]" style={{ background: S.aqua, boxShadow: `0 0 8px ${S.aqua}` }} />
+          <div className="absolute bottom-0 left-0 w-[2px] h-6" style={{ background: S.aqua, boxShadow: `0 0 8px ${S.aqua}` }} />
+        </div>
+      </div>
+      <div className="fixed bottom-4 right-4 pointer-events-none z-0">
+        <div className="w-12 h-12 relative">
+          <div className="absolute bottom-0 right-0 w-6 h-[2px]" style={{ background: S.green, boxShadow: `0 0 8px ${S.green}` }} />
+          <div className="absolute bottom-0 right-0 w-[2px] h-6" style={{ background: S.green, boxShadow: `0 0 8px ${S.green}` }} />
+        </div>
+      </div>
+
       <div className="relative z-10 text-center max-w-md w-full">
-        <p className="text-[10px] md:text-[11px] tracking-[4px] md:tracking-[6px] uppercase mb-3 md:mb-4 font-mono font-bold"
-          style={{ color: '#06B6D4', textShadow: '0 0 10px #06B6D4AA' }}>
+        <p className="text-[10px] md:text-[11px] tracking-[4px] md:tracking-[6px] uppercase mb-3 md:mb-4 font-mono font-bold landing-connectai"
+          style={{ color: S.green, textShadow: `0 0 10px ${S.green}AA` }}>
           ConnectAI
         </p>
-        <h1 className="text-5xl md:text-6xl font-black text-white mb-2 tracking-tight"
-          style={{ textShadow: '0 0 20px #FFFFFF66, 0 0 40px #06B6D466' }}>
+
+        {/* ⭐ 글리치 효과 적용된 SIGNAL 로고 */}
+        <h1 className="text-5xl md:text-6xl font-black text-white mb-2 tracking-tight landing-glitch-text relative inline-block"
+          style={{ textShadow: `0 0 20px ${S.green}66, 0 0 40px ${S.aqua}33` }}>
           SIGNAL
         </h1>
+
         <div className="flex items-center justify-center gap-2 mb-2">
-          <div className="h-[1px] w-8" style={{ background: `linear-gradient(to right, transparent, #06B6D4)` }} />
+          <div className="w-1 h-1 rounded-full" style={{ background: S.green, boxShadow: `0 0 6px ${S.green}` }} />
           <p className="text-[12px] md:text-[13px] font-mono font-bold tracking-[2px]"
-            style={{ color: '#C1E8EB', textShadow: '0 0 8px #06B6D466' }}>
+            style={{ color: S.aqua, textShadow: `0 0 8px ${S.aqua}66` }}>
             DIGITAL TRADE CARDS
           </p>
-          <div className="h-[1px] w-8" style={{ background: `linear-gradient(to left, transparent, #8B5CF6)` }} />
+          <div className="w-1 h-1 rounded-full" style={{ background: S.aqua, boxShadow: `0 0 6px ${S.aqua}` }} />
         </div>
         <p className="text-gray-400 text-[12px] md:text-[13px] mb-6 md:mb-8 leading-relaxed px-2">
           디지털 무역 전략을 직접 만들어보는<br />체험형 카드게임 학습 플랫폼
         </p>
 
+        {/* 카드 5개 — 사용자 요청에 따라 그대로 유지 */}
         <div className="flex justify-center gap-2 md:gap-3 mb-8 md:mb-10">
           {['01','02','03','04','05'].map((id, i) => (
             <div key={id} className="relative rounded-xl overflow-hidden"
@@ -943,14 +1050,18 @@ export default function Home() {
           ))}
         </div>
 
+        {/* ⭐ 학생 입장 버튼 - 네온 펄스 효과 */}
         <button onClick={() => handleStartClick('/student/join')}
-          className="relative w-full py-3.5 md:py-4 font-black rounded-2xl text-[15px] md:text-base mb-3 transition-all hover:scale-[1.02]"
+          className="relative w-full py-3.5 md:py-4 font-black rounded-2xl text-[15px] md:text-base mb-3 transition-all hover:scale-[1.02] landing-cta-btn overflow-hidden group"
           style={{
             background: S.green,
             color: S.navy,
-            boxShadow: `0 10px 30px -5px ${S.green}66, 0 0 30px ${S.green}55`,
+            boxShadow: `0 0 30px ${S.green}66, 0 10px 30px -5px ${S.green}88`,
+            border: `1px solid ${S.green}`,
           }}>
-          {`>`} 학생으로 입장 →
+          <span className="relative z-10 tracking-wider">{`>`} 학생으로 입장 →</span>
+          <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700"
+            style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)' }} />
         </button>
 
         <button onClick={() => handleStartClick('/teacher')}
@@ -977,6 +1088,64 @@ export default function Home() {
 
         <p className="text-gray-700 text-[10px] mt-6 md:mt-8 font-mono">© 2026 SIGNAL — ConnectAI</p>
       </div>
+
+      {/* ⭐ 사이버틱 효과 CSS */}
+      <style jsx>{`
+        .landing-circuit-1 { animation: landingSignalRight 4s linear infinite; }
+        @keyframes landingSignalRight {
+          0% { transform: translateX(-80px); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { transform: translateX(100vw); opacity: 0; }
+        }
+        .landing-circuit-2 { animation: landingSignalLeft 5s linear infinite 1s; }
+        @keyframes landingSignalLeft {
+          0% { transform: translateX(100px); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { transform: translateX(-100vw); opacity: 0; }
+        }
+        .landing-circuit-3 { animation: landingSignalRight 6s linear infinite 2s; }
+        .landing-circuit-vertical { animation: landingSignalDown 5s linear infinite 0.5s; }
+        @keyframes landingSignalDown {
+          0% { transform: translateY(-60px); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { transform: translateY(100vh); opacity: 0; }
+        }
+        .landing-scanline { animation: landingScanlineMove 4s linear infinite; }
+        @keyframes landingScanlineMove {
+          0% { transform: translateY(-120px); }
+          100% { transform: translateY(100vh); }
+        }
+        .landing-neon-particle {
+          animation-name: landingNeonTwinkle;
+          animation-iteration-count: infinite;
+          animation-timing-function: ease-in-out;
+        }
+        @keyframes landingNeonTwinkle {
+          0%, 100% { opacity: 0.3; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.5); }
+        }
+        .landing-glitch-text { animation: landingGlitchPulse 5s ease-in-out infinite; }
+        @keyframes landingGlitchPulse {
+          0%, 100% {
+            text-shadow: 0 0 20px rgba(231, 254, 85, 0.4), 0 0 40px rgba(193, 232, 235, 0.2);
+          }
+          50% {
+            text-shadow:
+              -1px 0 0 rgba(193, 232, 235, 0.7),
+              1px 0 0 rgba(231, 254, 85, 0.7),
+              0 0 30px rgba(231, 254, 85, 0.6),
+              0 0 60px rgba(193, 232, 235, 0.3);
+          }
+        }
+        .landing-cta-btn { animation: landingBtnNeonPulse 2.5s ease-in-out infinite; }
+        @keyframes landingBtnNeonPulse {
+          0%, 100% { box-shadow: 0 0 20px rgba(231, 254, 85, 0.4), 0 10px 30px -5px rgba(231, 254, 85, 0.5); }
+          50% { box-shadow: 0 0 40px rgba(231, 254, 85, 0.7), 0 10px 40px -5px rgba(231, 254, 85, 0.8); }
+        }
+      `}</style>
     </div>
   );
 
