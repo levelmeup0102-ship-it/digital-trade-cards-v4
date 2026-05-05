@@ -151,10 +151,10 @@ export default function SignalCard({
   );
 
   return (
-    <div className="w-full max-w-[340px] mx-auto">
+    <div className="w-full max-w-[340px] md:max-w-4xl mx-auto md:flex md:gap-6 md:items-start">
 
-      {/* 카드 비주얼 */}
-      <div className="mb-4 relative">
+      {/* 카드 비주얼 — PC에서 왼쪽 고정 */}
+      <div className="mb-4 relative md:mb-0 md:w-[340px] md:flex-shrink-0 md:sticky md:top-4 md:self-start">
         <div className="rounded-2xl overflow-hidden bg-white border border-gray-200 relative"
           style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.08)' }}>
           {isCardCompleted && (
@@ -202,6 +202,9 @@ export default function SignalCard({
           </div>
         </div>
       </div>
+
+      {/* PC에서 우측 영역 (탭 + 콘텐츠) */}
+      <div className="md:flex-1 md:min-w-0 w-full">
 
       {/* 탭 바 */}
       <div className="flex rounded-xl overflow-hidden mb-2"
@@ -472,6 +475,10 @@ export default function SignalCard({
           </div>
         )}
       </div>
+
+      </div>
+      {/* 우측 영역 끝 */}
+
     </div>
   );
 }
