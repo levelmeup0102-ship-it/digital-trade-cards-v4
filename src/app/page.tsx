@@ -434,7 +434,8 @@ export default function Home() {
     });
 
     const unsubInterims = subscribeInterimConclusions(teamId, (interims) => {
-      setInterimConclusions(interims);
+      // ⭐ merge: DB 데이터 + 저장 미반영 로컬 데이터 보호
+      setInterimConclusions(prev => ({ ...prev, ...interims }));
     });
 
     const unsubLeaderConcs = subscribeLeaderConclusions(teamId, (leaderConcs) => {
@@ -471,11 +472,13 @@ export default function Home() {
 
   const goToCard = useCallback((idx: number) => {
     if (idx >= 0 && idx < TOPICS.length) {
+      // ⭐ 이전 카드의 pending save 즉시 실행 (이동 전에 데이터 보호)
+      flushPendingSaves();
       setCurrentCardIdx(idx);
       setCurrentTab('주제');
       setSwipeOffset(0);
     }
-  }, []);
+  }, [flushPendingSaves]);
 
   const handleSaveResponse = async (cardId: string, text: string) => {
     setResponses(prev => ({ ...prev, [cardId]: { texts: { '0': text }, images: {} } }));
@@ -494,7 +497,7 @@ export default function Home() {
     }
     interimSaveTimers.current[cardId] = setTimeout(() => {
       saveInterimConclusionDB(teamId, cardId, values);
-    }, 600);
+    }, 200);  // ⚡ 200ms로 단축 (빠른 이동 시 저장 보호)
   };
 
   // ⭐ 한 문장 전략 변경 (fields 배열 또는 oneSentence)
@@ -535,21 +538,50 @@ export default function Home() {
             state.fields || [],
             state.oneSentence || '',
           );
-        }, 600);
+        }, 200);  // ⚡ 200ms로 단축
       }
 
       return next;
     });
   };
 
+  // ⭐ 카드 이동 전 모든 pending save 즉시 실행 (저장 못한 데이터 보호)
+  const flushPendingSaves = useCallback(() => {
+    if (!teamId) return;
+
+    // interim pending saves 즉시 실행
+    Object.entries(interimSaveTimers.current).forEach(([subCardId, timer]) => {
+      clearTimeout(timer);
+      const values = interimConclusions[subCardId];
+      if (values && values.length > 0) {
+        saveInterimConclusionDB(teamId, subCardId, values);
+      }
+    });
+    interimSaveTimers.current = {};
+
+    // leader pending saves 즉시 실행
+    Object.entries(leaderSaveTimers.current).forEach(([cardId, timer]) => {
+      clearTimeout(timer);
+      const lc = leaderConclusions[cardId];
+      if (lc) {
+        saveLeaderConclusionDB(teamId, cardId, lc.fields || [], lc.oneSentence || '');
+      }
+    });
+    leaderSaveTimers.current = {};
+  }, [teamId, interimConclusions, leaderConclusions]);
+
   const handleComplete = async () => {
     setCompletedCards(prev => new Set([...prev, topic.id]));
     setSavedToast(true); setTimeout(() => setSavedToast(false), 2000);
     if (session && teamId) {
+      // ⭐ 모든 pending save 즉시 실행 (저장 누락 방지)
+      flushPendingSaves();
       await saveCardProgress({ teamId, sessionId: session.id, cardId: topic.id, checklistStatus: {}, completed: true });
-      // 한 문장 전략 즉시 저장
+      // 한 문장 전략 즉시 저장 (다시 한번 보장)
       const lc = leaderConclusions[topic.id] || defaultLeaderConclusion();
-      await saveLeaderConclusionDB(teamId, topic.id, lc.fields || [], lc.oneSentence || '');
+      if (lc.fields && lc.fields.length > 0) {
+        await saveLeaderConclusionDB(teamId, topic.id, lc.fields, lc.oneSentence || '');
+      }
     }
 
     // 다음 카드 Q1 잠금 해제
