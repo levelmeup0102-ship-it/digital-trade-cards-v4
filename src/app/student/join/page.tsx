@@ -10,6 +10,7 @@ import {
 import { supabase } from '@/lib/supabase';
 import type { Team, TeamMember } from '@/lib/teacher';
 import { ROLES, MEMBER_ROLE_SETS, getRecommendedRoles, getRole, type RoleCode } from '@/data/roleData';
+import { getRoleMission } from '@/data/roleMissions';
 import RoleCard from '@/components/RoleCard';
 
 const S = {
@@ -23,7 +24,7 @@ const S = {
   bg: '#0A0A0A',
 };
 
-const ITEMS = ['💄 K-뷰티 (스킨케어)', '🍜 K-푸드 (라면·스낵)', '🧬 바이오/디지털 헬스케어', '🎮 디지털 콘텐츠 (웹툰·게임)', '📱 스마트 기기 (IoT)', '✏️ 직접 입력'];
+const INDUSTRIES = ['💄 K-뷰티 (스킨케어)', '🍜 K-푸드 (라면·스낵)', '🧬 바이오/디지털 헬스케어', '🎮 디지털 콘텐츠 (웹툰·게임)', '📱 스마트 기기 (IoT)', '🔖 기타'];
 const LEVELS: Record<string, { label: string; emoji: string; timer: number; minChars: number; color: string }> = {
   basic:    { label: '초급', emoji: '🌱', timer: 1800, minChars: 20,  color: '#059669' },
   standard: { label: '표준', emoji: '📘', timer: 1200, minChars: 50,  color: '#4FB0C6' },
@@ -302,7 +303,10 @@ export default function StudentJoin() {
   const handleLeaderSetup = async () => {
     if (!item || !team || !selectedMember) return;
     setLoading(true);
-    const finalItem = item === '✏️ 직접 입력' ? customItem : item;
+    // ⭐ 산업군 + 품목 결합: "K-뷰티 (스킨케어) / 마스크팩 세트"
+    const finalItem = item === '🔖 기타'
+      ? customItem
+      : (customItem ? `${item} / ${customItem}` : item);
 
     try {
       await supabase.from('teams').update({ item: finalItem, level }).eq('id', team.id);
@@ -696,37 +700,152 @@ export default function StudentJoin() {
               <p className="text-[12px] text-gray-500">팀장만 설정할 수 있어요. 팀원들에게도 적용됩니다.</p>
             </div>
 
+            {/* ⭐ ① 산업군 선택 */}
             <div className="mb-5">
-              <p className="text-sm font-bold text-white mb-2">① 팀 아이템 선택</p>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black flex-shrink-0"
+                    style={{
+                      background: S.green,
+                      color: S.navy,
+                      boxShadow: `0 0 10px ${S.green}88`,
+                    }}>
+                    1
+                  </div>
+                  <p className="text-sm font-bold text-white">팀 산업군 선택</p>
+                </div>
+                <p className="text-[10px] text-gray-500">우리 팀이 다룰 큰 카테고리</p>
+              </div>
               <div className="grid grid-cols-2 gap-2">
-                {ITEMS.map(it => (
+                {INDUSTRIES.map(it => (
                   <InteractiveButton key={it}
-                    uniqueKey={`item-${it}`}
+                    uniqueKey={`industry-${it}`}
                     isSelected={item === it}
-                    onClick={() => setItem(it)}
+                    onClick={() => { setItem(it); setCustomItem(''); }}
                     color={S.green}
-                    className="px-3 py-2.5 rounded-xl text-left text-[12px] transition"
+                    className="px-3 py-2.5 rounded-xl text-left text-[12px] transition relative"
                     style={{
                       background: item === it ? `${S.green}15` : 'rgba(255,255,255,0.04)',
-                      border: item === it ? `1px solid ${S.green}` : '1px solid rgba(255,255,255,0.08)',
+                      border: item === it ? `1.5px solid ${S.green}` : '1px solid rgba(255,255,255,0.08)',
                       color: item === it ? S.green : '#9ca3af',
                       fontWeight: item === it ? 700 : 400,
                       boxShadow: item === it ? `0 0 16px ${S.green}33` : 'none',
                     }}>
+                    {item === it && (
+                      <span className="absolute top-1.5 right-2 text-[12px]" style={{ color: S.green }}>✓</span>
+                    )}
                     {it}
                   </InteractiveButton>
                 ))}
               </div>
-              {item === '✏️ 직접 입력' && (
-                <input value={customItem} onChange={e => setCustomItem(e.target.value)}
-                  placeholder="예) 제주 감귤 주스"
-                  className="w-full mt-2 px-3 py-2.5 rounded-xl text-white text-sm"
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', outline: 'none' }} />
+            </div>
+
+            {/* ⭐ ② 세부 아이템 입력 (산업군 선택 시 활성화) */}
+            <div className="mb-5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black flex-shrink-0"
+                    style={{
+                      background: item ? S.aqua : 'rgba(255,255,255,0.1)',
+                      color: item ? S.navy : '#666',
+                      boxShadow: item ? `0 0 10px ${S.aqua}88` : 'none',
+                      transition: 'all 0.3s ease',
+                    }}>
+                    2
+                  </div>
+                  <p className="text-sm font-bold text-white">세부 아이템 입력</p>
+                  {item && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-md font-mono font-bold"
+                      style={{
+                        background: `${S.aqua}20`,
+                        color: S.aqua,
+                        border: `1px solid ${S.aqua}50`,
+                      }}>
+                      {item}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[10px] text-gray-500">팀이 다룰 구체 제품·브랜드</p>
+              </div>
+
+              {!item ? (
+                <div className="rounded-xl p-4 text-center"
+                  style={{
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px dashed rgba(255,255,255,0.1)',
+                  }}>
+                  <p className="text-[12px] text-gray-600">먼저 위에서 산업군을 선택하세요</p>
+                </div>
+              ) : (
+                <div className="rounded-xl p-3 transition-all"
+                  style={{
+                    background: `${S.aqua}08`,
+                    border: `1.5px solid ${S.aqua}40`,
+                    boxShadow: `0 0 14px ${S.aqua}15`,
+                  }}>
+                  <input
+                    value={customItem}
+                    onChange={e => setCustomItem(e.target.value)}
+                    placeholder={
+                      item.includes('K-뷰티') ? '예) 마스크팩, 토너 세트' :
+                      item.includes('K-푸드') ? '예) 신라면, 핫도그' :
+                      item.includes('바이오') ? '예) 비타민, 헬스케어 앱' :
+                      item.includes('디지털 콘텐츠') ? '예) 웹툰 플랫폼, 모바일 게임' :
+                      item.includes('스마트 기기') ? '예) 스마트워치, 공기청정기' :
+                      item.includes('기타') ? '예) 제주 감귤 주스' :
+                      '구체적인 품목을 입력하세요'
+                    }
+                    className="w-full px-3 py-2.5 rounded-lg text-white text-[14px] outline-none transition"
+                    style={{
+                      background: 'rgba(255,255,255,0.06)',
+                      border: customItem ? `1px solid ${S.aqua}` : '1px solid rgba(255,255,255,0.1)',
+                      boxShadow: customItem ? `0 0 12px ${S.aqua}33` : 'none',
+                    }}
+                  />
+                  <div className="mt-2 px-1">
+                    <p className="text-[10px] text-gray-500 leading-relaxed">
+                      💡 <span className="text-gray-400">한 가지에 집중할수록 카드별 답변이 구체적으로 나옵니다</span> · 여러 개라면 쉼표로 구분
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
 
+            {/* ⭐ 최종 선택 요약 바 */}
+            {item && customItem && (
+              <div className="rounded-xl p-3 mb-5 flex items-center gap-2 transition-all"
+                style={{
+                  background: `linear-gradient(135deg, ${S.green}15 0%, ${S.aqua}10 100%)`,
+                  border: `1.5px solid ${S.green}50`,
+                  boxShadow: `0 0 16px ${S.green}25`,
+                }}>
+                <div className="text-[10px] font-mono font-bold tracking-widest px-2 py-1 rounded"
+                  style={{ background: `${S.green}25`, color: S.green }}>
+                  최종 선택
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[12px] font-bold text-white truncate">
+                    <span style={{ color: S.aqua }}>{item.split(' (')[0]}</span>
+                    <span className="text-gray-500 mx-1">·</span>
+                    <span style={{ color: S.green }}>{customItem}</span>
+                  </p>
+                </div>
+                <span className="text-[14px]" style={{ color: S.green }}>✓</span>
+              </div>
+            )}
+
             <div className="mb-5">
-              <p className="text-sm font-bold text-white mb-2">② 수업 수준</p>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black flex-shrink-0"
+                  style={{
+                    background: S.purple,
+                    color: '#fff',
+                    boxShadow: `0 0 10px ${S.purple}88`,
+                  }}>
+                  3
+                </div>
+                <p className="text-sm font-bold text-white">수업 수준</p>
+              </div>
               {Object.entries(LEVELS).map(([k, v]) => (
                 <InteractiveButton key={k}
                   uniqueKey={`level-${k}`}
@@ -747,7 +866,17 @@ export default function StudentJoin() {
             </div>
 
             <div className="mb-6">
-              <p className="text-sm font-bold text-white mb-1">③ 팀원 직무 배정</p>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black flex-shrink-0"
+                  style={{
+                    background: S.pink,
+                    color: '#fff',
+                    boxShadow: `0 0 10px ${S.pink}88`,
+                  }}>
+                  4
+                </div>
+                <p className="text-sm font-bold text-white">팀원 직무 배정</p>
+              </div>
               <p className="text-[11px] text-gray-500 mb-3">팀장은 자동으로 CEO입니다. 팀원들의 직무를 정해주세요.</p>
 
               {members.filter(m => m.is_leader).map(m => (
@@ -808,11 +937,15 @@ export default function StudentJoin() {
             </div>
 
             <button onClick={handleLeaderSetup}
-              disabled={!item || (item === '✏️ 직접 입력' && !customItem.trim()) || !allRolesAssigned || loading}
+              disabled={!item || !customItem.trim() || !allRolesAssigned || loading}
               className="relative w-full py-4 font-black rounded-2xl text-[15px] transition disabled:opacity-30 overflow-hidden group"
               style={{ background: S.green, color: S.navy, boxShadow: `0 10px 30px -5px ${S.green}55` }}>
               <span className="relative z-10">
-                {loading ? '설정 중...' : !allRolesAssigned ? '모든 팀원의 직무를 배정하세요' : '🚀 게임 시작!'}
+                {loading ? '설정 중...'
+                  : !item ? '산업군을 선택하세요'
+                  : !customItem.trim() ? '구체적 품목을 입력하세요'
+                  : !allRolesAssigned ? '모든 팀원의 직무를 배정하세요'
+                  : '🚀 게임 시작!'}
               </span>
               {!loading && allRolesAssigned && (
                 <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700"
@@ -1116,14 +1249,79 @@ export default function StudentJoin() {
               const myMember = members.find(m => m.id === selectedMember.id);
               const myRoleCode = myMember?.role_code || (selectedMember.is_leader ? 'ceo' : null);
               const myRole = myRoleCode ? getRole(myRoleCode) : null;
-              if (myRole) {
-                return (
-                  <div className="flex justify-center mb-6">
-                    <RoleCard role={myRole} memberName={selectedMember.name} isMobile={isMobile} />
-                  </div>
-                );
-              }
-              return null;
+              const myMission = getRoleMission(myRoleCode);
+
+              return (
+                <>
+                  {myRole && (
+                    <div className="flex justify-center mb-5">
+                      <RoleCard role={myRole} memberName={selectedMember.name} isMobile={isMobile} />
+                    </div>
+                  )}
+
+                  {/* ⭐ 미션 브리핑 카드 */}
+                  {myMission && myRole && (
+                    <div className="rounded-2xl p-4 mb-5 text-left relative overflow-hidden"
+                      style={{
+                        background: `linear-gradient(135deg, ${myRole.color}15 0%, ${myRole.color}05 100%)`,
+                        border: `1.5px solid ${myRole.color}50`,
+                        boxShadow: `0 0 20px ${myRole.color}25`,
+                      }}>
+                      {/* 헤더 */}
+                      <div className="flex items-center gap-2 mb-3 pb-2 border-b"
+                        style={{ borderColor: `${myRole.color}30` }}>
+                        <div className="w-1.5 h-1.5 rounded-full"
+                          style={{ background: myRole.color, boxShadow: `0 0 6px ${myRole.color}` }} />
+                        <p className="text-[10px] font-mono tracking-widest font-bold"
+                          style={{ color: myRole.color }}>
+                          MISSION BRIEFING
+                        </p>
+                      </div>
+
+                      {/* 태그라인 */}
+                      <p className="text-[14px] font-black text-white mb-2 leading-tight">
+                        "{myMission.tagline}"
+                      </p>
+
+                      {/* 본문 */}
+                      <p className="text-[12px] text-gray-300 leading-relaxed mb-3">
+                        {myMission.description}
+                      </p>
+
+                      {/* 인게임 미션 */}
+                      <div className="rounded-lg p-2.5 mb-3"
+                        style={{
+                          background: `${myRole.color}10`,
+                          borderLeft: `2px solid ${myRole.color}`,
+                        }}>
+                        <p className="text-[9px] font-mono tracking-widest mb-1 font-bold"
+                          style={{ color: myRole.color }}>
+                          이번 게임에서 할 일
+                        </p>
+                        <p className="text-[11.5px] text-gray-200 leading-relaxed">
+                          {myMission.inGameMission}
+                        </p>
+                      </div>
+
+                      {/* 강점 */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[9px] font-mono text-gray-500">핵심 역량 ·</span>
+                        {myMission.strengths.map((s, i) => (
+                          <span key={i}
+                            className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                            style={{
+                              background: `${myRole.color}20`,
+                              color: myRole.color,
+                              border: `1px solid ${myRole.color}40`,
+                            }}>
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
             })()}
 
             <button onClick={handleStart}
