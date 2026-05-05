@@ -72,7 +72,6 @@ export default function SignalCard({
     topic.id === '16' ? '#C44569' :
     color;
 
-  const template = getCardTemplate(topic.id);
   const insightMinChars = getInsightMinChars(level);
 
   const getSubForTab = (tab: TabType): SubCard | null => {
@@ -83,7 +82,6 @@ export default function SignalCard({
 
   const sub = getSubForTab(currentTab);
   const subId = sub?.id || '';
-  const currentChecks = checkStates[subId] || {};
   const currentResponse = responses[subId]?.texts?.['0'] || '';
   const currentInterim = interimConclusions[subId] || '';
 
@@ -91,14 +89,6 @@ export default function SignalCard({
     const r = responses[cardId];
     return r && Object.values(r.texts || {}).some((t: any) => t?.trim());
   };
-  const allQsDone = topic.subs.every(s => hasResponse(s.id));
-
-  const oneSentenceSynthesis = template.buildSentence(
-    leaderConclusion.fields[0] || '',
-    leaderConclusion.fields[1] || '',
-    leaderConclusion.fields[2] || '',
-    leaderConclusion.fields[3] || '',
-  );
 
   // ⭐ 잠금 상태 계산
   const subLockStatus = topic.subs.map(s => ({
@@ -290,8 +280,6 @@ export default function SignalCard({
                 sub={sub}
                 color={color}
                 accentColor={accentColor}
-                currentChecks={currentChecks}
-                onCheck={onCheck}
                 currentResponse={currentResponse}
                 onSaveResponse={onSaveResponse}
                 currentInterim={currentInterim}
@@ -322,7 +310,7 @@ export default function SignalCard({
           </div>
         )}
 
-        {/* ─── 결론 탭 ─── */}
+        {/* ─── 결론 탭 — 잠긴 상태 ─── */}
         {currentTab === '결론' && isConclusionLocked && (
           <div className="p-8 text-center">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
@@ -337,8 +325,10 @@ export default function SignalCard({
           </div>
         )}
 
+        {/* ─── 결론 탭 — 열린 상태 (팀장/팀원 모두 보임) ─── */}
         {currentTab === '결론' && !isConclusionLocked && (
           <div className="p-4">
+            {/* 팀 답변 요약 (팀장/팀원 모두 보임) */}
             <div className="mb-4">
               <p className="text-[10px] font-bold mb-2 font-mono tracking-widest text-gray-500">팀 답변 요약</p>
               <div className="space-y-2">
@@ -365,87 +355,38 @@ export default function SignalCard({
               </div>
             </div>
 
+            {/* ⭐ 팀장: 직접 한 문장 전략 입력 */}
             {isLeader ? (
               <>
                 <div className="mb-4">
-                  <p className="text-[10px] font-bold mb-2 font-mono tracking-widest text-gray-500">한 문장 전략 재료</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {template.fieldLabels.map((label, i) => (
-                      <div key={i} className="rounded-lg p-2.5 transition-all"
-                        style={{
-                          background: leaderConclusion.fields[i] ? `${color}12` : `${color}06`,
-                          border: `1.5px solid ${leaderConclusion.fields[i] ? color + '88' : color + '40'}`,
-                          boxShadow: leaderConclusion.fields[i] ? `0 0 12px ${color}30` : 'none',
-                        }}>
-                        <p className="text-[9px] font-mono mb-1" style={{ color: `${color}DD` }}>{label}</p>
-                        <input
-                          value={leaderConclusion.fields[i] || ''}
-                          onChange={e => {
-                            const f = [...leaderConclusion.fields];
-                            f[i] = e.target.value;
-                            onLeaderConclusionChange('fields', f);
-                          }}
-                          placeholder={template.placeholders[i]}
-                          className="w-full bg-transparent text-[12px] text-white outline-none"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="mb-4">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <p className="text-[10px] font-bold font-mono tracking-widest text-gray-500">한 문장 전략</p>
-                    {!leaderConclusion.isEditing && (
-                      <button onClick={() => {
-                        onLeaderConclusionChange('oneSentence', oneSentenceSynthesis);
-                        onLeaderConclusionChange('isEditing', true);
-                      }}
-                        className="text-[10px] font-bold px-2 py-0.5 rounded"
-                        style={{ background: `${S.green}20`, color: S.green }}>
-                        팀과 함께 다듬기
-                      </button>
+                  <p className="text-[10px] font-bold mb-1.5 font-mono tracking-widest text-gray-500">
+                    한 문장 전략
+                  </p>
+                  <p className="text-[11px] text-gray-600 mb-2">
+                    위의 Q1·Q2·Q3 답변을 종합해서 우리 팀의 전략을 한 문장으로 정리하세요
+                  </p>
+                  <textarea
+                    value={leaderConclusion.oneSentence}
+                    onChange={e => onLeaderConclusionChange('oneSentence', e.target.value)}
+                    disabled={isCardCompleted}
+                    placeholder={`예: "${displayItem ? displayItem.split(' / ')[0] : '우리 제품'}을(를) [어디에] [어떻게] [어떤 효과를 위해] 진출시킨다."`}
+                    className="w-full px-3 py-3 rounded-xl text-[13px] text-white leading-relaxed resize-none transition disabled:opacity-60"
+                    rows={4}
+                    style={{
+                      background: leaderConclusion.oneSentence?.trim() ? `${color}12` : `${color}06`,
+                      border: `1.5px solid ${leaderConclusion.oneSentence?.trim() ? color : color + '40'}`,
+                      outline: 'none',
+                      boxShadow: leaderConclusion.oneSentence?.trim() ? `0 0 12px ${color}30` : 'none',
+                    }}
+                  />
+                  <div className="flex justify-between mt-1">
+                    <span className="text-[10px] text-gray-600">
+                      {leaderConclusion.oneSentence?.length || 0}자
+                    </span>
+                    {leaderConclusion.oneSentence?.trim() && (
+                      <span className="text-[10px]" style={{ color: S.green }}>✓ 작성됨</span>
                     )}
                   </div>
-                  {!leaderConclusion.isEditing ? (
-                    <div className="rounded-xl p-3"
-                      style={{
-                        background: `${color}15`,
-                        border: `1.5px solid ${color}80`,
-                        boxShadow: `0 0 16px ${color}25`,
-                      }}>
-                      <p className="text-[13px] text-gray-200 leading-relaxed font-medium">{oneSentenceSynthesis}</p>
-                    </div>
-                  ) : (
-                    <textarea
-                      value={leaderConclusion.oneSentence}
-                      onChange={e => onLeaderConclusionChange('oneSentence', e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl text-[13px] text-white leading-relaxed resize-none"
-                      rows={3}
-                      style={{ background: 'rgba(255,255,255,0.06)', border: `1px solid ${color}`, outline: 'none' }}
-                    />
-                  )}
-                </div>
-
-                <div className="mb-4">
-                  <p className="text-[10px] font-bold mb-2 font-mono tracking-widest text-gray-500">팀장 판단 기준</p>
-                  {['정의가 구체적인가?', '논리적으로 연결되는가?', '현실성이 있는가?', '실행 가능한가?'].map((c, i) => (
-                    <button key={i} onClick={() => {
-                      const j = [...leaderConclusion.judgments];
-                      j[i] = !j[i];
-                      onLeaderConclusionChange('judgments', j);
-                    }} className="w-full flex items-center gap-2.5 mb-2 text-left">
-                      <div className="w-4 h-4 rounded flex-shrink-0 flex items-center justify-center"
-                        style={{ background: leaderConclusion.judgments[i] ? S.green : 'rgba(255,255,255,0.06)', border: `1px solid ${leaderConclusion.judgments[i] ? S.green : 'rgba(255,255,255,0.15)'}` }}>
-                        {leaderConclusion.judgments[i] && (
-                          <svg width="8" height="8" viewBox="0 0 10 10">
-                            <path d="M1.5 5l2.5 2.5 4.5-5" stroke={S.navy} strokeWidth="1.5" fill="none" strokeLinecap="round" />
-                          </svg>
-                        )}
-                      </div>
-                      <span className="text-[12px] text-gray-400">{c}</span>
-                    </button>
-                  ))}
                 </div>
 
                 {isCardCompleted ? (
@@ -456,16 +397,51 @@ export default function SignalCard({
                 ) : (
                   <button onClick={onComplete} disabled={!leaderConclusion.oneSentence?.trim()}
                     className="w-full py-3 font-black rounded-xl text-[14px] transition-all disabled:opacity-30"
-                    style={{ background: leaderConclusion.oneSentence?.trim() ? S.green : 'rgba(255,255,255,0.06)', color: leaderConclusion.oneSentence?.trim() ? S.navy : '#555' }}>
+                    style={{
+                      background: leaderConclusion.oneSentence?.trim() ? S.green : 'rgba(255,255,255,0.06)',
+                      color: leaderConclusion.oneSentence?.trim() ? S.navy : '#555'
+                    }}>
                     {leaderConclusion.oneSentence?.trim() ? '✅ 이 카드 완료하기' : '한 문장 전략을 작성하세요'}
                   </button>
                 )}
               </>
             ) : (
-              <div className="rounded-xl p-4 text-center"
-                style={{ background: `${S.aqua}10`, border: `1px solid ${S.aqua}20` }}>
-                <p className="text-[12px]" style={{ color: S.aqua }}>💬 팀원 모드</p>
-                <p className="text-[11px] text-gray-600 mt-1">결론 작성은 팀장이 합니다</p>
+              /* ⭐ 팀원: 한 문장 전략 읽기 전용 */
+              <div className="mb-4">
+                <p className="text-[10px] font-bold mb-1.5 font-mono tracking-widest text-gray-500">
+                  한 문장 전략
+                </p>
+                {leaderConclusion.oneSentence?.trim() ? (
+                  <div className="rounded-xl p-3 transition-all"
+                    style={{
+                      background: `${color}15`,
+                      border: `1.5px solid ${color}80`,
+                      boxShadow: `0 0 16px ${color}25`,
+                    }}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-[9px] font-mono font-bold tracking-widest px-1.5 py-0.5 rounded"
+                        style={{ background: `${S.green}20`, color: S.green }}>
+                        팀장 작성
+                      </span>
+                      <span className="text-[9px] font-mono text-gray-500">읽기 전용</span>
+                    </div>
+                    <p className="text-[13px] text-gray-200 leading-relaxed font-medium">
+                      {leaderConclusion.oneSentence}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="rounded-xl p-4 text-center"
+                    style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.1)' }}>
+                    <p className="text-[12px] text-gray-500">⏳ 팀장이 작성 중이에요</p>
+                    <p className="text-[10px] text-gray-700 mt-1">조금만 기다려주세요</p>
+                  </div>
+                )}
+                {isCardCompleted && (
+                  <div className="mt-3 w-full py-2.5 rounded-xl text-center font-bold text-[12px]"
+                    style={{ background: `${S.green}15`, color: S.green, border: `1px solid ${S.green}30` }}>
+                    ✓ 이 카드 완료됨
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -487,14 +463,12 @@ export default function SignalCard({
 }
 
 // ═══════════════════════════════════════════════════════
-// 팀장 Q 화면 컴포넌트
+// 팀장 Q 화면 컴포넌트 (체크리스트 제거됨)
 // ═══════════════════════════════════════════════════════
 interface LeaderQViewProps {
   sub: SubCard;
   color: string;
   accentColor: string;
-  currentChecks: Record<number, boolean>;
-  onCheck: (cardId: string, idx: number) => void;
   currentResponse: string;
   onSaveResponse: (cardId: string, text: string) => void;
   currentInterim: string;
@@ -511,7 +485,6 @@ interface LeaderQViewProps {
 
 function LeaderQView({
   sub, color, accentColor,
-  currentChecks, onCheck,
   currentResponse, onSaveResponse,
   currentInterim, onSaveInterim,
   displayItem, minChars,
@@ -527,29 +500,6 @@ function LeaderQView({
 
   return (
     <>
-      {/* 체크리스트 */}
-      <div className="mb-4">
-        <p className="text-[10px] font-bold mb-2 font-mono tracking-widest text-gray-500">체크리스트</p>
-        <div className="space-y-2">
-          {sub.checklist.map((item, i) => (
-            <button key={i} onClick={() => onCheck(sub.id, i)}
-              className="w-full flex items-start gap-2.5 text-left"
-              style={{ opacity: currentChecks[i] ? 0.55 : 1 }}>
-              <div className="w-4 h-4 rounded flex-shrink-0 mt-0.5 flex items-center justify-center transition-all"
-                style={{ background: currentChecks[i] ? color : 'rgba(255,255,255,0.06)', border: `1px solid ${currentChecks[i] ? color : 'rgba(255,255,255,0.15)'}` }}>
-                {currentChecks[i] && (
-                  <svg width="8" height="8" viewBox="0 0 10 10">
-                    <path d="M1.5 5l2.5 2.5 4.5-5" stroke={color === S.green ? S.navy : '#fff'} strokeWidth="1.5" fill="none" strokeLinecap="round" />
-                  </svg>
-                )}
-              </div>
-              <span className="text-[12px] text-gray-300 leading-relaxed"
-                style={{ textDecoration: currentChecks[i] ? 'line-through' : 'none' }}>{item}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* 팀 답변 */}
       <div className="mb-4">
         <div className="flex items-center justify-between mb-2">
@@ -574,7 +524,7 @@ function LeaderQView({
           placeholder={`팀원 인사이트를 종합해서 ${displayItem} 기준 팀 답변을 작성하세요...`}
           disabled={isCurrentSubCompleted}
           className="w-full px-3 py-2.5 rounded-xl text-[13px] text-white leading-relaxed resize-none transition disabled:opacity-60"
-          rows={4}
+          rows={5}
           style={{
             background: currentResponse ? `${color}10` : `${color}06`,
             border: `1.5px solid ${currentResponse ? color : color + '40'}`,
@@ -634,7 +584,7 @@ function LeaderQView({
         </button>
       )}
 
-      {/* ⭐ 사이드바 (모바일 슬라이드업 / 데스크톱 모달) */}
+      {/* ⭐ 사이드바 */}
       {showSidebar && (
         <TeamInsightSidebar
           subId={sub.id}
@@ -665,10 +615,8 @@ function TeamInsightSidebar({ subId, color, memberInsights, teamMembers, onClose
 
   return (
     <div className="fixed inset-0 z-[200]" onClick={onClose}>
-      {/* 어두운 배경 */}
       <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.6)' }} />
 
-      {/* 슬라이드업 패널 */}
       <div
         onClick={e => e.stopPropagation()}
         className="absolute bottom-0 left-0 right-0 sidebar-slideup"
@@ -681,10 +629,8 @@ function TeamInsightSidebar({ subId, color, memberInsights, teamMembers, onClose
           overflowY: 'auto',
           boxShadow: '0 -8px 32px rgba(0,0,0,0.5)',
         }}>
-        {/* 그래버 */}
         <div className="w-10 h-1 rounded-full mx-auto mb-4" style={{ background: 'rgba(255,255,255,0.2)' }} />
 
-        {/* 헤더 */}
         <div className="flex items-center gap-2 mb-4">
           <div className="font-mono text-[11px] font-bold tracking-widest" style={{ color: S.cyan }}>
             팀원 인사이트
@@ -695,7 +641,6 @@ function TeamInsightSidebar({ subId, color, memberInsights, teamMembers, onClose
           <button onClick={onClose} className="ml-auto text-gray-400 text-lg leading-none">×</button>
         </div>
 
-        {/* 팀원별 카드 */}
         <div className="space-y-2">
           {nonLeaders.map(m => {
             const insight = memberInsights.find(i => i.member_id === m.id);
@@ -777,7 +722,6 @@ function MemberQView({
   myMemberId, myRoleCode, teamId,
   memberInsights, insightMinChars, isCurrentSubCompleted,
 }: MemberQViewProps) {
-  // 본인 인사이트
   const myInsight = memberInsights.find(i =>
     i.sub_card_id === sub.id && i.member_id === myMemberId
   );
@@ -786,7 +730,6 @@ function MemberQView({
   const [isCompleted, setIsCompleted] = useState(!!myInsight?.is_completed);
   const [saving, setSaving] = useState(false);
 
-  // myInsight 변경 시 동기화
   useEffect(() => {
     if (myInsight) {
       setContent(myInsight.content);
@@ -804,7 +747,6 @@ function MemberQView({
 
   const canComplete = content.trim().length >= insightMinChars && !isCompleted;
 
-  // 자동 저장 (작성 중)
   useEffect(() => {
     if (!myRoleCode || isCompleted) return;
     const t = setTimeout(() => {
@@ -837,7 +779,6 @@ function MemberQView({
 
   return (
     <>
-      {/* 직무 헤더 */}
       {myRole && (
         <div className="mb-3 rounded-xl p-3 flex items-center gap-2.5"
           style={{
@@ -859,7 +800,6 @@ function MemberQView({
         </div>
       )}
 
-      {/* 직무별 프롬프트 */}
       <div className="mb-3 rounded-xl p-3"
         style={{ background: `${color}10`, border: `1px solid ${color}30` }}>
         <p className="text-[10px] font-bold mb-1 font-mono tracking-widest" style={{ color: accentColor }}>
@@ -868,7 +808,6 @@ function MemberQView({
         <p className="text-[12.5px] text-white leading-relaxed">{prompt}</p>
       </div>
 
-      {/* 인사이트 입력창 */}
       <div className="mb-4">
         <p className="text-[10px] font-bold mb-2 font-mono tracking-widest text-gray-500">
           내 인사이트 {isCompleted && <span style={{ color: S.green }}>· ✓ 제출됨</span>}
@@ -897,7 +836,6 @@ function MemberQView({
         </div>
       </div>
 
-      {/* 완료 버튼 */}
       {isCompleted ? (
         <div className="space-y-2">
           <div className="w-full py-3 rounded-xl text-center font-bold text-[13px]"
@@ -925,7 +863,6 @@ function MemberQView({
         </button>
       )}
 
-      {/* 안내 */}
       {!isCompleted && (
         <p className="text-[10.5px] text-gray-600 text-center mt-3 leading-relaxed">
           제출 후에는 수정할 수 없어요. 신중히 작성하세요.
