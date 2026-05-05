@@ -462,6 +462,52 @@ export default function Home() {
     };
   }, [screen, teamId]);
 
+  // ⭐ Realtime 보완 — 카드 변경 시 + 5초마다 데이터 강제 새로고침
+  // (Realtime 이벤트 누락이나 지연 대비, 자기 입력 중 데이터는 보호)
+  useEffect(() => {
+    if (!teamId || screen !== 'game') return;
+
+    const refetchAll = async () => {
+      try {
+        const [interims, leaderConcs] = await Promise.all([
+          loadInterimConclusionsDB(teamId),
+          loadLeaderConclusionsDB(teamId),
+        ]);
+
+        // interim 갱신 (저장 대기 중인 항목은 자기 데이터 유지)
+        setInterimConclusions(prev => {
+          const result: Record<string, string[]> = { ...interims };
+          Object.keys(interimSaveTimers.current).forEach(subCardId => {
+            if (prev[subCardId]) result[subCardId] = prev[subCardId];
+          });
+          return result;
+        });
+
+        // leader 갱신 (저장 대기 중인 항목은 자기 데이터 유지)
+        setLeaderConclusions(prev => {
+          const merged: Record<string, LeaderConclusionState> = {};
+          Object.keys(leaderConcs).forEach(cardId => {
+            merged[cardId] = {
+              ...defaultLeaderConclusion(),
+              fields: leaderConcs[cardId].fields || [],
+              oneSentence: leaderConcs[cardId].oneSentence,
+            };
+          });
+          Object.keys(leaderSaveTimers.current).forEach(cardId => {
+            if (prev[cardId]) merged[cardId] = prev[cardId];
+          });
+          return merged;
+        });
+      } catch (e) {
+        console.error('데이터 새로고침 실패', e);
+      }
+    };
+
+    refetchAll(); // 카드 변경 시 즉시
+    const interval = setInterval(refetchAll, 5000); // 5초 폴링
+    return () => clearInterval(interval);
+  }, [topic.id, screen, teamId]);
+
   useEffect(() => {
     if (timerActive && timer > 0) {
       timerRef.current = setInterval(() => setTimer(t => t - 1), 1000);
