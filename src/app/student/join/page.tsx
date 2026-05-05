@@ -1264,62 +1264,106 @@ export default function StudentJoin() {
 
                   {/* 오른쪽: 미션 브리핑 카드 */}
                   {myMission && myRole && (
-                    <div className="rounded-2xl p-4 md:p-5 text-left relative overflow-hidden md:flex-1 md:min-w-0"
+                    <div className="rounded-2xl p-4 md:p-5 text-left relative overflow-hidden md:flex-1 md:min-w-0 md:flex md:flex-col"
                       style={{
-                        background: `linear-gradient(135deg, ${myRole.color}15 0%, ${myRole.color}05 100%)`,
-                        border: `1.5px solid ${myRole.color}50`,
-                        boxShadow: `0 0 20px ${myRole.color}25`,
+                        background: `linear-gradient(135deg, rgba(10,10,18,0.92) 0%, rgba(20,20,30,0.88) 100%), ${myRole.color}10`,
+                        backdropFilter: 'blur(8px)',
+                        WebkitBackdropFilter: 'blur(8px)',
+                        border: `1.5px solid ${myRole.color}60`,
+                        boxShadow: `0 8px 32px rgba(0,0,0,0.5), 0 0 24px ${myRole.color}30, inset 0 0 20px rgba(0,0,0,0.4)`,
                       }}>
+                      {/* HUD 코너 장식 */}
+                      <div className="absolute top-2 left-2 w-3 h-3 pointer-events-none"
+                        style={{ borderTop: `2px solid ${myRole.color}`, borderLeft: `2px solid ${myRole.color}` }} />
+                      <div className="absolute top-2 right-2 w-3 h-3 pointer-events-none"
+                        style={{ borderTop: `2px solid ${myRole.color}`, borderRight: `2px solid ${myRole.color}` }} />
+                      <div className="absolute bottom-2 left-2 w-3 h-3 pointer-events-none"
+                        style={{ borderBottom: `2px solid ${myRole.color}`, borderLeft: `2px solid ${myRole.color}` }} />
+                      <div className="absolute bottom-2 right-2 w-3 h-3 pointer-events-none"
+                        style={{ borderBottom: `2px solid ${myRole.color}`, borderRight: `2px solid ${myRole.color}` }} />
+
                       {/* 헤더 */}
-                      <div className="flex items-center gap-2 mb-3 pb-2 border-b"
+                      <div className="flex items-center gap-2 mb-3 pb-2 border-b relative z-10"
                         style={{ borderColor: `${myRole.color}30` }}>
-                        <div className="w-1.5 h-1.5 rounded-full"
+                        <div className="w-1.5 h-1.5 rounded-full animate-pulse"
                           style={{ background: myRole.color, boxShadow: `0 0 6px ${myRole.color}` }} />
                         <p className="text-[10px] font-mono tracking-widest font-bold"
-                          style={{ color: myRole.color }}>
+                          style={{ color: myRole.color, textShadow: `0 0 8px ${myRole.color}66` }}>
                           MISSION BRIEFING
                         </p>
+                        <div className="flex-1" />
+                        <span className="text-[9px] font-mono tracking-wider"
+                          style={{ color: `${myRole.color}99` }}>
+                          [CLASSIFIED]
+                        </span>
                       </div>
 
                       {/* 태그라인 */}
-                      <p className="text-[14px] md:text-[15px] font-black text-white mb-2 leading-tight">
+                      <p className="text-[14px] md:text-[15px] font-black text-white mb-2 leading-tight relative z-10"
+                        style={{ textShadow: '0 2px 8px rgba(0,0,0,0.8)' }}>
                         "{myMission.tagline}"
                       </p>
 
                       {/* 본문 */}
-                      <p className="text-[12px] md:text-[13px] text-gray-300 leading-relaxed mb-3">
+                      <p className="text-[12px] md:text-[13px] text-gray-200 leading-relaxed mb-3 relative z-10">
                         {myMission.description}
                       </p>
 
                       {/* 인게임 미션 */}
-                      <div className="rounded-lg p-2.5 md:p-3 mb-3"
+                      <div className="rounded-lg p-2.5 md:p-3 mb-3 relative z-10"
                         style={{
-                          background: `${myRole.color}10`,
-                          borderLeft: `2px solid ${myRole.color}`,
+                          background: `linear-gradient(135deg, ${myRole.color}18, ${myRole.color}08)`,
+                          borderLeft: `3px solid ${myRole.color}`,
+                          boxShadow: `inset 0 0 12px rgba(0,0,0,0.3)`,
                         }}>
-                        <p className="text-[9px] font-mono tracking-widest mb-1 font-bold"
+                        <p className="text-[9px] font-mono tracking-widest mb-1 font-bold flex items-center gap-1.5"
                           style={{ color: myRole.color }}>
+                          <span className="inline-block w-1 h-1 rounded-full" style={{ background: myRole.color }} />
                           이번 게임에서 할 일
                         </p>
-                        <p className="text-[11.5px] md:text-[12.5px] text-gray-200 leading-relaxed">
+                        <p className="text-[11.5px] md:text-[12.5px] text-gray-100 leading-relaxed font-medium">
                           {myMission.inGameMission}
                         </p>
                       </div>
 
                       {/* 강점 */}
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[9px] font-mono text-gray-500">핵심 역량 ·</span>
+                      <div className="flex items-center gap-1.5 flex-wrap relative z-10">
+                        <span className="text-[9px] font-mono text-gray-400">CORE SKILLS ·</span>
                         {myMission.strengths.map((s, i) => (
                           <span key={i}
                             className="text-[10px] font-bold px-2 py-0.5 rounded-full"
                             style={{
-                              background: `${myRole.color}20`,
+                              background: `${myRole.color}25`,
                               color: myRole.color,
-                              border: `1px solid ${myRole.color}40`,
+                              border: `1px solid ${myRole.color}50`,
+                              textShadow: `0 0 6px ${myRole.color}66`,
                             }}>
                             {s}
                           </span>
                         ))}
+                      </div>
+
+                      {/* 하단 여백 채우는 정보 바 (PC에서만 의미있게 보임) */}
+                      <div className="hidden md:flex md:flex-1 md:items-end md:mt-4 md:pt-3 md:border-t relative z-10"
+                        style={{ borderColor: `${myRole.color}20` }}>
+                        <div className="w-full flex items-center justify-between text-[9px] font-mono"
+                          style={{ color: `${myRole.color}AA` }}>
+                          <div className="flex items-center gap-1.5">
+                            <span className="inline-block w-1.5 h-1.5 rounded-full animate-pulse"
+                              style={{ background: myRole.color, boxShadow: `0 0 4px ${myRole.color}` }} />
+                            <span>SYSTEM READY</span>
+                          </div>
+                          <span style={{ color: '#666' }}>·</span>
+                          <div className="flex items-center gap-1">
+                            <span style={{ color: '#666' }}>STATUS:</span>
+                            <span className="font-bold" style={{ color: myRole.color }}>BRIEFED</span>
+                          </div>
+                          <span style={{ color: '#666' }}>·</span>
+                          <div className="flex items-center gap-1">
+                            <span style={{ color: '#666' }}>READY TO DEPLOY</span>
+                            <span>→</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}
