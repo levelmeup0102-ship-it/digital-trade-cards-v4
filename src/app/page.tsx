@@ -1200,7 +1200,7 @@ export default function Home() {
       )}
 
       {/* SignalCard */}
-      <div key={topic.id} className="w-full max-w-[420px] relative z-10"
+      <div key={topic.id} className="w-full max-w-[420px] md:max-w-4xl relative z-10"
         onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
         <SignalCard
           topic={topic}
