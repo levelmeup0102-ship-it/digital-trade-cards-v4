@@ -5,22 +5,22 @@ import type { CardColor, TopicCard, FlatCard } from '@/types';
 // 16개 카드 × 3개 질문 = 48개 질문카드
 // ═══════════════════════════════════════════════════════
 
-// ⭐ V3 신규 카드 색상 (ConnectAI Color System v1.0)
+// ⭐ V3 신규 카드 색상 (ConnectAI Color System v1.0 + 가독성 개선)
 export const CARD_COLORS: Record<string, CardColor> = {
   "01": { bg: "#00A9E0", name: "Azure Blue" },        // 시장 개요
-  "02": { bg: "#003DA5", name: "Deep Blue" },         // 시장 규모
+  "02": { bg: "#2A5DC9", name: "Bright Deep Blue" },  // 시장 규모 (톤 업)
   "03": { bg: "#00B5AD", name: "Teal" },              // 세분화·타깃
-  "04": { bg: "#582C83", name: "Purple" },            // 경쟁환경
+  "04": { bg: "#7848B5", name: "Bright Purple" },     // 경쟁환경 (톤 업)
   "05": { bg: "#FFC72C", name: "Yellow" },            // 시장 변화·기회
-  "06": { bg: "#041E42", name: "Deep Navy" },         // 규제·정책
+  "06": { bg: "#2C4F87", name: "Midnight Blue" },     // 규제·정책 (톤 업)
   "07": { bg: "#78BE20", name: "Lime Green" },        // 고객 인사이트
-  "08": { bg: "#8A1538", name: "Wine Red" },          // SWOT
+  "08": { bg: "#B53860", name: "Bright Wine Red" },   // SWOT (톤 업)
   "09": { bg: "#FF6F61", name: "Coral" },             // 전략결론·AI
   "10": { bg: "#4FB0C6", name: "Light Aqua" },        // PoC 분석
   "11": { bg: "#007681", name: "Blue Green" },        // 우선진출국
-  "12": { bg: "#512D38", name: "Dark Burgundy" },     // 아이디어 보호
+  "12": { bg: "#855260", name: "Bright Burgundy" },   // 아이디어 보호 (톤 업)
   "13": { bg: "#FF671F", name: "Vivid Orange" },      // 지원망·확장
-  "14": { bg: "#215283", name: "Gray Blue" },         // 바이어·파트너
+  "14": { bg: "#4778AC", name: "Bright Gray Blue" },  // 바이어·파트너 (톤 업)
   "15": { bg: "#009639", name: "Forest Green" },      // 지속가능
   "16": { bg: "#0072CE", name: "Azure" },             // TBT·인증
 };
