@@ -71,9 +71,6 @@ const PARTICLES = Array.from({ length: 15 }, (_, i) => ({
 
 type Step = 'code' | 'confirm' | 'select' | 'leader-setup' | 'waiting' | 'countdown' | 'welcome';
 
-type Ripple = { id: number; x: number; y: number; key: string };
-type BurstEffect = { id: number; key: string };
-
 function InteractiveButton({
   isSelected,
   onClick,
@@ -731,9 +728,6 @@ export default function StudentJoin() {
                       fontWeight: item === it ? 700 : 400,
                       boxShadow: item === it ? `0 0 16px ${S.green}33` : 'none',
                     }}>
-                    {item === it && (
-                      <span className="absolute top-1.5 right-2 text-[12px]" style={{ color: S.green }}>✓</span>
-                    )}
                     {it}
                   </InteractiveButton>
                 ))}
@@ -1245,7 +1239,6 @@ export default function StudentJoin() {
           return (
             <div className="text-center md:fixed md:inset-0 md:flex md:items-center md:justify-center md:p-6 md:overflow-y-auto md:z-20">
               <div className="md:max-w-4xl md:w-full md:relative">
-                {/* 헤더 */}
                 <p className="text-[10px] font-mono tracking-widest mb-2 font-bold"
                   style={{ color: S.cyan, textShadow: `0 0 8px ${S.cyan}AA` }}>
                   {`>`} WELCOME ABOARD
@@ -1255,14 +1248,12 @@ export default function StudentJoin() {
 
                 {/* ⭐ 좌우분할 영역 (PC) / 세로 배치 (모바일) */}
                 <div className="flex flex-col md:flex-row md:items-stretch gap-5 md:gap-6 mb-5 md:mb-6 md:text-left">
-                  {/* 왼쪽: 직무 카드 */}
                   {myRole && (
                     <div className="flex justify-center md:flex-shrink-0 md:items-start">
                       <RoleCard role={myRole} memberName={selectedMember.name} isMobile={isMobile} />
                     </div>
                   )}
 
-                  {/* 오른쪽: 미션 브리핑 카드 */}
                   {myMission && myRole && (
                     <div className="rounded-2xl p-4 md:p-5 text-left relative overflow-hidden md:flex-1 md:min-w-0 md:flex md:flex-col"
                       style={{
@@ -1272,7 +1263,6 @@ export default function StudentJoin() {
                         border: `1.5px solid ${myRole.color}60`,
                         boxShadow: `0 8px 32px rgba(0,0,0,0.5), 0 0 24px ${myRole.color}30, inset 0 0 20px rgba(0,0,0,0.4)`,
                       }}>
-                      {/* HUD 코너 장식 */}
                       <div className="absolute top-2 left-2 w-3 h-3 pointer-events-none"
                         style={{ borderTop: `2px solid ${myRole.color}`, borderLeft: `2px solid ${myRole.color}` }} />
                       <div className="absolute top-2 right-2 w-3 h-3 pointer-events-none"
@@ -1282,7 +1272,6 @@ export default function StudentJoin() {
                       <div className="absolute bottom-2 right-2 w-3 h-3 pointer-events-none"
                         style={{ borderBottom: `2px solid ${myRole.color}`, borderRight: `2px solid ${myRole.color}` }} />
 
-                      {/* 헤더 */}
                       <div className="flex items-center gap-2 mb-3 pb-2 border-b relative z-10"
                         style={{ borderColor: `${myRole.color}30` }}>
                         <div className="w-1.5 h-1.5 rounded-full animate-pulse"
@@ -1298,18 +1287,15 @@ export default function StudentJoin() {
                         </span>
                       </div>
 
-                      {/* 태그라인 */}
                       <p className="text-[14px] md:text-[15px] font-black text-white mb-2 leading-tight relative z-10"
                         style={{ textShadow: '0 2px 8px rgba(0,0,0,0.8)' }}>
                         "{myMission.tagline}"
                       </p>
 
-                      {/* 본문 */}
                       <p className="text-[12px] md:text-[13px] text-gray-200 leading-relaxed mb-3 relative z-10">
                         {myMission.description}
                       </p>
 
-                      {/* 인게임 미션 */}
                       <div className="rounded-lg p-2.5 md:p-3 mb-3 relative z-10"
                         style={{
                           background: `linear-gradient(135deg, ${myRole.color}18, ${myRole.color}08)`,
@@ -1326,7 +1312,6 @@ export default function StudentJoin() {
                         </p>
                       </div>
 
-                      {/* 강점 */}
                       <div className="flex items-center gap-1.5 flex-wrap relative z-10">
                         <span className="text-[9px] font-mono text-gray-400">CORE SKILLS ·</span>
                         {myMission.strengths.map((s, i) => (
@@ -1343,21 +1328,16 @@ export default function StudentJoin() {
                         ))}
                       </div>
 
-                      {/* 하단 여백 — 큼직한 직무 영문명 (PC에서만 표시) */}
                       <div className="hidden md:flex md:flex-1 md:items-end md:mt-4 md:pt-3 md:border-t relative z-10 overflow-hidden"
                         style={{ borderColor: `${myRole.color}20` }}>
                         <div className="w-full relative">
-                          {/* 작은 라벨 */}
                           <p className="text-[9px] font-mono tracking-[3px] mb-0.5"
                             style={{ color: `${myRole.color}88` }}>
                             ROLE
                           </p>
-                          {/* 큰 영문 이름 — 글자 수에 따라 자동 크기 조절 */}
                           {(() => {
                             const nameUpper = myRole.nameEn.toUpperCase();
                             const len = nameUpper.length;
-                            // 글자 수 기준 폰트 크기 (clamp으로 반응형)
-                            // 짧은 이름(CEO 3자)은 크게, 긴 이름(GLOBAL SALES MANAGER 20자)은 작게
                             const fontSize = len <= 5 ? 'clamp(36px, 5vw, 56px)'
                               : len <= 10 ? 'clamp(30px, 4.2vw, 46px)'
                               : len <= 14 ? 'clamp(26px, 3.6vw, 38px)'
@@ -1376,7 +1356,6 @@ export default function StudentJoin() {
                               </p>
                             );
                           })()}
-                          {/* 우하단 데코 점 */}
                           <div className="absolute bottom-1 right-0 flex items-center gap-1">
                             <div className="w-1 h-1 rounded-full"
                               style={{ background: myRole.color, boxShadow: `0 0 4px ${myRole.color}` }} />
@@ -1391,7 +1370,6 @@ export default function StudentJoin() {
                   )}
                 </div>
 
-                {/* 시작 버튼 */}
                 <button onClick={handleStart}
                   className="cyber-cta-btn relative w-full md:max-w-md md:mx-auto md:block py-4 font-black rounded-2xl text-[15px] transition-all hover:scale-[1.02] overflow-hidden group"
                   style={{
