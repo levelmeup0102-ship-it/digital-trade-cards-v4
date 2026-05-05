@@ -49,6 +49,6 @@ export interface FlatCard {
 
 // ⭐ V2 호환 — 카드 답변 데이터 구조
 export interface CardResponse {
-  texts?: Record<string, string>;
-  images?: Record<string, string>;
+  texts?: Record<number, string>;
+  images?: Record<number, { name: string; url: string }>;
 }
