@@ -1,8 +1,7 @@
 'use client';
-import { useState, useEffect } from 'react';
-import type { TopicCard, SubCard } from '@/types';
-import { CARD_COLORS } from '@/data/cardData';
-import { getCardTemplate } from '@/data/cardTemplates';
+import { useState, useEffect, Fragment } from 'react';
+import type { TopicCard, SubCard, CardCategory } from '@/types';
+import { CARD_COLORS, parseTemplate } from '@/data/cardData';
 import { ROLES, getRole, type RoleCode } from '@/data/roleData';
 import { getRolePrompt, getInsightMinChars } from '@/data/rolePrompts';
 import {
@@ -18,16 +17,46 @@ const S = { green: '#E7FE55', aqua: '#C1E8EB', navy: '#111111', cyan: '#06B6D4',
 const TABS = ['주제', 'Q1', 'Q2', 'Q3', '결론'] as const;
 type TabType = typeof TABS[number];
 
+// ⭐ 노란색 카드는 텍스트를 어둡게
+function textColorForCard(bgColor: string): string {
+  // 노란색 계열: #FFC72C(카드05), #E7FE55(green)
+  if (bgColor === '#FFC72C' || bgColor === '#E7FE55') return S.navy;
+  return '#fff';
+}
+
+// ⭐ 카테고리별 색상 배지
+function getCategoryStyle(category: CardCategory) {
+  const styles: Record<CardCategory, { bg: string; color: string; label: string }> = {
+    '시장 이해': { bg: 'rgba(6, 182, 212, 0.15)', color: '#06B6D4', label: '시장 이해' },
+    '전략 설계': { bg: 'rgba(139, 92, 246, 0.15)', color: '#8B5CF6', label: '전략 설계' },
+    '고객 인사이트': { bg: 'rgba(255, 111, 181, 0.15)', color: '#FF6FB5', label: '고객 인사이트' },
+    '실행 설계': { bg: 'rgba(120, 190, 32, 0.15)', color: '#78BE20', label: '실행 설계' },
+  };
+  return styles[category];
+}
+
+// ⭐ 빈칸 다 채워졌는지 검사
+function isFillInBlankComplete(template: string, values: string[]): boolean {
+  const parts = parseTemplate(template);
+  const blankCount = parts.length - 1;
+  if (blankCount === 0) return true;
+  for (let i = 0; i < blankCount; i++) {
+    if (!values[i]?.trim()) return false;
+  }
+  return true;
+}
+
 interface SignalCardProps {
   topic: TopicCard;
   currentTab: TabType;
   onTabChange: (tab: TabType) => void;
-  checkStates: Record<string, Record<number, boolean>>;
-  onCheck: (cardId: string, idx: number) => void;
   responses: Record<string, any>;
   onSaveResponse: (cardId: string, text: string) => void;
-  interimConclusions: Record<string, string>;
-  onSaveInterim: (cardId: string, text: string) => void;
+
+  // ⭐ V3: 빈칸 채우기 값 배열
+  interimConclusions: Record<string, string[]>;
+  onSaveInterim: (cardId: string, values: string[]) => void;
+
   leaderConclusion: LeaderConclusionState;
   onLeaderConclusionChange: (key: keyof LeaderConclusionState, value: any) => void;
   completedCards: Set<string>;
@@ -38,7 +67,7 @@ interface SignalCardProps {
   level: string;
   minChars: number;
 
-  // ⭐ 협업 시스템 props
+  // 협업 시스템 props
   teamId: string;
   myMemberId: string;
   myRoleCode: RoleCode | null;
@@ -49,15 +78,14 @@ interface SignalCardProps {
 }
 
 export interface LeaderConclusionState {
-  fields: string[];
-  oneSentence: string;
-  isEditing: boolean;
-  judgments: boolean[];
+  fields: string[];        // ⭐ 한 문장 전략 빈칸 채우기 값들 (가변)
+  oneSentence: string;     // 자동 합성 결과 (계산값, 백업용)
+  isEditing: boolean;      // 호환용
+  judgments: boolean[];    // 호환용
 }
 
 export default function SignalCard({
   topic, currentTab, onTabChange,
-  checkStates, onCheck,
   responses, onSaveResponse,
   interimConclusions, onSaveInterim,
   leaderConclusion, onLeaderConclusionChange,
@@ -67,10 +95,7 @@ export default function SignalCard({
   memberInsights, subCardLocks, onLeaderCompleteSubCard,
 }: SignalCardProps) {
   const color = CARD_COLORS[topic.id].bg;
-  const accentColor =
-    topic.id === '03' ? '#5B8DEE' :
-    topic.id === '16' ? '#C44569' :
-    color;
+  const categoryStyle = getCategoryStyle(topic.category);
 
   const insightMinChars = getInsightMinChars(level);
 
@@ -83,14 +108,14 @@ export default function SignalCard({
   const sub = getSubForTab(currentTab);
   const subId = sub?.id || '';
   const currentResponse = responses[subId]?.texts?.['0'] || '';
-  const currentInterim = interimConclusions[subId] || '';
+  const currentInterimValues = interimConclusions[subId] || [];
 
   const hasResponse = (cardId: string) => {
     const r = responses[cardId];
     return r && Object.values(r.texts || {}).some((t: any) => t?.trim());
   };
 
-  // ⭐ 잠금 상태 계산
+  // 잠금 상태
   const subLockStatus = topic.subs.map(s => ({
     id: s.id,
     isLocked: isSubCardLocked(s.id, subCardLocks),
@@ -100,26 +125,30 @@ export default function SignalCard({
   const isCurrentSubLocked = sub ? isSubCardLocked(sub.id, subCardLocks) : false;
   const isCurrentSubCompleted = sub ? isSubCardCompleted(sub.id, subCardLocks) : false;
 
-  // 결론 탭은 Q3가 완료되어야 열림
   const q3Id = `${topic.id}-3`;
   const isConclusionLocked = isSubCardLocked(q3Id, subCardLocks) || !isSubCardCompleted(q3Id, subCardLocks);
 
-  // 팀원 ID 목록 (CEO 제외)
-  const nonLeaderMemberIds = teamMembers
-    .filter(m => !m.is_leader)
-    .map(m => m.id);
-
-  // 현재 sub의 팀원 인사이트 + 완료 여부
+  // 팀원 인사이트
+  const nonLeaderMemberIds = teamMembers.filter(m => !m.is_leader).map(m => m.id);
   const currentSubInsights = memberInsights.filter(i => i.sub_card_id === subId);
   const allMembersDone = sub ? areAllMembersComplete(sub.id, memberInsights, nonLeaderMemberIds) : false;
 
-  // 팀장 Q 완료 가능 조건: 팀원 전원 완료 + 팀장 답변 입력 + 중간 결론 입력
+  // 중간 결론 완료 여부 (빈칸 다 채워야 함)
+  const isInterimFilled = sub ? isFillInBlankComplete(sub.conclusionTemplate, currentInterimValues) : false;
+
+  // 팀장 Q 완료 가능 조건
   const canLeaderCompleteSub =
     isLeader &&
     !isCurrentSubCompleted &&
     allMembersDone &&
     currentResponse.trim().length >= minChars &&
-    currentInterim.trim().length > 0;
+    isInterimFilled;
+
+  // 한 문장 전략 완료 여부
+  const isFinalStrategyFilled = isFillInBlankComplete(
+    topic.finalStrategyTemplate,
+    leaderConclusion.fields || []
+  );
 
   return (
     <div className="w-full max-w-[340px] mx-auto">
@@ -136,8 +165,12 @@ export default function SignalCard({
           )}
           <div className="p-5 flex flex-col">
             <div className="flex items-start gap-3 mb-4">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-black text-base flex-shrink-0"
-                style={{ background: color, boxShadow: `0 4px 12px ${color}66` }}>
+              <div className="w-12 h-12 rounded-full flex items-center justify-center font-black text-base flex-shrink-0"
+                style={{
+                  background: color,
+                  color: textColorForCard(color),
+                  boxShadow: `0 4px 12px ${color}66`,
+                }}>
                 {topic.id}
               </div>
               <div className="flex-1 grid grid-cols-4 gap-1.5">
@@ -152,10 +185,17 @@ export default function SignalCard({
             </div>
 
             <div className="mt-2">
-              <span className="inline-block px-3 py-1 rounded-full text-[11px] font-semibold mb-2"
-                style={{ border: `1.5px solid ${color}`, color }}>
-                {topic.id}. 주제카드
-              </span>
+              {/* ⭐ 카테고리 + 주제카드 라벨 */}
+              <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+                <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold"
+                  style={{ background: categoryStyle.bg, color: categoryStyle.color, border: `1px solid ${categoryStyle.color}50` }}>
+                  {categoryStyle.label}
+                </span>
+                <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold"
+                  style={{ border: `1.5px solid ${color}`, color }}>
+                  {topic.id}. 주제카드
+                </span>
+              </div>
               <h3 className="text-lg font-black text-gray-900 leading-tight">{topic.title}</h3>
               <p className="text-[13px] font-extrabold text-gray-400 leading-tight mt-0.5">{topic.titleEn}</p>
             </div>
@@ -163,7 +203,7 @@ export default function SignalCard({
         </div>
       </div>
 
-      {/* ⭐ 탭 바 — 잠금 자물쇠 표시 */}
+      {/* 탭 바 */}
       <div className="flex rounded-xl overflow-hidden mb-2"
         style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
         {TABS.map((tab, i) => {
@@ -172,12 +212,11 @@ export default function SignalCard({
           let isDone = false;
 
           if (tab === '주제') {
-            // 주제 탭은 항상 열려있음
+            // 항상 열림
           } else if (tab === '결론') {
             isLocked = isConclusionLocked;
             isDone = isCardCompleted;
           } else {
-            // Q1/Q2/Q3
             const subStatus = subLockStatus[i - 1];
             isLocked = subStatus?.isLocked || false;
             isDone = subStatus?.isCompleted || false;
@@ -188,16 +227,12 @@ export default function SignalCard({
               key={tab}
               onClick={() => !isLocked && onTabChange(tab)}
               disabled={isLocked}
-              className={`flex-1 py-2 text-[11px] font-bold transition-all flex items-center justify-center gap-1 ${isLocked ? 'cursor-not-allowed' : ''} ${!isLocked && !isActive ? 'tab-unlocked' : ''}`}
+              className={`flex-1 py-2 text-[11px] font-bold transition-all flex items-center justify-center gap-1 ${isLocked ? 'cursor-not-allowed' : ''}`}
               style={{
                 background: isActive ? color : 'transparent',
                 color: isActive
-                  ? (color === S.green ? S.navy : '#fff')
-                  : isLocked
-                    ? '#555'
-                    : isDone
-                      ? color
-                      : '#999',
+                  ? textColorForCard(color)
+                  : isLocked ? '#555' : isDone ? color : '#999',
                 opacity: isLocked ? 0.5 : 1,
               }}
               title={isLocked ? '이전 단계를 완료하면 열려요' : ''}
@@ -222,10 +257,10 @@ export default function SignalCard({
         {/* ─── 주제 탭 ─── */}
         {currentTab === '주제' && (
           <div className="p-4">
-            <p className="text-[10px] font-bold mb-2 font-mono tracking-widest" style={{ color: accentColor }}>개념 및 중요성</p>
+            <p className="text-[10px] font-bold mb-2 font-mono tracking-widest" style={{ color }}>개념 및 중요성</p>
             <p className="text-[13px] text-gray-300 leading-relaxed mb-4">{topic.overview}</p>
             <div className="rounded-xl p-3 mb-4" style={{ background: `${color}12`, border: `1px solid ${color}30` }}>
-              <p className="text-[10px] font-bold mb-1 font-mono tracking-widest" style={{ color: accentColor }}>핵심 통찰 질문</p>
+              <p className="text-[10px] font-bold mb-1 font-mono tracking-widest" style={{ color }}>핵심 통찰 질문</p>
               <p className="text-[13px] text-white font-bold leading-relaxed">{topic.insightQ}</p>
             </div>
             <button onClick={() => !subLockStatus[0].isLocked && onTabChange('Q1')}
@@ -237,30 +272,21 @@ export default function SignalCard({
           </div>
         )}
 
-        {/* ─── Q1/Q2/Q3 탭 — 잠긴 상태 ─── */}
+        {/* ─── Q탭 잠긴 상태 ─── */}
         {sub && (currentTab === 'Q1' || currentTab === 'Q2' || currentTab === 'Q3') && isCurrentSubLocked && (
-          <div className="p-8 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
-              <svg width="28" height="32" viewBox="0 0 12 14" fill="none">
-                <rect x="2" y="6" width="8" height="7" rx="1" stroke="#888" strokeWidth="1.2" fill="none"/>
-                <path d="M3.5 6V4a2.5 2.5 0 015 0v2" stroke="#888" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
-              </svg>
-            </div>
-            <h3 className="text-[15px] font-bold text-gray-300 mb-2">아직 잠겨있어요</h3>
-            <p className="text-[12px] text-gray-500 leading-relaxed">
-              {currentTab === 'Q1' ? '주제 탭을 먼저 확인해주세요' : `이전 ${currentTab === 'Q2' ? 'Q1' : 'Q2'}을 팀장이 완료하면 열려요`}
-            </p>
-          </div>
+          <LockedView message={
+            currentTab === 'Q1' ? '주제 탭을 먼저 확인해주세요'
+              : `이전 ${currentTab === 'Q2' ? 'Q1' : 'Q2'}을 팀장이 완료하면 열려요`
+          } />
         )}
 
-        {/* ─── Q1/Q2/Q3 탭 — 열린 상태 (팀장 vs 팀원 분기) ─── */}
+        {/* ─── Q탭 열린 상태 ─── */}
         {sub && (currentTab === 'Q1' || currentTab === 'Q2' || currentTab === 'Q3') && !isCurrentSubLocked && (
           <div className="p-4">
-            {/* 공통: Q 라벨 + 질문 */}
+            {/* Q 라벨 + 단계명 */}
             <div className="flex items-center gap-2 mb-3">
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full"
-                style={{ background: `${color}22`, color: accentColor }}>{sub.id}</span>
+                style={{ background: `${color}22`, color }}>{sub.id}</span>
               <span className="text-[10px] text-gray-500">
                 {currentTab === 'Q1' ? 'Fact 수집' : currentTab === 'Q2' ? 'Insight 해석' : 'Decision 결정'}
               </span>
@@ -270,20 +296,26 @@ export default function SignalCard({
               )}
             </div>
 
-            <div className="rounded-xl p-3 mb-4" style={{ background: `${color}10`, border: `1px solid ${color}25` }}>
+            {/* 질문 박스 */}
+            <div className="rounded-xl p-3 mb-2" style={{ background: `${color}10`, border: `1px solid ${color}25` }}>
               <p className="text-[13px] text-white font-bold leading-relaxed">{sub.question}</p>
             </div>
 
-            {/* ⭐⭐⭐ 팀장 화면 ⭐⭐⭐ */}
+            {/* ⭐ 결과 사용처 */}
+            <p className="text-[10px] text-gray-500 mb-4 italic">
+              → 이 답변은 최종 <span className="font-bold" style={{ color }}>{`'${sub.resultUsage}'`}</span>에 사용됩니다
+            </p>
+
+            {/* 팀장 vs 팀원 분기 */}
             {isLeader ? (
               <LeaderQView
                 sub={sub}
                 color={color}
-                accentColor={accentColor}
                 currentResponse={currentResponse}
                 onSaveResponse={onSaveResponse}
-                currentInterim={currentInterim}
+                currentInterimValues={currentInterimValues}
                 onSaveInterim={onSaveInterim}
+                isInterimFilled={isInterimFilled}
                 displayItem={displayItem}
                 minChars={minChars}
                 memberInsights={currentSubInsights}
@@ -294,11 +326,9 @@ export default function SignalCard({
                 onCompleteSubCard={() => onLeaderCompleteSubCard(sub.id)}
               />
             ) : (
-              /* ⭐⭐⭐ 팀원 화면 ⭐⭐⭐ */
               <MemberQView
                 sub={sub}
                 color={color}
-                accentColor={accentColor}
                 myMemberId={myMemberId}
                 myRoleCode={myRoleCode}
                 teamId={teamId}
@@ -310,42 +340,36 @@ export default function SignalCard({
           </div>
         )}
 
-        {/* ─── 결론 탭 — 잠긴 상태 ─── */}
+        {/* ─── 결론 탭 잠긴 상태 ─── */}
         {currentTab === '결론' && isConclusionLocked && (
-          <div className="p-8 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
-              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
-              <svg width="28" height="32" viewBox="0 0 12 14" fill="none">
-                <rect x="2" y="6" width="8" height="7" rx="1" stroke="#888" strokeWidth="1.2" fill="none"/>
-                <path d="M3.5 6V4a2.5 2.5 0 015 0v2" stroke="#888" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
-              </svg>
-            </div>
-            <h3 className="text-[15px] font-bold text-gray-300 mb-2">결론은 Q3 완료 후</h3>
-            <p className="text-[12px] text-gray-500">팀장이 Q3까지 마쳐야 결론을 작성할 수 있어요</p>
-          </div>
+          <LockedView
+            title="결론은 Q3 완료 후"
+            message="팀장이 Q3까지 마쳐야 결론을 작성할 수 있어요"
+          />
         )}
 
-        {/* ─── 결론 탭 — 열린 상태 (팀장/팀원 모두 보임) ─── */}
+        {/* ─── 결론 탭 열린 상태 ─── */}
         {currentTab === '결론' && !isConclusionLocked && (
           <div className="p-4">
-            {/* 팀 답변 요약 (팀장/팀원 모두 보임) */}
+            {/* 팀 답변 요약 */}
             <div className="mb-4">
               <p className="text-[10px] font-bold mb-2 font-mono tracking-widest text-gray-500">팀 답변 요약</p>
               <div className="space-y-2">
                 {topic.subs.map((s, i) => {
-                  const interim = interimConclusions[s.id] || '';
+                  const interimValues = interimConclusions[s.id] || [];
+                  const interimText = composeInterim(s.conclusionTemplate, interimValues);
                   const r = responses[s.id]?.texts?.['0'] || '';
                   const filled = hasResponse(s.id);
+                  const interimFilled = isFillInBlankComplete(s.conclusionTemplate, interimValues);
                   return (
                     <div key={s.id} className="rounded-lg p-2.5 transition-all"
                       style={{
                         background: filled ? `${color}12` : `${color}06`,
                         border: `1.5px solid ${filled ? color + '80' : color + '40'}`,
-                        boxShadow: filled ? `0 0 12px ${color}25` : 'none',
                       }}>
-                      <p className="text-[10px] font-bold font-mono mb-1" style={{ color: accentColor }}>Q{i + 1}</p>
-                      {interim
-                        ? <p className="text-[12px] text-gray-300">→ {interim}</p>
+                      <p className="text-[10px] font-bold font-mono mb-1" style={{ color }}>Q{i + 1}</p>
+                      {interimFilled
+                        ? <p className="text-[12px] text-gray-300">→ {interimText}</p>
                         : r
                           ? <p className="text-[11px] text-gray-500 line-clamp-2">{r}</p>
                           : <p className="text-[11px] text-gray-700">미작성</p>}
@@ -355,38 +379,37 @@ export default function SignalCard({
               </div>
             </div>
 
-            {/* ⭐ 팀장: 직접 한 문장 전략 입력 */}
+            {/* 팀장: 한 문장 전략 빈칸 채우기 */}
             {isLeader ? (
               <>
                 <div className="mb-4">
-                  <p className="text-[10px] font-bold mb-1.5 font-mono tracking-widest text-gray-500">
-                    한 문장 전략
+                  <p className="text-[10px] font-bold mb-1 font-mono tracking-widest text-gray-500">한 문장 전략</p>
+                  <p className="text-[11px] text-gray-600 mb-3">
+                    Q1·Q2·Q3 답변을 종합해서 빈칸을 채우세요. 노란 칸만 입력하면 돼요.
                   </p>
-                  <p className="text-[11px] text-gray-600 mb-2">
-                    위의 Q1·Q2·Q3 답변을 종합해서 우리 팀의 전략을 한 문장으로 정리하세요
-                  </p>
-                  <textarea
-                    value={leaderConclusion.oneSentence}
-                    onChange={e => onLeaderConclusionChange('oneSentence', e.target.value)}
-                    disabled={isCardCompleted}
-                    placeholder={`예: "${displayItem ? displayItem.split(' / ')[0] : '우리 제품'}을(를) [어디에] [어떻게] [어떤 효과를 위해] 진출시킨다."`}
-                    className="w-full px-3 py-3 rounded-xl text-[13px] text-white leading-relaxed resize-none transition disabled:opacity-60"
-                    rows={4}
+
+                  <div className="rounded-xl p-3 mb-2"
                     style={{
-                      background: leaderConclusion.oneSentence?.trim() ? `${color}12` : `${color}06`,
-                      border: `1.5px solid ${leaderConclusion.oneSentence?.trim() ? color : color + '40'}`,
-                      outline: 'none',
-                      boxShadow: leaderConclusion.oneSentence?.trim() ? `0 0 12px ${color}30` : 'none',
-                    }}
-                  />
-                  <div className="flex justify-between mt-1">
-                    <span className="text-[10px] text-gray-600">
-                      {leaderConclusion.oneSentence?.length || 0}자
-                    </span>
-                    {leaderConclusion.oneSentence?.trim() && (
-                      <span className="text-[10px]" style={{ color: S.green }}>✓ 작성됨</span>
-                    )}
+                      background: `${color}10`,
+                      border: `1.5px solid ${color}50`,
+                      boxShadow: isFinalStrategyFilled ? `0 0 16px ${color}25` : 'none',
+                    }}>
+                    <FillInBlankForm
+                      template={topic.finalStrategyTemplate}
+                      values={leaderConclusion.fields || []}
+                      onChange={(idx, value) => {
+                        const newFields = [...(leaderConclusion.fields || [])];
+                        newFields[idx] = value;
+                        onLeaderConclusionChange('fields', newFields);
+                      }}
+                      disabled={isCardCompleted}
+                      cardColor={color}
+                    />
                   </div>
+
+                  {isFinalStrategyFilled && (
+                    <p className="text-[10px] text-right" style={{ color: S.green }}>✓ 모든 빈칸 작성됨</p>
+                  )}
                 </div>
 
                 {isCardCompleted ? (
@@ -395,23 +418,25 @@ export default function SignalCard({
                     ✓ 완료된 카드
                   </div>
                 ) : (
-                  <button onClick={onComplete} disabled={!leaderConclusion.oneSentence?.trim()}
+                  <button
+                    onClick={onComplete}
+                    disabled={!isFinalStrategyFilled}
                     className="w-full py-3 font-black rounded-xl text-[14px] transition-all disabled:opacity-30"
                     style={{
-                      background: leaderConclusion.oneSentence?.trim() ? S.green : 'rgba(255,255,255,0.06)',
-                      color: leaderConclusion.oneSentence?.trim() ? S.navy : '#555'
+                      background: isFinalStrategyFilled ? S.green : 'rgba(255,255,255,0.06)',
+                      color: isFinalStrategyFilled ? S.navy : '#555'
                     }}>
-                    {leaderConclusion.oneSentence?.trim() ? '✅ 이 카드 완료하기' : '한 문장 전략을 작성하세요'}
+                    {isFinalStrategyFilled ? '✅ 이 카드 완료하기' : '모든 빈칸을 채워주세요'}
                   </button>
                 )}
               </>
             ) : (
-              /* ⭐ 팀원: 한 문장 전략 읽기 전용 */
+              /* 팀원: 한 문장 전략 읽기 전용 */
               <div className="mb-4">
                 <p className="text-[10px] font-bold mb-1.5 font-mono tracking-widest text-gray-500">
                   한 문장 전략
                 </p>
-                {leaderConclusion.oneSentence?.trim() ? (
+                {isFinalStrategyFilled ? (
                   <div className="rounded-xl p-3 transition-all"
                     style={{
                       background: `${color}15`,
@@ -426,7 +451,7 @@ export default function SignalCard({
                       <span className="text-[9px] font-mono text-gray-500">읽기 전용</span>
                     </div>
                     <p className="text-[13px] text-gray-200 leading-relaxed font-medium">
-                      {leaderConclusion.oneSentence}
+                      {composeInterim(topic.finalStrategyTemplate, leaderConclusion.fields || [])}
                     </p>
                   </div>
                 ) : (
@@ -447,32 +472,141 @@ export default function SignalCard({
           </div>
         )}
       </div>
-
-      <style jsx>{`
-        /* 잠금 풀린 직후 펄스 효과 */
-        .tab-unlocked {
-          animation: tabUnlockPulse 1.5s ease-out;
-        }
-        @keyframes tabUnlockPulse {
-          0% { background: rgba(6, 182, 212, 0.3); }
-          100% { background: transparent; }
-        }
-      `}</style>
     </div>
   );
 }
 
 // ═══════════════════════════════════════════════════════
-// 팀장 Q 화면 컴포넌트 (체크리스트 제거됨)
+// 빈칸 채우기 폼 컴포넌트
+// ═══════════════════════════════════════════════════════
+function FillInBlankForm({
+  template,
+  values,
+  onChange,
+  disabled,
+  cardColor,
+}: {
+  template: string;
+  values: string[];
+  onChange: (idx: number, value: string) => void;
+  disabled?: boolean;
+  cardColor: string;
+}) {
+  const parts = parseTemplate(template);
+
+  return (
+    <div className="text-[14px] text-white leading-[2.2]"
+      style={{ wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
+      {parts.map((part, idx) => (
+        <Fragment key={idx}>
+          <span className="whitespace-pre-wrap">{part}</span>
+          {idx < parts.length - 1 && (
+            <BlankInput
+              value={values[idx] || ''}
+              onChange={(v) => onChange(idx, v)}
+              disabled={disabled}
+              cardColor={cardColor}
+            />
+          )}
+        </Fragment>
+      ))}
+    </div>
+  );
+}
+
+// 빈칸 입력 박스 (자동 너비 조절)
+function BlankInput({
+  value,
+  onChange,
+  disabled,
+  cardColor,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+  cardColor: string;
+}) {
+  // 한글은 글자당 ~16px, 영어는 ~8px. 평균 ~13px로 잡고 패딩 추가
+  const calcWidth = (v: string) => {
+    const chars = v.length || 0;
+    return Math.max(60, Math.min(280, chars * 14 + 24));
+  };
+
+  return (
+    <input
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      disabled={disabled}
+      style={{
+        display: 'inline-block',
+        width: `${calcWidth(value)}px`,
+        background: value ? '#FFE680' : '#FAEEDA',
+        color: '#1A1A1A',
+        border: `1.5px solid ${value ? '#BA7517' : '#D4A547'}`,
+        borderRadius: '6px',
+        padding: '2px 8px',
+        margin: '0 2px',
+        fontSize: '13.5px',
+        fontWeight: 600,
+        outline: 'none',
+        verticalAlign: 'baseline',
+        minWidth: '60px',
+        maxWidth: '280px',
+        transition: 'all 0.15s',
+        boxShadow: value ? '0 0 0 2px rgba(255, 230, 128, 0.2)' : 'none',
+      }}
+      onFocus={(e) => {
+        e.currentTarget.style.boxShadow = `0 0 0 3px ${cardColor}40`;
+      }}
+      onBlur={(e) => {
+        e.currentTarget.style.boxShadow = value ? '0 0 0 2px rgba(255, 230, 128, 0.2)' : 'none';
+      }}
+    />
+  );
+}
+
+// 잠긴 상태 뷰
+function LockedView({ title = '아직 잠겨있어요', message }: { title?: string; message: string }) {
+  return (
+    <div className="p-8 text-center">
+      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
+        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)' }}>
+        <svg width="28" height="32" viewBox="0 0 12 14" fill="none">
+          <rect x="2" y="6" width="8" height="7" rx="1" stroke="#888" strokeWidth="1.2" fill="none"/>
+          <path d="M3.5 6V4a2.5 2.5 0 015 0v2" stroke="#888" strokeWidth="1.2" fill="none" strokeLinecap="round"/>
+        </svg>
+      </div>
+      <h3 className="text-[15px] font-bold text-gray-300 mb-2">{title}</h3>
+      <p className="text-[12px] text-gray-500 leading-relaxed">{message}</p>
+    </div>
+  );
+}
+
+// 빈칸 채우기 결과 합성
+function composeInterim(template: string, values: string[]): string {
+  const parts = parseTemplate(template);
+  let result = '';
+  for (let i = 0; i < parts.length; i++) {
+    result += parts[i];
+    if (i < parts.length - 1) {
+      result += values[i] || '___';
+    }
+  }
+  return result;
+}
+
+// ═══════════════════════════════════════════════════════
+// 팀장 Q 화면 (체크리스트 제거됨)
 // ═══════════════════════════════════════════════════════
 interface LeaderQViewProps {
   sub: SubCard;
   color: string;
-  accentColor: string;
   currentResponse: string;
   onSaveResponse: (cardId: string, text: string) => void;
-  currentInterim: string;
-  onSaveInterim: (cardId: string, text: string) => void;
+  currentInterimValues: string[];
+  onSaveInterim: (cardId: string, values: string[]) => void;
+  isInterimFilled: boolean;
   displayItem: string;
   minChars: number;
   memberInsights: MemberInsight[];
@@ -484,9 +618,9 @@ interface LeaderQViewProps {
 }
 
 function LeaderQView({
-  sub, color, accentColor,
+  sub, color,
   currentResponse, onSaveResponse,
-  currentInterim, onSaveInterim,
+  currentInterimValues, onSaveInterim, isInterimFilled,
   displayItem, minChars,
   memberInsights, teamMembers,
   allMembersDone, isCurrentSubCompleted,
@@ -494,7 +628,6 @@ function LeaderQView({
 }: LeaderQViewProps) {
   const [showSidebar, setShowSidebar] = useState(false);
 
-  // 팀원 (CEO 제외)
   const nonLeaders = teamMembers.filter(m => !m.is_leader);
   const completedCount = memberInsights.filter(i => i.is_completed).length;
 
@@ -507,10 +640,7 @@ function LeaderQView({
           <button
             onClick={() => setShowSidebar(true)}
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-md transition-all hover:scale-[1.03]"
-            style={{
-              background: `${S.cyan}15`,
-              border: `1px solid ${S.cyan}40`,
-            }}>
+            style={{ background: `${S.cyan}15`, border: `1px solid ${S.cyan}40` }}>
             <div className="w-1.5 h-1.5 rounded-full"
               style={{ background: completedCount === nonLeaders.length && nonLeaders.length > 0 ? '#4ADE80' : S.cyan }} />
             <span className="text-[10px] font-mono font-bold" style={{ color: S.cyan }}>
@@ -538,28 +668,34 @@ function LeaderQView({
         </div>
       </div>
 
-      {/* 중간 결론 */}
+      {/* ⭐ 중간 결론 — 빈칸 채우기 */}
       <div className="mb-4">
         <p className="text-[10px] font-bold mb-1.5 font-mono tracking-widest text-gray-500">중간 결론</p>
+        <p className="text-[10px] text-gray-600 mb-2">→ 빈칸을 채워서 한 문장으로 정리하세요</p>
         <div className="rounded-xl p-3 transition-all"
           style={{
-            background: currentInterim ? `${color}12` : `${color}06`,
-            border: `1.5px solid ${currentInterim ? color + '88' : color + '40'}`,
-            boxShadow: currentInterim ? `0 0 12px ${color}25` : 'none',
+            background: isInterimFilled ? `${color}12` : `${color}06`,
+            border: `1.5px solid ${isInterimFilled ? color + '88' : color + '40'}`,
+            boxShadow: isInterimFilled ? `0 0 12px ${color}25` : 'none',
           }}>
-          <p className="text-[10px] mb-1.5" style={{ color: `${color}DD` }}>→ 이 질문에서 우리가 내린 결론:</p>
-          <input
-            value={currentInterim}
-            onChange={e => onSaveInterim(sub.id, e.target.value)}
+          <FillInBlankForm
+            template={sub.conclusionTemplate}
+            values={currentInterimValues}
+            onChange={(idx, value) => {
+              const newValues = [...currentInterimValues];
+              newValues[idx] = value;
+              onSaveInterim(sub.id, newValues);
+            }}
             disabled={isCurrentSubCompleted}
-            placeholder="한 문장으로 정리하세요..."
-            className="w-full bg-transparent text-[13px] text-white outline-none border-b pb-1 disabled:opacity-60"
-            style={{ borderColor: `${color}66` }}
+            cardColor={color}
           />
         </div>
+        {isInterimFilled && (
+          <p className="text-[10px] text-right mt-1" style={{ color: S.green }}>✓ 빈칸 모두 작성됨</p>
+        )}
       </div>
 
-      {/* ⭐ 팀장 완료 버튼 */}
+      {/* 팀장 완료 버튼 */}
       {isCurrentSubCompleted ? (
         <div className="w-full py-3 rounded-xl text-center font-bold text-[13px]"
           style={{ background: `${S.green}20`, color: S.green }}>
@@ -578,16 +714,14 @@ function LeaderQView({
             ? `팀원 인사이트 대기 중 (${completedCount}/${nonLeaders.length})`
             : currentResponse.trim().length < minChars
               ? `팀 답변 작성 (${currentResponse.length}/${minChars}자)`
-              : !currentInterim.trim()
-                ? '중간 결론 작성'
+              : !isInterimFilled
+                ? '중간 결론 빈칸 채우기'
                 : `✅ ${sub.id.split('-')[1] === '3' ? '결론 단계로' : `Q${parseInt(sub.id.split('-')[1]) + 1}로 넘어가기`}`}
         </button>
       )}
 
-      {/* ⭐ 사이드바 */}
       {showSidebar && (
         <TeamInsightSidebar
-          subId={sub.id}
           color={color}
           memberInsights={memberInsights}
           teamMembers={teamMembers}
@@ -599,17 +733,19 @@ function LeaderQView({
 }
 
 // ═══════════════════════════════════════════════════════
-// 팀원 인사이트 사이드바 (슬라이드업 패널)
+// 팀원 인사이트 사이드바
 // ═══════════════════════════════════════════════════════
-interface SidebarProps {
-  subId: string;
+function TeamInsightSidebar({
+  color,
+  memberInsights,
+  teamMembers,
+  onClose,
+}: {
   color: string;
   memberInsights: MemberInsight[];
   teamMembers: Array<{ id: string; name: string; is_leader: boolean; role_code?: string | null }>;
   onClose: () => void;
-}
-
-function TeamInsightSidebar({ subId, color, memberInsights, teamMembers, onClose }: SidebarProps) {
+}) {
   const nonLeaders = teamMembers.filter(m => !m.is_leader);
   const completedCount = memberInsights.filter(i => i.is_completed).length;
 
@@ -632,9 +768,7 @@ function TeamInsightSidebar({ subId, color, memberInsights, teamMembers, onClose
         <div className="w-10 h-1 rounded-full mx-auto mb-4" style={{ background: 'rgba(255,255,255,0.2)' }} />
 
         <div className="flex items-center gap-2 mb-4">
-          <div className="font-mono text-[11px] font-bold tracking-widest" style={{ color: S.cyan }}>
-            팀원 인사이트
-          </div>
+          <div className="font-mono text-[11px] font-bold tracking-widest" style={{ color: S.cyan }}>팀원 인사이트</div>
           <div className="font-mono text-[12px] font-bold" style={{ color: S.cyan }}>
             {completedCount} / {nonLeaders.length}
           </div>
@@ -651,9 +785,7 @@ function TeamInsightSidebar({ subId, color, memberInsights, teamMembers, onClose
               <div key={m.id} className="rounded-lg p-2.5"
                 style={{
                   background: isDone ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.02)',
-                  borderLeft: isDone
-                    ? `2px solid ${role?.color || S.cyan}`
-                    : '2px dashed rgba(107,123,149,0.5)',
+                  borderLeft: isDone ? `2px solid ${role?.color || S.cyan}` : '2px dashed rgba(107,123,149,0.5)',
                   opacity: isDone ? 1 : 0.6,
                 }}>
                 <div className="flex items-center gap-1.5 mb-1.5">
@@ -690,9 +822,7 @@ function TeamInsightSidebar({ subId, color, memberInsights, teamMembers, onClose
       </div>
 
       <style jsx>{`
-        .sidebar-slideup {
-          animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-        }
+        .sidebar-slideup { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
         @keyframes slideUp {
           0% { transform: translateY(100%); }
           100% { transform: translateY(0); }
@@ -703,25 +833,22 @@ function TeamInsightSidebar({ subId, color, memberInsights, teamMembers, onClose
 }
 
 // ═══════════════════════════════════════════════════════
-// 팀원 Q 화면 컴포넌트 (자기 직무 인사이트만 작성)
+// 팀원 Q 화면
 // ═══════════════════════════════════════════════════════
-interface MemberQViewProps {
+function MemberQView({
+  sub, color,
+  myMemberId, myRoleCode, teamId,
+  memberInsights, insightMinChars, isCurrentSubCompleted,
+}: {
   sub: SubCard;
   color: string;
-  accentColor: string;
   myMemberId: string;
   myRoleCode: RoleCode | null;
   teamId: string;
   memberInsights: MemberInsight[];
   insightMinChars: number;
   isCurrentSubCompleted: boolean;
-}
-
-function MemberQView({
-  sub, color, accentColor,
-  myMemberId, myRoleCode, teamId,
-  memberInsights, insightMinChars, isCurrentSubCompleted,
-}: MemberQViewProps) {
+}) {
   const myInsight = memberInsights.find(i =>
     i.sub_card_id === sub.id && i.member_id === myMemberId
   );
@@ -747,16 +874,13 @@ function MemberQView({
 
   const canComplete = content.trim().length >= insightMinChars && !isCompleted;
 
+  // 자동 저장
   useEffect(() => {
     if (!myRoleCode || isCompleted) return;
     const t = setTimeout(() => {
       saveMemberInsight({
-        teamId,
-        memberId: myMemberId,
-        subCardId: sub.id,
-        roleCode: myRoleCode,
-        content,
-        isCompleted: false,
+        teamId, memberId: myMemberId, subCardId: sub.id,
+        roleCode: myRoleCode, content, isCompleted: false,
       });
     }, 800);
     return () => clearTimeout(t);
@@ -766,12 +890,8 @@ function MemberQView({
     if (!myRoleCode || !canComplete) return;
     setSaving(true);
     await saveMemberInsight({
-      teamId,
-      memberId: myMemberId,
-      subCardId: sub.id,
-      roleCode: myRoleCode,
-      content,
-      isCompleted: true,
+      teamId, memberId: myMemberId, subCardId: sub.id,
+      roleCode: myRoleCode, content, isCompleted: true,
     });
     setIsCompleted(true);
     setSaving(false);
@@ -781,18 +901,13 @@ function MemberQView({
     <>
       {myRole && (
         <div className="mb-3 rounded-xl p-3 flex items-center gap-2.5"
-          style={{
-            background: `${myRole.color}15`,
-            border: `1px solid ${myRole.color}40`,
-          }}>
+          style={{ background: `${myRole.color}15`, border: `1px solid ${myRole.color}40` }}>
           <div className="w-9 h-9 rounded-lg flex items-center justify-center text-base flex-shrink-0"
             style={{ background: `${myRole.color}30`, border: `1px solid ${myRole.color}` }}>
             {myRole.icon}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-mono tracking-widest" style={{ color: myRole.color }}>
-              YOUR ROLE
-            </p>
+            <p className="text-[10px] font-mono tracking-widest" style={{ color: myRole.color }}>YOUR ROLE</p>
             <p className="text-[13px] font-bold text-white leading-tight">
               {myRole.nameKr} · {myRole.nameEn}
             </p>
@@ -802,9 +917,7 @@ function MemberQView({
 
       <div className="mb-3 rounded-xl p-3"
         style={{ background: `${color}10`, border: `1px solid ${color}30` }}>
-        <p className="text-[10px] font-bold mb-1 font-mono tracking-widest" style={{ color: accentColor }}>
-          내 직무 관점 미션
-        </p>
+        <p className="text-[10px] font-bold mb-1 font-mono tracking-widest" style={{ color }}>내 직무 관점 미션</p>
         <p className="text-[12.5px] text-white leading-relaxed">{prompt}</p>
       </div>
 
@@ -855,11 +968,7 @@ function MemberQView({
             background: canComplete ? S.green : 'rgba(255,255,255,0.06)',
             color: canComplete ? S.navy : '#555',
           }}>
-          {saving
-            ? '제출 중...'
-            : canComplete
-              ? '✅ 인사이트 제출하기'
-              : `${insightMinChars - content.length}자 더 작성해주세요`}
+          {saving ? '제출 중...' : canComplete ? '✅ 인사이트 제출하기' : `${insightMinChars - content.length}자 더 작성해주세요`}
         </button>
       )}
 
