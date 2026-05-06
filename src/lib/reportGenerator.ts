@@ -1,5 +1,6 @@
 // src/lib/reportGenerator.ts
 // 보고서 데이터를 6개 테이블에서 모아서 합치는 함수
+// 실제 DB 구조 검증 후 수정 완료 (2026.05.06)
 
 import { createClient } from '@supabase/supabase-js';
 import type {
@@ -46,6 +47,8 @@ async function fetchTeamMembers(teamId: string) {
 
 // ─────────────────────────────────────────────
 // 3. 카드 답변 가져오기 (Q1, Q2, Q3)
+// 실제 DB: card_id="01-1" 단위로 row, texts={"0":"답변"}
+// 결과: { "01-1": "답변", "01-2": "답변", ... }
 // ─────────────────────────────────────────────
 async function fetchCardResponses(teamId: string) {
   const { data, error } = await supabase
@@ -55,16 +58,20 @@ async function fetchCardResponses(teamId: string) {
 
   if (error) throw new Error(`카드 답변 조회 실패: ${error.message}`);
   
-  // card_id를 키로 하는 맵으로 변환
-  const map: Record<string, Record<string, string>> = {};
+  // sub_card_id ("01-1")를 키로 하는 맵으로 변환
+  const map: Record<string, string> = {};
   (data || []).forEach((row) => {
-    map[row.card_id] = row.texts || {};
+    // texts는 { "0": "답변" } 형태이므로 "0" 키의 값을 추출
+    const text = (row.texts as { [key: string]: string } | null)?.['0'] || '';
+    map[row.card_id] = text;
   });
   return map;
 }
 
 // ─────────────────────────────────────────────
-// 4. 중간 결론 가져오기 (Q탭마다 빈칸)
+// 4. 중간 결론 가져오기 (Q탭마다 빈칸 채우기 배열)
+// 실제 DB: content="[\"답변1\",\"답변2\",\"답변3\"]" (JSON 문자열)
+// 결과: { "01-1": ["답변1", "답변2"], ... }
 // ─────────────────────────────────────────────
 async function fetchInterimConclusions(teamId: string) {
   const { data, error } = await supabase
@@ -74,16 +81,26 @@ async function fetchInterimConclusions(teamId: string) {
 
   if (error) throw new Error(`중간 결론 조회 실패: ${error.message}`);
   
-  // sub_card_id를 키로 하는 맵
-  const map: Record<string, string> = {};
+  const map: Record<string, string[]> = {};
   (data || []).forEach((row) => {
-    map[row.sub_card_id] = row.content || '';
+    let blanks: string[] = [];
+    try {
+      // content는 JSON 문자열이므로 파싱
+      const parsed = JSON.parse(row.content || '[]');
+      if (Array.isArray(parsed)) {
+        blanks = parsed.filter((s) => typeof s === 'string');
+      }
+    } catch {
+      blanks = [];
+    }
+    map[row.sub_card_id] = blanks;
   });
   return map;
 }
 
 // ─────────────────────────────────────────────
 // 5. 카드별 한 문장 전략 가져오기
+// 실제 DB: card_id="01" 단위로 row (sub_card_id 아님)
 // ─────────────────────────────────────────────
 async function fetchLeaderConclusions(teamId: string) {
   const { data, error } = await supabase
@@ -97,7 +114,10 @@ async function fetchLeaderConclusions(teamId: string) {
   (data || []).forEach((row) => {
     let fields: string[] = [];
     try {
-      fields = JSON.parse(row.fields_json || '[]');
+      const parsed = JSON.parse(row.fields_json || '[]');
+      if (Array.isArray(parsed)) {
+        fields = parsed.filter((s) => typeof s === 'string');
+      }
     } catch {
       fields = [];
     }
@@ -111,6 +131,7 @@ async function fetchLeaderConclusions(teamId: string) {
 
 // ─────────────────────────────────────────────
 // 6. 직무별 빈칸 답변 가져오기
+// 실제 DB: sub_card_id="01-1" 단위, role_code별로 답변
 // ─────────────────────────────────────────────
 async function fetchMemberInsights(teamId: string) {
   const { data, error } = await supabase
@@ -129,8 +150,8 @@ async function fetchMemberInsights(teamId: string) {
 function assembleReport(
   teamInfo: { name: string; item: string | null; level: string | null },
   members: { id: string; name: string; role_code: string | null; is_leader: boolean | null }[],
-  responses: Record<string, Record<string, string>>,
-  interim: Record<string, string>,
+  responses: Record<string, string>,
+  interim: Record<string, string[]>,
   leaderConclusions: Record<string, { oneSentence: string; fields: string[] }>,
   insights: { sub_card_id: string; role_code: string; content: string; member_id: string }[]
 ): TeamReportData {
@@ -155,28 +176,29 @@ function assembleReport(
 
   // 16개 카드 데이터 만들기
   const cards: ReportCard[] = SIGNAL_GOVERNANCE_CARDS.map((card) => {
-    // Q1, Q2, Q3 답변 + 중간 결론
+    // Q1, Q2, Q3 답변 + 중간 결론 (빈칸 배열)
     const questions: CardQuestionAnswer[] = card.questions.map((q) => {
-      const cardTexts = responses[card.id] || {};
       return {
         id: q.id,
         title: q.titleKo,
         question: q.visibleMission,
-        answer: cardTexts[q.id] || '',
-        interimConclusion: interim[q.id] || '',
+        answer: responses[q.id] || '',           // ✅ "01-1" 키로 직접 조회
+        interimBlanks: interim[q.id] || [],      // ✅ 배열로 가져옴
       };
     });
 
     // 이 카드와 관련된 직무별 빈칸 답변
+    // sub_card_id가 "01-1", "01-2", "01-3" 모두 포함
     const memberInsights: MemberInsight[] = insights
-      .filter((ins) => ins.sub_card_id.startsWith(card.id))
+      .filter((ins) => ins.sub_card_id.startsWith(card.id + '-'))
       .map((ins) => ({
         memberName: memberNameMap[ins.member_id] || '익명',
         roleCode: ins.role_code,
+        subCardId: ins.sub_card_id,
         content: ins.content,
       }));
 
-    // 한 문장 전략
+    // 한 문장 전략 (card_id="01" 단위)
     const leaderConc = leaderConclusions[card.id] || { oneSentence: '', fields: [] };
 
     return {
@@ -190,17 +212,25 @@ function assembleReport(
     };
   });
 
-  // 총 답변 개수 계산 (통계용)
+  // 통계 계산
   const totalAnswers = cards.reduce((sum, card) => {
     const answeredQuestions = card.questions.filter((q) => q.answer.trim() !== '').length;
     return sum + answeredQuestions;
   }, 0);
+
+  // 완료한 카드 수 (Q1, Q2, Q3 다 답변하고 한 문장 전략까지 있는 카드)
+  const completedCardCount = cards.filter((card) => {
+    const allAnswered = card.questions.every((q) => q.answer.trim() !== '');
+    const hasStrategy = card.oneSentenceStrategy.trim() !== '';
+    return allAnswered && hasStrategy;
+  }).length;
 
   return {
     team,
     cards,
     generatedAt: new Date().toISOString(),
     totalAnswers,
+    completedCardCount,
   };
 }
 
