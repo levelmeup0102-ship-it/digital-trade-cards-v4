@@ -3,6 +3,9 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ALL_CARDS, CARD_COLORS, TOPICS } from '@/data/cardData';
 import SignalCard, { type LeaderConclusionState } from '@/components/SignalCard';
+// ⭐⭐⭐ Step 3 추가: 축하 모달 + 보고서 생성 함수 ⭐⭐⭐
+import CelebrationModal from '@/components/CelebrationModal';
+import { generateTeamReport } from '@/lib/reportGenerator';
 import type { SubCard } from '@/types';
 import {
   getOrCreateSession, restoreSession,
@@ -291,6 +294,10 @@ export default function Home() {
   const [completedCards, setCompletedCards] = useState<Set<string>>(new Set());
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [swipeOffset, setSwipeOffset] = useState(0);
+
+  // ⭐⭐⭐ Step 3 추가: 축하 모달 상태 ⭐⭐⭐
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationStats, setCelebrationStats] = useState({ totalAnswers: 0, memberCount: 0 });
 
   const [timer, setTimer] = useState(1200);
   const [timerActive, setTimerActive] = useState(false);
@@ -631,8 +638,11 @@ export default function Home() {
       }
     }
 
-    // 다음 카드 Q1 잠금 해제
+    // ⭐⭐⭐ Step 3 추가: 16번째 카드 완료 시 보고서 생성 + 축하 모달 ⭐⭐⭐
+    // 1~15번 카드 → 다음 카드로 이동
+    // 16번 카드 → 보고서 자동 생성 + 축하 모달
     if (teamId && currentCardIdx < TOPICS.length - 1) {
+      // 일반 카드: 다음 카드 Q1 잠금 해제 + 이동
       const nextTopicId = TOPICS[currentCardIdx + 1].id;
       const nextSubCardId = `${nextTopicId}-1`;
       await leaderCompleteSubCard({
@@ -641,6 +651,26 @@ export default function Home() {
         nextSubCardId,
       });
       setTimeout(() => goToCard(currentCardIdx + 1), 1000);
+    } else if (teamId && currentCardIdx === TOPICS.length - 1) {
+      // ⭐ 마지막(16번) 카드: 보고서 자동 생성 + 축하 모달
+      try {
+        const reportData = await generateTeamReport(teamId);
+        // 모달에 보여줄 통계 저장
+        setCelebrationStats({
+          totalAnswers: reportData.totalAnswers,
+          memberCount: reportData.team.members.length,
+        });
+        // 약간의 딜레이 후 모달 등장 (저장 toast 끝나고 자연스럽게)
+        setTimeout(() => setShowCelebration(true), 800);
+      } catch (e) {
+        console.error('보고서 생성 실패', e);
+        // 실패해도 모달은 띄워주기 (재생성 가능하니까)
+        setCelebrationStats({
+          totalAnswers: completedCards.size * 3,
+          memberCount: teamMembers.length,
+        });
+        setTimeout(() => setShowCelebration(true), 800);
+      }
     }
   };
 
@@ -694,6 +724,17 @@ export default function Home() {
   const handleStartClick = (path: string) => {
     setExiting(true);
     setTimeout(() => router.push(path), 600);
+  };
+
+  // ⭐⭐⭐ Step 3 추가: 모달 액션 핸들러 ⭐⭐⭐
+  const handleViewReport = () => {
+    if (!teamId) return;
+    setShowCelebration(false);
+    router.push(`/team/${teamId}/report`);
+  };
+
+  const handleCloseCelebration = () => {
+    setShowCelebration(false);
   };
 
   if (sessionLoading) return (
@@ -1508,6 +1549,17 @@ export default function Home() {
           <span className="text-[13px] text-white font-semibold">저장 완료!</span>
         </div>
       )}
+
+      {/* ⭐⭐⭐ Step 3 추가: 16카드 완료 축하 모달 ⭐⭐⭐ */}
+      <CelebrationModal
+        isOpen={showCelebration}
+        teamName={teamName || '팀'}
+        item={displayItem}
+        totalAnswers={celebrationStats.totalAnswers}
+        memberCount={celebrationStats.memberCount}
+        onViewReport={handleViewReport}
+        onClose={handleCloseCelebration}
+      />
     </div>
   );
 }
