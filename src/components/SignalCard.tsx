@@ -482,7 +482,6 @@ function FillInBlankForm({
   const parts = parseTemplate(template);
 
   return (
-    // ⭐ 줄 간격 원래대로 (leading-[2.2])
     <div className="text-[14px] text-white leading-[2.2]"
       style={{ wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
       {parts.map((part, idx) => (
@@ -502,7 +501,7 @@ function FillInBlankForm({
   );
 }
 
-// ⭐ 빈칸 입력 박스 — 슬림 버전 (height 명시 + 작은 padding/border)
+// ⭐ 빈칸 입력 박스 — 슬림 + 글자 따라 자연스럽게 늘어남 (maxWidth 제거)
 function BlankInput({
   value,
   onChange,
@@ -514,9 +513,10 @@ function BlankInput({
   disabled?: boolean;
   cardColor: string;
 }) {
+  // ⭐ 한글 기준 글자당 14px (정확히), maxWidth 없음 → 글자 따라 박스 자연 확장
   const calcWidth = (v: string) => {
     const chars = v.length || 0;
-    return Math.max(40, Math.min(200, chars * 12 + 14));
+    return Math.max(40, chars * 14 + 16);
   };
 
   const NEON_YELLOW = '#FFE680';
@@ -530,24 +530,24 @@ function BlankInput({
       style={{
         display: 'inline-block',
         width: `${calcWidth(value)}px`,
-        height: '20px',                                     // ⭐ 명시적 높이 (슬림)
-        boxSizing: 'border-box',                            // ⭐ 박스 사이즈 명확
+        height: '20px',
+        boxSizing: 'border-box',
         background: value ? `${NEON_YELLOW}15` : `${NEON_YELLOW}08`,
         color: value ? NEON_YELLOW : '#888',
-        border: `1px solid ${value ? NEON_YELLOW : NEON_YELLOW + '44'}`,  // ⭐ 1.5 → 1
-        borderRadius: '4px',                                // ⭐ 6 → 4
-        padding: '0 6px',                                   // ⭐ 위아래 0
+        border: `1px solid ${value ? NEON_YELLOW : NEON_YELLOW + '44'}`,
+        borderRadius: '4px',
+        padding: '0 6px',
         margin: '0 2px',
-        fontSize: '12px',                                   // ⭐ 13 → 12
+        fontSize: '12px',
         fontWeight: 600,
-        lineHeight: '18px',                                 // ⭐ 명시 (수직 중앙)
+        lineHeight: '18px',
         outline: 'none',
-        verticalAlign: 'middle',                            // ⭐ baseline → middle
+        verticalAlign: 'middle',
         minWidth: '40px',
-        maxWidth: '200px',
-        transition: 'all 0.2s',
+        // ⭐ maxWidth 제거: 글자 길어지면 박스도 따라 늘어남
+        transition: 'width 0.15s, background 0.2s, border-color 0.2s, box-shadow 0.2s',
         boxShadow: value
-          ? `0 0 4px ${NEON_YELLOW}33`                      // ⭐ 글로우 약하게
+          ? `0 0 4px ${NEON_YELLOW}33`
           : 'none',
       }}
       onFocus={(e) => {
