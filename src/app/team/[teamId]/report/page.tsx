@@ -206,18 +206,18 @@ export default function TeamReportPage() {
 
           <div className="space-y-2">
             {cards.map((card, idx) => {
-              const isExpanded = expandedCards.has(card.id);
-              const cardColor = CARD_COLORS[card.id]?.bg || S.cyan;
+              const isExpanded = expandedCards.has(card.cardId);
+              const cardColor = CARD_COLORS[card.cardId]?.bg || S.cyan;
               const isCompleted = card.questions.some(q => q.answer.length > 0);
 
               return (
-                <div key={card.id} className="rounded-xl overflow-hidden transition-all"
+                <div key={card.cardId} className="rounded-xl overflow-hidden transition-all"
                   style={{
                     background: isExpanded ? `${cardColor}08` : 'rgba(255, 255, 255, 0.02)',
                     border: `0.5px solid ${isExpanded ? cardColor + '40' : 'rgba(255, 255, 255, 0.06)'}`,
                   }}>
                   {/* 카드 헤더 (클릭 가능) */}
-                  <button onClick={() => toggleCard(card.id)}
+                  <button onClick={() => toggleCard(card.cardId)}
                     className="w-full p-3 flex items-center gap-3 transition hover:bg-white/[0.02]">
                     {/* 카드 번호 */}
                     <div className="w-9 h-9 rounded-lg flex items-center justify-center font-black text-[12px] flex-shrink-0"
@@ -225,12 +225,12 @@ export default function TeamReportPage() {
                         background: cardColor,
                         color: cardColor === '#FFC72C' || cardColor === S.green ? S.navy : '#fff',
                       }}>
-                      {card.id}
+                      {card.cardId}
                     </div>
 
                     {/* 제목 */}
                     <div className="flex-1 text-left min-w-0">
-                      <p className="text-[13px] font-bold text-white truncate">{card.title}</p>
+                      <p className="text-[13px] font-bold text-white truncate">{card.titleKo}</p>
                       <p className="text-[10px] text-gray-500 truncate">{card.titleEn}</p>
                     </div>
 
