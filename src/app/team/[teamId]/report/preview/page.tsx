@@ -12,12 +12,11 @@ const S = {
   cyan: '#06B6D4',
   purple: '#8B5CF6',
   navy: '#050505',
-  factStage: '#06B6D4',     // Q1 Fact
-  insightStage: '#FFA500',  // Q2 Insight
-  decisionStage: '#78BE20', // Q3 Decision
+  factStage: '#06B6D4',
+  insightStage: '#FFA500',
+  decisionStage: '#78BE20',
 };
 
-// 카테고리별 색상
 const CATEGORY_STYLES: Record<string, { color: string; label: string }> = {
   '시장 이해': { color: '#06B6D4', label: '시장 이해' },
   '전략 설계': { color: '#8B5CF6', label: '전략 설계' },
@@ -25,7 +24,6 @@ const CATEGORY_STYLES: Record<string, { color: string; label: string }> = {
   '실행 설계': { color: '#78BE20', label: '실행 설계' },
 };
 
-// Stage별 정보
 const STAGES = [
   { name: 'Fact', label: 'Fact 수집', color: S.factStage },
   { name: 'Insight', label: 'Insight 해석', color: S.insightStage },
@@ -69,6 +67,8 @@ export default function TeamReportPreviewPage() {
     setTransitioning(true);
     setTimeout(() => {
       setPageIndex(newIndex);
+      // 모바일에서 페이지 변경 시 상단으로 스크롤
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       setTimeout(() => setTransitioning(false), 50);
     }, 200);
   }, [pageIndex]);
@@ -129,7 +129,7 @@ export default function TeamReportPreviewPage() {
   }
 
   return (
-    <div className="min-h-screen p-3 md:p-6 relative overflow-hidden flex flex-col"
+    <div className="min-h-screen p-2 md:p-6 relative overflow-hidden flex flex-col"
       onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
 
       <div className="fixed inset-0 pointer-events-none"
@@ -144,29 +144,29 @@ export default function TeamReportPreviewPage() {
 
       <div className="relative z-10 max-w-5xl mx-auto w-full flex-1 flex flex-col">
 
-        <div className="flex items-center justify-between mb-5">
+        {/* ⭐ 모바일 최적화: 헤더 패딩 조정 */}
+        <div className="flex items-center justify-between mb-3 md:mb-5 px-1 md:px-0">
           <button onClick={() => router.push(`/team/${teamId}/report`)}
-            className="text-[12px] text-gray-500 hover:text-gray-300 transition">
+            className="text-[11px] md:text-[12px] text-gray-500 hover:text-gray-300 transition">
             ← 보고서로
           </button>
-          <span className="font-mono font-bold tracking-[3px]"
-            style={{ fontSize: '10px', color: S.gold, textShadow: `0 0 8px ${S.gold}66` }}>
+          <span className="font-mono font-bold tracking-[2px] md:tracking-[3px]"
+            style={{ fontSize: '9px', color: S.gold, textShadow: `0 0 8px ${S.gold}66` }}>
             ★ PREVIEW MODE ★
           </span>
           <span className="font-mono tracking-wider text-gray-500"
-            style={{ fontSize: '11px', letterSpacing: '2px' }}>
+            style={{ fontSize: '10px', letterSpacing: '1.5px' }}>
             {String(pageIndex + 1).padStart(2, '0')} / {TOTAL_PAGES}
           </span>
         </div>
 
-        {/* 책 펼침면 */}
-        <div className="flex-1 flex items-center justify-center min-h-[480px] md:min-h-[560px] mb-4">
-          <div className="w-full rounded-2xl overflow-hidden relative"
+        {/* ⭐ 모바일 최적화: min-h 줄임 (콘텐츠가 자연스럽게 늘어나게) */}
+        <div className="flex-1 flex items-center justify-center mb-3 md:mb-4">
+          <div className="w-full rounded-xl md:rounded-2xl overflow-hidden relative"
             style={{
               background: `linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01))`,
               border: `0.5px solid rgba(255, 215, 0, 0.2)`,
               boxShadow: `0 0 60px rgba(255, 215, 0, 0.08), 0 8px 32px rgba(0,0,0,0.5)`,
-              minHeight: '480px',
               opacity: transitioning ? 0 : 1,
               transition: 'opacity 0.2s ease-out',
             }}>
@@ -175,12 +175,12 @@ export default function TeamReportPreviewPage() {
         </div>
 
         {/* 컨트롤 */}
-        <div className="flex items-center justify-center gap-3 mb-3">
+        <div className="flex items-center justify-center gap-3 mb-2 md:mb-3">
           <button onClick={() => goToPage(pageIndex - 1)}
             disabled={pageIndex === 0}
             className="rounded-full flex items-center justify-center transition-all disabled:opacity-20 hover:scale-110"
             style={{
-              width: '44px', height: '44px',
+              width: '40px', height: '40px',
               background: 'rgba(255,255,255,0.04)',
               border: '0.5px solid rgba(255,255,255,0.1)',
               color: 'rgba(255,255,255,0.6)',
@@ -205,7 +205,7 @@ export default function TeamReportPreviewPage() {
             disabled={pageIndex === TOTAL_PAGES - 1}
             className="rounded-full flex items-center justify-center transition-all disabled:opacity-20 hover:scale-110"
             style={{
-              width: '44px', height: '44px',
+              width: '40px', height: '40px',
               background: pageIndex === TOTAL_PAGES - 1
                 ? 'rgba(255,255,255,0.04)'
                 : `linear-gradient(135deg, ${S.gold} 0%, ${S.green} 100%)`,
@@ -219,8 +219,8 @@ export default function TeamReportPreviewPage() {
           </button>
         </div>
 
-        {/* 점 인디케이터 */}
-        <div className="flex gap-1 justify-center flex-wrap max-w-md mx-auto mb-3">
+        {/* ⭐ 모바일 최적화: 점 인디케이터 작게 */}
+        <div className="flex gap-[3px] md:gap-1 justify-center flex-wrap max-w-[280px] md:max-w-md mx-auto mb-2 md:mb-3">
           {Array.from({ length: TOTAL_PAGES }).map((_, i) => {
             const isCurrent = i === pageIndex;
             const isCover = i === 0;
@@ -229,10 +229,8 @@ export default function TeamReportPreviewPage() {
               <button key={i}
                 onClick={() => goToPage(i)}
                 aria-label={`페이지 ${i + 1}`}
-                className="rounded-full transition-all hover:scale-150"
+                className="rounded-full transition-all hover:scale-150 w-[5px] h-[5px] md:w-[6px] md:h-[6px]"
                 style={{
-                  width: '6px',
-                  height: '6px',
                   background: isCurrent
                     ? S.gold
                     : isCover || isOutro
@@ -242,12 +240,13 @@ export default function TeamReportPreviewPage() {
                   transform: isCurrent ? 'scale(1.3)' : 'scale(1)',
                   cursor: 'pointer',
                   border: 'none',
+                  padding: 0,
                 }} />
             );
           })}
         </div>
 
-        <p className="text-[9px] font-mono text-gray-700 text-center tracking-widest">
+        <p className="text-[8px] md:text-[9px] font-mono text-gray-700 text-center tracking-widest">
           ← → 키 또는 좌우 스와이프 · ESC 닫기
         </p>
       </div>
@@ -255,7 +254,6 @@ export default function TeamReportPreviewPage() {
   );
 }
 
-// ─── 페이지 콘텐츠 라우터 ───
 function PageContent({ pageIndex, report }: { pageIndex: number; report: TeamReportData }) {
   if (pageIndex === 0) return <CoverPage report={report} />;
   if (pageIndex === TOTAL_PAGES - 1) return <ConclusionPage report={report} />;
@@ -265,25 +263,25 @@ function PageContent({ pageIndex, report }: { pageIndex: number; report: TeamRep
 }
 
 // ═══════════════════════════════════════════════════════
-// 표지 (페이지 1)
+// 표지
 // ═══════════════════════════════════════════════════════
 function CoverPage({ report }: { report: TeamReportData }) {
   const { team } = report;
   const leader = team.members.find(m => m.isLeader);
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 min-h-[480px] relative">
+    <div className="grid grid-cols-1 md:grid-cols-2 relative">
       <CornerDecoration position="tl" color={S.gold} />
       <CornerDecoration position="tr" color={S.gold} />
       <CornerDecoration position="bl" color={S.gold} />
       <CornerDecoration position="br" color={S.gold} />
 
-      <div className="p-8 md:p-12 flex flex-col items-center justify-center text-center md:border-r"
+      <div className="p-6 md:p-12 flex flex-col items-center justify-center text-center md:border-r"
         style={{ borderColor: 'rgba(255, 215, 0, 0.15)' }}>
-        <div className="inline-flex items-center gap-2 mb-4">
+        <div className="inline-flex items-center gap-2 mb-3 md:mb-4">
           <div className="w-1 h-1 rounded-full" style={{ background: S.gold, boxShadow: `0 0 6px ${S.gold}` }} />
-          <span className="font-mono font-bold tracking-[6px]"
-            style={{ fontSize: '10px', color: S.gold, textShadow: `0 0 8px ${S.gold}66` }}>
+          <span className="font-mono font-bold tracking-[5px] md:tracking-[6px]"
+            style={{ fontSize: '9px', color: S.gold, textShadow: `0 0 8px ${S.gold}66` }}>
             CONNECTAI
           </span>
           <div className="w-1 h-1 rounded-full" style={{ background: S.gold, boxShadow: `0 0 6px ${S.gold}` }} />
@@ -291,7 +289,7 @@ function CoverPage({ report }: { report: TeamReportData }) {
 
         <h1 className="font-black text-white mb-2 tracking-tight"
           style={{
-            fontSize: '64px',
+            fontSize: 'clamp(48px, 12vw, 64px)',
             lineHeight: 1,
             textShadow: `0 0 24px ${S.gold}55, 0 0 48px ${S.green}33`,
             letterSpacing: '-2px',
@@ -300,40 +298,43 @@ function CoverPage({ report }: { report: TeamReportData }) {
         </h1>
 
         <div className="flex items-center gap-2 mb-3">
-          <div className="h-[1px] w-8" style={{ background: `linear-gradient(to right, transparent, ${S.gold})` }} />
+          <div className="h-[1px] w-6 md:w-8" style={{ background: `linear-gradient(to right, transparent, ${S.gold})` }} />
           <p className="font-mono font-bold tracking-[2px]"
-            style={{ fontSize: '11px', color: S.aqua, textShadow: `0 0 6px ${S.aqua}66` }}>
+            style={{ fontSize: '10px', color: S.aqua, textShadow: `0 0 6px ${S.aqua}66` }}>
             DIGITAL TRADE CARDS
           </p>
-          <div className="h-[1px] w-8" style={{ background: `linear-gradient(to left, transparent, ${S.gold})` }} />
+          <div className="h-[1px] w-6 md:w-8" style={{ background: `linear-gradient(to left, transparent, ${S.gold})` }} />
         </div>
 
-        <p className="text-[11px] text-gray-500 font-mono tracking-wider">
+        <p className="text-[10px] md:text-[11px] text-gray-500 font-mono tracking-wider">
           TEAM REPORT · 2026
         </p>
       </div>
 
-      <div className="p-8 md:p-12 flex flex-col justify-center">
-        <p className="font-mono font-bold tracking-[3px] mb-3"
+      {/* ⭐ 모바일 좌우 구분선 */}
+      <MobileSeparator color={S.gold} />
+
+      <div className="p-6 md:p-12 flex flex-col justify-center">
+        <p className="font-mono font-bold tracking-[3px] mb-2 md:mb-3"
           style={{ fontSize: '10px', color: S.gold }}>
           ★ TEAM PROFILE ★
         </p>
 
-        <h2 className="text-2xl md:text-3xl font-bold text-white mb-2 leading-tight">
+        <h2 className="text-xl md:text-3xl font-bold text-white mb-2 leading-tight">
           {team.teamName}
         </h2>
 
-        <p className="text-[14px] mb-6" style={{ color: S.aqua }}>
+        <p className="text-[13px] md:text-[14px] mb-4 md:mb-6" style={{ color: S.aqua }}>
           {team.item}
         </p>
 
-        <div className="space-y-2 mb-6">
+        <div className="space-y-2 mb-4 md:mb-6">
           <Row label="LEVEL" value={team.level} color={S.green} />
           <Row label="LEADER" value={leader?.name || '미지정'} color={S.gold} />
           <Row label="MEMBERS" value={`${team.members.length}명`} color={S.aqua} />
         </div>
 
-        <div className="pt-4 border-t" style={{ borderColor: 'rgba(255, 215, 0, 0.1)' }}>
+        <div className="pt-3 md:pt-4 border-t" style={{ borderColor: 'rgba(255, 215, 0, 0.1)' }}>
           <p className="font-mono text-gray-600 mb-2"
             style={{ fontSize: '9px', letterSpacing: '2px' }}>
             TEAM ROSTER
@@ -356,18 +357,14 @@ function CoverPage({ report }: { report: TeamReportData }) {
 }
 
 // ═══════════════════════════════════════════════════════
-// 카드 펼침면 (페이지 2~17)
+// 카드 펼침면
 // ═══════════════════════════════════════════════════════
 function CardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: number }) {
   const cardColor = CARD_COLORS[card.cardId]?.bg || S.cyan;
-  const isLight = cardColor === '#FFC72C' || cardColor === S.green;
-
-  // TOPICS에서 카테고리 + 난이도 정보 lookup
   const topic = TOPICS.find(t => t.id === card.cardId);
   const categoryInfo = topic ? CATEGORY_STYLES[topic.category] : null;
   const difficulty = topic?.difficulty || 0;
 
-  // 참여한 팀원 (memberInsights에서 unique 추출)
   const participants = Array.from(
     new Set(card.memberInsights?.map(mi => mi.memberName) || [])
   );
@@ -376,24 +373,20 @@ function CardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: number }
   const rightQuestion = card.questions[2];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 min-h-[480px] relative">
-      {/* 페이지 모서리 ㄱ자 장식 */}
+    <div className="grid grid-cols-1 md:grid-cols-2 relative">
       <CornerDecoration position="tl" color={`${cardColor}99`} />
       <CornerDecoration position="tr" color={`${cardColor}99`} />
       <CornerDecoration position="bl" color={`${cardColor}99`} />
       <CornerDecoration position="br" color={`${cardColor}99`} />
 
       {/* 좌측 페이지 */}
-      <div className="p-6 md:p-7 relative md:border-r"
+      <div className="p-5 md:p-7 relative md:border-r"
         style={{ borderColor: 'rgba(255, 215, 0, 0.15)' }}>
 
-        {/* 헤더: 카드번호 박스 + 카테고리 + 난이도 */}
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-2.5">
-            {/* ⭐ 단순 색깔 네모 박스 (그리드 → 단순화) */}
+        <div className="flex items-start justify-between mb-3 gap-2">
+          <div className="flex items-center gap-2 md:gap-2.5 min-w-0">
             <CardSignature cardId={card.cardId} color={cardColor} />
-
-            <div>
+            <div className="min-w-0">
               <span className="font-mono text-gray-500 tracking-wider"
                 style={{ fontSize: '9px', letterSpacing: '1.5px' }}>
                 CARD {card.cardId}
@@ -417,10 +410,9 @@ function CardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: number }
           <DifficultyStars level={difficulty} color={S.gold} />
         </div>
 
-        {/* 카드 제목 */}
-        <div className="mb-5">
+        <div className="mb-4 md:mb-5">
           <h2 className="font-bold text-white mb-1"
-            style={{ fontSize: '20px', lineHeight: 1.2 }}>
+            style={{ fontSize: '18px', lineHeight: 1.25 }}>
             {card.titleKo}
           </h2>
           <p className="text-[11px] italic" style={{ color: 'rgba(193, 232, 235, 0.6)' }}>
@@ -428,7 +420,6 @@ function CardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: number }
           </p>
         </div>
 
-        {/* Q1, Q2 */}
         <div className="space-y-3">
           {leftQuestions.map((q, idx) => (
             <div key={q.id}>
@@ -447,27 +438,30 @@ function CardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: number }
           ))}
         </div>
 
-        <div className="absolute bottom-3 left-7 font-mono"
+        {/* 좌측 페이지 번호 (PC만) */}
+        <div className="absolute bottom-3 left-7 font-mono hidden md:block"
           style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px' }}>
           PAGE {String(pageIndex + 1).padStart(2, '0')} · LEFT
         </div>
       </div>
 
+      {/* ⭐ 모바일 좌/우 구분선 */}
+      <MobileSeparator color={cardColor} label="CONTINUED ↓" />
+
       {/* 우측 페이지 */}
-      <div className="p-6 md:p-7 relative">
-        <div className="absolute top-4 right-7 font-mono text-gray-600"
+      <div className="p-5 md:p-7 relative">
+        {/* CONTINUED 라벨 (PC만) */}
+        <div className="absolute top-4 right-7 font-mono text-gray-600 hidden md:block"
           style={{ fontSize: '9px', letterSpacing: '1.5px' }}>
           CONTINUED →
         </div>
 
-        {/* Q3 */}
-        <div className="mb-5 mt-9">
+        <div className="mb-5 md:mt-9">
           {rightQuestion && (
             <QuestionBlock qNum={3} q={rightQuestion} cardColor={cardColor} />
           )}
         </div>
 
-        {/* 우아한 ★ 구분선 */}
         <div className="mb-5 flex items-center gap-2">
           <div className="flex-1 h-[1px]"
             style={{ background: `linear-gradient(to right, transparent, ${S.gold}40, transparent)` }} />
@@ -479,7 +473,6 @@ function CardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: number }
             style={{ background: `linear-gradient(to left, transparent, ${S.gold}40, transparent)` }} />
         </div>
 
-        {/* 한 문장 전략 */}
         {card.oneSentenceStrategy && (
           <div className="rounded-xl p-4 relative overflow-hidden"
             style={{
@@ -503,9 +496,8 @@ function CardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: number }
           </div>
         )}
 
-        {/* 참여한 팀원 표시 */}
         {participants.length > 0 && (
-          <div className="mt-5 pt-3"
+          <div className="mt-4 md:mt-5 pt-3"
             style={{ borderTop: `0.5px dashed rgba(255, 255, 255, 0.08)` }}>
             <div className="flex items-center gap-2 mb-1.5">
               <div className="w-1 h-1 rounded-full"
@@ -536,9 +528,11 @@ function CardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: number }
           </div>
         )}
 
-        <div className="absolute bottom-3 right-7 font-mono"
+        {/* 페이지 번호 */}
+        <div className="mt-4 md:mt-0 md:absolute md:bottom-3 md:right-7 font-mono text-center md:text-left"
           style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px' }}>
-          PAGE {String(pageIndex + 1).padStart(2, '0')} · RIGHT
+          PAGE {String(pageIndex + 1).padStart(2, '0')}
+          <span className="hidden md:inline"> · RIGHT</span>
         </div>
       </div>
     </div>
@@ -546,30 +540,30 @@ function CardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: number }
 }
 
 // ═══════════════════════════════════════════════════════
-// 마무리 (페이지 18)
+// 마무리
 // ═══════════════════════════════════════════════════════
 function ConclusionPage({ report }: { report: TeamReportData }) {
   const { team, cards, totalAnswers } = report;
   const filledStrategies = cards.filter(c => c.oneSentenceStrategy).length;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 min-h-[480px] relative">
+    <div className="grid grid-cols-1 md:grid-cols-2 relative">
       <CornerDecoration position="tl" color={S.gold} />
       <CornerDecoration position="tr" color={S.gold} />
       <CornerDecoration position="bl" color={S.gold} />
       <CornerDecoration position="br" color={S.gold} />
 
-      <div className="p-8 md:p-10 md:border-r"
+      <div className="p-6 md:p-10 md:border-r"
         style={{ borderColor: 'rgba(255, 215, 0, 0.15)' }}>
         <p className="font-mono font-bold tracking-[3px] mb-3"
           style={{ fontSize: '10px', color: S.gold }}>
           ★ FINAL SUMMARY ★
         </p>
 
-        <h2 className="text-2xl font-bold text-white mb-2 leading-tight">
+        <h2 className="text-xl md:text-2xl font-bold text-white mb-2 leading-tight">
           전략 완성
         </h2>
-        <p className="text-[12px] text-gray-500 mb-6">
+        <p className="text-[12px] text-gray-500 mb-5 md:mb-6">
           16개 카드를 통해 디지털 무역 전략을 완성했습니다.
         </p>
 
@@ -580,8 +574,11 @@ function ConclusionPage({ report }: { report: TeamReportData }) {
         </div>
       </div>
 
-      <div className="p-8 md:p-10 flex flex-col items-center justify-center text-center">
-        <div className="mb-6">
+      {/* ⭐ 모바일 구분선 */}
+      <MobileSeparator color={S.gold} />
+
+      <div className="p-6 md:p-10 flex flex-col items-center justify-center text-center">
+        <div className="mb-4 md:mb-6">
           <div className="inline-block relative">
             <div className="absolute pointer-events-none"
               style={{
@@ -590,7 +587,7 @@ function ConclusionPage({ report }: { report: TeamReportData }) {
                 borderRadius: '50%',
                 filter: 'blur(8px)',
               }} />
-            <svg width="56" height="56" viewBox="0 0 24 24" fill={S.gold} stroke={S.gold} strokeWidth="0.5"
+            <svg width="48" height="48" viewBox="0 0 24 24" fill={S.gold} stroke={S.gold} strokeWidth="0.5"
               style={{ filter: `drop-shadow(0 0 8px rgba(255, 215, 0, 0.6))`, position: 'relative' }}>
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
             </svg>
@@ -600,12 +597,12 @@ function ConclusionPage({ report }: { report: TeamReportData }) {
         <p className="text-[14px] text-white mb-2 font-medium leading-relaxed">
           {team.teamName} 모두 수고하셨습니다.
         </p>
-        <p className="text-[12px] text-gray-500 mb-8 leading-relaxed">
+        <p className="text-[12px] text-gray-500 mb-6 md:mb-8 leading-relaxed">
           이 전략을 실제 비즈니스에<br />
           어떻게 적용할지 토론해보세요.
         </p>
 
-        <div className="pt-4 border-t w-full"
+        <div className="pt-3 md:pt-4 border-t w-full"
           style={{ borderColor: 'rgba(255, 215, 0, 0.1)' }}>
           <p className="font-mono text-gray-600"
             style={{ fontSize: '9px', letterSpacing: '2px', marginBottom: '2px' }}>
@@ -617,7 +614,7 @@ function ConclusionPage({ report }: { report: TeamReportData }) {
           </p>
         </div>
 
-        <p className="text-[10px] font-mono text-gray-700 mt-6 tracking-widest">
+        <p className="text-[10px] font-mono text-gray-700 mt-4 md:mt-6 tracking-widest">
           © 2026 SIGNAL · ConnectAI
         </p>
       </div>
@@ -629,7 +626,29 @@ function ConclusionPage({ report }: { report: TeamReportData }) {
 // 서브 컴포넌트들
 // ═══════════════════════════════════════════════════════
 
-// 페이지 모서리 ㄱ자 장식
+// ⭐ 모바일 전용 좌/우 구분선
+function MobileSeparator({ color, label = '' }: { color: string; label?: string }) {
+  return (
+    <div className="md:hidden flex items-center gap-2 px-5 py-2.5"
+      style={{
+        borderTop: `0.5px solid ${color}25`,
+        borderBottom: `0.5px solid ${color}25`,
+        background: `${color}06`,
+      }}>
+      <div className="flex-1 h-[1px]"
+        style={{ background: `linear-gradient(to right, transparent, ${color}30, transparent)` }} />
+      {label && (
+        <span className="font-mono font-bold"
+          style={{ fontSize: '8px', color: `${color}AA`, letterSpacing: '2px' }}>
+          {label}
+        </span>
+      )}
+      <div className="flex-1 h-[1px]"
+        style={{ background: `linear-gradient(to left, transparent, ${color}30, transparent)` }} />
+    </div>
+  );
+}
+
 function CornerDecoration({
   position,
   color = '#FFD70060',
@@ -658,10 +677,10 @@ function CornerDecoration({
     boxShadow: `0 0 4px ${color}`,
   };
   return (
-    <div className="absolute pointer-events-none"
+    <div className="absolute pointer-events-none z-10"
       style={{
-        [isTop ? 'top' : 'bottom']: '10px',
-        [isLeft ? 'left' : 'right']: '10px',
+        [isTop ? 'top' : 'bottom']: '8px',
+        [isLeft ? 'left' : 'right']: '8px',
         width: '14px',
         height: '14px',
       }}>
@@ -671,17 +690,16 @@ function CornerDecoration({
   );
 }
 
-// ⭐ 카드 시그니처 — 단순 색깔 네모 박스 (그리드 제거됨)
 function CardSignature({ cardId, color }: { cardId: string; color: string }) {
   const isLight = color === '#FFC72C' || color === '#E7FE55';
   return (
     <div className="rounded-lg flex items-center justify-center font-black flex-shrink-0"
       style={{
-        width: '40px',
-        height: '40px',
+        width: '38px',
+        height: '38px',
         background: color,
         color: isLight ? '#111' : '#fff',
-        fontSize: '14px',
+        fontSize: '13px',
         fontFamily: 'monospace',
         boxShadow: `0 0 12px ${color}55, 0 4px 12px rgba(0,0,0,0.3)`,
       }}>
@@ -690,13 +708,12 @@ function CardSignature({ cardId, color }: { cardId: string; color: string }) {
   );
 }
 
-// 난이도 별 표시
 function DifficultyStars({ level, color }: { level: number; color: string }) {
   return (
-    <div className="flex items-center gap-0.5">
+    <div className="flex items-center gap-0.5 flex-shrink-0">
       {[1, 2, 3, 4, 5].map(i => (
         <span key={i} style={{
-          fontSize: '11px',
+          fontSize: '10px',
           color: i <= level ? color : 'rgba(255,255,255,0.15)',
           textShadow: i <= level ? `0 0 4px ${color}66` : 'none',
         }}>
@@ -707,7 +724,6 @@ function DifficultyStars({ level, color }: { level: number; color: string }) {
   );
 }
 
-// Stage 아이콘 (Fact/Insight/Decision)
 function StageIcon({ stage, color }: { stage: number; color: string }) {
   const icons = [
     <g key="fact">
@@ -732,7 +748,6 @@ function StageIcon({ stage, color }: { stage: number; color: string }) {
   );
 }
 
-// 질문 블록 (Stage별 색깔 그라디언트 적용)
 function QuestionBlock({
   qNum, q, cardColor
 }: {
@@ -745,7 +760,7 @@ function QuestionBlock({
 
   return (
     <div>
-      <div className="flex items-center gap-2 mb-2">
+      <div className="flex items-center gap-2 mb-2 flex-wrap">
         <span className="font-mono font-bold rounded inline-flex items-center gap-1"
           style={{
             fontSize: '9px',
