@@ -155,33 +155,39 @@ export default function SignalCard({
 
       {/* 카드 비주얼 — PC에서 왼쪽 고정 */}
       <div className="mb-4 relative md:mb-0 md:w-[340px] md:flex-shrink-0 md:sticky md:top-4 md:self-start">
+        {/* ⭐⭐⭐ PDF 명세 적용: 비율 70:95 + 카드번호 그리드 [0,0] 통합 ⭐⭐⭐ */}
         <div className="rounded-2xl overflow-hidden bg-white border border-gray-200 relative"
-          style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.08)' }}>
+          style={{
+            aspectRatio: '70 / 95',  // ⭐ PDF 카드 비율
+            boxShadow: '0 8px 24px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.08)',
+          }}>
           {isCardCompleted && (
             <div className="absolute top-3 right-3 z-10 flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full"
               style={{ background: S.green, color: S.navy }}>
               ✓ 완료
             </div>
           )}
-          <div className="p-5 flex flex-col">
-            <div className="flex items-start gap-3 mb-4">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center font-black text-base flex-shrink-0"
+          <div className="p-5 flex flex-col h-full">
+            {/* ⭐ 4x4 그리드 (16칸) — 첫 칸은 카드번호 동그라미, 나머지 15칸은 정사각형 */}
+            <div className="grid grid-cols-4 gap-1.5 mb-4">
+              {/* [0,0]: 카드번호 동그라미 */}
+              <div className="aspect-square rounded-full flex items-center justify-center font-black"
                 style={{
                   background: color,
                   color: textColorForCard(color),
                   boxShadow: `0 4px 12px ${color}66`,
+                  fontSize: '14px',
                 }}>
                 {topic.id}
               </div>
-              <div className="flex-1 grid grid-cols-4 gap-1.5">
-                {Array.from({ length: 16 }).map((_, i) => (
-                  <div key={i} className="aspect-square rounded-md transition-colors duration-300"
-                    style={{
-                      background: currentTab === '주제' ? '#D1D5DB' : color,
-                      opacity: currentTab === '주제' ? 1 : 0.85,
-                    }} />
-                ))}
-              </div>
+              {/* 나머지 15칸 (정사각형 그리드) */}
+              {Array.from({ length: 15 }).map((_, i) => (
+                <div key={i} className="aspect-square rounded-md transition-colors duration-300"
+                  style={{
+                    background: currentTab === '주제' ? '#D1D5DB' : color,
+                    opacity: currentTab === '주제' ? 1 : 0.85,
+                  }} />
+              ))}
             </div>
 
             <div className="mt-2">
