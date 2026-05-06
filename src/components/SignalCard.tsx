@@ -155,10 +155,10 @@ export default function SignalCard({
 
       {/* 카드 비주얼 — PC에서 왼쪽 고정 */}
       <div className="mb-4 relative md:mb-0 md:w-[340px] md:flex-shrink-0 md:sticky md:top-4 md:self-start">
-        {/* ⭐⭐⭐ PDF 명세 적용: 비율 70:95 + 카드번호 그리드 [0,0] 통합 ⭐⭐⭐ */}
+        {/* PDF 명세 적용: 비율 70:95 + 카드번호 그리드 [0,0] 통합 */}
         <div className="rounded-2xl overflow-hidden bg-white border border-gray-200 relative"
           style={{
-            aspectRatio: '70 / 95',  // ⭐ PDF 카드 비율
+            aspectRatio: '70 / 95',
             boxShadow: '0 8px 24px rgba(0,0,0,0.15), 0 2px 8px rgba(0,0,0,0.08)',
           }}>
           {isCardCompleted && (
@@ -168,9 +168,7 @@ export default function SignalCard({
             </div>
           )}
           <div className="p-5 flex flex-col h-full">
-            {/* ⭐ 4x4 그리드 (16칸) — 첫 칸은 카드번호 동그라미, 나머지 15칸은 정사각형 */}
             <div className="grid grid-cols-4 gap-1.5 mb-4">
-              {/* [0,0]: 카드번호 동그라미 */}
               <div className="aspect-square rounded-full flex items-center justify-center font-black"
                 style={{
                   background: color,
@@ -180,7 +178,6 @@ export default function SignalCard({
                 }}>
                 {topic.id}
               </div>
-              {/* 나머지 15칸 (정사각형 그리드) */}
               {Array.from({ length: 15 }).map((_, i) => (
                 <div key={i} className="aspect-square rounded-md transition-colors duration-300"
                   style={{
@@ -191,7 +188,6 @@ export default function SignalCard({
             </div>
 
             <div className="mt-2">
-              {/* ⭐ 카테고리 + 주제카드 라벨 */}
               <div className="flex items-center gap-1.5 mb-2 flex-wrap">
                 <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold"
                   style={{ background: categoryStyle.bg, color: categoryStyle.color, border: `1px solid ${categoryStyle.color}50` }}>
@@ -442,13 +438,10 @@ export default function SignalCard({
             ) : (
               /* 팀원: 한 문장 전략 읽기 전용 */
               (() => {
-                // ⭐ 팀원 동기화: oneSentence 우선, 없으면 fields 합성
                 const composed = leaderConclusion.oneSentence ||
                   composeInterim(topic.finalStrategyTemplate, leaderConclusion.fields || []);
                 const hasContent = (
-                  // fields가 모두 채워졌거나
                   isFinalStrategyFilled ||
-                  // oneSentence가 있고 ___ (빈칸)이 없으면
                   (leaderConclusion.oneSentence && leaderConclusion.oneSentence.trim() && !leaderConclusion.oneSentence.includes('___'))
                 );
                 return (
@@ -521,7 +514,8 @@ function FillInBlankForm({
   const parts = parseTemplate(template);
 
   return (
-    <div className="text-[14px] text-white leading-[2.2]"
+    // ⭐ 줄 간격 늘림: leading-[2.2] → leading-[2.5] (위아래 박스 겹침 방지)
+    <div className="text-[14px] text-white leading-[2.5]"
       style={{ wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
       {parts.map((part, idx) => (
         <Fragment key={idx}>
@@ -552,13 +546,13 @@ function BlankInput({
   disabled?: boolean;
   cardColor: string;
 }) {
-  // 한글은 글자당 ~16px, 영어는 ~8px. 평균 ~13px로 잡고 패딩 추가
+  // ⭐ minWidth/maxWidth 줄임 (모바일에서 박스 더 컴팩트하게)
   const calcWidth = (v: string) => {
     const chars = v.length || 0;
-    return Math.max(60, Math.min(280, chars * 14 + 24));
+    return Math.max(50, Math.min(240, chars * 13 + 18));
   };
 
-  // ⭐ 네온 노란색 테마 (다른 답변 박스와 통일된 느낌)
+  // 네온 노란색 테마
   const NEON_YELLOW = '#FFE680';
 
   return (
@@ -574,28 +568,31 @@ function BlankInput({
         color: value ? NEON_YELLOW : '#888',
         border: `1.5px solid ${value ? NEON_YELLOW : NEON_YELLOW + '44'}`,
         borderRadius: '6px',
-        padding: '2px 8px',
+        // ⭐ padding 줄임: '2px 8px' → '1px 7px' (박스 슬림)
+        padding: '1px 7px',
         margin: '0 2px',
-        fontSize: '13.5px',
+        // ⭐ fontSize 살짝 줄임: 13.5 → 13
+        fontSize: '13px',
         fontWeight: 600,
         outline: 'none',
         verticalAlign: 'baseline',
-        minWidth: '60px',
-        maxWidth: '280px',
+        minWidth: '50px',
+        maxWidth: '240px',
         transition: 'all 0.2s',
+        // ⭐ 글로우 약하게 (위 줄에 침범 안 하도록)
         boxShadow: value
-          ? `0 0 12px ${NEON_YELLOW}55, inset 0 0 6px ${NEON_YELLOW}10`
+          ? `0 0 6px ${NEON_YELLOW}33, inset 0 0 4px ${NEON_YELLOW}10`
           : 'none',
-        textShadow: value ? `0 0 6px ${NEON_YELLOW}AA` : 'none',
+        textShadow: value ? `0 0 4px ${NEON_YELLOW}66` : 'none',
       }}
       onFocus={(e) => {
-        e.currentTarget.style.boxShadow = `0 0 18px ${NEON_YELLOW}AA, inset 0 0 8px ${NEON_YELLOW}22`;
+        e.currentTarget.style.boxShadow = `0 0 10px ${NEON_YELLOW}66, inset 0 0 6px ${NEON_YELLOW}15`;
         e.currentTarget.style.borderColor = NEON_YELLOW;
         e.currentTarget.style.background = `${NEON_YELLOW}1A`;
       }}
       onBlur={(e) => {
         if (value) {
-          e.currentTarget.style.boxShadow = `0 0 12px ${NEON_YELLOW}55, inset 0 0 6px ${NEON_YELLOW}10`;
+          e.currentTarget.style.boxShadow = `0 0 6px ${NEON_YELLOW}33, inset 0 0 4px ${NEON_YELLOW}10`;
           e.currentTarget.style.background = `${NEON_YELLOW}15`;
         } else {
           e.currentTarget.style.boxShadow = 'none';
@@ -638,7 +635,7 @@ function composeInterim(template: string, values: string[]): string {
 }
 
 // ═══════════════════════════════════════════════════════
-// 팀장 Q 화면 (체크리스트 제거됨)
+// 팀장 Q 화면
 // ═══════════════════════════════════════════════════════
 interface LeaderQViewProps {
   sub: SubCard;
