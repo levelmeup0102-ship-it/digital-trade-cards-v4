@@ -12,27 +12,93 @@ const S = {
   gold: '#FFD700',
   cyan: '#06B6D4',
   purple: '#8B5CF6',
+  pink: '#FF6FB5',
   navy: '#050505',
+  red: '#FF6B6B',
 };
 
-interface ScoringResult {
-  totalScore: number;
-  maxScore: number;
-  percentage: number;
-  cardScores: Record<string, {
-    score: number;
+// ─── 등급 색상 ───
+function getGradeColor(grade: string): string {
+  switch (grade) {
+    case 'S': return S.gold;
+    case 'A': return S.green;
+    case 'B': return S.cyan;
+    case 'C': return S.aqua;
+    case 'D': return '#888';
+    default: return '#888';
+  }
+}
+
+function getGrade(score: number): string {
+  if (score >= 900) return 'S';
+  if (score >= 800) return 'A';
+  if (score >= 700) return 'B';
+  if (score >= 600) return 'C';
+  return 'D';
+}
+
+// ─── 타입 ───
+interface AreaBreakdown {
+  A: { questions: any; strategies: any; total: number; max: number };
+  B: { details: any; total: number; max: number };
+  C: {
+    timeScore: number;
+    rankScore: number;
+    timeDays: number;
+    rank: number;
+    totalTeams: number;
+    total: number;
     max: number;
-    questions?: Array<{
-      id: string;
-      score: number;
-      breakdown?: any;
-      feedback?: string;
-    }>;
-  }>;
+    gateApplied: boolean;
+  };
+  E: { details: any; total: number; max: number };
   summary: string;
+  strengths: string[];
+  improvements: string[];
+  nextActions: string[];
+}
+
+interface TeamScoring {
+  team_score_920: number;
+  a_score: number;
+  b_score: number;
+  c_score: number;
+  e_score: number;
+  cardScores: Record<string, any>;
+  areaBreakdown: AreaBreakdown;
   scoredAt: string | null;
 }
 
+interface PersonalScore {
+  memberId: string;
+  name: string;
+  role: string;
+  ai_role_output_40: number;
+  behavior_analysis_40: number;
+  personal_score_80: number;
+  final_score_1000: number;
+  grade: string;
+  review_flags: any[];
+  ai_analysis?: { breakdown: any; feedback: string };
+  behavior_analysis?: any;
+}
+
+interface PolishedData {
+  executiveSummary: string;
+  cards: Record<string, {
+    cardId: string;
+    titleKo: string;
+    intro: string;
+    narrative: string;
+    strategy: string;
+    bridge: string;
+  }>;
+  conclusion: string;
+}
+
+// ═══════════════════════════════════════════════════════
+// 메인 컴포넌트
+// ═══════════════════════════════════════════════════════
 export default function TeamReportPage() {
   const router = useRouter();
   const params = useParams();
@@ -43,10 +109,17 @@ export default function TeamReportPage() {
   const [report, setReport] = useState<TeamReportData | null>(null);
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
-  const [scoring, setScoring] = useState<ScoringResult | null>(null);
+  const [teamScoring, setTeamScoring] = useState<TeamScoring | null>(null);
+  const [personalScores, setPersonalScores] = useState<PersonalScore[]>([]);
   const [isLeader, setIsLeader] = useState(false);
+
   const [aiScoringInProgress, setAiScoringInProgress] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+
+  const [polished, setPolished] = useState<PolishedData | null>(null);
+  const [polishedAt, setPolishedAt] = useState<string | null>(null);
+  const [polishingInProgress, setPolishingInProgress] = useState(false);
+  const [polishError, setPolishError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!teamId) return;
@@ -57,7 +130,7 @@ export default function TeamReportPage() {
           stored = await generateTeamReport(teamId);
         }
         setReport(stored);
-        await loadScoringAndLeaderStatus(stored);
+        await loadAllData(stored);
         setLoading(false);
       } catch (e: any) {
         console.error('보고서 로드 실패', e);
@@ -67,25 +140,65 @@ export default function TeamReportPage() {
     })();
   }, [teamId]);
 
-  async function loadScoringAndLeaderStatus(reportData: TeamReportData) {
+  async function loadAllData(reportData: TeamReportData) {
     try {
+      // 팀 점수 로드
       const { data: dbReport } = await supabase
         .from('team_reports')
-        .select('total_score, card_scores, scored_at')
+        .select('team_score_920, a_score, b_score, c_score, e_score, card_scores, area_breakdown, scored_at, ai_polished, ai_polished_at')
         .eq('team_id', teamId)
         .single();
 
-      if (dbReport && dbReport.total_score !== null) {
-        setScoring({
-          totalScore: dbReport.total_score,
-          maxScore: 480,
-          percentage: Math.round((dbReport.total_score / 480) * 1000) / 10,
+      if (dbReport && dbReport.team_score_920 !== null) {
+        setTeamScoring({
+          team_score_920: dbReport.team_score_920,
+          a_score: dbReport.a_score || 0,
+          b_score: dbReport.b_score || 0,
+          c_score: dbReport.c_score || 0,
+          e_score: dbReport.e_score || 0,
           cardScores: dbReport.card_scores || {},
-          summary: '',
+          areaBreakdown: dbReport.area_breakdown,
           scoredAt: dbReport.scored_at,
         });
       }
 
+      // 다듬기 결과
+      if (dbReport?.ai_polished) {
+        try {
+          const parsed = JSON.parse(dbReport.ai_polished);
+          setPolished(parsed);
+          setPolishedAt(dbReport.ai_polished_at);
+        } catch (e) {
+          console.error('다듬기 데이터 파싱 실패', e);
+        }
+      }
+
+      // 개인 점수 로드
+      const { data: personals } = await supabase
+        .from('personal_scores')
+        .select(`
+          *,
+          team_members!inner(name, role_code)
+        `)
+        .eq('team_id', teamId);
+
+      if (personals && personals.length > 0) {
+        setPersonalScores(personals.map((p: any) => ({
+          memberId: p.member_id,
+          name: p.team_members?.name || '?',
+          role: p.team_members?.role_code || 'unknown',
+          ai_role_output_40: p.ai_role_output_40 || 0,
+          behavior_analysis_40: p.behavior_analysis_40 || 0,
+          personal_score_80: p.personal_score_80 || 0,
+          final_score_1000: p.final_score_1000 || 0,
+          grade: p.grade || 'D',
+          review_flags: p.review_flags || [],
+          ai_analysis: p.ai_analysis,
+          behavior_analysis: p.behavior_analysis,
+        })));
+      }
+
+      // 팀장 여부
       const myMemberId = typeof window !== 'undefined' ? sessionStorage.getItem('memberId') : null;
       if (myMemberId && reportData.team.members) {
         const me = reportData.team.members.find((m: any) => m.id === myMemberId);
@@ -97,27 +210,27 @@ export default function TeamReportPage() {
         setIsLeader(true);
       }
     } catch (e) {
-      console.error('채점 정보 로드 실패', e);
+      console.error('데이터 로드 실패', e);
     }
   }
 
-  // ⭐ AI 채점 실행 (1회성 — 재채점 불가)
+  // ⭐ AI 채점 — 팀 920 + 개인 80 자동 연쇄
   async function handleAiScoring() {
     if (!isLeader) {
       alert('팀장만 채점할 수 있어요!');
       return;
     }
 
-    // ⭐ 이미 채점된 경우 차단
-    if (scoring) {
+    if (teamScoring) {
       alert('이미 채점이 완료된 보고서예요.\n채점은 한 번만 가능합니다.');
       return;
     }
 
     const ok = confirm(
       '🎯 AI 채점을 시작합니다.\n\n' +
-      '• 약 1~2분 소요됩니다\n' +
-      '• 한 번만 실행할 수 있어요 (재채점 불가)\n' +
+      '• 1,000점 만점 채점 (팀 920 + 개인 80)\n' +
+      '• 약 3~5분 소요됩니다\n' +
+      '• 한 번만 실행할 수 있어요\n' +
       '• 신중히 진행해주세요\n\n' +
       '계속하시겠어요?'
     );
@@ -127,7 +240,75 @@ export default function TeamReportPage() {
     setAiError(null);
 
     try {
-      const res = await fetch('/api/score-report', {
+      // 1단계: 팀 채점 (920점)
+      console.log('[채점] 팀 점수 채점 시작...');
+      const teamRes = await fetch('/api/score-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teamId }),
+      });
+
+      if (!teamRes.ok) {
+        const data = await teamRes.json();
+        throw new Error(data.error || '팀 채점에 실패했습니다');
+      }
+
+      console.log('[채점] 팀 점수 완료. 개인 점수 시작...');
+
+      // 2단계: 개인 채점 (80점) — 자동 호출
+      const personalRes = await fetch('/api/score-personal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teamId }),
+      });
+
+      if (!personalRes.ok) {
+        const data = await personalRes.json();
+        console.warn('개인 점수 채점 실패:', data.error);
+        // 개인 점수는 실패해도 팀 점수는 살림
+      }
+
+      console.log('[채점] 모든 채점 완료. 데이터 다시 로드...');
+
+      // 3단계: 데이터 다시 로드
+      if (report) await loadAllData(report);
+
+      alert('🎉 채점 완료! 결과를 확인하세요.');
+    } catch (e: any) {
+      console.error('AI 채점 에러:', e);
+      setAiError(e?.message || '채점 중 오류가 발생했습니다');
+      alert('❌ 채점 실패: ' + (e?.message || '알 수 없는 오류'));
+    } finally {
+      setAiScoringInProgress(false);
+    }
+  }
+
+  // ⭐ AI 다듬기
+  async function handlePolishing() {
+    if (!isLeader) {
+      alert('팀장만 다듬기를 실행할 수 있어요!');
+      return;
+    }
+
+    if (polished) {
+      alert('이미 다듬기가 완료된 보고서예요.');
+      return;
+    }
+
+    const ok = confirm(
+      '📝 AI 보고서 다듬기를 시작합니다.\n\n' +
+      '• 약 2~3분 소요됩니다\n' +
+      '• 학생 답변을 책 분량으로 변환합니다\n' +
+      '• 한 번만 실행 가능해요\n\n' +
+      '계속하시겠어요?'
+    );
+    if (!ok) return;
+
+    setPolishingInProgress(true);
+    setPolishError(null);
+
+    try {
+      const res = await fetch('/api/polish-report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ teamId }),
@@ -135,27 +316,20 @@ export default function TeamReportPage() {
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || '채점에 실패했습니다');
+        throw new Error(data.error || '다듬기 실패');
       }
 
       const result = await res.json();
+      setPolished(result.polished);
+      setPolishedAt(new Date().toISOString());
 
-      setScoring({
-        totalScore: result.totalScore,
-        maxScore: result.maxScore,
-        percentage: result.percentage,
-        cardScores: result.cardScores,
-        summary: result.summary || '',
-        scoredAt: new Date().toISOString(),
-      });
-
-      alert(`🎉 채점 완료!\n총점: ${result.totalScore} / ${result.maxScore} (${result.percentage}%)`);
+      alert('🎉 다듬기 완료!\n미리보기에서 책 분량의 보고서를 확인하세요.');
     } catch (e: any) {
-      console.error('AI 채점 에러:', e);
-      setAiError(e?.message || '채점 중 오류가 발생했습니다');
-      alert('❌ 채점 실패: ' + (e?.message || '알 수 없는 오류'));
+      console.error('AI 다듬기 에러:', e);
+      setPolishError(e?.message || '다듬기 중 오류');
+      alert('❌ 다듬기 실패: ' + (e?.message || '알 수 없는 오류'));
     } finally {
-      setAiScoringInProgress(false);
+      setPolishingInProgress(false);
     }
   }
 
@@ -218,6 +392,7 @@ export default function TeamReportPage() {
         }} />
 
       <div className="relative z-10 max-w-2xl mx-auto">
+        {/* 헤더 */}
         <div className="flex items-center justify-between mb-6">
           <button onClick={() => router.push('/')}
             className="text-[12px] text-gray-500 hover:text-gray-300 transition flex items-center gap-1.5">
@@ -226,6 +401,7 @@ export default function TeamReportPage() {
           <p className="text-[10px] tracking-[4px] text-gray-600 font-mono">SIGNAL</p>
         </div>
 
+        {/* 타이틀 */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-3">
             <div className="w-1 h-1 rounded-full" style={{ background: S.gold, boxShadow: `0 0 6px ${S.gold}` }} />
@@ -247,38 +423,49 @@ export default function TeamReportPage() {
           </p>
         </div>
 
+        {/* 통계 3개 */}
         <div className="grid grid-cols-3 gap-2 md:gap-3 mb-6">
           <StatCard label="CARDS" value={`${completedCardCount}/16`} color={S.green} />
           <StatCard label="ANSWERS" value={String(totalAnswers)} color={S.aqua} />
           <StatCard label="MEMBERS" value={String(memberCount)} color={S.gold} />
         </div>
 
-        {/* ⭐ AI 채점 섹션 */}
+        {/* AI 채점 섹션 (1,000점 시스템) */}
         <ScoringSection
-          scoring={scoring}
+          teamScoring={teamScoring}
+          personalScores={personalScores}
           isLeader={isLeader}
           inProgress={aiScoringInProgress}
           aiError={aiError}
           onScoring={handleAiScoring}
         />
 
-        <div className="rounded-xl p-3 mb-4 flex items-start gap-2.5"
-          style={{
-            background: 'rgba(255, 215, 0, 0.04)',
-            border: `0.5px solid rgba(255, 215, 0, 0.2)`,
-          }}>
-          <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
-            style={{ background: S.gold, boxShadow: `0 0 6px ${S.gold}` }} />
-          <div>
-            <p className="text-[10px] font-mono font-bold tracking-widest mb-1" style={{ color: S.gold }}>
-              NOTICE
-            </p>
-            <p className="text-[12px] text-gray-300 leading-relaxed">
-              PDF 다운로드는 곧 지원됩니다. 지금은 미리보기로 확인해주세요.
-            </p>
-          </div>
-        </div>
+        {/* 영역별 점수 (채점 완료 시) */}
+        {teamScoring && (
+          <AreaScoresSection teamScoring={teamScoring} />
+        )}
 
+        {/* 학생별 개인 점수 (채점 완료 시) */}
+        {personalScores.length > 0 && (
+          <PersonalScoresSection personalScores={personalScores} />
+        )}
+
+        {/* 강점/보완점/액션 (채점 완료 시) */}
+        {teamScoring?.areaBreakdown && (
+          <FeedbackSection breakdown={teamScoring.areaBreakdown} />
+        )}
+
+        {/* AI 다듬기 섹션 */}
+        <PolishingSection
+          polished={polished}
+          polishedAt={polishedAt}
+          isLeader={isLeader}
+          inProgress={polishingInProgress}
+          polishError={polishError}
+          onPolishing={handlePolishing}
+        />
+
+        {/* 액션 버튼 */}
         <div className="grid grid-cols-2 gap-2.5 mb-8">
           <button
             onClick={() => router.push(`/team/${teamId}/report/preview`)}
@@ -300,10 +487,11 @@ export default function TeamReportPage() {
               color: '#666',
               fontSize: '13px',
             }}>
-            ⬇ PDF 다운로드
+            ⬇ PDF (준비중)
           </button>
         </div>
 
+        {/* 16카드 Accordion */}
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-3">
             <div className="flex-1 h-[1px]"
@@ -317,11 +505,11 @@ export default function TeamReportPage() {
           </div>
 
           <div className="space-y-2">
-            {cards.map((card, idx) => {
+            {cards.map((card) => {
               const isExpanded = expandedCards.has(card.cardId);
               const cardColor = CARD_COLORS[card.cardId]?.bg || S.cyan;
               const isCompleted = card.questions.some(q => q.answer.length > 0);
-              const cardScore = scoring?.cardScores?.[card.cardId];
+              const cardScore = teamScoring?.cardScores?.[card.cardId];
 
               return (
                 <div key={card.cardId} className="rounded-xl overflow-hidden transition-all"
@@ -351,7 +539,7 @@ export default function TeamReportPage() {
                           color: S.gold,
                           border: `0.5px solid ${S.gold}40`,
                         }}>
-                        {cardScore.score}/{cardScore.max || 30}
+                        {cardScore.score}/{cardScore.max || 40}
                       </span>
                     )}
 
@@ -375,7 +563,7 @@ export default function TeamReportPage() {
                   {isExpanded && (
                     <div className="px-3 pb-3 pt-0 space-y-3">
                       {card.questions.map((q, qIdx) => {
-                        const qScore = cardScore?.questions?.find(qs => qs.id === q.id);
+                        const qScore = cardScore?.questions?.find((qs: any) => qs.id === q.id);
                         return (
                           <div key={q.id} className="rounded-lg p-2.5"
                             style={{
@@ -432,10 +620,18 @@ export default function TeamReportPage() {
                             border: `0.5px solid ${cardColor}40`,
                             boxShadow: `0 0 12px ${cardColor}15`,
                           }}>
-                          <p className="font-mono font-bold tracking-widest mb-1.5"
-                            style={{ fontSize: '9px', color: cardColor }}>
-                            ★ ONE SENTENCE STRATEGY
-                          </p>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <p className="font-mono font-bold tracking-widest"
+                              style={{ fontSize: '9px', color: cardColor }}>
+                              ★ ONE SENTENCE STRATEGY
+                            </p>
+                            {cardScore?.strategy && (
+                              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded"
+                                style={{ background: `${S.gold}15`, color: S.gold }}>
+                                {cardScore.strategy.score}/10
+                              </span>
+                            )}
+                          </div>
                           <p className="text-[12.5px] text-white leading-relaxed font-medium">
                             {card.oneSentenceStrategy}
                           </p>
@@ -463,16 +659,13 @@ export default function TeamReportPage() {
 }
 
 // ═══════════════════════════════════════════════════════
-// AI 채점 섹션 (1회성 — 재채점 버튼 없음)
+// AI 채점 섹션 (1,000점)
 // ═══════════════════════════════════════════════════════
 function ScoringSection({
-  scoring,
-  isLeader,
-  inProgress,
-  aiError,
-  onScoring,
+  teamScoring, personalScores, isLeader, inProgress, aiError, onScoring,
 }: {
-  scoring: ScoringResult | null;
+  teamScoring: TeamScoring | null;
+  personalScores: PersonalScore[];
   isLeader: boolean;
   inProgress: boolean;
   aiError: string | null;
@@ -489,8 +682,9 @@ function ScoringSection({
           style={{ border: `2px solid ${S.purple}33`, borderTop: `2px solid ${S.purple}` }} />
         <p className="text-[13px] font-bold text-white mb-1">🤖 AI가 채점 중이에요</p>
         <p className="text-[11px] text-gray-500 leading-relaxed">
-          48문항을 분석하고 있어요. 약 1~2분 소요됩니다.<br />
-          페이지를 닫지 말아주세요.
+          1,000점 만점 채점 진행 중<br />
+          (팀 점수 920 + 개인 점수 80)<br />
+          약 3~5분 소요됩니다.
         </p>
         <style jsx>{`
           .scoring-spinner { animation: spin 0.8s linear infinite; }
@@ -500,19 +694,14 @@ function ScoringSection({
     );
   }
 
-  // ⭐ 채점 완료 — 재채점 버튼 없음 (1회성)
-  if (scoring) {
-    const grade = scoring.percentage >= 90 ? 'S'
-      : scoring.percentage >= 80 ? 'A'
-      : scoring.percentage >= 70 ? 'B'
-      : scoring.percentage >= 60 ? 'C'
-      : 'D';
-
-    const gradeColor = grade === 'S' ? S.gold
-      : grade === 'A' ? S.green
-      : grade === 'B' ? S.cyan
-      : grade === 'C' ? S.aqua
-      : '#888';
+  if (teamScoring) {
+    // 평균 final_score 계산 (개인 점수 있으면)
+    const hasPersonals = personalScores.length > 0;
+    const avgFinal = hasPersonals
+      ? Math.round(personalScores.reduce((sum, p) => sum + p.final_score_1000, 0) / personalScores.length)
+      : teamScoring.team_score_920;
+    const grade = getGrade(avgFinal);
+    const gradeColor = getGradeColor(grade);
 
     return (
       <div className="rounded-xl p-5 mb-4 relative overflow-hidden"
@@ -527,18 +716,13 @@ function ScoringSection({
         <div className="flex items-center gap-4">
           <div className="flex flex-col items-center justify-center flex-shrink-0"
             style={{
-              width: '70px',
-              height: '70px',
-              borderRadius: '50%',
-              background: `${gradeColor}15`,
-              border: `1.5px solid ${gradeColor}`,
+              width: '70px', height: '70px', borderRadius: '50%',
+              background: `${gradeColor}15`, border: `1.5px solid ${gradeColor}`,
               boxShadow: `0 0 16px ${gradeColor}40`,
             }}>
             <p className="font-black"
               style={{
-                fontSize: '32px',
-                color: gradeColor,
-                lineHeight: 1,
+                fontSize: '32px', color: gradeColor, lineHeight: 1,
                 textShadow: `0 0 8px ${gradeColor}`,
               }}>
               {grade}
@@ -554,38 +738,27 @@ function ScoringSection({
             </p>
             <div className="flex items-baseline gap-1.5 mb-1">
               <span className="font-bold text-white" style={{ fontSize: '24px', lineHeight: 1 }}>
-                {scoring.totalScore}
+                {hasPersonals ? avgFinal : teamScoring.team_score_920}
               </span>
-              <span className="text-gray-500 text-[14px]">/ {scoring.maxScore}</span>
+              <span className="text-gray-500 text-[14px]">/ 1,000</span>
             </div>
-            <p className="text-[12px]" style={{ color: gradeColor }}>
-              {scoring.percentage}% 달성
+            <p className="text-[11px] text-gray-400">
+              팀 {teamScoring.team_score_920}/920
+              {hasPersonals && ` · 개인 평균 ${Math.round(personalScores.reduce((s, p) => s + p.personal_score_80, 0) / personalScores.length)}/80`}
             </p>
-            {scoring.scoredAt && (
+            {teamScoring.scoredAt && (
               <p className="text-[9px] font-mono text-gray-600 mt-1.5">
-                채점일: {new Date(scoring.scoredAt).toLocaleDateString('ko-KR')}
+                채점일: {new Date(teamScoring.scoredAt).toLocaleDateString('ko-KR')}
               </p>
             )}
           </div>
         </div>
 
-        {scoring.summary && (
-          <div className="mt-4 pt-3 border-t" style={{ borderColor: `${gradeColor}30` }}>
-            <p className="text-[10px] font-mono font-bold tracking-widest mb-1.5" style={{ color: gradeColor }}>
-              SUMMARY
-            </p>
-            <p className="text-[12px] text-gray-300 leading-relaxed">
-              {scoring.summary}
-            </p>
-          </div>
-        )}
-
-        {/* ⭐ 재채점 버튼 제거됨 — 채점 완료 표시만 */}
         <div className="mt-4 pt-3 border-t flex items-center justify-center gap-1.5"
           style={{ borderColor: 'rgba(255, 255, 255, 0.05)' }}>
           <span style={{ fontSize: '10px', color: S.green }}>✓</span>
           <p className="text-[10px] font-mono text-gray-500 tracking-widest">
-            SCORING COMPLETED · 1회성 채점이 완료되었습니다
+            SCORING COMPLETED
           </p>
         </div>
       </div>
@@ -604,10 +777,13 @@ function ScoringSection({
             style={{ background: S.purple, boxShadow: `0 0 6px ${S.purple}` }} />
           <div>
             <p className="text-[10px] font-mono font-bold tracking-widest mb-1" style={{ color: S.purple }}>
-              AI SCORING
+              AI SCORING 1,000pt
             </p>
             <p className="text-[12px] text-gray-300 leading-relaxed">
-              AI가 48문항을 자동 채점합니다 (480점 만점).<br />
+              AI가 1,000점 만점 자동 채점합니다.<br />
+              <span style={{ fontSize: '10px', color: '#aaa' }}>
+                팀 920 (질문카드+전략 정합성+속도+발표) + 개인 80 (역할 산출물+행동 분석)
+              </span><br />
               <span style={{ color: '#FFA500' }}>⚠ 한 번만 채점 가능 · 재채점 불가</span>
             </p>
           </div>
@@ -617,18 +793,12 @@ function ScoringSection({
           className="w-full py-3 font-bold rounded-xl transition-all hover:scale-[1.02]"
           style={{
             background: `linear-gradient(135deg, ${S.purple} 0%, ${S.green} 100%)`,
-            color: S.navy,
-            fontSize: '13px',
+            color: S.navy, fontSize: '13px',
             boxShadow: `0 0 16px ${S.purple}40`,
           }}>
-          🎯 AI 채점 시작하기
+          🎯 AI 채점 시작하기 (1,000점)
         </button>
-
-        {aiError && (
-          <p className="mt-2 text-[10px] text-red-400 text-center">
-            ⚠ {aiError}
-          </p>
-        )}
+        {aiError && <p className="mt-2 text-[10px] text-red-400 text-center">⚠ {aiError}</p>}
       </div>
     );
   }
@@ -639,15 +809,367 @@ function ScoringSection({
         background: 'rgba(255, 255, 255, 0.02)',
         border: '0.5px solid rgba(255, 255, 255, 0.05)',
       }}>
-      <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
-        style={{ background: '#888' }} />
+      <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ background: '#888' }} />
       <div>
         <p className="text-[10px] font-mono font-bold tracking-widest mb-1 text-gray-500">
           AI SCORING
         </p>
         <p className="text-[12px] text-gray-500 leading-relaxed">
           AI 채점이 아직 시작되지 않았어요.<br />
-          팀장이 채점을 시작하면 결과가 여기에 표시됩니다.
+          팀장이 채점을 시작하면 결과가 표시됩니다.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// 영역별 점수 (A/B/C/E)
+// ═══════════════════════════════════════════════════════
+function AreaScoresSection({ teamScoring }: { teamScoring: TeamScoring }) {
+  const areas = [
+    { key: 'A', label: '질문카드+전략', score: teamScoring.a_score, max: 640, color: S.purple },
+    { key: 'B', label: '전략 정합성', score: teamScoring.b_score, max: 160, color: S.cyan },
+    { key: 'C', label: '속도 보너스', score: teamScoring.c_score, max: 80, color: S.green },
+    { key: 'E', label: '발표 품질 (임시)', score: teamScoring.e_score, max: 40, color: S.gold },
+  ];
+
+  return (
+    <div className="rounded-xl p-4 mb-4"
+      style={{
+        background: 'rgba(255, 255, 255, 0.02)',
+        border: '0.5px solid rgba(255, 255, 255, 0.05)',
+      }}>
+      <p className="text-[10px] font-mono font-bold tracking-widest mb-3 text-gray-400">
+        ★ TEAM SCORE BREAKDOWN (920pt)
+      </p>
+      <div className="space-y-2.5">
+        {areas.map(area => {
+          const pct = Math.round((area.score / area.max) * 100);
+          return (
+            <div key={area.key}>
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-bold text-[11px] px-1.5 py-0.5 rounded"
+                    style={{ background: `${area.color}20`, color: area.color }}>
+                    {area.key}
+                  </span>
+                  <span className="text-[12px] text-gray-300">{area.label}</span>
+                </div>
+                <span className="text-[11px] font-mono font-bold" style={{ color: area.color }}>
+                  {area.score}/{area.max}
+                </span>
+              </div>
+              <div className="h-1.5 rounded-full overflow-hidden"
+                style={{ background: 'rgba(255,255,255,0.05)' }}>
+                <div className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${pct}%`,
+                    background: `linear-gradient(to right, ${area.color}80, ${area.color})`,
+                    boxShadow: `0 0 8px ${area.color}80`,
+                  }} />
+              </div>
+            </div>
+          );
+        })}
+
+        {teamScoring.areaBreakdown?.C?.gateApplied && (
+          <div className="mt-2 p-2 rounded-lg flex items-start gap-1.5"
+            style={{
+              background: 'rgba(255, 165, 0, 0.08)',
+              border: '0.5px solid rgba(255, 165, 0, 0.2)',
+            }}>
+            <span style={{ color: '#FFA500', fontSize: '10px', marginTop: '1px' }}>⚠</span>
+            <p className="text-[10.5px] text-gray-400 leading-relaxed">
+              A+B 합계가 600점 미만이라 속도 보너스 0점 처리됨
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// 학생별 개인 점수 (D 영역)
+// ═══════════════════════════════════════════════════════
+function PersonalScoresSection({ personalScores }: { personalScores: PersonalScore[] }) {
+  const sorted = [...personalScores].sort((a, b) => b.personal_score_80 - a.personal_score_80);
+
+  return (
+    <div className="rounded-xl p-4 mb-4"
+      style={{
+        background: 'rgba(255, 255, 255, 0.02)',
+        border: '0.5px solid rgba(255, 255, 255, 0.05)',
+      }}>
+      <p className="text-[10px] font-mono font-bold tracking-widest mb-3 text-gray-400">
+        ★ PERSONAL SCORES (80pt × 팀원)
+      </p>
+
+      <div className="space-y-2">
+        {sorted.map(p => {
+          const gradeColor = getGradeColor(p.grade);
+          const hasFlags = p.review_flags && p.review_flags.length > 0;
+
+          return (
+            <div key={p.memberId} className="rounded-lg p-3"
+              style={{
+                background: 'rgba(0, 0, 0, 0.2)',
+                border: `0.5px solid ${gradeColor}30`,
+              }}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <span className="text-[13px] font-bold text-white truncate">{p.name}</span>
+                  <span className="text-[9px] font-mono text-gray-500 truncate">{p.role}</span>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded"
+                    style={{ background: `${gradeColor}20`, color: gradeColor }}>
+                    {p.grade}
+                  </span>
+                  <span className="text-[12px] font-bold text-white">
+                    {p.final_score_1000}<span className="text-gray-500 text-[10px]">/1000</span>
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-[10px]">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">AI 역할 산출물</span>
+                  <span className="text-gray-300 font-mono">{p.ai_role_output_40}/40</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">행동 분석</span>
+                  <span className="text-gray-300 font-mono">{p.behavior_analysis_40}/40</span>
+                </div>
+              </div>
+
+              {hasFlags && (
+                <div className="mt-2 pt-2 border-t flex flex-wrap gap-1"
+                  style={{ borderColor: 'rgba(255, 165, 0, 0.2)' }}>
+                  {p.review_flags.map((flag: any, idx: number) => (
+                    <span key={idx} className="text-[9px] font-mono px-1.5 py-0.5 rounded"
+                      style={{
+                        background: 'rgba(255, 165, 0, 0.1)',
+                        color: '#FFA500',
+                        border: '0.5px solid rgba(255, 165, 0, 0.3)',
+                      }}>
+                      🚩 {flag.type}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// 강점/보완점/액션
+// ═══════════════════════════════════════════════════════
+function FeedbackSection({ breakdown }: { breakdown: AreaBreakdown }) {
+  const hasContent = breakdown.summary || breakdown.strengths?.length || breakdown.improvements?.length || breakdown.nextActions?.length;
+  if (!hasContent) return null;
+
+  return (
+    <div className="rounded-xl p-4 mb-4"
+      style={{
+        background: 'rgba(255, 255, 255, 0.02)',
+        border: '0.5px solid rgba(255, 255, 255, 0.05)',
+      }}>
+      <p className="text-[10px] font-mono font-bold tracking-widest mb-3 text-gray-400">
+        ★ AI FEEDBACK
+      </p>
+
+      {breakdown.summary && (
+        <div className="rounded-lg p-3 mb-3"
+          style={{
+            background: 'rgba(255, 215, 0, 0.06)',
+            border: '0.5px solid rgba(255, 215, 0, 0.2)',
+          }}>
+          <p className="text-[10px] font-mono font-bold tracking-widest mb-1.5" style={{ color: S.gold }}>
+            SUMMARY
+          </p>
+          <p className="text-[12px] text-gray-300 leading-relaxed">{breakdown.summary}</p>
+        </div>
+      )}
+
+      {breakdown.strengths?.length > 0 && (
+        <div className="mb-3">
+          <p className="text-[10px] font-mono font-bold tracking-widest mb-1.5" style={{ color: S.green }}>
+            ✓ 강점
+          </p>
+          <ul className="space-y-1">
+            {breakdown.strengths.map((s, i) => (
+              <li key={i} className="text-[12px] text-gray-300 leading-relaxed flex gap-2">
+                <span style={{ color: S.green, fontSize: '11px', marginTop: '1px' }}>•</span>
+                <span>{s}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {breakdown.improvements?.length > 0 && (
+        <div className="mb-3">
+          <p className="text-[10px] font-mono font-bold tracking-widest mb-1.5" style={{ color: '#FFA500' }}>
+            △ 보완점
+          </p>
+          <ul className="space-y-1">
+            {breakdown.improvements.map((s, i) => (
+              <li key={i} className="text-[12px] text-gray-300 leading-relaxed flex gap-2">
+                <span style={{ color: '#FFA500', fontSize: '11px', marginTop: '1px' }}>•</span>
+                <span>{s}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {breakdown.nextActions?.length > 0 && (
+        <div>
+          <p className="text-[10px] font-mono font-bold tracking-widest mb-1.5" style={{ color: S.cyan }}>
+            → 다음 액션
+          </p>
+          <ol className="space-y-1">
+            {breakdown.nextActions.map((s, i) => (
+              <li key={i} className="text-[12px] text-gray-300 leading-relaxed flex gap-2">
+                <span className="font-mono" style={{ color: S.cyan, fontSize: '11px', marginTop: '1px' }}>{i + 1}.</span>
+                <span>{s}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// AI 다듬기 섹션
+// ═══════════════════════════════════════════════════════
+function PolishingSection({
+  polished, polishedAt, isLeader, inProgress, polishError, onPolishing,
+}: {
+  polished: PolishedData | null;
+  polishedAt: string | null;
+  isLeader: boolean;
+  inProgress: boolean;
+  polishError: string | null;
+  onPolishing: () => void;
+}) {
+  if (inProgress) {
+    return (
+      <div className="rounded-xl p-5 mb-4 text-center"
+        style={{
+          background: `linear-gradient(135deg, rgba(255, 111, 181, 0.08), rgba(255, 215, 0, 0.04))`,
+          border: `0.5px solid ${S.pink}40`,
+        }}>
+        <div className="inline-block w-8 h-8 rounded-full mb-3 polish-spinner"
+          style={{ border: `2px solid ${S.pink}33`, borderTop: `2px solid ${S.pink}` }} />
+        <p className="text-[13px] font-bold text-white mb-1">📝 AI가 보고서를 다듬고 있어요</p>
+        <p className="text-[11px] text-gray-500 leading-relaxed">
+          16개 카드를 책 분량으로 변환 중<br />
+          약 2~3분 소요됩니다.
+        </p>
+        <style jsx>{`
+          .polish-spinner { animation: spin 0.8s linear infinite; }
+          @keyframes spin { to { transform: rotate(360deg); } }
+        `}</style>
+      </div>
+    );
+  }
+
+  if (polished) {
+    return (
+      <div className="rounded-xl p-4 mb-4"
+        style={{
+          background: `linear-gradient(135deg, ${S.pink}10, rgba(255, 215, 0, 0.04))`,
+          border: `0.5px solid ${S.pink}50`,
+        }}>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="flex items-center justify-center flex-shrink-0"
+            style={{
+              width: '36px', height: '36px', borderRadius: '50%',
+              background: `${S.pink}20`, border: `1px solid ${S.pink}`,
+            }}>
+            <span style={{ fontSize: '18px' }}>📝</span>
+          </div>
+          <div className="flex-1">
+            <p className="text-[10px] font-mono font-bold tracking-widest" style={{ color: S.pink }}>
+              POLISHED REPORT
+            </p>
+            <p className="text-[12px] font-bold text-white">책 분량 보고서 완성</p>
+          </div>
+        </div>
+
+        {polished.executiveSummary && (
+          <div className="rounded-lg p-3 mb-2"
+            style={{ background: 'rgba(0, 0, 0, 0.2)', border: '0.5px solid rgba(255, 255, 255, 0.05)' }}>
+            <p className="text-[10px] font-mono font-bold tracking-widest mb-1.5" style={{ color: S.pink }}>
+              SUMMARY
+            </p>
+            <p className="text-[12px] text-gray-300 leading-relaxed">{polished.executiveSummary}</p>
+          </div>
+        )}
+
+        <p className="text-[10px] text-center" style={{ color: S.pink }}>
+          👁 미리보기에서 책 형식으로 확인하세요
+        </p>
+      </div>
+    );
+  }
+
+  if (isLeader) {
+    return (
+      <div className="rounded-xl p-4 mb-4"
+        style={{
+          background: `linear-gradient(135deg, rgba(255, 111, 181, 0.08), rgba(255, 215, 0, 0.04))`,
+          border: `0.5px solid ${S.pink}40`,
+        }}>
+        <div className="flex items-start gap-2.5 mb-3">
+          <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
+            style={{ background: S.pink, boxShadow: `0 0 6px ${S.pink}` }} />
+          <div>
+            <p className="text-[10px] font-mono font-bold tracking-widest mb-1" style={{ color: S.pink }}>
+              AI POLISHING
+            </p>
+            <p className="text-[12px] text-gray-300 leading-relaxed">
+              학생 답변을 책 분량 보고서로 변환합니다.<br />
+              <span style={{ color: '#FFA500' }}>⚠ 한 번만 가능 · 약 2~3분</span>
+            </p>
+          </div>
+        </div>
+        <button onClick={onPolishing}
+          className="w-full py-3 font-bold rounded-xl transition-all hover:scale-[1.02]"
+          style={{
+            background: `linear-gradient(135deg, ${S.pink} 0%, ${S.gold} 100%)`,
+            color: S.navy, fontSize: '13px',
+            boxShadow: `0 0 16px ${S.pink}40`,
+          }}>
+          📝 AI 보고서 다듬기 시작
+        </button>
+        {polishError && <p className="mt-2 text-[10px] text-red-400 text-center">⚠ {polishError}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl p-3 mb-4 flex items-start gap-2.5"
+      style={{
+        background: 'rgba(255, 255, 255, 0.02)',
+        border: '0.5px solid rgba(255, 255, 255, 0.05)',
+      }}>
+      <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ background: '#888' }} />
+      <div>
+        <p className="text-[10px] font-mono font-bold tracking-widest mb-1 text-gray-500">
+          AI POLISHING
+        </p>
+        <p className="text-[12px] text-gray-500 leading-relaxed">
+          AI 보고서 다듬기가 아직 시작되지 않았어요.
         </p>
       </div>
     </div>
@@ -666,20 +1188,13 @@ function StatCard({ label, value, color }: { label: string; value: string; color
         style={{ background: `linear-gradient(to right, transparent, ${color}80, transparent)` }} />
       <div className="font-bold mb-1"
         style={{
-          fontSize: '24px',
-          color: color,
-          letterSpacing: '-0.5px',
-          lineHeight: 1,
+          fontSize: '24px', color: color, letterSpacing: '-0.5px', lineHeight: 1,
           textShadow: `0 0 12px ${color}80`,
         }}>
         {value}
       </div>
       <div className="font-mono"
-        style={{
-          fontSize: '9px',
-          color: `${color}B3`,
-          letterSpacing: '1.5px',
-        }}>
+        style={{ fontSize: '9px', color: `${color}B3`, letterSpacing: '1.5px' }}>
         {label}
       </div>
     </div>
