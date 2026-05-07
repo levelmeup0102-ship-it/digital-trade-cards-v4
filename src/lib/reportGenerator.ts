@@ -1,6 +1,7 @@
 // src/lib/reportGenerator.ts
 // 보고서 데이터를 6개 테이블에서 모아서 합치는 함수
 // 실제 DB 구조 검증 후 수정 완료 (2026.05.06)
+// v2 (2026.05.08): members 매핑에 id 필드 추가 — isLeader 인식 버그 수정
 
 import { createClient } from '@supabase/supabase-js';
 import type {
@@ -162,6 +163,7 @@ function assembleReport(
     item: teamInfo.item || '미설정',
     level: teamInfo.level || 'standard',
     members: members.map((m) => ({
+      id: m.id,                                    // ⭐ v2: id 추가 — 보고서 페이지의 isLeader 인식 버그 수정
       name: m.name,
       roleCode: m.role_code || 'unassigned',
       isLeader: m.is_leader || false,
