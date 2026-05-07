@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, Fragment, useRef } from 'react';
 import type { TopicCard, SubCard, CardCategory } from '@/types';
 import { CARD_COLORS, parseTemplate } from '@/data/cardData';
 import { ROLES, getRole, type RoleCode } from '@/data/roleData';
@@ -501,7 +501,7 @@ function FillInBlankForm({
   );
 }
 
-// ⭐ 빈칸 입력 박스 — 슬림 + 글자 따라 자연스럽게 늘어남 (maxWidth 제거)
+// ⭐ 빈칸 입력 박스 — 한글 IME 패치 적용 + 글자 따라 늘어남
 function BlankInput({
   value,
   onChange,
@@ -513,7 +513,25 @@ function BlankInput({
   disabled?: boolean;
   cardColor: string;
 }) {
-  // ⭐ 한글 기준 글자당 14px (정확히), maxWidth 없음 → 글자 따라 박스 자연 확장
+  // ⭐ 한글 IME 패치: 로컬 state + composition 감지
+  const [localValue, setLocalValue] = useState(value);
+  const [isComposing, setIsComposing] = useState(false);
+
+  // 외부 value 변화 동기화 (composition 중이 아닐 때만)
+  useEffect(() => {
+    if (!isComposing) setLocalValue(value);
+  }, [value, isComposing]);
+
+  // 디바운스로 부모에 저장
+  useEffect(() => {
+    if (isComposing) return;
+    if (localValue === value) return;
+    const t = setTimeout(() => onChange(localValue), 300);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localValue, isComposing]);
+
+  // 글자당 14px (한글 기준), maxWidth 없음
   const calcWidth = (v: string) => {
     const chars = v.length || 0;
     return Math.max(40, chars * 14 + 16);
@@ -524,17 +542,41 @@ function BlankInput({
   return (
     <input
       type="text"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
+      value={localValue}
+      onChange={(e) => setLocalValue(e.target.value)}
+      onCompositionStart={() => setIsComposing(true)}
+      onCompositionEnd={(e) => {
+        setIsComposing(false);
+        const v = e.currentTarget.value;
+        setLocalValue(v);
+        onChange(v); // composition 끝나면 즉시 저장
+      }}
+      onBlur={(e) => {
+        // blur 시점에도 저장 (안전장치)
+        if (localValue !== value) onChange(localValue);
+        if (localValue) {
+          e.currentTarget.style.boxShadow = `0 0 4px ${NEON_YELLOW}33`;
+          e.currentTarget.style.background = `${NEON_YELLOW}15`;
+        } else {
+          e.currentTarget.style.boxShadow = 'none';
+          e.currentTarget.style.borderColor = `${NEON_YELLOW}44`;
+          e.currentTarget.style.background = `${NEON_YELLOW}08`;
+        }
+      }}
+      onFocus={(e) => {
+        e.currentTarget.style.boxShadow = `0 0 8px ${NEON_YELLOW}66`;
+        e.currentTarget.style.borderColor = NEON_YELLOW;
+        e.currentTarget.style.background = `${NEON_YELLOW}1A`;
+      }}
       disabled={disabled}
       style={{
         display: 'inline-block',
-        width: `${calcWidth(value)}px`,
+        width: `${calcWidth(localValue)}px`,
         height: '20px',
         boxSizing: 'border-box',
-        background: value ? `${NEON_YELLOW}15` : `${NEON_YELLOW}08`,
-        color: value ? NEON_YELLOW : '#888',
-        border: `1px solid ${value ? NEON_YELLOW : NEON_YELLOW + '44'}`,
+        background: localValue ? `${NEON_YELLOW}15` : `${NEON_YELLOW}08`,
+        color: localValue ? NEON_YELLOW : '#888',
+        border: `1px solid ${localValue ? NEON_YELLOW : NEON_YELLOW + '44'}`,
         borderRadius: '4px',
         padding: '0 6px',
         margin: '0 2px',
@@ -544,26 +586,8 @@ function BlankInput({
         outline: 'none',
         verticalAlign: 'middle',
         minWidth: '40px',
-        // ⭐ maxWidth 제거: 글자 길어지면 박스도 따라 늘어남
         transition: 'width 0.15s, background 0.2s, border-color 0.2s, box-shadow 0.2s',
-        boxShadow: value
-          ? `0 0 4px ${NEON_YELLOW}33`
-          : 'none',
-      }}
-      onFocus={(e) => {
-        e.currentTarget.style.boxShadow = `0 0 8px ${NEON_YELLOW}66`;
-        e.currentTarget.style.borderColor = NEON_YELLOW;
-        e.currentTarget.style.background = `${NEON_YELLOW}1A`;
-      }}
-      onBlur={(e) => {
-        if (value) {
-          e.currentTarget.style.boxShadow = `0 0 4px ${NEON_YELLOW}33`;
-          e.currentTarget.style.background = `${NEON_YELLOW}15`;
-        } else {
-          e.currentTarget.style.boxShadow = 'none';
-          e.currentTarget.style.borderColor = `${NEON_YELLOW}44`;
-          e.currentTarget.style.background = `${NEON_YELLOW}08`;
-        }
+        boxShadow: localValue ? `0 0 4px ${NEON_YELLOW}33` : 'none',
       }}
     />
   );
@@ -626,6 +650,30 @@ function LeaderQView({
 }: LeaderQViewProps) {
   const [showSidebar, setShowSidebar] = useState(false);
 
+  // ⭐ 한글 IME 패치: 팀 답변 textarea
+  const [localResponse, setLocalResponse] = useState(currentResponse);
+  const [isComposing, setIsComposing] = useState(false);
+
+  // sub.id 변경 시 (다른 Q로 이동) → 외부 값으로 동기화
+  useEffect(() => {
+    setLocalResponse(currentResponse);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sub.id]);
+
+  // 외부 currentResponse 변화 동기화 (composition 중이 아닐 때만)
+  useEffect(() => {
+    if (!isComposing) setLocalResponse(currentResponse);
+  }, [currentResponse, isComposing]);
+
+  // 디바운스로 부모에 저장
+  useEffect(() => {
+    if (isComposing) return;
+    if (localResponse === currentResponse) return;
+    const t = setTimeout(() => onSaveResponse(sub.id, localResponse), 400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localResponse, isComposing]);
+
   const nonLeaders = teamMembers.filter(m => !m.is_leader);
   const completedCount = memberInsights.filter(i => i.is_completed).length;
 
@@ -646,22 +694,32 @@ function LeaderQView({
           </button>
         </div>
         <textarea
-          value={currentResponse}
-          onChange={e => onSaveResponse(sub.id, e.target.value)}
+          value={localResponse}
+          onChange={e => setLocalResponse(e.target.value)}
+          onCompositionStart={() => setIsComposing(true)}
+          onCompositionEnd={(e) => {
+            setIsComposing(false);
+            const v = e.currentTarget.value;
+            setLocalResponse(v);
+            onSaveResponse(sub.id, v);
+          }}
+          onBlur={() => {
+            if (localResponse !== currentResponse) onSaveResponse(sub.id, localResponse);
+          }}
           placeholder={`팀원 인사이트를 종합해서 ${displayItem} 기준 팀 답변을 작성하세요...`}
           disabled={isCurrentSubCompleted}
           className="w-full px-3 py-2.5 rounded-xl text-[13px] text-white leading-relaxed resize-none transition disabled:opacity-60"
           rows={5}
           style={{
-            background: currentResponse ? `${color}10` : `${color}06`,
-            border: `1.5px solid ${currentResponse ? color : color + '40'}`,
+            background: localResponse ? `${color}10` : `${color}06`,
+            border: `1.5px solid ${localResponse ? color : color + '40'}`,
             outline: 'none',
-            boxShadow: currentResponse ? `0 0 12px ${color}30` : 'none',
+            boxShadow: localResponse ? `0 0 12px ${color}30` : 'none',
           }}
         />
         <div className="flex justify-between mt-1">
-          <span className="text-[10px] text-gray-600">{currentResponse.length}자 / 최소 {minChars}자</span>
-          {currentResponse.length >= minChars && <span className="text-[10px]" style={{ color: S.green }}>✓ 충족</span>}
+          <span className="text-[10px] text-gray-600">{localResponse.length}자 / 최소 {minChars}자</span>
+          {localResponse.length >= minChars && <span className="text-[10px]" style={{ color: S.green }}>✓ 충족</span>}
         </div>
       </div>
 
@@ -845,6 +903,8 @@ function MemberQView({
   const [content, setContent] = useState(myInsight?.content || '');
   const [isCompleted, setIsCompleted] = useState(!!myInsight?.is_completed);
   const [saving, setSaving] = useState(false);
+  // ⭐ 한글 IME 패치
+  const [isComposing, setIsComposing] = useState(false);
 
   useEffect(() => {
     if (myInsight) {
@@ -863,8 +923,9 @@ function MemberQView({
 
   const canComplete = content.trim().length >= insightMinChars && !isCompleted;
 
+  // ⭐ 디바운스 저장 (composition 중에는 멈춤)
   useEffect(() => {
-    if (!myRoleCode || isCompleted) return;
+    if (!myRoleCode || isCompleted || isComposing) return;
     const t = setTimeout(() => {
       saveMemberInsight({
         teamId, memberId: myMemberId, subCardId: sub.id,
@@ -872,7 +933,7 @@ function MemberQView({
       });
     }, 800);
     return () => clearTimeout(t);
-  }, [content, sub.id, myRoleCode, isCompleted, teamId, myMemberId]);
+  }, [content, sub.id, myRoleCode, isCompleted, isComposing, teamId, myMemberId]);
 
   const handleComplete = async () => {
     if (!myRoleCode || !canComplete) return;
@@ -916,6 +977,11 @@ function MemberQView({
         <textarea
           value={content}
           onChange={e => setContent(e.target.value)}
+          onCompositionStart={() => setIsComposing(true)}
+          onCompositionEnd={(e) => {
+            setIsComposing(false);
+            setContent(e.currentTarget.value);
+          }}
           disabled={isCompleted}
           placeholder="자기 직무 관점에서 한두 문장으로..."
           className="w-full px-3 py-2.5 rounded-xl text-[13px] text-white leading-relaxed resize-none transition disabled:opacity-70"
