@@ -569,8 +569,21 @@ function BlankInput({
   }, []);
 
   const calcWidth = (v: string) => {
-    const chars = v.length || 0;
-    return Math.max(40, chars * 14 + 16);
+    if (!v) return 40;
+    // 한글/영문/숫자 너비 차이 반영 (한글이 더 넓음)
+    let width = 8; // 기본 padding
+    for (const char of v) {
+      if (/[\u3131-\uD79D]/.test(char)) {
+        width += 12; // 한글: 12px
+      } else if (/[A-Za-z]/.test(char)) {
+        width += 7; // 영문: 7px
+      } else if (/[0-9]/.test(char)) {
+        width += 7; // 숫자: 7px
+      } else {
+        width += 6; // 기호/공백: 6px
+      }
+    }
+    return Math.max(40, width);
   };
 
   const NEON_YELLOW = '#FFE680';
