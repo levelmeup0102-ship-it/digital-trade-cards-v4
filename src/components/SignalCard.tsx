@@ -377,7 +377,31 @@ export default function SignalCard({
             {isLeader ? (
               <>
                 <div className="mb-4">
-                  <p className="text-[10px] font-bold mb-1 font-mono tracking-widest text-gray-500">한 문장 전략</p>
+                  {/* ⭐ v9: 결론 탭에도 '작성 완료' 버튼 추가
+                      (LeaderQView의 중간 결론과 동일한 IME 문제 해결) */}
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-[10px] font-bold font-mono tracking-widest text-gray-500">한 문장 전략</p>
+                    {!isCardCompleted && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // 활성 input.blur() → composition 강제 종료 → 자동 동기화
+                          if (document.activeElement instanceof HTMLElement) {
+                            document.activeElement.blur();
+                          }
+                        }}
+                        className="px-2.5 py-1 rounded-md text-[10px] font-bold transition-all hover:scale-[1.05] active:scale-[0.98]"
+                        style={{
+                          background: isFinalStrategyFilled ? `${S.green}22` : `${color}18`,
+                          color: isFinalStrategyFilled ? S.green : color,
+                          border: `1px solid ${isFinalStrategyFilled ? S.green + '66' : color + '50'}`,
+                        }}
+                        title="한글 입력이 안 끝났어도 즉시 반영"
+                      >
+                        {isFinalStrategyFilled ? '✓ 작성 완료됨' : '✓ 작성 완료'}
+                      </button>
+                    )}
+                  </div>
                   <p className="text-[11px] text-gray-600 mb-3">
                     Q1·Q2·Q3 답변을 종합해서 빈칸을 채우세요. 노란 칸만 입력하면 돼요.
                   </p>
@@ -813,7 +837,31 @@ function LeaderQView({
       </div>
 
       <div className="mb-4">
-        <p className="text-[10px] font-bold mb-1.5 font-mono tracking-widest text-gray-500">중간 결론</p>
+        {/* ⭐ v8: 헤더 우측에 '작성 완료' 버튼 추가
+            (한글 IME가 안 끝나서 동기화 안 된 경우의 명시적 트리거) */}
+        <div className="flex items-center justify-between mb-1.5">
+          <p className="text-[10px] font-bold font-mono tracking-widest text-gray-500">중간 결론</p>
+          {!isCurrentSubCompleted && (
+            <button
+              type="button"
+              onClick={() => {
+                // 활성 input.blur() → composition 강제 종료 → onBlur가 flushSave 호출
+                if (document.activeElement instanceof HTMLElement) {
+                  document.activeElement.blur();
+                }
+              }}
+              className="px-2.5 py-1 rounded-md text-[10px] font-bold transition-all hover:scale-[1.05] active:scale-[0.98]"
+              style={{
+                background: isInterimFilled ? `${S.green}22` : `${color}18`,
+                color: isInterimFilled ? S.green : color,
+                border: `1px solid ${isInterimFilled ? S.green + '66' : color + '50'}`,
+              }}
+              title="한글 입력이 안 끝났어도 즉시 반영"
+            >
+              {isInterimFilled ? '✓ 작성 완료됨' : '✓ 작성 완료'}
+            </button>
+          )}
+        </div>
         <p className="text-[10px] text-gray-600 mb-2">→ 빈칸을 채워서 한 문장으로 정리하세요</p>
         <div className="rounded-xl p-3 transition-all"
           style={{
