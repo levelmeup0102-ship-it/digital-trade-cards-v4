@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 import { CARD_COLORS, TOPICS } from '@/data/cardData';
 import { generateTeamReport, getStoredReport } from '@/lib/reportGenerator';
 import type { TeamReportData, ReportCard } from '@/types/report';
@@ -11,6 +12,7 @@ const S = {
   gold: '#FFD700',
   cyan: '#06B6D4',
   purple: '#8B5CF6',
+  pink: '#FF6FB5',
   navy: '#050505',
   factStage: '#06B6D4',
   insightStage: '#FFA500',
@@ -32,6 +34,21 @@ const STAGES = [
 
 const TOTAL_PAGES = 18;
 
+interface PolishedCard {
+  cardId: string;
+  titleKo: string;
+  intro: string;
+  narrative: string;
+  strategy: string;
+  bridge: string;
+}
+
+interface PolishedData {
+  executiveSummary: string;
+  cards: Record<string, PolishedCard>;
+  conclusion: string;
+}
+
 export default function TeamReportPreviewPage() {
   const router = useRouter();
   const params = useParams();
@@ -40,6 +57,7 @@ export default function TeamReportPreviewPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<TeamReportData | null>(null);
+  const [polished, setPolished] = useState<PolishedData | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
   const [transitioning, setTransitioning] = useState(false);
 
@@ -47,11 +65,32 @@ export default function TeamReportPreviewPage() {
     if (!teamId) return;
     (async () => {
       try {
+        // 1. 보고서 데이터
         let stored = await getStoredReport(teamId);
         if (!stored) {
           stored = await generateTeamReport(teamId);
         }
         setReport(stored);
+
+        // 2. 다듬은 데이터 (있으면)
+        const { data: dbReport } = await supabase
+          .from('team_reports')
+          .select('ai_polished')
+          .eq('team_id', teamId)
+          .single();
+
+        if (dbReport?.ai_polished) {
+          try {
+            const parsed = JSON.parse(dbReport.ai_polished);
+            // 데이터 구조 검증
+            if (parsed && typeof parsed === 'object' && parsed.cards) {
+              setPolished(parsed);
+            }
+          } catch (e) {
+            console.warn('다듬은 데이터 파싱 실패 - 학생 답변으로 표시', e);
+          }
+        }
+
         setLoading(false);
       } catch (e: any) {
         console.error('미리보기 로드 실패', e);
@@ -67,7 +106,6 @@ export default function TeamReportPreviewPage() {
     setTransitioning(true);
     setTimeout(() => {
       setPageIndex(newIndex);
-      // 모바일에서 페이지 변경 시 상단으로 스크롤
       window.scrollTo({ top: 0, behavior: 'smooth' });
       setTimeout(() => setTransitioning(false), 50);
     }, 200);
@@ -144,23 +182,37 @@ export default function TeamReportPreviewPage() {
 
       <div className="relative z-10 max-w-5xl mx-auto w-full flex-1 flex flex-col">
 
-        {/* ⭐ 모바일 최적화: 헤더 패딩 조정 */}
+        {/* 헤더 */}
         <div className="flex items-center justify-between mb-3 md:mb-5 px-1 md:px-0">
           <button onClick={() => router.push(`/team/${teamId}/report`)}
             className="text-[11px] md:text-[12px] text-gray-500 hover:text-gray-300 transition">
             ← 보고서로
           </button>
-          <span className="font-mono font-bold tracking-[2px] md:tracking-[3px]"
-            style={{ fontSize: '9px', color: S.gold, textShadow: `0 0 8px ${S.gold}66` }}>
-            ★ PREVIEW MODE ★
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="font-mono font-bold tracking-[2px] md:tracking-[3px]"
+              style={{ fontSize: '9px', color: S.gold, textShadow: `0 0 8px ${S.gold}66` }}>
+              ★ PREVIEW MODE ★
+            </span>
+            {polished && (
+              <span className="font-mono font-bold tracking-[1.5px] px-1.5 py-0.5 rounded"
+                style={{
+                  fontSize: '8px',
+                  background: `${S.pink}20`,
+                  color: S.pink,
+                  border: `0.5px solid ${S.pink}50`,
+                  boxShadow: `0 0 6px ${S.pink}44`,
+                }}>
+                📝 POLISHED
+              </span>
+            )}
+          </div>
           <span className="font-mono tracking-wider text-gray-500"
             style={{ fontSize: '10px', letterSpacing: '1.5px' }}>
             {String(pageIndex + 1).padStart(2, '0')} / {TOTAL_PAGES}
           </span>
         </div>
 
-        {/* ⭐ 모바일 최적화: min-h 줄임 (콘텐츠가 자연스럽게 늘어나게) */}
+        {/* 책 콘텐츠 */}
         <div className="flex-1 flex items-center justify-center mb-3 md:mb-4">
           <div className="w-full rounded-xl md:rounded-2xl overflow-hidden relative"
             style={{
@@ -170,7 +222,7 @@ export default function TeamReportPreviewPage() {
               opacity: transitioning ? 0 : 1,
               transition: 'opacity 0.2s ease-out',
             }}>
-            <PageContent pageIndex={pageIndex} report={report} />
+            <PageContent pageIndex={pageIndex} report={report} polished={polished} />
           </div>
         </div>
 
@@ -219,7 +271,6 @@ export default function TeamReportPreviewPage() {
           </button>
         </div>
 
-        {/* ⭐ 모바일 최적화: 점 인디케이터 작게 */}
         <div className="flex gap-[3px] md:gap-1 justify-center flex-wrap max-w-[280px] md:max-w-md mx-auto mb-2 md:mb-3">
           {Array.from({ length: TOTAL_PAGES }).map((_, i) => {
             const isCurrent = i === pageIndex;
@@ -254,18 +305,30 @@ export default function TeamReportPreviewPage() {
   );
 }
 
-function PageContent({ pageIndex, report }: { pageIndex: number; report: TeamReportData }) {
-  if (pageIndex === 0) return <CoverPage report={report} />;
-  if (pageIndex === TOTAL_PAGES - 1) return <ConclusionPage report={report} />;
+function PageContent({
+  pageIndex, report, polished,
+}: {
+  pageIndex: number;
+  report: TeamReportData;
+  polished: PolishedData | null;
+}) {
+  if (pageIndex === 0) return <CoverPage report={report} polished={polished} />;
+  if (pageIndex === TOTAL_PAGES - 1) return <ConclusionPage report={report} polished={polished} />;
   const card = report.cards[pageIndex - 1];
   if (!card) return null;
-  return <CardSpread card={card} pageIndex={pageIndex} />;
+  const polishedCard = polished?.cards?.[card.cardId] || null;
+  return <CardSpread card={card} pageIndex={pageIndex} polishedCard={polishedCard} />;
 }
 
 // ═══════════════════════════════════════════════════════
 // 표지
 // ═══════════════════════════════════════════════════════
-function CoverPage({ report }: { report: TeamReportData }) {
+function CoverPage({
+  report, polished,
+}: {
+  report: TeamReportData;
+  polished: PolishedData | null;
+}) {
   const { team } = report;
   const leader = team.members.find(m => m.isLeader);
 
@@ -311,7 +374,6 @@ function CoverPage({ report }: { report: TeamReportData }) {
         </p>
       </div>
 
-      {/* ⭐ 모바일 좌우 구분선 */}
       <MobileSeparator color={S.gold} />
 
       <div className="p-6 md:p-12 flex flex-col justify-center">
@@ -333,6 +395,26 @@ function CoverPage({ report }: { report: TeamReportData }) {
           <Row label="LEADER" value={leader?.name || '미지정'} color={S.gold} />
           <Row label="MEMBERS" value={`${team.members.length}명`} color={S.aqua} />
         </div>
+
+        {/* ⭐ 다듬은 Executive Summary 추가 */}
+        {polished?.executiveSummary && (
+          <div className="rounded-lg p-3 mb-3"
+            style={{
+              background: `${S.pink}08`,
+              border: `0.5px solid ${S.pink}30`,
+            }}>
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span style={{ fontSize: '10px' }}>📝</span>
+              <p className="font-mono font-bold tracking-widest"
+                style={{ fontSize: '8px', color: S.pink, letterSpacing: '1.5px' }}>
+                EXECUTIVE SUMMARY
+              </p>
+            </div>
+            <p className="text-[12px] text-gray-300 leading-relaxed">
+              {polished.executiveSummary}
+            </p>
+          </div>
+        )}
 
         <div className="pt-3 md:pt-4 border-t" style={{ borderColor: 'rgba(255, 215, 0, 0.1)' }}>
           <p className="font-mono text-gray-600 mb-2"
@@ -357,9 +439,29 @@ function CoverPage({ report }: { report: TeamReportData }) {
 }
 
 // ═══════════════════════════════════════════════════════
-// 카드 펼침면
+// 카드 펼침면 — polished 있으면 책 형식, 없으면 기존 답변 형식
 // ═══════════════════════════════════════════════════════
-function CardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: number }) {
+function CardSpread({
+  card, pageIndex, polishedCard,
+}: {
+  card: ReportCard;
+  pageIndex: number;
+  polishedCard: PolishedCard | null;
+}) {
+  if (polishedCard) {
+    return <PolishedCardSpread card={card} pageIndex={pageIndex} polishedCard={polishedCard} />;
+  }
+  return <RawCardSpread card={card} pageIndex={pageIndex} />;
+}
+
+// ⭐ 다듬은 책 형식 카드 펼침
+function PolishedCardSpread({
+  card, pageIndex, polishedCard,
+}: {
+  card: ReportCard;
+  pageIndex: number;
+  polishedCard: PolishedCard;
+}) {
   const cardColor = CARD_COLORS[card.cardId]?.bg || S.cyan;
   const topic = TOPICS.find(t => t.id === card.cardId);
   const categoryInfo = topic ? CATEGORY_STYLES[topic.category] : null;
@@ -369,9 +471,6 @@ function CardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: number }
     new Set(card.memberInsights?.map(mi => mi.memberName) || [])
   );
 
-  const leftQuestions = card.questions.slice(0, 2);
-  const rightQuestion = card.questions[2];
-
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 relative">
       <CornerDecoration position="tl" color={`${cardColor}99`} />
@@ -379,7 +478,7 @@ function CardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: number }
       <CornerDecoration position="bl" color={`${cardColor}99`} />
       <CornerDecoration position="br" color={`${cardColor}99`} />
 
-      {/* 좌측 페이지 */}
+      {/* 좌측: intro + narrative */}
       <div className="p-5 md:p-7 relative md:border-r"
         style={{ borderColor: 'rgba(255, 215, 0, 0.15)' }}>
 
@@ -413,6 +512,248 @@ function CardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: number }
         <div className="mb-4 md:mb-5">
           <h2 className="font-bold text-white mb-1"
             style={{ fontSize: '18px', lineHeight: 1.25 }}>
+            {polishedCard.titleKo || card.titleKo}
+          </h2>
+          <p className="text-[11px] italic" style={{ color: 'rgba(193, 232, 235, 0.6)' }}>
+            {card.titleEn}
+          </p>
+        </div>
+
+        {/* Intro */}
+        {polishedCard.intro && (
+          <div className="mb-4 rounded-lg p-3"
+            style={{
+              background: `${cardColor}10`,
+              border: `0.5px solid ${cardColor}30`,
+              borderLeft: `2.5px solid ${cardColor}`,
+            }}>
+            <p className="font-mono font-bold tracking-widest mb-1.5"
+              style={{ fontSize: '8px', color: cardColor, letterSpacing: '2px' }}>
+              ◆ INTRO
+            </p>
+            <p className="leading-relaxed"
+              style={{ fontSize: '12.5px', color: 'rgba(255, 255, 255, 0.92)' }}>
+              {polishedCard.intro}
+            </p>
+          </div>
+        )}
+
+        {/* Narrative (본문) */}
+        {polishedCard.narrative && (
+          <div>
+            <p className="font-mono font-bold tracking-widest mb-2"
+              style={{ fontSize: '8px', color: 'rgba(255, 255, 255, 0.5)', letterSpacing: '2px' }}>
+              ◆ NARRATIVE
+            </p>
+            <div className="leading-relaxed whitespace-pre-wrap"
+              style={{
+                fontSize: '12.5px',
+                color: 'rgba(255, 255, 255, 0.85)',
+                lineHeight: 1.75,
+              }}>
+              {polishedCard.narrative}
+            </div>
+          </div>
+        )}
+
+        <div className="absolute bottom-3 left-7 font-mono hidden md:block"
+          style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px' }}>
+          PAGE {String(pageIndex + 1).padStart(2, '0')} · LEFT
+        </div>
+      </div>
+
+      <MobileSeparator color={cardColor} label="STRATEGY ↓" />
+
+      {/* 우측: strategy + bridge + 한 문장 전략 */}
+      <div className="p-5 md:p-7 relative">
+        <div className="absolute top-4 right-7 font-mono text-gray-600 hidden md:block"
+          style={{ fontSize: '9px', letterSpacing: '1.5px' }}>
+          CONTINUED →
+        </div>
+
+        {/* Strategy 섹션 */}
+        {polishedCard.strategy && (
+          <div className="mb-5 md:mt-6"
+            style={{
+              background: `linear-gradient(135deg, ${cardColor}15, ${cardColor}05)`,
+              border: `0.5px solid ${cardColor}50`,
+              borderRadius: '12px',
+              padding: '14px',
+            }}>
+            <div className="flex items-center gap-1.5 mb-2">
+              <span style={{ fontSize: '11px' }}>⚡</span>
+              <p className="font-mono font-bold tracking-widest"
+                style={{ fontSize: '8px', color: cardColor, letterSpacing: '2px' }}>
+                STRATEGY
+              </p>
+            </div>
+            <p className="leading-relaxed whitespace-pre-wrap"
+              style={{
+                fontSize: '12.5px',
+                color: 'rgba(255, 255, 255, 0.92)',
+                lineHeight: 1.7,
+              }}>
+              {polishedCard.strategy}
+            </p>
+          </div>
+        )}
+
+        {/* 별 구분선 */}
+        <div className="mb-4 flex items-center gap-2">
+          <div className="flex-1 h-[1px]"
+            style={{ background: `linear-gradient(to right, transparent, ${S.gold}40, transparent)` }} />
+          <span className="font-mono font-bold"
+            style={{ fontSize: '8px', color: S.gold, letterSpacing: '2px' }}>
+            ★
+          </span>
+          <div className="flex-1 h-[1px]"
+            style={{ background: `linear-gradient(to left, transparent, ${S.gold}40, transparent)` }} />
+        </div>
+
+        {/* 한 문장 전략 (학생이 작성한 거 그대로) */}
+        {card.oneSentenceStrategy && (
+          <div className="rounded-xl p-4 mb-4 relative overflow-hidden"
+            style={{
+              background: `linear-gradient(135deg, rgba(255, 215, 0, 0.06), rgba(231, 254, 85, 0.04))`,
+              border: `0.5px solid rgba(255, 215, 0, 0.3)`,
+            }}>
+            <div className="absolute top-0 left-0 right-0 h-[1px]"
+              style={{ background: `linear-gradient(to right, transparent, ${S.gold}99, transparent)` }} />
+
+            <div className="flex items-center gap-2 mb-2">
+              <span style={{ fontSize: '12px' }}>★</span>
+              <span className="font-mono font-bold"
+                style={{ fontSize: '9px', letterSpacing: '2px', color: S.gold }}>
+                ONE SENTENCE STRATEGY
+              </span>
+            </div>
+            <p className="text-white leading-relaxed font-medium"
+              style={{ fontSize: '13px' }}>
+              {card.oneSentenceStrategy}
+            </p>
+          </div>
+        )}
+
+        {/* Bridge (다음 카드 연결) */}
+        {polishedCard.bridge && (
+          <div className="rounded-lg p-3"
+            style={{
+              background: 'rgba(255, 255, 255, 0.03)',
+              border: `0.5px dashed ${cardColor}50`,
+            }}>
+            <div className="flex items-center gap-1.5 mb-1">
+              <span style={{ fontSize: '10px', color: cardColor }}>→</span>
+              <p className="font-mono font-bold tracking-widest"
+                style={{ fontSize: '8px', color: cardColor, letterSpacing: '2px' }}>
+                BRIDGE TO NEXT
+              </p>
+            </div>
+            <p className="leading-relaxed italic"
+              style={{
+                fontSize: '11.5px',
+                color: 'rgba(255, 255, 255, 0.7)',
+              }}>
+              {polishedCard.bridge}
+            </p>
+          </div>
+        )}
+
+        {/* Contributors */}
+        {participants.length > 0 && (
+          <div className="mt-4 md:mt-5 pt-3"
+            style={{ borderTop: `0.5px dashed rgba(255, 255, 255, 0.08)` }}>
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="w-1 h-1 rounded-full"
+                style={{ background: S.aqua, boxShadow: `0 0 4px ${S.aqua}` }} />
+              <span className="font-mono"
+                style={{
+                  fontSize: '8px',
+                  color: 'rgba(193, 232, 235, 0.7)',
+                  letterSpacing: '2px',
+                }}>
+                CONTRIBUTORS
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {participants.map((name, i) => (
+                <span key={i}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full"
+                  style={{
+                    fontSize: '10px',
+                    background: 'rgba(193, 232, 235, 0.06)',
+                    border: '0.5px solid rgba(193, 232, 235, 0.2)',
+                    color: 'rgba(255, 255, 255, 0.85)',
+                  }}>
+                  · {name}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="mt-4 md:mt-0 md:absolute md:bottom-3 md:right-7 font-mono text-center md:text-left"
+          style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px' }}>
+          PAGE {String(pageIndex + 1).padStart(2, '0')}
+          <span className="hidden md:inline"> · RIGHT</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// 기존 학생 답변 형식 (polished 없을 때 fallback)
+function RawCardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: number }) {
+  const cardColor = CARD_COLORS[card.cardId]?.bg || S.cyan;
+  const topic = TOPICS.find(t => t.id === card.cardId);
+  const categoryInfo = topic ? CATEGORY_STYLES[topic.category] : null;
+  const difficulty = topic?.difficulty || 0;
+
+  const participants = Array.from(
+    new Set(card.memberInsights?.map(mi => mi.memberName) || [])
+  );
+
+  const leftQuestions = card.questions.slice(0, 2);
+  const rightQuestion = card.questions[2];
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 relative">
+      <CornerDecoration position="tl" color={`${cardColor}99`} />
+      <CornerDecoration position="tr" color={`${cardColor}99`} />
+      <CornerDecoration position="bl" color={`${cardColor}99`} />
+      <CornerDecoration position="br" color={`${cardColor}99`} />
+
+      <div className="p-5 md:p-7 relative md:border-r"
+        style={{ borderColor: 'rgba(255, 215, 0, 0.15)' }}>
+
+        <div className="flex items-start justify-between mb-3 gap-2">
+          <div className="flex items-center gap-2 md:gap-2.5 min-w-0">
+            <CardSignature cardId={card.cardId} color={cardColor} />
+            <div className="min-w-0">
+              <span className="font-mono text-gray-500 tracking-wider"
+                style={{ fontSize: '9px', letterSpacing: '1.5px' }}>
+                CARD {card.cardId}
+              </span>
+              {categoryInfo && (
+                <div className="mt-1">
+                  <span className="inline-block px-2 py-0.5 rounded-full font-bold"
+                    style={{
+                      fontSize: '9px',
+                      background: `${categoryInfo.color}15`,
+                      color: categoryInfo.color,
+                      border: `0.5px solid ${categoryInfo.color}40`,
+                    }}>
+                    {categoryInfo.label}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+          <DifficultyStars level={difficulty} color={S.gold} />
+        </div>
+
+        <div className="mb-4 md:mb-5">
+          <h2 className="font-bold text-white mb-1"
+            style={{ fontSize: '18px', lineHeight: 1.25 }}>
             {card.titleKo}
           </h2>
           <p className="text-[11px] italic" style={{ color: 'rgba(193, 232, 235, 0.6)' }}>
@@ -438,19 +779,15 @@ function CardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: number }
           ))}
         </div>
 
-        {/* 좌측 페이지 번호 (PC만) */}
         <div className="absolute bottom-3 left-7 font-mono hidden md:block"
           style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px' }}>
           PAGE {String(pageIndex + 1).padStart(2, '0')} · LEFT
         </div>
       </div>
 
-      {/* ⭐ 모바일 좌/우 구분선 */}
       <MobileSeparator color={cardColor} label="CONTINUED ↓" />
 
-      {/* 우측 페이지 */}
       <div className="p-5 md:p-7 relative">
-        {/* CONTINUED 라벨 (PC만) */}
         <div className="absolute top-4 right-7 font-mono text-gray-600 hidden md:block"
           style={{ fontSize: '9px', letterSpacing: '1.5px' }}>
           CONTINUED →
@@ -528,7 +865,6 @@ function CardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: number }
           </div>
         )}
 
-        {/* 페이지 번호 */}
         <div className="mt-4 md:mt-0 md:absolute md:bottom-3 md:right-7 font-mono text-center md:text-left"
           style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px' }}>
           PAGE {String(pageIndex + 1).padStart(2, '0')}
@@ -540,9 +876,14 @@ function CardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: number }
 }
 
 // ═══════════════════════════════════════════════════════
-// 마무리
+// 마무리 페이지
 // ═══════════════════════════════════════════════════════
-function ConclusionPage({ report }: { report: TeamReportData }) {
+function ConclusionPage({
+  report, polished,
+}: {
+  report: TeamReportData;
+  polished: PolishedData | null;
+}) {
   const { team, cards, totalAnswers } = report;
   const filledStrategies = cards.filter(c => c.oneSentenceStrategy).length;
 
@@ -567,14 +908,34 @@ function ConclusionPage({ report }: { report: TeamReportData }) {
           16개 카드를 통해 디지털 무역 전략을 완성했습니다.
         </p>
 
-        <div className="space-y-3">
+        <div className="space-y-3 mb-5">
           <SummaryStat label="완성된 카드" value={`${filledStrategies} / 16`} color={S.green} />
           <SummaryStat label="작성한 답변" value={`${totalAnswers}개`} color={S.aqua} />
           <SummaryStat label="참여 팀원" value={`${team.members.length}명`} color={S.gold} />
         </div>
+
+        {/* ⭐ 다듬은 결론 */}
+        {polished?.conclusion && (
+          <div className="rounded-lg p-3"
+            style={{
+              background: `${S.pink}08`,
+              border: `0.5px solid ${S.pink}30`,
+              borderLeft: `2.5px solid ${S.pink}`,
+            }}>
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span style={{ fontSize: '10px' }}>📝</span>
+              <p className="font-mono font-bold tracking-widest"
+                style={{ fontSize: '8px', color: S.pink, letterSpacing: '1.5px' }}>
+                CONCLUSION
+              </p>
+            </div>
+            <p className="text-[11.5px] text-gray-300 leading-relaxed">
+              {polished.conclusion}
+            </p>
+          </div>
+        )}
       </div>
 
-      {/* ⭐ 모바일 구분선 */}
       <MobileSeparator color={S.gold} />
 
       <div className="p-6 md:p-10 flex flex-col items-center justify-center text-center">
@@ -623,10 +984,9 @@ function ConclusionPage({ report }: { report: TeamReportData }) {
 }
 
 // ═══════════════════════════════════════════════════════
-// 서브 컴포넌트들
+// 서브 컴포넌트들 (기존과 동일)
 // ═══════════════════════════════════════════════════════
 
-// ⭐ 모바일 전용 좌/우 구분선
 function MobileSeparator({ color, label = '' }: { color: string; label?: string }) {
   return (
     <div className="md:hidden flex items-center gap-2 px-5 py-2.5"
@@ -650,8 +1010,7 @@ function MobileSeparator({ color, label = '' }: { color: string; label?: string 
 }
 
 function CornerDecoration({
-  position,
-  color = '#FFD70060',
+  position, color = '#FFD70060',
 }: {
   position: 'tl' | 'tr' | 'bl' | 'br';
   color?: string;
