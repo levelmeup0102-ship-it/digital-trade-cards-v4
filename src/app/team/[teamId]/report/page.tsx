@@ -113,6 +113,9 @@ export default function TeamReportPage() {
   const [personalScores, setPersonalScores] = useState<PersonalScore[]>([]);
   const [isLeader, setIsLeader] = useState(false);
 
+  // ⭐ v2: sessionStorage 비어있을 때 멤버 선택 모달
+  const [showMemberSelect, setShowMemberSelect] = useState(false);
+
   const [aiScoringInProgress, setAiScoringInProgress] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
@@ -198,21 +201,33 @@ export default function TeamReportPage() {
         })));
       }
 
-      // 팀장 여부
+      // ⭐ v2: 팀장 여부 결정 — sessionStorage 비어있으면 멤버 선택 모달 표시
       const myMemberId = typeof window !== 'undefined' ? sessionStorage.getItem('memberId') : null;
       if (myMemberId && reportData.team.members) {
         const me = reportData.team.members.find((m: any) => m.id === myMemberId);
         if (me?.isLeader) setIsLeader(true);
+      } else if (!myMemberId && reportData.team.members && reportData.team.members.length > 0) {
+        setShowMemberSelect(true);
       }
 
       const url = new URL(window.location.href);
       if (url.searchParams.get('leader') === '1') {
         setIsLeader(true);
+        setShowMemberSelect(false);
       }
     } catch (e) {
       console.error('데이터 로드 실패', e);
     }
   }
+
+  // ⭐ v2: 멤버 선택 모달에서 자기 자신 선택 시
+  const handleMemberSelect = (memberId: string, leader: boolean) => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('memberId', memberId);
+    }
+    if (leader) setIsLeader(true);
+    setShowMemberSelect(false);
+  };
 
   // ⭐ AI 채점 — 팀 920 + 개인 80 자동 연쇄
   async function handleAiScoring() {
@@ -240,7 +255,6 @@ export default function TeamReportPage() {
     setAiError(null);
 
     try {
-      // 1단계: 팀 채점 (920점)
       console.log('[채점] 팀 점수 채점 시작...');
       const teamRes = await fetch('/api/score-report', {
         method: 'POST',
@@ -255,7 +269,6 @@ export default function TeamReportPage() {
 
       console.log('[채점] 팀 점수 완료. 개인 점수 시작...');
 
-      // 2단계: 개인 채점 (80점) — 자동 호출
       const personalRes = await fetch('/api/score-personal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -265,12 +278,10 @@ export default function TeamReportPage() {
       if (!personalRes.ok) {
         const data = await personalRes.json();
         console.warn('개인 점수 채점 실패:', data.error);
-        // 개인 점수는 실패해도 팀 점수는 살림
       }
 
       console.log('[채점] 모든 채점 완료. 데이터 다시 로드...');
 
-      // 3단계: 데이터 다시 로드
       if (report) await loadAllData(report);
 
       alert('🎉 채점 완료! 결과를 확인하세요.');
@@ -391,8 +402,15 @@ export default function TeamReportPage() {
           zIndex: 0,
         }} />
 
+      {/* ⭐ v2: 멤버 선택 모달 */}
+      {showMemberSelect && (
+        <MemberSelectModal
+          members={team.members as any}
+          onSelect={handleMemberSelect}
+        />
+      )}
+
       <div className="relative z-10 max-w-2xl mx-auto">
-        {/* 헤더 */}
         <div className="flex items-center justify-between mb-6">
           <button onClick={() => router.push('/')}
             className="text-[12px] text-gray-500 hover:text-gray-300 transition flex items-center gap-1.5">
@@ -401,7 +419,6 @@ export default function TeamReportPage() {
           <p className="text-[10px] tracking-[4px] text-gray-600 font-mono">SIGNAL</p>
         </div>
 
-        {/* 타이틀 */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-3">
             <div className="w-1 h-1 rounded-full" style={{ background: S.gold, boxShadow: `0 0 6px ${S.gold}` }} />
@@ -423,14 +440,12 @@ export default function TeamReportPage() {
           </p>
         </div>
 
-        {/* 통계 3개 */}
         <div className="grid grid-cols-3 gap-2 md:gap-3 mb-6">
           <StatCard label="CARDS" value={`${completedCardCount}/16`} color={S.green} />
           <StatCard label="ANSWERS" value={String(totalAnswers)} color={S.aqua} />
           <StatCard label="MEMBERS" value={String(memberCount)} color={S.gold} />
         </div>
 
-        {/* AI 채점 섹션 (1,000점 시스템) */}
         <ScoringSection
           teamScoring={teamScoring}
           personalScores={personalScores}
@@ -440,22 +455,10 @@ export default function TeamReportPage() {
           onScoring={handleAiScoring}
         />
 
-        {/* 영역별 점수 (채점 완료 시) */}
-        {teamScoring && (
-          <AreaScoresSection teamScoring={teamScoring} />
-        )}
+        {teamScoring && <AreaScoresSection teamScoring={teamScoring} />}
+        {personalScores.length > 0 && <PersonalScoresSection personalScores={personalScores} />}
+        {teamScoring?.areaBreakdown && <FeedbackSection breakdown={teamScoring.areaBreakdown} />}
 
-        {/* 학생별 개인 점수 (채점 완료 시) */}
-        {personalScores.length > 0 && (
-          <PersonalScoresSection personalScores={personalScores} />
-        )}
-
-        {/* 강점/보완점/액션 (채점 완료 시) */}
-        {teamScoring?.areaBreakdown && (
-          <FeedbackSection breakdown={teamScoring.areaBreakdown} />
-        )}
-
-        {/* AI 다듬기 섹션 */}
         <PolishingSection
           polished={polished}
           polishedAt={polishedAt}
@@ -465,7 +468,7 @@ export default function TeamReportPage() {
           onPolishing={handlePolishing}
         />
 
-        {/* 액션 버튼 */}
+        {/* ⭐ v2: 미리보기 버튼 라벨 — 다듬기 전/후 동적 변경 */}
         <div className="grid grid-cols-2 gap-2.5 mb-8">
           <button
             onClick={() => router.push(`/team/${teamId}/report/preview`)}
@@ -476,7 +479,7 @@ export default function TeamReportPage() {
               fontSize: '13px',
               boxShadow: `0 0 24px rgba(255, 215, 0, 0.3)`,
             }}>
-            👁 미리보기
+            {polished ? '📚 다듬은 보고서 미리보기' : '📖 우리 팀 답안 종합본 보기'}
           </button>
           <button
             disabled
@@ -491,7 +494,6 @@ export default function TeamReportPage() {
           </button>
         </div>
 
-        {/* 16카드 Accordion */}
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-3">
             <div className="flex-1 h-[1px]"
@@ -534,22 +536,14 @@ export default function TeamReportPage() {
 
                     {cardScore && (
                       <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded flex-shrink-0"
-                        style={{
-                          background: `${S.gold}15`,
-                          color: S.gold,
-                          border: `0.5px solid ${S.gold}40`,
-                        }}>
+                        style={{ background: `${S.gold}15`, color: S.gold, border: `0.5px solid ${S.gold}40` }}>
                         {cardScore.score}/{cardScore.max || 40}
                       </span>
                     )}
 
                     {isCompleted && !cardScore && (
                       <span className="text-[9px] font-mono px-1.5 py-0.5 rounded"
-                        style={{
-                          background: `${S.green}15`,
-                          color: S.green,
-                          border: `0.5px solid ${S.green}40`,
-                        }}>
+                        style={{ background: `${S.green}15`, color: S.green, border: `0.5px solid ${S.green}40` }}>
                         ✓
                       </span>
                     )}
@@ -566,26 +560,16 @@ export default function TeamReportPage() {
                         const qScore = cardScore?.questions?.find((qs: any) => qs.id === q.id);
                         return (
                           <div key={q.id} className="rounded-lg p-2.5"
-                            style={{
-                              background: 'rgba(0, 0, 0, 0.3)',
-                              border: '0.5px solid rgba(255, 255, 255, 0.05)',
-                            }}>
+                            style={{ background: 'rgba(0, 0, 0, 0.3)', border: '0.5px solid rgba(255, 255, 255, 0.05)' }}>
                             <div className="flex items-center gap-1.5 mb-1.5">
                               <span className="font-mono font-bold px-1.5 py-0.5 rounded"
-                                style={{
-                                  fontSize: '9px',
-                                  background: `${cardColor}22`,
-                                  color: cardColor,
-                                }}>
+                                style={{ fontSize: '9px', background: `${cardColor}22`, color: cardColor }}>
                                 Q{qIdx + 1}
                               </span>
                               <span className="text-[10px] text-gray-500 flex-1">{q.title}</span>
                               {qScore && (
                                 <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded"
-                                  style={{
-                                    background: `${S.gold}15`,
-                                    color: S.gold,
-                                  }}>
+                                  style={{ background: `${S.gold}15`, color: S.gold }}>
                                   {qScore.score}/10
                                 </span>
                               )}
@@ -659,6 +643,91 @@ export default function TeamReportPage() {
 }
 
 // ═══════════════════════════════════════════════════════
+// ⭐ v2: 멤버 선택 모달 — sessionStorage 비어있을 때
+// ═══════════════════════════════════════════════════════
+function MemberSelectModal({
+  members,
+  onSelect,
+}: {
+  members: { id: string; name: string; roleCode: string; isLeader: boolean }[];
+  onSelect: (memberId: string, isLeader: boolean) => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{
+        background: 'rgba(0, 0, 0, 0.85)',
+        backdropFilter: 'blur(8px)',
+      }}>
+      <div className="rounded-2xl w-full max-w-sm overflow-hidden"
+        style={{
+          background: `linear-gradient(135deg, rgba(20, 20, 30, 0.98), rgba(10, 10, 20, 0.98))`,
+          border: `0.5px solid ${S.gold}40`,
+          boxShadow: `0 0 60px rgba(255, 215, 0, 0.15), 0 16px 48px rgba(0,0,0,0.6)`,
+        }}>
+        <div className="p-5 text-center"
+          style={{ borderBottom: `0.5px solid rgba(255, 215, 0, 0.15)` }}>
+          <div className="inline-flex items-center gap-2 mb-2">
+            <div className="w-1 h-1 rounded-full" style={{ background: S.gold, boxShadow: `0 0 6px ${S.gold}` }} />
+            <span className="font-mono font-bold tracking-[3px]"
+              style={{ fontSize: '9px', color: S.gold }}>
+              IDENTIFY YOURSELF
+            </span>
+            <div className="w-1 h-1 rounded-full" style={{ background: S.gold, boxShadow: `0 0 6px ${S.gold}` }} />
+          </div>
+          <h2 className="text-[16px] font-bold text-white mb-1">
+            누구신가요?
+          </h2>
+          <p className="text-[11px] text-gray-400 leading-relaxed">
+            본인을 선택하면 보고서 권한이 활성화돼요
+          </p>
+        </div>
+
+        <div className="p-3 space-y-2">
+          {members.map((m) => (
+            <button
+              key={m.id}
+              onClick={() => onSelect(m.id, m.isLeader)}
+              className="w-full p-3 rounded-xl flex items-center gap-3 transition-all hover:scale-[1.02]"
+              style={{
+                background: m.isLeader
+                  ? `linear-gradient(135deg, ${S.gold}15, ${S.green}08)`
+                  : 'rgba(255, 255, 255, 0.04)',
+                border: `0.5px solid ${m.isLeader ? S.gold + '50' : 'rgba(255, 255, 255, 0.1)'}`,
+              }}>
+              <div className="flex items-center justify-center flex-shrink-0"
+                style={{
+                  width: '36px', height: '36px', borderRadius: '50%',
+                  background: m.isLeader ? `${S.gold}20` : 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${m.isLeader ? S.gold : 'rgba(255,255,255,0.15)'}`,
+                  fontSize: '16px',
+                }}>
+                {m.isLeader ? '👑' : '👤'}
+              </div>
+              <div className="flex-1 text-left min-w-0">
+                <p className="text-[13px] font-bold text-white truncate">
+                  {m.name}
+                </p>
+                <p className="text-[10px] text-gray-500 truncate font-mono">
+                  {m.isLeader ? '팀장' : '팀원'} · {m.roleCode}
+                </p>
+              </div>
+              <span className="text-gray-500 text-[12px]">→</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="p-3 text-center"
+          style={{ borderTop: `0.5px solid rgba(255, 255, 255, 0.05)` }}>
+          <p className="text-[10px] text-gray-600 font-mono tracking-wider">
+            ⚠ 본인이 아닌 사람을 선택하면 권한 오류가 날 수 있어요
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
 // AI 채점 섹션 (1,000점)
 // ═══════════════════════════════════════════════════════
 function ScoringSection({
@@ -695,7 +764,6 @@ function ScoringSection({
   }
 
   if (teamScoring) {
-    // 평균 final_score 계산 (개인 점수 있으면)
     const hasPersonals = personalScores.length > 0;
     const avgFinal = hasPersonals
       ? Math.round(personalScores.reduce((sum, p) => sum + p.final_score_1000, 0) / personalScores.length)
@@ -836,10 +904,7 @@ function AreaScoresSection({ teamScoring }: { teamScoring: TeamScoring }) {
 
   return (
     <div className="rounded-xl p-4 mb-4"
-      style={{
-        background: 'rgba(255, 255, 255, 0.02)',
-        border: '0.5px solid rgba(255, 255, 255, 0.05)',
-      }}>
+      style={{ background: 'rgba(255, 255, 255, 0.02)', border: '0.5px solid rgba(255, 255, 255, 0.05)' }}>
       <p className="text-[10px] font-mono font-bold tracking-widest mb-3 text-gray-400">
         ★ TEAM SCORE BREAKDOWN (920pt)
       </p>
@@ -860,8 +925,7 @@ function AreaScoresSection({ teamScoring }: { teamScoring: TeamScoring }) {
                   {area.score}/{area.max}
                 </span>
               </div>
-              <div className="h-1.5 rounded-full overflow-hidden"
-                style={{ background: 'rgba(255,255,255,0.05)' }}>
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
                 <div className="h-full rounded-full transition-all"
                   style={{
                     width: `${pct}%`,
@@ -875,10 +939,7 @@ function AreaScoresSection({ teamScoring }: { teamScoring: TeamScoring }) {
 
         {teamScoring.areaBreakdown?.C?.gateApplied && (
           <div className="mt-2 p-2 rounded-lg flex items-start gap-1.5"
-            style={{
-              background: 'rgba(255, 165, 0, 0.08)',
-              border: '0.5px solid rgba(255, 165, 0, 0.2)',
-            }}>
+            style={{ background: 'rgba(255, 165, 0, 0.08)', border: '0.5px solid rgba(255, 165, 0, 0.2)' }}>
             <span style={{ color: '#FFA500', fontSize: '10px', marginTop: '1px' }}>⚠</span>
             <p className="text-[10.5px] text-gray-400 leading-relaxed">
               A+B 합계가 600점 미만이라 속도 보너스 0점 처리됨
@@ -891,17 +952,14 @@ function AreaScoresSection({ teamScoring }: { teamScoring: TeamScoring }) {
 }
 
 // ═══════════════════════════════════════════════════════
-// 학생별 개인 점수 (D 영역)
+// 학생별 개인 점수
 // ═══════════════════════════════════════════════════════
 function PersonalScoresSection({ personalScores }: { personalScores: PersonalScore[] }) {
   const sorted = [...personalScores].sort((a, b) => b.personal_score_80 - a.personal_score_80);
 
   return (
     <div className="rounded-xl p-4 mb-4"
-      style={{
-        background: 'rgba(255, 255, 255, 0.02)',
-        border: '0.5px solid rgba(255, 255, 255, 0.05)',
-      }}>
+      style={{ background: 'rgba(255, 255, 255, 0.02)', border: '0.5px solid rgba(255, 255, 255, 0.05)' }}>
       <p className="text-[10px] font-mono font-bold tracking-widest mb-3 text-gray-400">
         ★ PERSONAL SCORES (80pt × 팀원)
       </p>
@@ -913,10 +971,7 @@ function PersonalScoresSection({ personalScores }: { personalScores: PersonalSco
 
           return (
             <div key={p.memberId} className="rounded-lg p-3"
-              style={{
-                background: 'rgba(0, 0, 0, 0.2)',
-                border: `0.5px solid ${gradeColor}30`,
-              }}>
+              style={{ background: 'rgba(0, 0, 0, 0.2)', border: `0.5px solid ${gradeColor}30` }}>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   <span className="text-[13px] font-bold text-white truncate">{p.name}</span>
@@ -950,8 +1005,7 @@ function PersonalScoresSection({ personalScores }: { personalScores: PersonalSco
                   {p.review_flags.map((flag: any, idx: number) => (
                     <span key={idx} className="text-[9px] font-mono px-1.5 py-0.5 rounded"
                       style={{
-                        background: 'rgba(255, 165, 0, 0.1)',
-                        color: '#FFA500',
+                        background: 'rgba(255, 165, 0, 0.1)', color: '#FFA500',
                         border: '0.5px solid rgba(255, 165, 0, 0.3)',
                       }}>
                       🚩 {flag.type}
@@ -976,20 +1030,14 @@ function FeedbackSection({ breakdown }: { breakdown: AreaBreakdown }) {
 
   return (
     <div className="rounded-xl p-4 mb-4"
-      style={{
-        background: 'rgba(255, 255, 255, 0.02)',
-        border: '0.5px solid rgba(255, 255, 255, 0.05)',
-      }}>
+      style={{ background: 'rgba(255, 255, 255, 0.02)', border: '0.5px solid rgba(255, 255, 255, 0.05)' }}>
       <p className="text-[10px] font-mono font-bold tracking-widest mb-3 text-gray-400">
         ★ AI FEEDBACK
       </p>
 
       {breakdown.summary && (
         <div className="rounded-lg p-3 mb-3"
-          style={{
-            background: 'rgba(255, 215, 0, 0.06)',
-            border: '0.5px solid rgba(255, 215, 0, 0.2)',
-          }}>
+          style={{ background: 'rgba(255, 215, 0, 0.06)', border: '0.5px solid rgba(255, 215, 0, 0.2)' }}>
           <p className="text-[10px] font-mono font-bold tracking-widest mb-1.5" style={{ color: S.gold }}>
             SUMMARY
           </p>
@@ -1159,10 +1207,7 @@ function PolishingSection({
 
   return (
     <div className="rounded-xl p-3 mb-4 flex items-start gap-2.5"
-      style={{
-        background: 'rgba(255, 255, 255, 0.02)',
-        border: '0.5px solid rgba(255, 255, 255, 0.05)',
-      }}>
+      style={{ background: 'rgba(255, 255, 255, 0.02)', border: '0.5px solid rgba(255, 255, 255, 0.05)' }}>
       <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ background: '#888' }} />
       <div>
         <p className="text-[10px] font-mono font-bold tracking-widest mb-1 text-gray-500">
