@@ -522,8 +522,9 @@ function FillInBlankForm({
 }
 
 // ═══════════════════════════════════════════════════════
-// ⭐ BlankInput v5 — calcWidth를 canvas measureText로 교체
-//   (외부 value 변경 즉시 동기화 로직은 v4 그대로)
+// ⭐ BlankInput v6 — onCompositionEnd에서 즉시 부모 동기화 추가
+//   (PC 한글 IME에서 조합 끝난 후 디바운스 useEffect가
+//    재트리거되지 않아 버튼 활성화가 지연되던 문제 해결)
 // ═══════════════════════════════════════════════════════
 function BlankInput({
   value,
@@ -611,6 +612,11 @@ function BlankInput({
         isComposingRef.current = false;
         const v = (e.target as HTMLInputElement).value;
         setLocalValue(v);
+        // ⭐ v6: 조합 끝나는 즉시 부모에 전달 (디바운스 우회)
+        // — PC 한글 IME에서 버튼 활성화가 지연되던 문제 해결
+        if (v !== externalValueRef.current) {
+          onChangeRef.current(v);
+        }
       }}
       onBlur={(e) => {
         flushSave();
