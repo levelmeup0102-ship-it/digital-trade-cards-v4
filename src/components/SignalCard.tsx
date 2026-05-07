@@ -501,7 +501,9 @@ function FillInBlankForm({
   );
 }
 
-// ⭐ 빈칸 입력 박스 — 한글 IME 패치 적용 + 글자 따라 늘어남
+// ═══════════════════════════════════════════════════════
+// ⭐ BlankInput v3 — 한글 IME 안전 + 4중 안전장치
+// ═══════════════════════════════════════════════════════
 function BlankInput({
   value,
   onChange,
@@ -513,25 +515,51 @@ function BlankInput({
   disabled?: boolean;
   cardColor: string;
 }) {
-  // ⭐ 한글 IME 패치: 로컬 state + composition 감지
   const [localValue, setLocalValue] = useState(value);
-  const [isComposing, setIsComposing] = useState(false);
 
-  // 외부 value 변화 동기화 (composition 중이 아닐 때만)
-  useEffect(() => {
-    if (!isComposing) setLocalValue(value);
-  }, [value, isComposing]);
+  // ⭐ ref들 (re-render 방지 + 안전한 cleanup)
+  const isComposingRef = useRef(false);
+  const localValueRef = useRef(localValue);
+  const externalValueRef = useRef(value);
+  const onChangeRef = useRef(onChange);
 
-  // 디바운스로 부모에 저장
+  useEffect(() => { localValueRef.current = localValue; }, [localValue]);
+  useEffect(() => { externalValueRef.current = value; }, [value]);
+  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+
+  // ⭐ 디바운스 저장 (200ms — 짧지만 충분히 빠름)
   useEffect(() => {
-    if (isComposing) return;
+    if (isComposingRef.current) return;
     if (localValue === value) return;
-    const t = setTimeout(() => onChange(localValue), 300);
+    const t = setTimeout(() => onChange(localValue), 200);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localValue, isComposing]);
+  }, [localValue, value]);
 
-  // 글자당 14px (한글 기준), maxWidth 없음
+  // ⭐ 강제 저장 함수 (안전장치들이 호출)
+  const flushSave = () => {
+    if (localValueRef.current !== externalValueRef.current) {
+      onChangeRef.current(localValueRef.current);
+    }
+  };
+
+  // ⭐ 안전장치 1+2: 탭 가려짐 / 페이지 닫기 직전
+  // ⭐ 안전장치 3: 컴포넌트 unmount 시 마지막 저장
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') flushSave();
+    };
+    const handleBeforeUnload = () => flushSave();
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      flushSave(); // unmount 시 저장
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const calcWidth = (v: string) => {
     const chars = v.length || 0;
     return Math.max(40, chars * 14 + 16);
@@ -543,18 +571,15 @@ function BlankInput({
     <input
       type="text"
       value={localValue}
+      // ⭐ onChange: 단순히 로컬만 업데이트 (외부 저장 안 함!)
       onChange={(e) => setLocalValue(e.target.value)}
-      onCompositionStart={() => setIsComposing(true)}
-      onCompositionEnd={(e) => {
-        setIsComposing(false);
-        const v = e.currentTarget.value;
-        setLocalValue(v);
-        onChange(v); // composition 끝나면 즉시 저장
-      }}
+      // ⭐ composition: ref만 토글 (state 안 바꿈 → re-render 안 함)
+      onCompositionStart={() => { isComposingRef.current = true; }}
+      onCompositionEnd={() => { isComposingRef.current = false; }}
+      // ⭐ blur 시 강제 저장 + 스타일
       onBlur={(e) => {
-        // blur 시점에도 저장 (안전장치)
-        if (localValue !== value) onChange(localValue);
-        if (localValue) {
+        flushSave();
+        if (localValueRef.current) {
           e.currentTarget.style.boxShadow = `0 0 4px ${NEON_YELLOW}33`;
           e.currentTarget.style.background = `${NEON_YELLOW}15`;
         } else {
@@ -639,6 +664,9 @@ interface LeaderQViewProps {
   onCompleteSubCard: () => void;
 }
 
+// ═══════════════════════════════════════════════════════
+// ⭐ LeaderQView v3 — 한글 IME 안전
+// ═══════════════════════════════════════════════════════
 function LeaderQView({
   sub, color,
   currentResponse, onSaveResponse,
@@ -649,30 +677,59 @@ function LeaderQView({
   canComplete, onCompleteSubCard,
 }: LeaderQViewProps) {
   const [showSidebar, setShowSidebar] = useState(false);
-
-  // ⭐ 한글 IME 패치: 팀 답변 textarea
   const [localResponse, setLocalResponse] = useState(currentResponse);
-  const [isComposing, setIsComposing] = useState(false);
 
-  // sub.id 변경 시 (다른 Q로 이동) → 외부 값으로 동기화
+  // ⭐ refs
+  const isComposingRef = useRef(false);
+  const localRef = useRef(localResponse);
+  const externalRef = useRef(currentResponse);
+  const subIdRef = useRef(sub.id);
+  const onSaveRef = useRef(onSaveResponse);
+
+  useEffect(() => { localRef.current = localResponse; }, [localResponse]);
+  useEffect(() => { externalRef.current = currentResponse; }, [currentResponse]);
+  useEffect(() => { onSaveRef.current = onSaveResponse; }, [onSaveResponse]);
+
+  // ⭐ sub.id 변경 시만 외부 동기화 (currentResponse 변경 시 동기화 안 함!)
   useEffect(() => {
-    setLocalResponse(currentResponse);
+    if (subIdRef.current !== sub.id) {
+      setLocalResponse(currentResponse);
+      subIdRef.current = sub.id;
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sub.id]);
 
-  // 외부 currentResponse 변화 동기화 (composition 중이 아닐 때만)
+  // ⭐ 디바운스 저장 (200ms)
   useEffect(() => {
-    if (!isComposing) setLocalResponse(currentResponse);
-  }, [currentResponse, isComposing]);
-
-  // 디바운스로 부모에 저장
-  useEffect(() => {
-    if (isComposing) return;
+    if (isComposingRef.current) return;
     if (localResponse === currentResponse) return;
-    const t = setTimeout(() => onSaveResponse(sub.id, localResponse), 400);
+    const t = setTimeout(() => onSaveResponse(sub.id, localResponse), 200);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localResponse, isComposing]);
+  }, [localResponse, currentResponse]);
+
+  // ⭐ 강제 저장
+  const flushSave = () => {
+    if (localRef.current !== externalRef.current) {
+      onSaveRef.current(subIdRef.current, localRef.current);
+    }
+  };
+
+  // ⭐ 안전장치 1+2+3
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') flushSave();
+    };
+    const handleBeforeUnload = () => flushSave();
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      flushSave();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const nonLeaders = teamMembers.filter(m => !m.is_leader);
   const completedCount = memberInsights.filter(i => i.is_completed).length;
@@ -695,17 +752,13 @@ function LeaderQView({
         </div>
         <textarea
           value={localResponse}
+          // ⭐ onChange: 단순히 로컬만!
           onChange={e => setLocalResponse(e.target.value)}
-          onCompositionStart={() => setIsComposing(true)}
-          onCompositionEnd={(e) => {
-            setIsComposing(false);
-            const v = e.currentTarget.value;
-            setLocalResponse(v);
-            onSaveResponse(sub.id, v);
-          }}
-          onBlur={() => {
-            if (localResponse !== currentResponse) onSaveResponse(sub.id, localResponse);
-          }}
+          // ⭐ composition: ref만 토글 (state 안 바꿈)
+          onCompositionStart={() => { isComposingRef.current = true; }}
+          onCompositionEnd={() => { isComposingRef.current = false; }}
+          // ⭐ blur 시 강제 저장
+          onBlur={() => flushSave()}
           placeholder={`팀원 인사이트를 종합해서 ${displayItem} 기준 팀 답변을 작성하세요...`}
           disabled={isCurrentSubCompleted}
           className="w-full px-3 py-2.5 rounded-xl text-[13px] text-white leading-relaxed resize-none transition disabled:opacity-60"
@@ -882,6 +935,9 @@ function TeamInsightSidebar({
   );
 }
 
+// ═══════════════════════════════════════════════════════
+// ⭐ MemberQView v3 — 한글 IME 안전
+// ═══════════════════════════════════════════════════════
 function MemberQView({
   sub, color,
   myMemberId, myRoleCode, teamId,
@@ -903,18 +959,38 @@ function MemberQView({
   const [content, setContent] = useState(myInsight?.content || '');
   const [isCompleted, setIsCompleted] = useState(!!myInsight?.is_completed);
   const [saving, setSaving] = useState(false);
-  // ⭐ 한글 IME 패치
-  const [isComposing, setIsComposing] = useState(false);
 
+  // ⭐ refs
+  const isComposingRef = useRef(false);
+  const contentRef = useRef(content);
+  const lastSavedRef = useRef(content);
+  const subIdRef = useRef(sub.id);
+
+  useEffect(() => { contentRef.current = content; }, [content]);
+
+  // ⭐ sub.id 변경 시만 외부 동기화
   useEffect(() => {
-    if (myInsight) {
+    if (subIdRef.current !== sub.id) {
+      const newInsight = memberInsights.find(i =>
+        i.sub_card_id === sub.id && i.member_id === myMemberId
+      );
+      setContent(newInsight?.content || '');
+      setIsCompleted(!!newInsight?.is_completed);
+      lastSavedRef.current = newInsight?.content || '';
+      subIdRef.current = sub.id;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sub.id]);
+
+  // ⭐ myInsight 첫 로드 시 동기화 (페이지 새로고침 후)
+  useEffect(() => {
+    if (myInsight && lastSavedRef.current === '' && content === '') {
       setContent(myInsight.content);
       setIsCompleted(myInsight.is_completed);
-    } else {
-      setContent('');
-      setIsCompleted(false);
+      lastSavedRef.current = myInsight.content;
     }
-  }, [sub.id, myInsight?.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myInsight?.id]);
 
   const myRole = myRoleCode ? getRole(myRoleCode) : null;
   const prompt = myRoleCode
@@ -923,26 +999,62 @@ function MemberQView({
 
   const canComplete = content.trim().length >= insightMinChars && !isCompleted;
 
-  // ⭐ 디바운스 저장 (composition 중에는 멈춤)
+  // ⭐ 강제 저장
+  const flushSave = () => {
+    if (!myRoleCode || isCompleted) return;
+    if (isComposingRef.current) return;
+    if (contentRef.current === lastSavedRef.current) return;
+    saveMemberInsight({
+      teamId, memberId: myMemberId, subCardId: sub.id,
+      roleCode: myRoleCode, content: contentRef.current, isCompleted: false,
+    });
+    lastSavedRef.current = contentRef.current;
+  };
+
+  // ⭐ 디바운스 저장 (400ms — 길게 작성하니까 약간 길게)
   useEffect(() => {
-    if (!myRoleCode || isCompleted || isComposing) return;
+    if (!myRoleCode || isCompleted) return;
+    if (isComposingRef.current) return;
+    if (content === lastSavedRef.current) return;
     const t = setTimeout(() => {
       saveMemberInsight({
         teamId, memberId: myMemberId, subCardId: sub.id,
         roleCode: myRoleCode, content, isCompleted: false,
       });
-    }, 800);
+      lastSavedRef.current = content;
+    }, 400);
     return () => clearTimeout(t);
-  }, [content, sub.id, myRoleCode, isCompleted, isComposing, teamId, myMemberId]);
+  }, [content, sub.id, myRoleCode, isCompleted, teamId, myMemberId]);
+
+  // ⭐ 안전장치 1+2+3
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') flushSave();
+    };
+    const handleBeforeUnload = () => flushSave();
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      flushSave();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [myRoleCode, isCompleted]);
 
   const handleComplete = async () => {
     if (!myRoleCode || !canComplete) return;
     setSaving(true);
-    await saveMemberInsight({
+    const ok = await saveMemberInsight({
       teamId, memberId: myMemberId, subCardId: sub.id,
       roleCode: myRoleCode, content, isCompleted: true,
     });
-    setIsCompleted(true);
+    if (ok) {
+      lastSavedRef.current = content;
+      setIsCompleted(true);
+    } else {
+      alert('제출 실패! 인터넷 연결을 확인하고 다시 시도해주세요.');
+    }
     setSaving(false);
   };
 
@@ -976,12 +1088,13 @@ function MemberQView({
         </p>
         <textarea
           value={content}
+          // ⭐ onChange: 단순히 로컬만
           onChange={e => setContent(e.target.value)}
-          onCompositionStart={() => setIsComposing(true)}
-          onCompositionEnd={(e) => {
-            setIsComposing(false);
-            setContent(e.currentTarget.value);
-          }}
+          // ⭐ composition: ref만 토글
+          onCompositionStart={() => { isComposingRef.current = true; }}
+          onCompositionEnd={() => { isComposingRef.current = false; }}
+          // ⭐ blur 시 강제 저장
+          onBlur={() => flushSave()}
           disabled={isCompleted}
           placeholder="자기 직무 관점에서 한두 문장으로..."
           className="w-full px-3 py-2.5 rounded-xl text-[13px] text-white leading-relaxed resize-none transition disabled:opacity-70"
