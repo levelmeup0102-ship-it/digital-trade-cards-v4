@@ -13,6 +13,23 @@ import {
   areAllMembersComplete,
 } from '@/lib/collaborative';
 
+// ─────────────────────────────────────────
+// v5: canvas 기반 텍스트 너비 측정 헬퍼 (모듈 1회만 생성)
+// BlankInput의 calcWidth에서 사용
+// ─────────────────────────────────────────
+let _measureCanvas: HTMLCanvasElement | null = null;
+function measureTextWidth(text: string, font: string): number {
+  if (typeof document === 'undefined') {
+    // SSR fallback — 한글 위주 근사치
+    return text.length * 11;
+  }
+  if (!_measureCanvas) _measureCanvas = document.createElement('canvas');
+  const ctx = _measureCanvas.getContext('2d');
+  if (!ctx) return text.length * 11;
+  ctx.font = font;
+  return ctx.measureText(text).width;
+}
+
 const S = { green: '#E7FE55', aqua: '#C1E8EB', navy: '#111111', cyan: '#06B6D4', purple: '#8B5CF6' };
 const TABS = ['주제', 'Q1', 'Q2', 'Q3', '결론'] as const;
 type TabType = typeof TABS[number];
@@ -505,7 +522,8 @@ function FillInBlankForm({
 }
 
 // ═══════════════════════════════════════════════════════
-// ⭐ BlankInput v4 — 외부 value 변경 즉시 동기화 (composition 중 아닐 때)
+// ⭐ BlankInput v5 — calcWidth를 canvas measureText로 교체
+//   (외부 value 변경 즉시 동기화 로직은 v4 그대로)
 // ═══════════════════════════════════════════════════════
 function BlankInput({
   value,
@@ -568,22 +586,17 @@ function BlankInput({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ─────────────────────────────────────────
+  // ⭐ v5 변경: canvas measureText로 정확한 텍스트 너비 측정
+  //   - input 실제 스타일과 일치: font-size 12px, font-weight 600
+  //   - 좌우 padding 12px (6+6) + border 2px (1+1) = 14px 보정
+  //   - 안전 여유 2px 추가 → +16px
+  // ─────────────────────────────────────────
   const calcWidth = (v: string) => {
     if (!v) return 40;
-    // 한글/영문/숫자 너비 차이 반영 (한글이 더 넓음)
-    let width = 8; // 기본 padding
-    for (const char of v) {
-      if (/[\u3131-\uD79D]/.test(char)) {
-        width += 12; // 한글: 12px
-      } else if (/[A-Za-z]/.test(char)) {
-        width += 7; // 영문: 7px
-      } else if (/[0-9]/.test(char)) {
-        width += 7; // 숫자: 7px
-      } else {
-        width += 6; // 기호/공백: 6px
-      }
-    }
-    return Math.max(40, width);
+    const FONT = '600 12px Pretendard, -apple-system, BlinkMacSystemFont, sans-serif';
+    const w = measureTextWidth(v, FONT);
+    return Math.max(40, Math.ceil(w) + 16);
   };
 
   const NEON_YELLOW = '#FFE680';
