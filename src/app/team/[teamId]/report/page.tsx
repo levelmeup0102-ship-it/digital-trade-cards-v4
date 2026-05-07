@@ -1,9 +1,10 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { CARD_COLORS, TOPICS } from '@/data/cardData';
+import { supabase } from '@/lib/supabase';
+import { TOPICS, CARD_COLORS } from '@/data/cardData';
 import { generateTeamReport, getStoredReport } from '@/lib/reportGenerator';
-import type { TeamReportData, ReportCard } from '@/types/report';
+import type { TeamReportData } from '@/types/report';
 
 const S = {
   green: '#E7FE55',
@@ -12,29 +13,27 @@ const S = {
   cyan: '#06B6D4',
   purple: '#8B5CF6',
   navy: '#050505',
-  factStage: '#06B6D4',     // Q1 Fact
-  insightStage: '#FFA500',  // Q2 Insight
-  decisionStage: '#78BE20', // Q3 Decision
 };
 
-// 카테고리별 색상
-const CATEGORY_STYLES: Record<string, { color: string; label: string }> = {
-  '시장 이해': { color: '#06B6D4', label: '시장 이해' },
-  '전략 설계': { color: '#8B5CF6', label: '전략 설계' },
-  '고객 인사이트': { color: '#FF6FB5', label: '고객 인사이트' },
-  '실행 설계': { color: '#78BE20', label: '실행 설계' },
-};
+interface ScoringResult {
+  totalScore: number;
+  maxScore: number;
+  percentage: number;
+  cardScores: Record<string, {
+    score: number;
+    max: number;
+    questions?: Array<{
+      id: string;
+      score: number;
+      breakdown?: any;
+      feedback?: string;
+    }>;
+  }>;
+  summary: string;
+  scoredAt: string | null;
+}
 
-// Stage별 정보
-const STAGES = [
-  { name: 'Fact', label: 'Fact 수집', color: S.factStage },
-  { name: 'Insight', label: 'Insight 해석', color: S.insightStage },
-  { name: 'Decision', label: 'Decision 결정', color: S.decisionStage },
-];
-
-const TOTAL_PAGES = 18;
-
-export default function TeamReportPreviewPage() {
+export default function TeamReportPage() {
   const router = useRouter();
   const params = useParams();
   const teamId = params.teamId as string;
@@ -42,8 +41,12 @@ export default function TeamReportPreviewPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<TeamReportData | null>(null);
-  const [pageIndex, setPageIndex] = useState(0);
-  const [transitioning, setTransitioning] = useState(false);
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+
+  const [scoring, setScoring] = useState<ScoringResult | null>(null);
+  const [isLeader, setIsLeader] = useState(false);
+  const [aiScoringInProgress, setAiScoringInProgress] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!teamId) return;
@@ -54,57 +57,127 @@ export default function TeamReportPreviewPage() {
           stored = await generateTeamReport(teamId);
         }
         setReport(stored);
+        await loadScoringAndLeaderStatus(stored);
         setLoading(false);
       } catch (e: any) {
-        console.error('미리보기 로드 실패', e);
+        console.error('보고서 로드 실패', e);
         setError(e?.message || '보고서를 불러올 수 없어요');
         setLoading(false);
       }
     })();
   }, [teamId]);
 
-  const goToPage = useCallback((newIndex: number) => {
-    if (newIndex < 0 || newIndex >= TOTAL_PAGES) return;
-    if (newIndex === pageIndex) return;
-    setTransitioning(true);
-    setTimeout(() => {
-      setPageIndex(newIndex);
-      setTimeout(() => setTransitioning(false), 50);
-    }, 200);
-  }, [pageIndex]);
+  async function loadScoringAndLeaderStatus(reportData: TeamReportData) {
+    try {
+      const { data: dbReport } = await supabase
+        .from('team_reports')
+        .select('total_score, card_scores, scored_at')
+        .eq('team_id', teamId)
+        .single();
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight') goToPage(pageIndex + 1);
-      else if (e.key === 'ArrowLeft') goToPage(pageIndex - 1);
-      else if (e.key === 'Escape') router.push(`/team/${teamId}/report`);
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [pageIndex, goToPage, router, teamId]);
+      if (dbReport && dbReport.total_score !== null) {
+        setScoring({
+          totalScore: dbReport.total_score,
+          maxScore: 480,
+          percentage: Math.round((dbReport.total_score / 480) * 1000) / 10,
+          cardScores: dbReport.card_scores || {},
+          summary: '',
+          scoredAt: dbReport.scored_at,
+        });
+      }
 
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const onTouchStart = (e: React.TouchEvent) => setTouchStart(e.touches[0].clientX);
-  const onTouchEnd = (e: React.TouchEvent) => {
-    if (touchStart === null) return;
-    const diff = touchStart - e.changedTouches[0].clientX;
-    if (Math.abs(diff) > 60) {
-      if (diff > 0) goToPage(pageIndex + 1);
-      else goToPage(pageIndex - 1);
+      const myMemberId = typeof window !== 'undefined' ? sessionStorage.getItem('memberId') : null;
+      if (myMemberId && reportData.team.members) {
+        const me = reportData.team.members.find((m: any) => m.id === myMemberId);
+        if (me?.isLeader) setIsLeader(true);
+      }
+
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('leader') === '1') {
+        setIsLeader(true);
+      }
+    } catch (e) {
+      console.error('채점 정보 로드 실패', e);
     }
-    setTouchStart(null);
+  }
+
+  // ⭐ AI 채점 실행 (1회성 — 재채점 불가)
+  async function handleAiScoring() {
+    if (!isLeader) {
+      alert('팀장만 채점할 수 있어요!');
+      return;
+    }
+
+    // ⭐ 이미 채점된 경우 차단
+    if (scoring) {
+      alert('이미 채점이 완료된 보고서예요.\n채점은 한 번만 가능합니다.');
+      return;
+    }
+
+    const ok = confirm(
+      '🎯 AI 채점을 시작합니다.\n\n' +
+      '• 약 1~2분 소요됩니다\n' +
+      '• 한 번만 실행할 수 있어요 (재채점 불가)\n' +
+      '• 신중히 진행해주세요\n\n' +
+      '계속하시겠어요?'
+    );
+    if (!ok) return;
+
+    setAiScoringInProgress(true);
+    setAiError(null);
+
+    try {
+      const res = await fetch('/api/score-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ teamId }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || '채점에 실패했습니다');
+      }
+
+      const result = await res.json();
+
+      setScoring({
+        totalScore: result.totalScore,
+        maxScore: result.maxScore,
+        percentage: result.percentage,
+        cardScores: result.cardScores,
+        summary: result.summary || '',
+        scoredAt: new Date().toISOString(),
+      });
+
+      alert(`🎉 채점 완료!\n총점: ${result.totalScore} / ${result.maxScore} (${result.percentage}%)`);
+    } catch (e: any) {
+      console.error('AI 채점 에러:', e);
+      setAiError(e?.message || '채점 중 오류가 발생했습니다');
+      alert('❌ 채점 실패: ' + (e?.message || '알 수 없는 오류'));
+    } finally {
+      setAiScoringInProgress(false);
+    }
+  }
+
+  const toggleCard = (cardId: string) => {
+    setExpandedCards(prev => {
+      const next = new Set(prev);
+      if (next.has(cardId)) next.delete(cardId);
+      else next.add(cardId);
+      return next;
+    });
   };
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="inline-block w-8 h-8 rounded-full mb-4 preview-spinner"
+          <div className="inline-block w-8 h-8 rounded-full mb-4 report-spinner"
             style={{ border: `2px solid ${S.gold}33`, borderTop: `2px solid ${S.gold}` }} />
-          <p className="text-[12px] text-gray-500 font-mono tracking-widest">PREPARING BOOK...</p>
+          <p className="text-[12px] text-gray-500 font-mono tracking-widest">LOADING REPORT...</p>
         </div>
         <style jsx>{`
-          .preview-spinner { animation: spin 0.8s linear infinite; }
+          .report-spinner { animation: spin 0.8s linear infinite; }
           @keyframes spin { to { transform: rotate(360deg); } }
         `}</style>
       </div>
@@ -116,239 +189,273 @@ export default function TeamReportPreviewPage() {
       <div className="min-h-screen flex items-center justify-center p-6">
         <div className="text-center max-w-md">
           <p className="text-[10px] font-mono tracking-widest mb-3" style={{ color: '#FF6F61' }}>ERROR</p>
-          <h1 className="text-xl font-bold text-white mb-2">미리보기를 열 수 없어요</h1>
+          <h1 className="text-xl font-bold text-white mb-2">보고서를 불러올 수 없어요</h1>
           <p className="text-[13px] text-gray-500 mb-6">{error || '데이터가 없습니다'}</p>
-          <button onClick={() => router.push(`/team/${teamId}/report`)}
+          <button onClick={() => router.push('/')}
             className="px-6 py-2.5 rounded-xl text-[13px] font-bold transition hover:scale-[1.02]"
             style={{ background: S.green, color: S.navy }}>
-            보고서로
+            홈으로
           </button>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen p-3 md:p-6 relative overflow-hidden flex flex-col"
-      onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+  const { team, cards, totalAnswers, completedCardCount } = report;
+  const memberCount = team.members.length;
+  const leader = team.members.find(m => m.isLeader);
 
+  return (
+    <div className="min-h-screen p-3 md:p-6 relative overflow-hidden">
       <div className="fixed inset-0 pointer-events-none"
         style={{
           background: `
-            radial-gradient(ellipse at 50% 50%, rgba(255, 215, 0, 0.06) 0%, transparent 60%),
-            radial-gradient(circle at 20% 30%, ${S.cyan}14 0%, transparent 50%),
-            radial-gradient(circle at 80% 70%, ${S.purple}14 0%, transparent 50%)
+            radial-gradient(circle at 20% 25%, ${S.cyan}1A 0%, transparent 45%),
+            radial-gradient(circle at 80% 60%, ${S.purple}1A 0%, transparent 50%),
+            radial-gradient(ellipse at 50% 95%, ${S.gold}10 0%, transparent 60%)
           `,
           zIndex: 0,
         }} />
 
-      <div className="relative z-10 max-w-5xl mx-auto w-full flex-1 flex flex-col">
-
-        <div className="flex items-center justify-between mb-5">
-          <button onClick={() => router.push(`/team/${teamId}/report`)}
-            className="text-[12px] text-gray-500 hover:text-gray-300 transition">
-            ← 보고서로
+      <div className="relative z-10 max-w-2xl mx-auto">
+        <div className="flex items-center justify-between mb-6">
+          <button onClick={() => router.push('/')}
+            className="text-[12px] text-gray-500 hover:text-gray-300 transition flex items-center gap-1.5">
+            ← 돌아가기
           </button>
-          <span className="font-mono font-bold tracking-[3px]"
-            style={{ fontSize: '10px', color: S.gold, textShadow: `0 0 8px ${S.gold}66` }}>
-            ★ PREVIEW MODE ★
-          </span>
-          <span className="font-mono tracking-wider text-gray-500"
-            style={{ fontSize: '11px', letterSpacing: '2px' }}>
-            {String(pageIndex + 1).padStart(2, '0')} / {TOTAL_PAGES}
-          </span>
+          <p className="text-[10px] tracking-[4px] text-gray-600 font-mono">SIGNAL</p>
         </div>
 
-        {/* 책 펼침면 */}
-        <div className="flex-1 flex items-center justify-center min-h-[480px] md:min-h-[560px] mb-4">
-          <div className="w-full rounded-2xl overflow-hidden relative"
-            style={{
-              background: `linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01))`,
-              border: `0.5px solid rgba(255, 215, 0, 0.2)`,
-              boxShadow: `0 0 60px rgba(255, 215, 0, 0.08), 0 8px 32px rgba(0,0,0,0.5)`,
-              minHeight: '480px',
-              opacity: transitioning ? 0 : 1,
-              transition: 'opacity 0.2s ease-out',
-            }}>
-            <PageContent pageIndex={pageIndex} report={report} />
-          </div>
-        </div>
-
-        {/* 컨트롤 */}
-        <div className="flex items-center justify-center gap-3 mb-3">
-          <button onClick={() => goToPage(pageIndex - 1)}
-            disabled={pageIndex === 0}
-            className="rounded-full flex items-center justify-center transition-all disabled:opacity-20 hover:scale-110"
-            style={{
-              width: '44px', height: '44px',
-              background: 'rgba(255,255,255,0.04)',
-              border: '0.5px solid rgba(255,255,255,0.1)',
-              color: 'rgba(255,255,255,0.6)',
-              fontSize: '18px',
-            }}>
-            ‹
-          </button>
-
-          <div className="flex items-center gap-1.5">
-            <span className="font-mono font-bold"
-              style={{ fontSize: '11px', color: S.gold, letterSpacing: '1.5px' }}>
-              {String(pageIndex + 1).padStart(2, '0')}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center gap-2 mb-3">
+            <div className="w-1 h-1 rounded-full" style={{ background: S.gold, boxShadow: `0 0 6px ${S.gold}` }} />
+            <span className="font-mono font-bold tracking-[3px]"
+              style={{ fontSize: '10px', color: S.gold, textShadow: `0 0 8px ${S.gold}66` }}>
+              TEAM REPORT
             </span>
-            <span className="text-gray-700">/</span>
-            <span className="font-mono text-gray-500"
-              style={{ fontSize: '11px', letterSpacing: '1.5px' }}>
-              {TOTAL_PAGES}
-            </span>
+            <div className="w-1 h-1 rounded-full" style={{ background: S.gold, boxShadow: `0 0 6px ${S.gold}` }} />
           </div>
-
-          <button onClick={() => goToPage(pageIndex + 1)}
-            disabled={pageIndex === TOTAL_PAGES - 1}
-            className="rounded-full flex items-center justify-center transition-all disabled:opacity-20 hover:scale-110"
-            style={{
-              width: '44px', height: '44px',
-              background: pageIndex === TOTAL_PAGES - 1
-                ? 'rgba(255,255,255,0.04)'
-                : `linear-gradient(135deg, ${S.gold} 0%, ${S.green} 100%)`,
-              border: pageIndex === TOTAL_PAGES - 1 ? '0.5px solid rgba(255,255,255,0.1)' : 'none',
-              color: pageIndex === TOTAL_PAGES - 1 ? 'rgba(255,255,255,0.6)' : S.navy,
-              fontSize: '18px',
-              fontWeight: 700,
-              boxShadow: pageIndex === TOTAL_PAGES - 1 ? 'none' : `0 0 16px rgba(255, 215, 0, 0.4)`,
-            }}>
-            ›
-          </button>
+          <h1 className="text-2xl md:text-3xl font-bold text-white mb-2"
+            style={{ textShadow: `0 0 20px rgba(255, 215, 0, 0.3)` }}>
+            우리 팀 디지털 무역 전략
+          </h1>
+          <p className="text-[13px] mb-1" style={{ color: 'rgba(193, 232, 235, 0.8)' }}>
+            {team.item}
+          </p>
+          <p className="text-[11px] font-mono text-gray-500 tracking-wider">
+            {team.teamName} · {team.level} {leader && `· 팀장 ${leader.name}`}
+          </p>
         </div>
 
-        {/* 점 인디케이터 */}
-        <div className="flex gap-1 justify-center flex-wrap max-w-md mx-auto mb-3">
-          {Array.from({ length: TOTAL_PAGES }).map((_, i) => {
-            const isCurrent = i === pageIndex;
-            const isCover = i === 0;
-            const isOutro = i === TOTAL_PAGES - 1;
-            return (
-              <button key={i}
-                onClick={() => goToPage(i)}
-                aria-label={`페이지 ${i + 1}`}
-                className="rounded-full transition-all hover:scale-150"
-                style={{
-                  width: '6px',
-                  height: '6px',
-                  background: isCurrent
-                    ? S.gold
-                    : isCover || isOutro
-                      ? 'rgba(255, 215, 0, 0.3)'
-                      : 'rgba(255, 255, 255, 0.1)',
-                  boxShadow: isCurrent ? `0 0 6px ${S.gold}` : 'none',
-                  transform: isCurrent ? 'scale(1.3)' : 'scale(1)',
-                  cursor: 'pointer',
-                  border: 'none',
-                }} />
-            );
-          })}
+        <div className="grid grid-cols-3 gap-2 md:gap-3 mb-6">
+          <StatCard label="CARDS" value={`${completedCardCount}/16`} color={S.green} />
+          <StatCard label="ANSWERS" value={String(totalAnswers)} color={S.aqua} />
+          <StatCard label="MEMBERS" value={String(memberCount)} color={S.gold} />
         </div>
 
-        <p className="text-[9px] font-mono text-gray-700 text-center tracking-widest">
-          ← → 키 또는 좌우 스와이프 · ESC 닫기
-        </p>
-      </div>
-    </div>
-  );
-}
+        {/* ⭐ AI 채점 섹션 */}
+        <ScoringSection
+          scoring={scoring}
+          isLeader={isLeader}
+          inProgress={aiScoringInProgress}
+          aiError={aiError}
+          onScoring={handleAiScoring}
+        />
 
-// ─── 페이지 콘텐츠 라우터 ───
-function PageContent({ pageIndex, report }: { pageIndex: number; report: TeamReportData }) {
-  if (pageIndex === 0) return <CoverPage report={report} />;
-  if (pageIndex === TOTAL_PAGES - 1) return <ConclusionPage report={report} />;
-  const card = report.cards[pageIndex - 1];
-  if (!card) return null;
-  return <CardSpread card={card} pageIndex={pageIndex} />;
-}
-
-// ═══════════════════════════════════════════════════════
-// 표지 (페이지 1)
-// ═══════════════════════════════════════════════════════
-function CoverPage({ report }: { report: TeamReportData }) {
-  const { team } = report;
-  const leader = team.members.find(m => m.isLeader);
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 min-h-[480px] relative">
-      <CornerDecoration position="tl" color={S.gold} />
-      <CornerDecoration position="tr" color={S.gold} />
-      <CornerDecoration position="bl" color={S.gold} />
-      <CornerDecoration position="br" color={S.gold} />
-
-      <div className="p-8 md:p-12 flex flex-col items-center justify-center text-center md:border-r"
-        style={{ borderColor: 'rgba(255, 215, 0, 0.15)' }}>
-        <div className="inline-flex items-center gap-2 mb-4">
-          <div className="w-1 h-1 rounded-full" style={{ background: S.gold, boxShadow: `0 0 6px ${S.gold}` }} />
-          <span className="font-mono font-bold tracking-[6px]"
-            style={{ fontSize: '10px', color: S.gold, textShadow: `0 0 8px ${S.gold}66` }}>
-            CONNECTAI
-          </span>
-          <div className="w-1 h-1 rounded-full" style={{ background: S.gold, boxShadow: `0 0 6px ${S.gold}` }} />
-        </div>
-
-        <h1 className="font-black text-white mb-2 tracking-tight"
+        <div className="rounded-xl p-3 mb-4 flex items-start gap-2.5"
           style={{
-            fontSize: '64px',
-            lineHeight: 1,
-            textShadow: `0 0 24px ${S.gold}55, 0 0 48px ${S.green}33`,
-            letterSpacing: '-2px',
+            background: 'rgba(255, 215, 0, 0.04)',
+            border: `0.5px solid rgba(255, 215, 0, 0.2)`,
           }}>
-          SIGNAL
-        </h1>
-
-        <div className="flex items-center gap-2 mb-3">
-          <div className="h-[1px] w-8" style={{ background: `linear-gradient(to right, transparent, ${S.gold})` }} />
-          <p className="font-mono font-bold tracking-[2px]"
-            style={{ fontSize: '11px', color: S.aqua, textShadow: `0 0 6px ${S.aqua}66` }}>
-            DIGITAL TRADE CARDS
-          </p>
-          <div className="h-[1px] w-8" style={{ background: `linear-gradient(to left, transparent, ${S.gold})` }} />
-        </div>
-
-        <p className="text-[11px] text-gray-500 font-mono tracking-wider">
-          TEAM REPORT · 2026
-        </p>
-      </div>
-
-      <div className="p-8 md:p-12 flex flex-col justify-center">
-        <p className="font-mono font-bold tracking-[3px] mb-3"
-          style={{ fontSize: '10px', color: S.gold }}>
-          ★ TEAM PROFILE ★
-        </p>
-
-        <h2 className="text-2xl md:text-3xl font-bold text-white mb-2 leading-tight">
-          {team.teamName}
-        </h2>
-
-        <p className="text-[14px] mb-6" style={{ color: S.aqua }}>
-          {team.item}
-        </p>
-
-        <div className="space-y-2 mb-6">
-          <Row label="LEVEL" value={team.level} color={S.green} />
-          <Row label="LEADER" value={leader?.name || '미지정'} color={S.gold} />
-          <Row label="MEMBERS" value={`${team.members.length}명`} color={S.aqua} />
-        </div>
-
-        <div className="pt-4 border-t" style={{ borderColor: 'rgba(255, 215, 0, 0.1)' }}>
-          <p className="font-mono text-gray-600 mb-2"
-            style={{ fontSize: '9px', letterSpacing: '2px' }}>
-            TEAM ROSTER
-          </p>
-          <div className="space-y-1">
-            {team.members.map((m, i) => (
-              <div key={i} className="flex items-center gap-2 text-[12px]">
-                <span style={{ color: m.isLeader ? S.gold : 'rgba(255,255,255,0.6)' }}>
-                  {m.isLeader ? '👑' : '·'}
-                </span>
-                <span className="text-white">{m.name}</span>
-                <span className="text-gray-500 text-[10px]">{m.roleCode}</span>
-              </div>
-            ))}
+          <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
+            style={{ background: S.gold, boxShadow: `0 0 6px ${S.gold}` }} />
+          <div>
+            <p className="text-[10px] font-mono font-bold tracking-widest mb-1" style={{ color: S.gold }}>
+              NOTICE
+            </p>
+            <p className="text-[12px] text-gray-300 leading-relaxed">
+              PDF 다운로드는 곧 지원됩니다. 지금은 미리보기로 확인해주세요.
+            </p>
           </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5 mb-8">
+          <button
+            onClick={() => router.push(`/team/${teamId}/report/preview`)}
+            className="py-3 font-bold rounded-xl transition-all hover:scale-[1.02]"
+            style={{
+              background: `linear-gradient(135deg, ${S.gold} 0%, ${S.green} 100%)`,
+              color: S.navy,
+              fontSize: '13px',
+              boxShadow: `0 0 24px rgba(255, 215, 0, 0.3)`,
+            }}>
+            👁 미리보기
+          </button>
+          <button
+            disabled
+            className="py-3 font-bold rounded-xl transition-all opacity-50 cursor-not-allowed"
+            style={{
+              background: 'rgba(255, 255, 255, 0.04)',
+              border: '0.5px solid rgba(255, 255, 255, 0.1)',
+              color: '#666',
+              fontSize: '13px',
+            }}>
+            ⬇ PDF 다운로드
+          </button>
+        </div>
+
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="flex-1 h-[1px]"
+              style={{ background: `linear-gradient(to right, transparent, rgba(255, 255, 255, 0.1))` }} />
+            <span className="font-mono text-gray-500 tracking-widest"
+              style={{ fontSize: '10px', letterSpacing: '2px' }}>
+              16 CARDS
+            </span>
+            <div className="flex-1 h-[1px]"
+              style={{ background: `linear-gradient(to left, transparent, rgba(255, 255, 255, 0.1))` }} />
+          </div>
+
+          <div className="space-y-2">
+            {cards.map((card, idx) => {
+              const isExpanded = expandedCards.has(card.cardId);
+              const cardColor = CARD_COLORS[card.cardId]?.bg || S.cyan;
+              const isCompleted = card.questions.some(q => q.answer.length > 0);
+              const cardScore = scoring?.cardScores?.[card.cardId];
+
+              return (
+                <div key={card.cardId} className="rounded-xl overflow-hidden transition-all"
+                  style={{
+                    background: isExpanded ? `${cardColor}08` : 'rgba(255, 255, 255, 0.02)',
+                    border: `0.5px solid ${isExpanded ? cardColor + '40' : 'rgba(255, 255, 255, 0.06)'}`,
+                  }}>
+                  <button onClick={() => toggleCard(card.cardId)}
+                    className="w-full p-3 flex items-center gap-3 transition hover:bg-white/[0.02]">
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center font-black text-[12px] flex-shrink-0"
+                      style={{
+                        background: cardColor,
+                        color: cardColor === '#FFC72C' || cardColor === S.green ? S.navy : '#fff',
+                      }}>
+                      {card.cardId}
+                    </div>
+
+                    <div className="flex-1 text-left min-w-0">
+                      <p className="text-[13px] font-bold text-white truncate">{card.titleKo}</p>
+                      <p className="text-[10px] text-gray-500 truncate">{card.titleEn}</p>
+                    </div>
+
+                    {cardScore && (
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded flex-shrink-0"
+                        style={{
+                          background: `${S.gold}15`,
+                          color: S.gold,
+                          border: `0.5px solid ${S.gold}40`,
+                        }}>
+                        {cardScore.score}/{cardScore.max || 30}
+                      </span>
+                    )}
+
+                    {isCompleted && !cardScore && (
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded"
+                        style={{
+                          background: `${S.green}15`,
+                          color: S.green,
+                          border: `0.5px solid ${S.green}40`,
+                        }}>
+                        ✓
+                      </span>
+                    )}
+
+                    <span className="text-gray-500 transition-transform"
+                      style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                      ▼
+                    </span>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="px-3 pb-3 pt-0 space-y-3">
+                      {card.questions.map((q, qIdx) => {
+                        const qScore = cardScore?.questions?.find(qs => qs.id === q.id);
+                        return (
+                          <div key={q.id} className="rounded-lg p-2.5"
+                            style={{
+                              background: 'rgba(0, 0, 0, 0.3)',
+                              border: '0.5px solid rgba(255, 255, 255, 0.05)',
+                            }}>
+                            <div className="flex items-center gap-1.5 mb-1.5">
+                              <span className="font-mono font-bold px-1.5 py-0.5 rounded"
+                                style={{
+                                  fontSize: '9px',
+                                  background: `${cardColor}22`,
+                                  color: cardColor,
+                                }}>
+                                Q{qIdx + 1}
+                              </span>
+                              <span className="text-[10px] text-gray-500 flex-1">{q.title}</span>
+                              {qScore && (
+                                <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded"
+                                  style={{
+                                    background: `${S.gold}15`,
+                                    color: S.gold,
+                                  }}>
+                                  {qScore.score}/10
+                                </span>
+                              )}
+                            </div>
+                            {q.answer ? (
+                              <p className="text-[12px] text-gray-300 leading-relaxed">{q.answer}</p>
+                            ) : (
+                              <p className="text-[11px] text-gray-700 italic">미작성</p>
+                            )}
+                            {q.interimBlanks && q.interimBlanks.length > 0 && q.interimBlanks.some(b => b) && (
+                              <p className="text-[11px] mt-1.5 pt-1.5 border-t border-white/5"
+                                style={{ color: cardColor }}>
+                                → {q.interimBlanks.filter(b => b).join(' · ')}
+                              </p>
+                            )}
+                            {qScore?.feedback && (
+                              <div className="mt-2 pt-2 border-t border-white/5 flex items-start gap-1.5">
+                                <span style={{ fontSize: '10px', color: S.gold, marginTop: '1px' }}>💬</span>
+                                <p className="text-[10.5px] text-gray-400 italic leading-relaxed">
+                                  {qScore.feedback}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      {card.oneSentenceStrategy && (
+                        <div className="rounded-lg p-3"
+                          style={{
+                            background: `${cardColor}10`,
+                            border: `0.5px solid ${cardColor}40`,
+                            boxShadow: `0 0 12px ${cardColor}15`,
+                          }}>
+                          <p className="font-mono font-bold tracking-widest mb-1.5"
+                            style={{ fontSize: '9px', color: cardColor }}>
+                            ★ ONE SENTENCE STRATEGY
+                          </p>
+                          <p className="text-[12.5px] text-white leading-relaxed font-medium">
+                            {card.oneSentenceStrategy}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="text-center pt-4 pb-8 border-t border-white/[0.05]">
+          <p className="text-[10px] font-mono text-gray-700 tracking-widest mb-1">
+            REPORT GENERATED · {new Date(report.generatedAt).toLocaleDateString('ko-KR')}
+          </p>
+          <p className="text-[10px] text-gray-700">
+            © 2026 SIGNAL — ConnectAI
+          </p>
         </div>
       </div>
     </div>
@@ -356,507 +463,225 @@ function CoverPage({ report }: { report: TeamReportData }) {
 }
 
 // ═══════════════════════════════════════════════════════
-// 카드 펼침면 (페이지 2~17) ⭐ 디테일 9가지 추가
+// AI 채점 섹션 (1회성 — 재채점 버튼 없음)
 // ═══════════════════════════════════════════════════════
-function CardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: number }) {
-  const cardColor = CARD_COLORS[card.cardId]?.bg || S.cyan;
-  const isLight = cardColor === '#FFC72C' || cardColor === S.green;
+function ScoringSection({
+  scoring,
+  isLeader,
+  inProgress,
+  aiError,
+  onScoring,
+}: {
+  scoring: ScoringResult | null;
+  isLeader: boolean;
+  inProgress: boolean;
+  aiError: string | null;
+  onScoring: () => void;
+}) {
+  if (inProgress) {
+    return (
+      <div className="rounded-xl p-5 mb-4 text-center"
+        style={{
+          background: `linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(255, 215, 0, 0.04))`,
+          border: `0.5px solid ${S.purple}40`,
+        }}>
+        <div className="inline-block w-8 h-8 rounded-full mb-3 scoring-spinner"
+          style={{ border: `2px solid ${S.purple}33`, borderTop: `2px solid ${S.purple}` }} />
+        <p className="text-[13px] font-bold text-white mb-1">🤖 AI가 채점 중이에요</p>
+        <p className="text-[11px] text-gray-500 leading-relaxed">
+          48문항을 분석하고 있어요. 약 1~2분 소요됩니다.<br />
+          페이지를 닫지 말아주세요.
+        </p>
+        <style jsx>{`
+          .scoring-spinner { animation: spin 0.8s linear infinite; }
+          @keyframes spin { to { transform: rotate(360deg); } }
+        `}</style>
+      </div>
+    );
+  }
 
-  // ⭐ TOPICS에서 카테고리 + 난이도 정보 lookup
-  const topic = TOPICS.find(t => t.id === card.cardId);
-  const categoryInfo = topic ? CATEGORY_STYLES[topic.category] : null;
-  const difficulty = topic?.difficulty || 0;
+  // ⭐ 채점 완료 — 재채점 버튼 없음 (1회성)
+  if (scoring) {
+    const grade = scoring.percentage >= 90 ? 'S'
+      : scoring.percentage >= 80 ? 'A'
+      : scoring.percentage >= 70 ? 'B'
+      : scoring.percentage >= 60 ? 'C'
+      : 'D';
 
-  // ⭐ 참여한 팀원 (memberInsights에서 unique 추출)
-  const participants = Array.from(
-    new Set(card.memberInsights?.map(mi => mi.memberName) || [])
-  );
+    const gradeColor = grade === 'S' ? S.gold
+      : grade === 'A' ? S.green
+      : grade === 'B' ? S.cyan
+      : grade === 'C' ? S.aqua
+      : '#888';
 
-  const leftQuestions = card.questions.slice(0, 2);
-  const rightQuestion = card.questions[2];
+    return (
+      <div className="rounded-xl p-5 mb-4 relative overflow-hidden"
+        style={{
+          background: `linear-gradient(135deg, ${gradeColor}10, rgba(255, 215, 0, 0.04))`,
+          border: `0.5px solid ${gradeColor}50`,
+          boxShadow: `0 0 24px ${gradeColor}20`,
+        }}>
+        <div className="absolute top-0 left-0 right-0 h-[1px]"
+          style={{ background: `linear-gradient(to right, transparent, ${gradeColor}, transparent)` }} />
 
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 min-h-[480px] relative">
-      {/* ⭐ 8. 페이지 모서리 ㄱ자 장식 4개 */}
-      <CornerDecoration position="tl" color={`${cardColor}99`} />
-      <CornerDecoration position="tr" color={`${cardColor}99`} />
-      <CornerDecoration position="bl" color={`${cardColor}99`} />
-      <CornerDecoration position="br" color={`${cardColor}99`} />
-
-      {/* 좌측 페이지 */}
-      <div className="p-6 md:p-7 relative md:border-r"
-        style={{ borderColor: 'rgba(255, 215, 0, 0.15)' }}>
-
-        {/* ⭐ 헤더: 카드번호 + 카테고리 배지 + 난이도 */}
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-2.5">
-            {/* ⭐ 3. 미니 그리드 시그니처 (4x4 패턴) */}
-            <MiniGrid cardId={card.cardId} color={cardColor} />
-
-            <div>
-              <span className="font-mono text-gray-500 tracking-wider"
-                style={{ fontSize: '9px', letterSpacing: '1.5px' }}>
-                CARD {card.cardId}
-              </span>
-              {/* ⭐ 1. 카테고리 라벨 */}
-              {categoryInfo && (
-                <div className="mt-1">
-                  <span className="inline-block px-2 py-0.5 rounded-full font-bold"
-                    style={{
-                      fontSize: '9px',
-                      background: `${categoryInfo.color}15`,
-                      color: categoryInfo.color,
-                      border: `0.5px solid ${categoryInfo.color}40`,
-                    }}>
-                    {categoryInfo.label}
-                  </span>
-                </div>
-              )}
-            </div>
+        <div className="flex items-center gap-4">
+          <div className="flex flex-col items-center justify-center flex-shrink-0"
+            style={{
+              width: '70px',
+              height: '70px',
+              borderRadius: '50%',
+              background: `${gradeColor}15`,
+              border: `1.5px solid ${gradeColor}`,
+              boxShadow: `0 0 16px ${gradeColor}40`,
+            }}>
+            <p className="font-black"
+              style={{
+                fontSize: '32px',
+                color: gradeColor,
+                lineHeight: 1,
+                textShadow: `0 0 8px ${gradeColor}`,
+              }}>
+              {grade}
+            </p>
+            <p className="text-[8px] font-mono tracking-wider mt-0.5" style={{ color: gradeColor }}>
+              GRADE
+            </p>
           </div>
 
-          {/* ⭐ 2. 난이도 별 표시 */}
-          <DifficultyStars level={difficulty} color={S.gold} />
-        </div>
-
-        {/* 카드 제목 */}
-        <div className="mb-5">
-          <h2 className="font-bold text-white mb-1"
-            style={{ fontSize: '20px', lineHeight: 1.2 }}>
-            {card.titleKo}
-          </h2>
-          <p className="text-[11px] italic" style={{ color: 'rgba(193, 232, 235, 0.6)' }}>
-            {card.titleEn}
-          </p>
-        </div>
-
-        {/* Q1, Q2 */}
-        <div className="space-y-3">
-          {leftQuestions.map((q, idx) => (
-            <div key={q.id}>
-              <QuestionBlock qNum={idx + 1} q={q} cardColor={cardColor} />
-              {/* ⭐ 4. Q 사이 우아한 구분선 */}
-              {idx < leftQuestions.length - 1 && (
-                <div className="my-3 flex items-center gap-2">
-                  <div className="flex-1 h-[1px]"
-                    style={{ background: `linear-gradient(to right, transparent, ${cardColor}33, transparent)` }} />
-                  <div className="w-1 h-1 rounded-full"
-                    style={{ background: `${cardColor}66` }} />
-                  <div className="flex-1 h-[1px]"
-                    style={{ background: `linear-gradient(to left, transparent, ${cardColor}33, transparent)` }} />
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* 페이지 번호 */}
-        <div className="absolute bottom-3 left-7 font-mono"
-          style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px' }}>
-          PAGE {String(pageIndex + 1).padStart(2, '0')} · LEFT
-        </div>
-      </div>
-
-      {/* 우측 페이지 */}
-      <div className="p-6 md:p-7 relative">
-        <div className="absolute top-4 right-7 font-mono text-gray-600"
-          style={{ fontSize: '9px', letterSpacing: '1.5px' }}>
-          CONTINUED →
-        </div>
-
-        {/* Q3 */}
-        <div className="mb-5 mt-9">
-          {rightQuestion && (
-            <QuestionBlock qNum={3} q={rightQuestion} cardColor={cardColor} />
-          )}
-        </div>
-
-        {/* ⭐ 4. 우아한 구분선 */}
-        <div className="mb-5 flex items-center gap-2">
-          <div className="flex-1 h-[1px]"
-            style={{ background: `linear-gradient(to right, transparent, ${S.gold}40, transparent)` }} />
-          <span className="font-mono font-bold"
-            style={{ fontSize: '8px', color: S.gold, letterSpacing: '2px' }}>
-            ★
-          </span>
-          <div className="flex-1 h-[1px]"
-            style={{ background: `linear-gradient(to left, transparent, ${S.gold}40, transparent)` }} />
-        </div>
-
-        {/* 한 문장 전략 */}
-        {card.oneSentenceStrategy && (
-          <div className="rounded-xl p-4 relative overflow-hidden"
-            style={{
-              background: `linear-gradient(135deg, rgba(255, 215, 0, 0.06), rgba(231, 254, 85, 0.04))`,
-              border: `0.5px solid rgba(255, 215, 0, 0.3)`,
-            }}>
-            <div className="absolute top-0 left-0 right-0 h-[1px]"
-              style={{ background: `linear-gradient(to right, transparent, ${S.gold}99, transparent)` }} />
-
-            <div className="flex items-center gap-2 mb-2">
-              <span style={{ fontSize: '12px' }}>★</span>
-              <span className="font-mono font-bold"
-                style={{ fontSize: '9px', letterSpacing: '2px', color: S.gold }}>
-                ONE SENTENCE STRATEGY
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-mono font-bold tracking-widest mb-1" style={{ color: S.gold }}>
+              ★ AI SCORING RESULT
+            </p>
+            <div className="flex items-baseline gap-1.5 mb-1">
+              <span className="font-bold text-white" style={{ fontSize: '24px', lineHeight: 1 }}>
+                {scoring.totalScore}
               </span>
+              <span className="text-gray-500 text-[14px]">/ {scoring.maxScore}</span>
             </div>
-            <p className="text-white leading-relaxed font-medium"
-              style={{ fontSize: '13px' }}>
-              {card.oneSentenceStrategy}
+            <p className="text-[12px]" style={{ color: gradeColor }}>
+              {scoring.percentage}% 달성
+            </p>
+            {scoring.scoredAt && (
+              <p className="text-[9px] font-mono text-gray-600 mt-1.5">
+                채점일: {new Date(scoring.scoredAt).toLocaleDateString('ko-KR')}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {scoring.summary && (
+          <div className="mt-4 pt-3 border-t" style={{ borderColor: `${gradeColor}30` }}>
+            <p className="text-[10px] font-mono font-bold tracking-widest mb-1.5" style={{ color: gradeColor }}>
+              SUMMARY
+            </p>
+            <p className="text-[12px] text-gray-300 leading-relaxed">
+              {scoring.summary}
             </p>
           </div>
         )}
 
-        {/* ⭐ 7. 참여한 팀원 표시 */}
-        {participants.length > 0 && (
-          <div className="mt-5 pt-3"
-            style={{ borderTop: `0.5px dashed rgba(255, 255, 255, 0.08)` }}>
-            <div className="flex items-center gap-2 mb-1.5">
-              <div className="w-1 h-1 rounded-full"
-                style={{ background: S.aqua, boxShadow: `0 0 4px ${S.aqua}` }} />
-              <span className="font-mono"
-                style={{
-                  fontSize: '8px',
-                  color: 'rgba(193, 232, 235, 0.7)',
-                  letterSpacing: '2px',
-                }}>
-                CONTRIBUTORS
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {participants.map((name, i) => (
-                <span key={i}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full"
-                  style={{
-                    fontSize: '10px',
-                    background: 'rgba(193, 232, 235, 0.06)',
-                    border: '0.5px solid rgba(193, 232, 235, 0.2)',
-                    color: 'rgba(255, 255, 255, 0.85)',
-                  }}>
-                  · {name}
-                </span>
-              ))}
-            </div>
+        {/* ⭐ 재채점 버튼 제거됨 — 채점 완료 표시만 */}
+        <div className="mt-4 pt-3 border-t flex items-center justify-center gap-1.5"
+          style={{ borderColor: 'rgba(255, 255, 255, 0.05)' }}>
+          <span style={{ fontSize: '10px', color: S.green }}>✓</span>
+          <p className="text-[10px] font-mono text-gray-500 tracking-widest">
+            SCORING COMPLETED · 1회성 채점이 완료되었습니다
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLeader) {
+    return (
+      <div className="rounded-xl p-4 mb-4"
+        style={{
+          background: `linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(231, 254, 85, 0.04))`,
+          border: `0.5px solid ${S.purple}40`,
+        }}>
+        <div className="flex items-start gap-2.5 mb-3">
+          <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
+            style={{ background: S.purple, boxShadow: `0 0 6px ${S.purple}` }} />
+          <div>
+            <p className="text-[10px] font-mono font-bold tracking-widest mb-1" style={{ color: S.purple }}>
+              AI SCORING
+            </p>
+            <p className="text-[12px] text-gray-300 leading-relaxed">
+              AI가 48문항을 자동 채점합니다 (480점 만점).<br />
+              <span style={{ color: '#FFA500' }}>⚠ 한 번만 채점 가능 · 재채점 불가</span>
+            </p>
           </div>
+        </div>
+        <button
+          onClick={onScoring}
+          className="w-full py-3 font-bold rounded-xl transition-all hover:scale-[1.02]"
+          style={{
+            background: `linear-gradient(135deg, ${S.purple} 0%, ${S.green} 100%)`,
+            color: S.navy,
+            fontSize: '13px',
+            boxShadow: `0 0 16px ${S.purple}40`,
+          }}>
+          🎯 AI 채점 시작하기
+        </button>
+
+        {aiError && (
+          <p className="mt-2 text-[10px] text-red-400 text-center">
+            ⚠ {aiError}
+          </p>
         )}
-
-        <div className="absolute bottom-3 right-7 font-mono"
-          style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px' }}>
-          PAGE {String(pageIndex + 1).padStart(2, '0')} · RIGHT
-        </div>
       </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════
-// 마무리 (페이지 18)
-// ═══════════════════════════════════════════════════════
-function ConclusionPage({ report }: { report: TeamReportData }) {
-  const { team, cards, totalAnswers } = report;
-  const filledStrategies = cards.filter(c => c.oneSentenceStrategy).length;
+    );
+  }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 min-h-[480px] relative">
-      <CornerDecoration position="tl" color={S.gold} />
-      <CornerDecoration position="tr" color={S.gold} />
-      <CornerDecoration position="bl" color={S.gold} />
-      <CornerDecoration position="br" color={S.gold} />
-
-      <div className="p-8 md:p-10 md:border-r"
-        style={{ borderColor: 'rgba(255, 215, 0, 0.15)' }}>
-        <p className="font-mono font-bold tracking-[3px] mb-3"
-          style={{ fontSize: '10px', color: S.gold }}>
-          ★ FINAL SUMMARY ★
-        </p>
-
-        <h2 className="text-2xl font-bold text-white mb-2 leading-tight">
-          전략 완성
-        </h2>
-        <p className="text-[12px] text-gray-500 mb-6">
-          16개 카드를 통해 디지털 무역 전략을 완성했습니다.
-        </p>
-
-        <div className="space-y-3">
-          <SummaryStat label="완성된 카드" value={`${filledStrategies} / 16`} color={S.green} />
-          <SummaryStat label="작성한 답변" value={`${totalAnswers}개`} color={S.aqua} />
-          <SummaryStat label="참여 팀원" value={`${team.members.length}명`} color={S.gold} />
-        </div>
-      </div>
-
-      <div className="p-8 md:p-10 flex flex-col items-center justify-center text-center">
-        <div className="mb-6">
-          <div className="inline-block relative">
-            <div className="absolute pointer-events-none"
-              style={{
-                inset: '-16px',
-                background: `radial-gradient(circle, rgba(255, 215, 0, 0.3), transparent 70%)`,
-                borderRadius: '50%',
-                filter: 'blur(8px)',
-              }} />
-            <svg width="56" height="56" viewBox="0 0 24 24" fill={S.gold} stroke={S.gold} strokeWidth="0.5"
-              style={{ filter: `drop-shadow(0 0 8px rgba(255, 215, 0, 0.6))`, position: 'relative' }}>
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-            </svg>
-          </div>
-        </div>
-
-        <p className="text-[14px] text-white mb-2 font-medium leading-relaxed">
-          {team.teamName} 모두 수고하셨습니다.
-        </p>
-        <p className="text-[12px] text-gray-500 mb-8 leading-relaxed">
-          이 전략을 실제 비즈니스에<br />
-          어떻게 적용할지 토론해보세요.
-        </p>
-
-        <div className="pt-4 border-t w-full"
-          style={{ borderColor: 'rgba(255, 215, 0, 0.1)' }}>
-          <p className="font-mono text-gray-600"
-            style={{ fontSize: '9px', letterSpacing: '2px', marginBottom: '2px' }}>
-            REPORT GENERATED
-          </p>
-          <p className="font-mono text-gray-700"
-            style={{ fontSize: '10px', letterSpacing: '1.5px' }}>
-            {new Date(report.generatedAt).toLocaleDateString('ko-KR')}
-          </p>
-        </div>
-
-        <p className="text-[10px] font-mono text-gray-700 mt-6 tracking-widest">
-          © 2026 SIGNAL · ConnectAI
-        </p>
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════
-// 서브 컴포넌트들
-// ═══════════════════════════════════════════════════════
-
-// ⭐ 8. 페이지 모서리 ㄱ자 장식
-function CornerDecoration({
-  position,
-  color = '#FFD70060',
-}: {
-  position: 'tl' | 'tr' | 'bl' | 'br';
-  color?: string;
-}) {
-  const isTop = position.startsWith('t');
-  const isLeft = position.endsWith('l');
-  const horizontalStyle: React.CSSProperties = {
-    position: 'absolute',
-    [isTop ? 'top' : 'bottom']: 0,
-    [isLeft ? 'left' : 'right']: 0,
-    width: '10px',
-    height: '1.5px',
-    background: color,
-    boxShadow: `0 0 4px ${color}`,
-  };
-  const verticalStyle: React.CSSProperties = {
-    position: 'absolute',
-    [isTop ? 'top' : 'bottom']: 0,
-    [isLeft ? 'left' : 'right']: 0,
-    width: '1.5px',
-    height: '10px',
-    background: color,
-    boxShadow: `0 0 4px ${color}`,
-  };
-  return (
-    <div className="absolute pointer-events-none"
+    <div className="rounded-xl p-3 mb-4 flex items-start gap-2.5"
       style={{
-        [isTop ? 'top' : 'bottom']: '10px',
-        [isLeft ? 'left' : 'right']: '10px',
-        width: '14px',
-        height: '14px',
+        background: 'rgba(255, 255, 255, 0.02)',
+        border: '0.5px solid rgba(255, 255, 255, 0.05)',
       }}>
-      <div style={horizontalStyle} />
-      <div style={verticalStyle} />
-    </div>
-  );
-}
-
-// ⭐ 3. 미니 4x4 그리드 시그니처 (PDF 카드와 동일한 디자인)
-function MiniGrid({ cardId, color }: { cardId: string; color: string }) {
-  const isLight = color === '#FFC72C' || color === '#E7FE55';
-  return (
-    <div className="grid grid-cols-4"
-      style={{ width: '40px', height: '40px', gap: '2px' }}>
-      <div className="rounded-full flex items-center justify-center font-black"
-        style={{
-          background: color,
-          color: isLight ? '#111' : '#fff',
-          fontSize: '7px',
-          fontFamily: 'monospace',
-          boxShadow: `0 0 6px ${color}88`,
-        }}>
-        {cardId}
-      </div>
-      {Array.from({ length: 15 }).map((_, i) => (
-        <div key={i} style={{
-          background: color,
-          opacity: 0.7,
-          borderRadius: '1px',
-        }} />
-      ))}
-    </div>
-  );
-}
-
-// ⭐ 2. 난이도 별 표시
-function DifficultyStars({ level, color }: { level: number; color: string }) {
-  return (
-    <div className="flex items-center gap-0.5">
-      {[1, 2, 3, 4, 5].map(i => (
-        <span key={i} style={{
-          fontSize: '11px',
-          color: i <= level ? color : 'rgba(255,255,255,0.15)',
-          textShadow: i <= level ? `0 0 4px ${color}66` : 'none',
-        }}>
-          ★
-        </span>
-      ))}
-    </div>
-  );
-}
-
-// ⭐ 6. Stage 아이콘 (Fact/Insight/Decision)
-function StageIcon({ stage, color }: { stage: number; color: string }) {
-  // Q1: 돋보기, Q2: 전구, Q3: 체크
-  const icons = [
-    // Fact (돋보기)
-    <g key="fact">
-      <circle cx="11" cy="11" r="6" stroke={color} strokeWidth="1.8" fill="none" />
-      <path d="M20 20l-4-4" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
-    </g>,
-    // Insight (전구)
-    <g key="insight">
-      <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.3.3.5.7.5 1.1V16a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-1c0-.4.2-.8.5-1.1A6 6 0 0 0 12 3z"
-        stroke={color} strokeWidth="1.6" fill="none" strokeLinejoin="round" />
-    </g>,
-    // Decision (체크)
-    <g key="decision">
-      <path d="M5 13l4 4L19 7" stroke={color} strokeWidth="2.2"
-        strokeLinecap="round" strokeLinejoin="round" fill="none" />
-    </g>,
-  ];
-
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24"
-      style={{ filter: `drop-shadow(0 0 3px ${color}66)` }}>
-      {icons[stage - 1]}
-    </svg>
-  );
-}
-
-// 질문 블록 (Stage별 색깔 그라디언트 적용)
-function QuestionBlock({
-  qNum, q, cardColor
-}: {
-  qNum: number;
-  q: { id: string; title: string; answer: string; interimBlanks: string[] };
-  cardColor: string;
-}) {
-  const stage = STAGES[qNum - 1];
-  const interimText = q.interimBlanks?.filter(b => b).join(' · ') || '';
-
-  return (
-    <div>
-      {/* ⭐ 5. STAGE 라벨 + ⭐ 6. Stage 아이콘 */}
-      <div className="flex items-center gap-2 mb-2">
-        <span className="font-mono font-bold rounded inline-flex items-center gap-1"
-          style={{
-            fontSize: '9px',
-            padding: '2px 6px',
-            background: `${stage.color}22`,
-            color: stage.color,
-            letterSpacing: '1px',
-            border: `0.5px solid ${stage.color}40`,
-          }}>
-          <StageIcon stage={qNum} color={stage.color} />
-          STAGE {qNum}
-        </span>
-        <span className="font-mono"
-          style={{
-            fontSize: '9px',
-            color: stage.color,
-            opacity: 0.7,
-            letterSpacing: '1px',
-          }}>
-          {stage.label}
-        </span>
-      </div>
-
-      {q.answer ? (
-        <p className="leading-relaxed mb-2"
-          style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.85)' }}>
-          {q.answer.length > 100 ? q.answer.slice(0, 100) + '...' : q.answer}
-        </p>
-      ) : (
-        <p className="text-gray-700 italic"
-          style={{ fontSize: '11px' }}>
-          미작성
-        </p>
-      )}
-
-      {/* ⭐ 9. Stage별 색깔 그라디언트 (중간 결론) */}
-      {interimText && (
-        <p className="rounded-r-md"
-          style={{
-            fontSize: '11px',
-            color: stage.color,
-            opacity: 0.95,
-            padding: '6px 10px',
-            background: `linear-gradient(to right, ${stage.color}1A, ${stage.color}05)`,
-            borderLeft: `2px solid ${stage.color}`,
-            margin: 0,
-          }}>
-          → {interimText}
-        </p>
-      )}
-    </div>
-  );
-}
-
-function Row({ label, value, color }: { label: string; value: string; color: string }) {
-  return (
-    <div className="flex items-center gap-3 py-1.5">
-      <span className="font-mono font-bold"
-        style={{
-          fontSize: '9px',
-          letterSpacing: '2px',
-          color: color,
-          width: '70px',
-          flexShrink: 0,
-        }}>
-        {label}
-      </span>
-      <span className="text-[13px] text-white">{value}</span>
-    </div>
-  );
-}
-
-function SummaryStat({ label, value, color }: { label: string; value: string; color: string }) {
-  return (
-    <div className="rounded-xl p-3 flex items-center justify-between"
-      style={{
-        background: `${color}08`,
-        border: `0.5px solid ${color}30`,
-      }}>
+      <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
+        style={{ background: '#888' }} />
       <div>
-        <p className="font-mono font-bold tracking-widest mb-0.5"
-          style={{ fontSize: '9px', color: color, letterSpacing: '1.5px' }}>
-          {label.split('').join(' ').toUpperCase()}
+        <p className="text-[10px] font-mono font-bold tracking-widest mb-1 text-gray-500">
+          AI SCORING
         </p>
-        <p className="text-[11px] text-gray-300">{label}</p>
+        <p className="text-[12px] text-gray-500 leading-relaxed">
+          AI 채점이 아직 시작되지 않았어요.<br />
+          팀장이 채점을 시작하면 결과가 여기에 표시됩니다.
+        </p>
       </div>
-      <p className="font-bold"
+    </div>
+  );
+}
+
+function StatCard({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div className="rounded-xl relative overflow-hidden text-center"
+      style={{
+        background: `${color}0A`,
+        border: `0.5px solid ${color}33`,
+        padding: '16px 8px',
+      }}>
+      <div className="absolute top-0 left-0 right-0 h-[1px]"
+        style={{ background: `linear-gradient(to right, transparent, ${color}80, transparent)` }} />
+      <div className="font-bold mb-1"
         style={{
-          fontSize: '20px',
+          fontSize: '24px',
           color: color,
+          letterSpacing: '-0.5px',
+          lineHeight: 1,
           textShadow: `0 0 12px ${color}80`,
         }}>
         {value}
-      </p>
+      </div>
+      <div className="font-mono"
+        style={{
+          fontSize: '9px',
+          color: `${color}B3`,
+          letterSpacing: '1.5px',
+        }}>
+        {label}
+      </div>
     </div>
   );
 }
