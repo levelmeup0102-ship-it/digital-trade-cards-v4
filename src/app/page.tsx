@@ -61,7 +61,6 @@ const defaultLeaderConclusion = (): LeaderConclusionState => ({
 // ⭐ V3 동기화 함수 (빈칸 채우기 string[] 처리)
 // ═══════════════════════════════════════════════════════
 
-// 중간 결론 저장 — values를 JSON으로 직렬화
 async function saveInterimConclusionDB(teamId: string, subCardId: string, values: string[]) {
   try {
     await supabase.from('sub_card_interim_conclusions').upsert({
@@ -75,7 +74,6 @@ async function saveInterimConclusionDB(teamId: string, subCardId: string, values
   }
 }
 
-// 중간 결론 로드 — JSON 파싱해서 string[]로 반환
 async function loadInterimConclusionsDB(teamId: string): Promise<Record<string, string[]>> {
   try {
     const { data } = await supabase
@@ -98,7 +96,6 @@ async function loadInterimConclusionsDB(teamId: string): Promise<Record<string, 
   }
 }
 
-// 한 문장 전략 저장 — fields[] + oneSentence 모두 저장
 async function saveLeaderConclusionDB(
   teamId: string,
   cardId: string,
@@ -118,7 +115,6 @@ async function saveLeaderConclusionDB(
   }
 }
 
-// 한 문장 전략 로드 — fields[] 복원
 async function loadLeaderConclusionsDB(teamId: string): Promise<Record<string, LeaderConclusionState>> {
   try {
     const { data } = await supabase
@@ -145,7 +141,6 @@ async function loadLeaderConclusionsDB(teamId: string): Promise<Record<string, L
   }
 }
 
-// Realtime 구독 - 중간 결론
 function subscribeInterimConclusions(
   teamId: string,
   callback: (m: Record<string, string[]>) => void,
@@ -163,7 +158,6 @@ function subscribeInterimConclusions(
   return () => { supabase.removeChannel(channel); };
 }
 
-// Realtime 구독 - 한 문장 전략
 function subscribeLeaderConclusions(
   teamId: string,
   callback: (m: Record<string, LeaderConclusionState>) => void,
@@ -181,7 +175,6 @@ function subscribeLeaderConclusions(
   return () => { supabase.removeChannel(channel); };
 }
 
-// Realtime 구독 - Q1/Q2/Q3 답변
 function subscribeCardResponses(teamId: string, callback: (m: Record<string, any>) => void) {
   const channel = supabase
     .channel(`responses:${teamId}`)
@@ -273,7 +266,6 @@ export default function Home() {
   const [session, setSession] = useState<Session | null>(null);
   const [teamId, setTeamId] = useState<string | null>(null);
 
-  // 협업 시스템 state
   const [myMemberId, setMyMemberId] = useState<string>('');
   const [teamName, setTeamName] = useState<string>('');
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -288,22 +280,26 @@ export default function Home() {
   const [showPdfToast, setShowPdfToast] = useState(false);
   const [responses, setResponses] = useState<Record<string, any>>({});
 
-  // ⭐ V3: interimConclusions를 string[]로 다룸
   const [interimConclusions, setInterimConclusions] = useState<Record<string, string[]>>({});
   const [leaderConclusions, setLeaderConclusions] = useState<Record<string, LeaderConclusionState>>({});
   const [completedCards, setCompletedCards] = useState<Set<string>>(new Set());
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [swipeOffset, setSwipeOffset] = useState(0);
 
-  // ⭐⭐⭐ Step 3 추가: 축하 모달 상태 ⭐⭐⭐
+  // ⭐⭐⭐ Step 3 축하 모달 상태 ⭐⭐⭐
   const [showCelebration, setShowCelebration] = useState(false);
   const [celebrationStats, setCelebrationStats] = useState({ totalAnswers: 0, memberCount: 0 });
+
+  // ⭐⭐⭐ v3 추가: 팀원 동기화용 ref ⭐⭐⭐
+  // 처음 진입 시 보고서가 이미 있었는지 (있으면 모달 안 띄움 - 재진입 보호)
+  const reportExistedAtMountRef = useRef<boolean | null>(null);
+  // 모달 한 번 떴으면 다시 안 뜨게 가드
+  const celebrationTriggeredRef = useRef(false);
 
   const [timer, setTimer] = useState(1200);
   const [timerActive, setTimerActive] = useState(false);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // debounce용 ref
   const interimSaveTimers = useRef<Record<string, NodeJS.Timeout>>({});
   const leaderSaveTimers = useRef<Record<string, NodeJS.Timeout>>({});
 
@@ -424,6 +420,29 @@ export default function Home() {
     })();
   }, []);
 
+  // ⭐⭐⭐ v3: 게임 시작 시 보고서 존재 여부 확인 (재진입 보호) ⭐⭐⭐
+  useEffect(() => {
+    if (!teamId || screen !== 'game') return;
+    if (reportExistedAtMountRef.current !== null) return; // 이미 체크함
+
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('team_reports')
+          .select('id')
+          .eq('team_id', teamId)
+          .maybeSingle();
+        // 이미 보고서가 있으면 = 이미 끝난 게임 = 모달 안 띄움
+        reportExistedAtMountRef.current = !!data;
+        if (data) {
+          celebrationTriggeredRef.current = true; // 모달 봉인
+        }
+      } catch (e) {
+        reportExistedAtMountRef.current = false;
+      }
+    })();
+  }, [teamId, screen]);
+
   // ⭐ Realtime 구독: 5종류 (인사이트/잠금/답변/중간결론/한문장전략)
   useEffect(() => {
     if (screen !== 'game' || !teamId) return;
@@ -441,7 +460,6 @@ export default function Home() {
     });
 
     const unsubInterims = subscribeInterimConclusions(teamId, (interims) => {
-      // ⭐ merge: DB 데이터 + 저장 미반영 로컬 데이터 보호
       setInterimConclusions(prev => ({ ...prev, ...interims }));
     });
 
@@ -469,8 +487,55 @@ export default function Home() {
     };
   }, [screen, teamId]);
 
-  // ⭐ Realtime 보완 — 카드 변경 시 + 5초마다 데이터 강제 새로고침
-  // (Realtime 이벤트 누락이나 지연 대비, 자기 입력 중 데이터는 보호)
+  // ⭐⭐⭐ v3 추가: team_reports 생성 감지 → 팀원도 같은 모달 + 보고서 이동 ⭐⭐⭐
+  useEffect(() => {
+    if (screen !== 'game' || !teamId) return;
+
+    const channel = supabase
+      .channel(`team_report_celebrate:${teamId}`)
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'team_reports', filter: `team_id=eq.${teamId}` },
+        async () => {
+          // 보고서가 새로 생성됨!
+          // 가드: 이미 모달 봉인됐으면 안 띄움
+          if (celebrationTriggeredRef.current) return;
+          // 가드: 게임 시작 시점에 이미 있던 보고서면 안 띄움
+          if (reportExistedAtMountRef.current === true) return;
+
+          celebrationTriggeredRef.current = true;
+
+          // 팀장은 handleComplete에서 자기가 모달 띄우니 여기서는 통계 갱신만
+          // 팀원: 통계 가져와서 모달 띄움
+          try {
+            const { data: dbReport } = await supabase
+              .from('team_reports')
+              .select('raw_data')
+              .eq('team_id', teamId)
+              .single();
+            const raw = dbReport?.raw_data as any;
+            setCelebrationStats({
+              totalAnswers: raw?.totalAnswers || 48,
+              memberCount: raw?.team?.members?.length || teamMembers.length,
+            });
+          } catch (e) {
+            setCelebrationStats({
+              totalAnswers: 48,
+              memberCount: teamMembers.length,
+            });
+          }
+
+          // 팀장은 이미 setShowCelebration(true)가 곧 호출될 거라 중복 가드
+          // 팀원만 띄워주면 됨 — 그치만 안전하게 isLeader 체크 + showCelebration이 false일 때만
+          if (!isLeader) {
+            setTimeout(() => setShowCelebration(true), 500);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [screen, teamId, isLeader, teamMembers]);
+
   useEffect(() => {
     if (!teamId || screen !== 'game') return;
 
@@ -481,7 +546,6 @@ export default function Home() {
           loadLeaderConclusionsDB(teamId),
         ]);
 
-        // interim 갱신 (저장 대기 중인 항목은 자기 데이터 유지)
         setInterimConclusions(prev => {
           const result: Record<string, string[]> = { ...interims };
           Object.keys(interimSaveTimers.current).forEach(subCardId => {
@@ -490,7 +554,6 @@ export default function Home() {
           return result;
         });
 
-        // leader 갱신 (저장 대기 중인 항목은 자기 데이터 유지)
         setLeaderConclusions(prev => {
           const merged: Record<string, LeaderConclusionState> = {};
           Object.keys(leaderConcs).forEach(cardId => {
@@ -510,8 +573,8 @@ export default function Home() {
       }
     };
 
-    refetchAll(); // 카드 변경 시 즉시
-    const interval = setInterval(refetchAll, 5000); // 5초 폴링
+    refetchAll();
+    const interval = setInterval(refetchAll, 5000);
     return () => clearInterval(interval);
   }, [topic.id, screen, teamId]);
 
@@ -523,11 +586,9 @@ export default function Home() {
     if (timer <= 0 && timerRef.current) clearInterval(timerRef.current);
   }, [timerActive, timer]);
 
-  // ⭐ 카드 이동 전 모든 pending save 즉시 실행 (저장 못한 데이터 보호)
   const flushPendingSaves = useCallback(() => {
     if (!teamId) return;
 
-    // interim pending saves 즉시 실행
     Object.entries(interimSaveTimers.current).forEach(([subCardId, timer]) => {
       clearTimeout(timer);
       const values = interimConclusions[subCardId];
@@ -537,7 +598,6 @@ export default function Home() {
     });
     interimSaveTimers.current = {};
 
-    // leader pending saves 즉시 실행
     Object.entries(leaderSaveTimers.current).forEach(([cardId, timer]) => {
       clearTimeout(timer);
       const lc = leaderConclusions[cardId];
@@ -550,7 +610,6 @@ export default function Home() {
 
   const goToCard = useCallback((idx: number) => {
     if (idx >= 0 && idx < TOPICS.length) {
-      // ⭐ 이전 카드의 pending save 즉시 실행 (이동 전에 데이터 보호)
       flushPendingSaves();
       setCurrentCardIdx(idx);
       setCurrentTab('주제');
@@ -565,7 +624,6 @@ export default function Home() {
     }
   };
 
-  // ⭐ 중간 결론 저장 — 빈칸 채우기 values 배열
   const handleSaveInterim = (cardId: string, values: string[]) => {
     setInterimConclusions(prev => ({ ...prev, [cardId]: values }));
 
@@ -575,16 +633,14 @@ export default function Home() {
     }
     interimSaveTimers.current[cardId] = setTimeout(() => {
       saveInterimConclusionDB(teamId, cardId, values);
-    }, 200);  // ⚡ 200ms로 단축 (빠른 이동 시 저장 보호)
+    }, 200);
   };
 
-  // ⭐ 한 문장 전략 변경 (fields 배열 또는 oneSentence)
   const handleLeaderConclusionChange = (key: keyof LeaderConclusionState, value: any) => {
     setLeaderConclusions(prev => {
       const existing = prev[topic.id] || defaultLeaderConclusion();
       const updated = { ...existing, [key]: value };
 
-      // ⭐ fields 변경 시 oneSentence도 자동으로 합성 (팀원 동기화 강화)
       if (key === 'fields' && Array.isArray(value)) {
         const parts = topic.finalStrategyTemplate.split('___');
         let composed = '';
@@ -602,7 +658,6 @@ export default function Home() {
         [topic.id]: updated,
       };
 
-      // fields 변경 시 DB 저장 (debounced)
       if ((key === 'fields' || key === 'oneSentence') && teamId) {
         const cardId = topic.id;
         if (leaderSaveTimers.current[cardId]) {
@@ -616,33 +671,27 @@ export default function Home() {
             state.fields || [],
             state.oneSentence || '',
           );
-        }, 200);  // ⚡ 200ms로 단축
+        }, 200);
       }
 
       return next;
     });
   };
 
-  // ⭐ 카드 이동 전 모든 pending save 즉시 실행 (저장 못한 데이터 보호)
   const handleComplete = async () => {
     setCompletedCards(prev => new Set([...prev, topic.id]));
     setSavedToast(true); setTimeout(() => setSavedToast(false), 2000);
     if (session && teamId) {
-      // ⭐ 모든 pending save 즉시 실행 (저장 누락 방지)
       flushPendingSaves();
       await saveCardProgress({ teamId, sessionId: session.id, cardId: topic.id, checklistStatus: {}, completed: true });
-      // 한 문장 전략 즉시 저장 (다시 한번 보장)
       const lc = leaderConclusions[topic.id] || defaultLeaderConclusion();
       if (lc.fields && lc.fields.length > 0) {
         await saveLeaderConclusionDB(teamId, topic.id, lc.fields, lc.oneSentence || '');
       }
     }
 
-    // ⭐⭐⭐ Step 3 추가: 16번째 카드 완료 시 보고서 생성 + 축하 모달 ⭐⭐⭐
-    // 1~15번 카드 → 다음 카드로 이동
-    // 16번 카드 → 보고서 자동 생성 + 축하 모달
+    // ⭐⭐⭐ Step 3: 16번째 카드 완료 시 보고서 생성 + 축하 모달 ⭐⭐⭐
     if (teamId && currentCardIdx < TOPICS.length - 1) {
-      // 일반 카드: 다음 카드 Q1 잠금 해제 + 이동
       const nextTopicId = TOPICS[currentCardIdx + 1].id;
       const nextSubCardId = `${nextTopicId}-1`;
       await leaderCompleteSubCard({
@@ -652,33 +701,31 @@ export default function Home() {
       });
       setTimeout(() => goToCard(currentCardIdx + 1), 1000);
     } else if (teamId && currentCardIdx === TOPICS.length - 1) {
-      // ⭐ 마지막(16번) 카드: 보고서 자동 생성 + 축하 모달
+      // 마지막 카드: 보고서 생성 → INSERT 이벤트 → 팀원 모달 자동 트리거
       try {
         const reportData = await generateTeamReport(teamId);
-        // 모달에 보여줄 통계 저장
         setCelebrationStats({
           totalAnswers: reportData.totalAnswers,
           memberCount: reportData.team.members.length,
         });
-        // 약간의 딜레이 후 모달 등장 (저장 toast 끝나고 자연스럽게)
+        // ⭐ v3: 모달 트리거 가드 (Realtime 이벤트와 중복 방지)
+        celebrationTriggeredRef.current = true;
         setTimeout(() => setShowCelebration(true), 800);
       } catch (e) {
         console.error('보고서 생성 실패', e);
-        // 실패해도 모달은 띄워주기 (재생성 가능하니까)
         setCelebrationStats({
           totalAnswers: completedCards.size * 3,
           memberCount: teamMembers.length,
         });
+        celebrationTriggeredRef.current = true;
         setTimeout(() => setShowCelebration(true), 800);
       }
     }
   };
 
-  // 팀장 Q1/Q2/Q3 완료
   const handleLeaderCompleteSubCard = useCallback(async (subCardId: string) => {
     if (!teamId || !isLeader) return;
 
-    // 완료 직전 interim 즉시 저장
     const currentValues = interimConclusions[subCardId] || [];
     if (currentValues.length > 0) {
       await saveInterimConclusionDB(teamId, subCardId, currentValues);
@@ -726,7 +773,7 @@ export default function Home() {
     setTimeout(() => router.push(path), 600);
   };
 
-  // ⭐⭐⭐ Step 3 추가: 모달 액션 핸들러 ⭐⭐⭐
+  // ⭐⭐⭐ Step 3: 모달 액션 핸들러 ⭐⭐⭐
   const handleViewReport = () => {
     if (!teamId) return;
     setShowCelebration(false);
@@ -1031,7 +1078,6 @@ export default function Home() {
         filter: exiting ? 'blur(8px)' : 'blur(0)',
       }}>
 
-      {/* ⭐ 사이버틱 회로 신호 라인 */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
         <div className="absolute landing-circuit-1"
           style={{
@@ -1059,7 +1105,6 @@ export default function Home() {
           }} />
       </div>
 
-      {/* ⭐ 카드 색상 기반 그라디언트 배경 */}
       <div className="fixed inset-0 pointer-events-none"
         style={{
           background: `
@@ -1071,14 +1116,12 @@ export default function Home() {
           `,
         }} />
 
-      {/* ⭐ 스캔라인 */}
       <div className="fixed inset-0 pointer-events-none landing-scanline"
         style={{
           background: `linear-gradient(to bottom, transparent 0%, ${S.green}06 50%, transparent 100%)`,
           height: '120px',
         }} />
 
-      {/* ⭐ 네온 파티클 */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         {Array.from({ length: 20 }).map((_, i) => {
           const colors = [S.green, S.aqua, '#C1A8F0'];
@@ -1101,7 +1144,6 @@ export default function Home() {
         })}
       </div>
 
-      {/* ⭐ 4개 코너 L자 장식 */}
       <div className="fixed top-4 left-4 pointer-events-none z-0">
         <div className="w-12 h-12 relative">
           <div className="absolute top-0 left-0 w-6 h-[2px]" style={{ background: S.green, boxShadow: `0 0 8px ${S.green}` }} />
@@ -1133,7 +1175,6 @@ export default function Home() {
           ConnectAI
         </p>
 
-        {/* ⭐ 글리치 효과 적용된 SIGNAL 로고 */}
         <h1 className="text-5xl md:text-6xl font-black text-white mb-2 tracking-tight landing-glitch-text relative inline-block"
           style={{ textShadow: `0 0 20px ${S.green}66, 0 0 40px ${S.aqua}33` }}>
           SIGNAL
@@ -1151,7 +1192,6 @@ export default function Home() {
           디지털 무역 전략을 직접 만들어보는<br />체험형 카드게임 학습 플랫폼
         </p>
 
-        {/* 카드 5개 — 사용자 요청에 따라 그대로 유지 */}
         <div className="flex justify-center gap-2 md:gap-3 mb-8 md:mb-10">
           {['01','02','03','04','05'].map((id, i) => (
             <div key={id} className="relative rounded-xl overflow-hidden"
@@ -1170,7 +1210,6 @@ export default function Home() {
           ))}
         </div>
 
-        {/* ⭐ 학생 입장 버튼 - 네온 펄스 효과 */}
         <button onClick={() => handleStartClick('/student/join')}
           className="relative w-full py-3.5 md:py-4 font-black rounded-2xl text-[15px] md:text-base mb-3 transition-all hover:scale-[1.02] landing-cta-btn overflow-hidden group"
           style={{
@@ -1209,7 +1248,6 @@ export default function Home() {
         <p className="text-gray-700 text-[10px] mt-6 md:mt-8 font-mono">© 2026 SIGNAL — ConnectAI</p>
       </div>
 
-      {/* ⭐ 사이버틱 효과 CSS */}
       <style jsx>{`
         .landing-circuit-1 { animation: landingSignalRight 4s linear infinite; }
         @keyframes landingSignalRight {
@@ -1321,7 +1359,6 @@ export default function Home() {
         style={{ background: `radial-gradient(circle, ${color}25 0%, transparent 70%)`, zIndex: 1 }} />
 
       <div className="w-full max-w-md mb-3 relative z-10">
-        {/* 헤더: SIGNAL · 팀이름 + 레벨 + 목록 */}
         <div className="flex items-start justify-between mb-2.5 gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
@@ -1348,7 +1385,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 직무 카드 + 아이템 카드 */}
         <div className="flex flex-col md:flex-row gap-2 mb-2">
           {myRole ? (
             <div className="flex items-center gap-2.5 rounded-xl px-3 py-2 transition"
@@ -1397,7 +1433,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 타이머 */}
         <div className="flex items-center gap-2 mb-2">
           <div className="flex-1" />
           <div className="flex items-center gap-1.5 rounded-lg px-2 py-1" style={{ background: 'rgba(255,255,255,0.06)' }}>
@@ -1409,7 +1444,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 진행도 바 */}
         <div className="flex items-center gap-2 mb-2">
           <span className="text-[11px] text-gray-600 font-mono min-w-[50px]">{currentCardIdx + 1} / {TOPICS.length}</span>
           <div className="flex-1 h-[4px] rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
@@ -1422,7 +1456,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* 카드 번호 점프 */}
         <div className="flex gap-0.5 flex-wrap">
           {TOPICS.map((t, i) => (
             <button key={t.id} onClick={() => goToCard(i)}
@@ -1439,7 +1472,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* 직무 미션 안내 */}
       {myRole && myRole.primaryCards.includes(topic.id) && (
         <div className="w-full max-w-md mb-3 relative z-10">
           <div className="rounded-xl px-3 py-2 flex items-center gap-2 backdrop-blur-sm"
@@ -1457,7 +1489,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* 카드 목록 모달 */}
       {showList && (
         <div className="fixed inset-0 backdrop-blur-xl z-[100] overflow-y-auto p-4 pt-14" style={{ background: 'rgba(0,0,0,0.92)' }}>
           <button onClick={() => setShowList(false)} className="fixed top-4 right-4 rounded-lg px-4 py-2 text-white text-sm z-10" style={{ background: 'rgba(255,255,255,0.1)' }}>닫기</button>
@@ -1488,7 +1519,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* SignalCard */}
       <div key={topic.id} className="w-full max-w-[420px] md:max-w-4xl relative z-10"
         onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
         <SignalCard
@@ -1518,7 +1548,6 @@ export default function Home() {
         />
       </div>
 
-      {/* 카드 이동 컨트롤 */}
       <div className="flex gap-3 items-center mt-3 md:mt-4 relative z-10">
         <button onClick={() => goToCard(currentCardIdx - 1)} disabled={currentCardIdx === 0}
           className="w-10 h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center text-base md:text-lg transition-all disabled:opacity-20 hover:scale-110"
@@ -1541,7 +1570,6 @@ export default function Home() {
         <button onClick={exitGame} className="ml-3 text-gray-700 underline hover:text-gray-500">나가기</button>
       </div>
 
-      {/* 토스트 */}
       {savedToast && (
         <div className="fixed bottom-10 left-1/2 -translate-x-1/2 rounded-xl px-5 py-2.5 z-[300] flex items-center gap-2 backdrop-blur-sm"
           style={{ background: 'rgba(10,10,10,0.95)', border: '1px solid rgba(255,255,255,0.1)' }}>
@@ -1550,7 +1578,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* ⭐⭐⭐ Step 3 추가: 16카드 완료 축하 모달 ⭐⭐⭐ */}
+      {/* ⭐⭐⭐ Step 3: 16카드 완료 축하 모달 ⭐⭐⭐ */}
       <CelebrationModal
         isOpen={showCelebration}
         teamName={teamName || '팀'}
