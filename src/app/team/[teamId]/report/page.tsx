@@ -481,17 +481,32 @@ export default function TeamReportPage() {
             }}>
             {polished ? '📚 다듬은 보고서 미리보기' : '📖 우리 팀 답안 종합본 보기'}
           </button>
-          <button
-            disabled
-            className="py-3 font-bold rounded-xl transition-all opacity-50 cursor-not-allowed"
-            style={{
-              background: 'rgba(255, 255, 255, 0.04)',
-              border: '0.5px solid rgba(255, 255, 255, 0.1)',
-              color: '#666',
-              fontSize: '13px',
-            }}>
-            ⬇ PDF (준비중)
-          </button>
+          {polished ? (
+            <button
+              onClick={() => router.push(`/team/${teamId}/report/preview?autoPdf=1`)}
+              className="py-3 font-bold rounded-xl transition-all hover:scale-[1.02]"
+              style={{
+                background: `linear-gradient(135deg, ${S.purple} 0%, ${S.cyan} 100%)`,
+                color: '#fff',
+                fontSize: '13px',
+                boxShadow: `0 0 24px rgba(139, 92, 246, 0.3)`,
+              }}>
+              ⬇ PDF 다운로드
+            </button>
+          ) : (
+            <button
+              disabled
+              title="AI 다듬기를 먼저 완료해주세요"
+              className="py-3 font-bold rounded-xl transition-all opacity-50 cursor-not-allowed"
+              style={{
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '0.5px solid rgba(255, 255, 255, 0.1)',
+                color: '#666',
+                fontSize: '13px',
+              }}>
+              🔒 PDF (다듬기 후 가능)
+            </button>
+          )}
         </div>
 
         <div className="mb-8">
