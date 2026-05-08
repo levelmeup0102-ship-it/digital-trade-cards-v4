@@ -1,6 +1,6 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { CARD_COLORS, TOPICS } from '@/data/cardData';
 import { generateTeamReport, getStoredReport } from '@/lib/reportGenerator';
@@ -52,6 +52,7 @@ interface PolishedData {
 export default function TeamReportPreviewPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const teamId = params.teamId as string;
 
   const [loading, setLoading] = useState(true);
@@ -64,6 +65,9 @@ export default function TeamReportPreviewPage() {
   // ⭐ v2: PDF 다운로드 상태
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
   const [pdfProgress, setPdfProgress] = useState(0);
+
+  // ⭐ v3: autoPdf URL 파라미터 자동 트리거 (한 번만)
+  const autoPdfTriggeredRef = useRef(false);
 
   useEffect(() => {
     if (!teamId) return;
@@ -112,18 +116,36 @@ export default function TeamReportPreviewPage() {
     }, 200);
   }, [pageIndex]);
 
+  // ⭐ v3: URL에 ?autoPdf=1이 있으면 데이터 로드 후 자동으로 PDF 다운로드 트리거
+  useEffect(() => {
+    if (loading || !report) return;
+    if (autoPdfTriggeredRef.current) return;
+    if (searchParams?.get('autoPdf') !== '1') return;
+
+    autoPdfTriggeredRef.current = true;
+    // 페이지 렌더링 + 폰트 로딩 시간 확보 후 자동 시작
+    const timer = setTimeout(() => {
+      handlePdfDownload(true); // skipConfirm=true (확인 모달 건너뛰기)
+    }, 1500);
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, report, searchParams]);
+
   // ⭐ v2: PDF 다운로드 함수
-  async function handlePdfDownload() {
+  async function handlePdfDownload(skipConfirm = false) {
     if (isPdfGenerating || !report) return;
     
-    const ok = confirm(
-      '📄 PDF 다운로드를 시작합니다.\n\n' +
-      '• 18페이지 책을 PDF로 변환합니다\n' +
-      '• 약 30초~1분 소요됩니다\n' +
-      '• 진행 중 화면이 자동으로 넘어갑니다\n\n' +
-      '계속하시겠어요?'
-    );
-    if (!ok) return;
+    if (!skipConfirm) {
+      const ok = confirm(
+        '📄 PDF 다운로드를 시작합니다.\n\n' +
+        '• 18페이지 책을 PDF로 변환합니다\n' +
+        '• 약 30초~1분 소요됩니다\n' +
+        '• 진행 중 화면이 자동으로 넘어갑니다\n\n' +
+        '계속하시겠어요?'
+      );
+      if (!ok) return;
+    }
 
     setIsPdfGenerating(true);
     setPdfProgress(0);
@@ -507,17 +529,17 @@ function CoverPage({
           <div className="w-1 h-1 rounded-full" style={{ background: S.gold, boxShadow: `0 0 6px ${S.gold}` }} />
         </div>
 
-        <h1 className="font-black text-white mb-2 tracking-tight"
+        <h1 className="font-black text-white mb-4 tracking-tight"
           style={{
-            fontSize: 'clamp(48px, 12vw, 64px)',
-            lineHeight: 1,
+            fontSize: 'clamp(40px, 8vw, 56px)',
+            lineHeight: 1.15,
             textShadow: `0 0 24px ${S.gold}55, 0 0 48px ${S.green}33`,
-            letterSpacing: '-2px',
+            letterSpacing: '-1px',
           }}>
           SIGNAL
         </h1>
 
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-4">
           <div className="h-[1px] w-6 md:w-8" style={{ background: `linear-gradient(to right, transparent, ${S.gold})` }} />
           <p className="font-mono font-bold tracking-[2px]"
             style={{ fontSize: '10px', color: S.aqua, textShadow: `0 0 6px ${S.aqua}66` }}>
