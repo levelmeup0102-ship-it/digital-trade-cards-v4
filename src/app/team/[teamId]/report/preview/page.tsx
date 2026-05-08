@@ -369,7 +369,7 @@ export default function TeamReportPreviewPage() {
           <div className="flex items-center gap-2 flex-shrink-0">
             {/* ⭐ v2: PDF 다운로드 버튼 */}
             <button
-              onClick={handlePdfDownload}
+              onClick={() => handlePdfDownload()}
               disabled={isPdfGenerating}
               className="rounded-lg flex items-center gap-1 transition-all hover:scale-105 disabled:opacity-50"
               style={{
