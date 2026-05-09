@@ -7,7 +7,6 @@ const S = { green: '#E7FE55', aqua: '#C1E8EB', navy: '#111111', cyan: '#06B6D4',
 const TABS = ['주제', 'Q1', 'Q2', 'Q3', '결론'] as const;
 type TabType = typeof TABS[number];
 
-// canvas 기반 텍스트 너비 측정
 let _measureCanvas: HTMLCanvasElement | null = null;
 function measureTextWidth(text: string, font: string): number {
   if (typeof document === 'undefined') return text.length * 11;
@@ -59,6 +58,9 @@ interface DemoCardProps {
   topic: TopicCard;
   currentTab: TabType;
   onTabChange: (tab: TabType) => void;
+  isTabLocked: (tab: TabType) => boolean;
+  completedSubCards: Set<string>;
+  onCompleteSub: (subCardId: string) => void;
   responses: Record<string, string>;
   onSaveResponse: (subCardId: string, text: string) => void;
   interimConclusions: Record<string, string[]>;
@@ -71,6 +73,7 @@ interface DemoCardProps {
 
 export default function DemoCard({
   topic, currentTab, onTabChange,
+  isTabLocked, completedSubCards, onCompleteSub,
   responses, onSaveResponse,
   interimConclusions, onSaveInterim,
   finalStrategyValues, onSaveFinalStrategy,
@@ -90,26 +93,18 @@ export default function DemoCard({
   const currentResponse = responses[subId] || '';
   const currentInterimValues = interimConclusions[subId] || [];
 
-  const allQsCompleted = topic.subs.every(s => {
-    const r = responses[s.id] || '';
-    const interim = interimConclusions[s.id] || [];
-    return r.trim().length > 0 && isFillInBlankComplete(s.conclusionTemplate, interim);
-  });
+  // ⭐ 현재 Q가 완료됐는지
+  const isCurrentSubCompleted = sub ? completedSubCards.has(sub.id) : false;
 
   const isFinalStrategyFilled = isFillInBlankComplete(
     topic.finalStrategyTemplate,
     finalStrategyValues
   );
 
-  const canMoveToNextQ = sub && currentResponse.trim().length > 0 &&
+  // ⭐ Q 완료 가능 여부
+  const canCompleteSub = sub && !isCurrentSubCompleted &&
+    currentResponse.trim().length > 0 &&
     isFillInBlankComplete(sub.conclusionTemplate, currentInterimValues);
-
-  const handleNextQ = () => {
-    const qIdx = TABS.indexOf(currentTab);
-    if (qIdx < TABS.length - 1) {
-      onTabChange(TABS[qIdx + 1]);
-    }
-  };
 
   return (
     <div className="w-full max-w-[340px] md:max-w-4xl mx-auto md:flex md:gap-6 md:items-start">
@@ -168,21 +163,42 @@ export default function DemoCard({
       {/* ─── 우측 컨텐츠 ─── */}
       <div className="md:flex-1 md:min-w-0 w-full">
 
-        {/* 탭 */}
+        {/* ⭐ 탭 (잠금 + ✓ 표시) */}
         <div className="flex rounded-xl overflow-hidden mb-2"
           style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
-          {TABS.map((tab) => {
+          {TABS.map((tab, i) => {
             const isActive = currentTab === tab;
+            const isLocked = isTabLocked(tab);
+
+            // 탭별 완료 상태
+            let isDone = false;
+            if (tab === 'Q1') isDone = completedSubCards.has(`${topic.id}-1`);
+            if (tab === 'Q2') isDone = completedSubCards.has(`${topic.id}-2`);
+            if (tab === 'Q3') isDone = completedSubCards.has(`${topic.id}-3`);
+            if (tab === '결론') isDone = isCardCompleted;
+
             return (
               <button
                 key={tab}
-                onClick={() => onTabChange(tab)}
-                className="flex-1 py-2 text-[11px] font-bold transition-all flex items-center justify-center gap-1"
+                onClick={() => !isLocked && onTabChange(tab)}
+                disabled={isLocked}
+                className={`flex-1 py-2 text-[11px] font-bold transition-all flex items-center justify-center gap-1 ${isLocked ? 'cursor-not-allowed' : ''}`}
                 style={{
                   background: isActive ? color : 'transparent',
-                  color: isActive ? textColorForCard(color) : '#FFFFFF',
+                  color: isActive
+                    ? textColorForCard(color)
+                    : isLocked ? 'rgba(255,255,255,0.3)' : isDone ? color : '#FFFFFF',
+                  opacity: isLocked ? 0.5 : 1,
                 }}
+                title={isLocked ? '이전 단계를 완료하면 열려요' : ''}
               >
+                {isLocked && (
+                  <svg width="11" height="13" viewBox="0 0 12 14" fill="none" style={{ flexShrink: 0 }}>
+                    <rect x="2" y="6" width="8" height="7" rx="1" stroke="currentColor" strokeWidth="1.3" fill="none"/>
+                    <path d="M3.5 6V4a2.5 2.5 0 015 0v2" stroke="currentColor" strokeWidth="1.3" fill="none" strokeLinecap="round"/>
+                  </svg>
+                )}
+                {!isLocked && isDone && !isActive && '✓'}
                 <span>{tab}</span>
               </button>
             );
@@ -219,6 +235,10 @@ export default function DemoCard({
                 <span className="text-[10px] text-white">
                   {currentTab === 'Q1' ? 'Fact 수집' : currentTab === 'Q2' ? 'Insight 해석' : 'Decision 결정'}
                 </span>
+                {isCurrentSubCompleted && (
+                  <span className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full"
+                    style={{ background: `${S.green}22`, color: S.green }}>✓ 완료</span>
+                )}
               </div>
 
               <div className="rounded-xl p-3 mb-2" style={{ background: `${color}10`, border: `1px solid ${color}25` }}>
@@ -235,6 +255,7 @@ export default function DemoCard({
                 onChange={(text) => onSaveResponse(sub.id, text)}
                 placeholder="자기 생각을 자유롭게 작성해보세요..."
                 color={color}
+                disabled={isCurrentSubCompleted}
               />
 
               {/* 중간 결론 빈칸 */}
@@ -257,27 +278,33 @@ export default function DemoCard({
                       onSaveInterim(sub.id, newValues);
                     }}
                     cardColor={color}
+                    disabled={isCurrentSubCompleted}
                   />
                 </div>
               </div>
 
-              {/* 다음 Q 버튼 */}
-              <button
-                onClick={handleNextQ}
-                disabled={!canMoveToNextQ}
-                className="w-full mt-4 py-3 font-black rounded-xl text-[14px] transition-all disabled:opacity-30"
-                style={{
-                  background: canMoveToNextQ ? S.green : 'rgba(255,255,255,0.06)',
-                  color: canMoveToNextQ ? S.navy : '#FFFFFF',
-                }}>
-                {!currentResponse.trim()
-                  ? '답변을 작성해주세요'
-                  : !isFillInBlankComplete(sub.conclusionTemplate, currentInterimValues)
-                    ? '중간 결론 빈칸을 채워주세요'
-                    : currentTab === 'Q3'
-                      ? '✅ 결론 단계로'
-                      : `✅ ${currentTab === 'Q1' ? 'Q2' : 'Q3'}로 넘어가기`}
-              </button>
+              {/* ⭐ Q 완료 버튼 */}
+              {isCurrentSubCompleted ? (
+                <div className="w-full mt-4 py-3 rounded-xl text-center font-bold text-[13px]"
+                  style={{ background: `${S.green}20`, color: S.green }}>
+                  ✓ 이 단계 완료
+                </div>
+              ) : (
+                <button
+                  onClick={() => sub && onCompleteSub(sub.id)}
+                  disabled={!canCompleteSub}
+                  className="w-full mt-4 py-3 font-black rounded-xl text-[14px] transition-all disabled:opacity-30"
+                  style={{
+                    background: canCompleteSub ? S.green : 'rgba(255,255,255,0.06)',
+                    color: canCompleteSub ? S.navy : '#FFFFFF',
+                  }}>
+                  {!currentResponse.trim()
+                    ? '답변을 작성해주세요'
+                    : !isFillInBlankComplete(sub.conclusionTemplate, currentInterimValues)
+                      ? '중간 결론 빈칸을 채워주세요'
+                      : `✅ ${currentTab} 완료하기`}
+                </button>
+              )}
             </div>
           )}
 
@@ -335,6 +362,7 @@ export default function DemoCard({
                       onSaveFinalStrategy(newValues);
                     }}
                     cardColor={color}
+                    disabled={isCardCompleted}
                   />
                 </div>
 
@@ -370,18 +398,14 @@ export default function DemoCard({
 }
 
 // ═══════════════════════════════════════════════════════
-// FillInBlankForm
-// ═══════════════════════════════════════════════════════
 function FillInBlankForm({
-  template,
-  values,
-  onChange,
-  cardColor,
+  template, values, onChange, cardColor, disabled,
 }: {
   template: string;
   values: string[];
   onChange: (idx: number, value: string) => void;
   cardColor: string;
+  disabled?: boolean;
 }) {
   const parts = parseTemplate(template);
 
@@ -396,6 +420,7 @@ function FillInBlankForm({
               value={values[idx] || ''}
               onChange={(v) => onChange(idx, v)}
               cardColor={cardColor}
+              disabled={disabled}
             />
           )}
         </Fragment>
@@ -405,16 +430,13 @@ function FillInBlankForm({
 }
 
 // ═══════════════════════════════════════════════════════
-// BlankInput
-// ═══════════════════════════════════════════════════════
 function BlankInput({
-  value,
-  onChange,
-  cardColor,
+  value, onChange, cardColor, disabled,
 }: {
   value: string;
   onChange: (v: string) => void;
   cardColor: string;
+  disabled?: boolean;
 }) {
   const [localValue, setLocalValue] = useState(value);
   const isComposingRef = useRef(false);
@@ -464,6 +486,7 @@ function BlankInput({
           onChangeRef.current(v);
         }
       }}
+      disabled={disabled}
       style={{
         display: 'inline-block',
         width: `${calcWidth(localValue)}px`,
@@ -483,24 +506,21 @@ function BlankInput({
         minWidth: '40px',
         transition: 'width 0.15s, background 0.2s, border-color 0.2s, box-shadow 0.2s',
         boxShadow: localValue ? `0 0 4px ${NEON_YELLOW}33` : 'none',
+        opacity: disabled ? 0.7 : 1,
       }}
     />
   );
 }
 
 // ═══════════════════════════════════════════════════════
-// DemoTextArea (간단한 답변 입력창)
-// ═══════════════════════════════════════════════════════
 function DemoTextArea({
-  value,
-  onChange,
-  placeholder,
-  color,
+  value, onChange, placeholder, color, disabled,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder: string;
   color: string;
+  disabled?: boolean;
 }) {
   const [localValue, setLocalValue] = useState(value);
   const isComposingRef = useRef(false);
@@ -531,7 +551,8 @@ function DemoTextArea({
           setLocalValue((e.target as HTMLTextAreaElement).value);
         }}
         placeholder={placeholder}
-        className="w-full px-3 py-2.5 rounded-xl text-[13px] text-white leading-relaxed resize-none transition"
+        disabled={disabled}
+        className="w-full px-3 py-2.5 rounded-xl text-[13px] text-white leading-relaxed resize-none transition disabled:opacity-70"
         rows={5}
         style={{
           background: localValue ? `${color}10` : `${color}06`,
