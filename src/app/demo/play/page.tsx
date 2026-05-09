@@ -16,7 +16,6 @@ const S = {
 const TABS = ['주제', 'Q1', 'Q2', 'Q3', '결론'] as const;
 type TabType = typeof TABS[number];
 
-// 체험판은 카드 1~5번만 사용
 const DEMO_TOPICS = TOPICS.slice(0, 5);
 const TOTAL_CARDS = DEMO_TOPICS.length;
 
@@ -36,6 +35,9 @@ export default function DemoPlayPage() {
   const [currentTab, setCurrentTab] = useState<TabType>('주제');
   const [completedCards, setCompletedCards] = useState<Set<string>>(new Set());
 
+  // ⭐ NEW: 완료된 Q (subCardId 기준, 예: '01-1', '01-2', '01-3')
+  const [completedSubCards, setCompletedSubCards] = useState<Set<string>>(new Set());
+
   // 답변
   const [responses, setResponses] = useState<Record<string, string>>({});
   // 중간 결론 빈칸
@@ -51,7 +53,7 @@ export default function DemoPlayPage() {
   const color = CARD_COLORS[topic.id].bg;
   const isCardCompleted = completedCards.has(topic.id);
 
-  // ⭐ 카드 잠금: 이전 카드까지 다 완료해야 진입 가능
+  // 카드 잠금: 이전 카드까지 다 완료해야 진입 가능
   const canAccessCard = (idx: number): boolean => {
     if (idx === 0) return true;
     for (let i = 0; i < idx; i++) {
@@ -82,7 +84,22 @@ export default function DemoPlayPage() {
     setFinalStrategies(prev => ({ ...prev, [topicId]: values }));
   };
 
-  // ⭐ 카드 완료 → 다음 카드로 이동
+  // ⭐ NEW: Q 완료 처리 → 자동으로 다음 Q 탭으로
+  const handleCompleteSub = (subCardId: string) => {
+    setCompletedSubCards(prev => new Set([...prev, subCardId]));
+
+    // 다음 Q 탭으로 자동 이동
+    const qNum = parseInt(subCardId.split('-')[1], 10);
+    if (qNum === 1) {
+      setTimeout(() => setCurrentTab('Q2'), 500);
+    } else if (qNum === 2) {
+      setTimeout(() => setCurrentTab('Q3'), 500);
+    } else if (qNum === 3) {
+      setTimeout(() => setCurrentTab('결론'), 500);
+    }
+  };
+
+  // 카드 완료 → 다음 카드로 이동
   const handleComplete = () => {
     setCompletedCards(prev => new Set([...prev, topic.id]));
 
@@ -96,69 +113,64 @@ export default function DemoPlayPage() {
     }
   };
 
-  // ⭐ 다음 탭으로 이동 가능 여부
-  const canGoNextTab = (): boolean => {
-    const tabIdx = TABS.indexOf(currentTab);
+  // ⭐ NEW: 탭 잠금 체크
+  const isTabLocked = (tab: TabType): boolean => {
+    if (tab === '주제') return false;
+    if (tab === 'Q1') return false; // Q1은 항상 가능
 
-    if (currentTab === '주제') return true;
-
-    if (currentTab === 'Q1' || currentTab === 'Q2' || currentTab === 'Q3') {
-      const subIdx = tabIdx - 1;
-      const sub = topic.subs[subIdx];
-      if (!sub) return false;
-      const r = responses[sub.id] || '';
-      const interim = interimConclusions[sub.id] || [];
-      return r.trim().length > 0 && isFillInBlankComplete(sub.conclusionTemplate, interim);
+    if (tab === 'Q2') {
+      return !completedSubCards.has(`${topic.id}-1`);
     }
-
-    if (currentTab === '결론') return false;
-
+    if (tab === 'Q3') {
+      return !completedSubCards.has(`${topic.id}-2`);
+    }
+    if (tab === '결론') {
+      return !completedSubCards.has(`${topic.id}-3`);
+    }
     return false;
   };
 
+  // 탭 변경 (잠긴 탭은 못 감)
+  const handleTabChange = (tab: TabType) => {
+    if (isTabLocked(tab)) return;
+    setCurrentTab(tab);
+  };
+
+  // 이전 탭으로 이동
   const goPrevTab = () => {
     const idx = TABS.indexOf(currentTab);
     if (idx > 0) setCurrentTab(TABS[idx - 1]);
   };
 
-  const goNextTab = () => {
-    const idx = TABS.indexOf(currentTab);
-    if (idx < TABS.length - 1) setCurrentTab(TABS[idx + 1]);
-  };
-
-  // 스와이프 (탭 이동)
+  // 스와이프 (이전 탭만 가능)
   const onTouchStart = (e: React.TouchEvent) => setTouchStart(e.touches[0].clientX);
   const onTouchMove = (e: React.TouchEvent) => {
     if (touchStart !== null) setSwipeOffset(e.touches[0].clientX - touchStart);
   };
   const onTouchEnd = () => {
     if (Math.abs(swipeOffset) > 80) {
-      if (swipeOffset < 0) {
-        if (canGoNextTab()) goNextTab();
-      } else {
+      if (swipeOffset > 0) {
+        // 오른쪽 스와이프 = 이전 탭
         goPrevTab();
       }
+      // 왼쪽 스와이프(다음 탭)는 잠금 시스템 때문에 비활성
     }
     setSwipeOffset(0);
     setTouchStart(null);
   };
 
-  // 키보드 화살표 (탭 이동)
+  // 키보드 (이전 탭만)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight') {
-        if (canGoNextTab()) goNextTab();
-      }
       if (e.key === 'ArrowLeft') goPrevTab();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentTab, responses, interimConclusions]);
+  }, [currentTab]);
 
   const currentTabIdx = TABS.indexOf(currentTab);
   const isFirstTab = currentTabIdx === 0;
-  const isLastTab = currentTabIdx === TABS.length - 1;
 
   return (
     <div className="min-h-screen flex flex-col items-center px-3 md:px-4 py-3 md:py-4 relative overflow-hidden">
@@ -200,7 +212,7 @@ export default function DemoPlayPage() {
 
         {/* 진행률 */}
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-[11px] text-gray-600 font-mono min-w-[50px]">
+          <span className="text-[11px] text-white font-mono min-w-[50px]">
             {currentCardIdx + 1} / {TOTAL_CARDS}
           </span>
           <div className="flex-1 h-[4px] rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
@@ -213,7 +225,7 @@ export default function DemoPlayPage() {
           </div>
         </div>
 
-        {/* ⭐ 카드 번호 도트 - 잠금 적용 */}
+        {/* 카드 도트 */}
         <div className="flex gap-1 justify-center">
           {DEMO_TOPICS.map((t, i) => {
             const isAccessible = canAccessCard(i);
@@ -233,7 +245,7 @@ export default function DemoPlayPage() {
                   border: isCurrent
                     ? `2px solid ${CARD_COLORS[t.id].bg}`
                     : '1px solid rgba(255,255,255,0.08)',
-                  color: isCurrent ? '#fff' : isDone ? CARD_COLORS[t.id].bg : '#555',
+                  color: isCurrent ? '#fff' : isDone ? CARD_COLORS[t.id].bg : '#fff',
                   boxShadow: isCurrent ? `0 4px 12px ${CARD_COLORS[t.id].bg}66` : 'none',
                   opacity: !isAccessible ? 0.3 : 1,
                   cursor: !isAccessible ? 'not-allowed' : 'pointer',
@@ -251,7 +263,10 @@ export default function DemoPlayPage() {
         <DemoCard
           topic={topic}
           currentTab={currentTab}
-          onTabChange={setCurrentTab}
+          onTabChange={handleTabChange}
+          isTabLocked={isTabLocked}
+          completedSubCards={completedSubCards}
+          onCompleteSub={handleCompleteSub}
           responses={responses}
           onSaveResponse={handleSaveResponse}
           interimConclusions={interimConclusions}
@@ -263,7 +278,7 @@ export default function DemoPlayPage() {
         />
       </div>
 
-      {/* ⭐ 네비게이션 - 탭 이동으로 변경 */}
+      {/* 네비게이션 - 이전 탭만 (이전 탭 ‹ 버튼만, 다음 탭은 "완료" 버튼으로 이동) */}
       <div className="flex gap-3 items-center mt-3 md:mt-4 relative z-10">
         <button
           onClick={goPrevTab}
@@ -276,26 +291,17 @@ export default function DemoPlayPage() {
           <div className="text-[12px] md:text-[13px] font-bold text-white">
             {topic.title}
           </div>
-          <div className="text-[10px] text-gray-600 font-mono mt-0.5">
+          <div className="text-[10px] text-white font-mono mt-0.5" style={{ opacity: 0.7 }}>
             {currentTab} · 카드 {currentCardIdx + 1}/{TOTAL_CARDS}
           </div>
         </div>
-        <button
-          onClick={goNextTab}
-          disabled={isLastTab || !canGoNextTab()}
-          className="w-10 h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center text-base md:text-lg font-bold transition-all disabled:opacity-20 hover:scale-110"
-          style={{
-            background: (isLastTab || !canGoNextTab()) ? 'rgba(255,255,255,0.06)' : color,
-            color: '#fff',
-            boxShadow: (isLastTab || !canGoNextTab()) ? 'none' : `0 6px 20px -5px ${color}88`,
-          }}>
-          ›
-        </button>
+        {/* 빈 자리 (이전 버튼이랑 균형 맞추기) */}
+        <div className="w-10 h-10 md:w-11 md:h-11" />
       </div>
 
-      <div className="mt-3 md:mt-4 text-[10px] text-gray-700 text-center relative z-10 font-mono">
+      <div className="mt-3 md:mt-4 text-[10px] text-white text-center relative z-10 font-mono" style={{ opacity: 0.5 }}>
         © 2026 SIGNAL — ConnectAI · DEMO
-        <button onClick={() => router.push('/')} className="ml-3 text-gray-700 underline hover:text-gray-500">
+        <button onClick={() => router.push('/')} className="ml-3 underline hover:opacity-80">
           나가기
         </button>
       </div>
