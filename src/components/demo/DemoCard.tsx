@@ -90,7 +90,6 @@ export default function DemoCard({
   const currentResponse = responses[subId] || '';
   const currentInterimValues = interimConclusions[subId] || [];
 
-  // 모든 Q + 중간결론이 채워졌는지
   const allQsCompleted = topic.subs.every(s => {
     const r = responses[s.id] || '';
     const interim = interimConclusions[s.id] || [];
@@ -102,7 +101,6 @@ export default function DemoCard({
     finalStrategyValues
   );
 
-  // 다음 Q로 이동 가능?
   const canMoveToNextQ = sub && currentResponse.trim().length > 0 &&
     isFillInBlankComplete(sub.conclusionTemplate, currentInterimValues);
 
@@ -175,7 +173,6 @@ export default function DemoCard({
           style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
           {TABS.map((tab) => {
             const isActive = currentTab === tab;
-            // 체험판: 모든 탭 자유롭게 이동 가능
             return (
               <button
                 key={tab}
@@ -183,7 +180,7 @@ export default function DemoCard({
                 className="flex-1 py-2 text-[11px] font-bold transition-all flex items-center justify-center gap-1"
                 style={{
                   background: isActive ? color : 'transparent',
-                  color: isActive ? textColorForCard(color) : '#999',
+                  color: isActive ? textColorForCard(color) : '#FFFFFF',
                 }}
               >
                 <span>{tab}</span>
@@ -200,7 +197,7 @@ export default function DemoCard({
           {currentTab === '주제' && (
             <div className="p-4">
               <p className="text-[10px] font-bold mb-2 font-mono tracking-widest" style={{ color }}>개념 및 중요성</p>
-              <p className="text-[13px] text-gray-300 leading-relaxed mb-4">{topic.overview}</p>
+              <p className="text-[13px] text-white leading-relaxed mb-4">{topic.overview}</p>
               <div className="rounded-xl p-3 mb-4" style={{ background: `${color}12`, border: `1px solid ${color}30` }}>
                 <p className="text-[10px] font-bold mb-1 font-mono tracking-widest" style={{ color }}>핵심 통찰 질문</p>
                 <p className="text-[13px] text-white font-bold leading-relaxed">{topic.insightQ}</p>
@@ -219,7 +216,7 @@ export default function DemoCard({
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full"
                   style={{ background: `${color}22`, color }}>{sub.id}</span>
-                <span className="text-[10px] text-gray-500">
+                <span className="text-[10px] text-white">
                   {currentTab === 'Q1' ? 'Fact 수집' : currentTab === 'Q2' ? 'Insight 해석' : 'Decision 결정'}
                 </span>
               </div>
@@ -228,7 +225,7 @@ export default function DemoCard({
                 <p className="text-[13px] text-white font-bold leading-relaxed">{sub.question}</p>
               </div>
 
-              <p className="text-[10px] text-gray-500 mb-4 italic">
+              <p className="text-[11px] text-white mb-4 italic" style={{ opacity: 0.85 }}>
                 → 이 답변은 최종 <span className="font-bold" style={{ color }}>{`'${sub.resultUsage}'`}</span>에 사용됩니다
               </p>
 
@@ -242,8 +239,8 @@ export default function DemoCard({
 
               {/* 중간 결론 빈칸 */}
               <div className="mt-4">
-                <p className="text-[10px] font-bold mb-1.5 font-mono tracking-widest text-gray-500">중간 결론</p>
-                <p className="text-[10px] text-gray-600 mb-2">→ 빈칸을 채워서 한 문장으로 정리해보세요</p>
+                <p className="text-[11px] font-bold mb-1.5 font-mono tracking-widest text-white">중간 결론</p>
+                <p className="text-[11px] text-white mb-2" style={{ opacity: 0.8 }}>→ 빈칸을 채워서 한 문장으로 정리해보세요</p>
                 <div className="rounded-xl p-3 transition-all"
                   style={{
                     background: isFillInBlankComplete(sub.conclusionTemplate, currentInterimValues)
@@ -271,7 +268,7 @@ export default function DemoCard({
                 className="w-full mt-4 py-3 font-black rounded-xl text-[14px] transition-all disabled:opacity-30"
                 style={{
                   background: canMoveToNextQ ? S.green : 'rgba(255,255,255,0.06)',
-                  color: canMoveToNextQ ? S.navy : '#555',
+                  color: canMoveToNextQ ? S.navy : '#FFFFFF',
                 }}>
                 {!currentResponse.trim()
                   ? '답변을 작성해주세요'
@@ -289,7 +286,7 @@ export default function DemoCard({
             <div className="p-4">
               {/* 답변 요약 */}
               <div className="mb-4">
-                <p className="text-[10px] font-bold mb-2 font-mono tracking-widest text-gray-500">내 답변 요약</p>
+                <p className="text-[11px] font-bold mb-2 font-mono tracking-widest text-white">내 답변 요약</p>
                 <div className="space-y-2">
                   {topic.subs.map((s, i) => {
                     const interimValues = interimConclusions[s.id] || [];
@@ -305,10 +302,10 @@ export default function DemoCard({
                         }}>
                         <p className="text-[10px] font-bold font-mono mb-1" style={{ color }}>Q{i + 1}</p>
                         {interimFilled
-                          ? <p className="text-[12px] text-gray-300">→ {interimText}</p>
+                          ? <p className="text-[12px] text-white">→ {interimText}</p>
                           : r
-                            ? <p className="text-[11px] text-gray-500 line-clamp-2">{r}</p>
-                            : <p className="text-[11px] text-gray-700">미작성</p>}
+                            ? <p className="text-[11px] text-white line-clamp-2" style={{ opacity: 0.7 }}>{r}</p>
+                            : <p className="text-[11px] text-white" style={{ opacity: 0.5 }}>미작성</p>}
                       </div>
                     );
                   })}
@@ -317,8 +314,8 @@ export default function DemoCard({
 
               {/* 한 문장 전략 */}
               <div className="mb-4">
-                <p className="text-[10px] font-bold mb-1.5 font-mono tracking-widest text-gray-500">한 문장 전략</p>
-                <p className="text-[11px] text-gray-600 mb-3">
+                <p className="text-[11px] font-bold mb-1.5 font-mono tracking-widest text-white">한 문장 전략</p>
+                <p className="text-[11px] text-white mb-3" style={{ opacity: 0.8 }}>
                   Q1·Q2·Q3 답변을 종합해서 빈칸을 채워보세요.
                 </p>
 
@@ -359,7 +356,7 @@ export default function DemoCard({
                   className="w-full py-3 font-black rounded-xl text-[14px] transition-all disabled:opacity-30"
                   style={{
                     background: isFinalStrategyFilled ? S.green : 'rgba(255,255,255,0.06)',
-                    color: isFinalStrategyFilled ? S.navy : '#555',
+                    color: isFinalStrategyFilled ? S.navy : '#FFFFFF',
                   }}>
                   {isFinalStrategyFilled ? '✅ 다음 카드로' : '한 문장 전략의 빈칸을 채워주세요'}
                 </button>
@@ -473,7 +470,7 @@ function BlankInput({
         height: '20px',
         boxSizing: 'border-box',
         background: localValue ? `${NEON_YELLOW}15` : `${NEON_YELLOW}08`,
-        color: localValue ? NEON_YELLOW : '#888',
+        color: localValue ? NEON_YELLOW : '#FFFFFF',
         border: `1px solid ${localValue ? NEON_YELLOW : NEON_YELLOW + '44'}`,
         borderRadius: '4px',
         padding: '0 6px',
@@ -524,7 +521,7 @@ function DemoTextArea({
 
   return (
     <div>
-      <p className="text-[10px] font-bold mb-2 font-mono tracking-widest text-gray-500">내 답변</p>
+      <p className="text-[11px] font-bold mb-2 font-mono tracking-widest text-white">내 답변</p>
       <textarea
         value={localValue}
         onChange={(e) => setLocalValue(e.target.value)}
@@ -544,7 +541,7 @@ function DemoTextArea({
         }}
       />
       <div className="flex justify-end mt-1">
-        <span className="text-[10px] text-gray-600">{localValue.length}자</span>
+        <span className="text-[10px] text-white" style={{ opacity: 0.7 }}>{localValue.length}자</span>
       </div>
     </div>
   );
