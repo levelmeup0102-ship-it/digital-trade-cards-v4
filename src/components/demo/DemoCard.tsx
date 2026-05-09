@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, Fragment, useRef, useLayoutEffect } from 'react';
+import { useState, useEffect, Fragment, useRef } from 'react';
 import type { TopicCard, SubCard, CardCategory } from '@/types';
 import { CARD_COLORS, parseTemplate } from '@/data/cardData';
 
@@ -151,7 +151,7 @@ export default function DemoCard({
       {/* ─── 우측 컨텐츠 ─── */}
       <div className="md:flex-1 md:min-w-0 w-full">
 
-        {/* 탭 (잠금 + ✓ 표시) */}
+        {/* 탭 */}
         <div className="flex rounded-xl overflow-hidden mb-2"
           style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
           {TABS.map((tab) => {
@@ -236,7 +236,6 @@ export default function DemoCard({
                 → 이 답변은 최종 <span className="font-bold" style={{ color }}>{`'${sub.resultUsage}'`}</span>에 사용됩니다
               </p>
 
-              {/* 답변 입력 */}
               <DemoTextArea
                 value={currentResponse}
                 onChange={(text) => onSaveResponse(sub.id, text)}
@@ -245,7 +244,6 @@ export default function DemoCard({
                 disabled={isCurrentSubCompleted}
               />
 
-              {/* 중간 결론 빈칸 */}
               <div className="mt-4">
                 <p className="text-[11px] font-bold mb-1.5 font-mono tracking-widest text-white">중간 결론</p>
                 <p className="text-[11px] text-white mb-2" style={{ opacity: 0.8 }}>→ 빈칸을 채워서 한 문장으로 정리해보세요</p>
@@ -270,7 +268,6 @@ export default function DemoCard({
                 </div>
               </div>
 
-              {/* Q 완료 버튼 */}
               {isCurrentSubCompleted ? (
                 <div className="w-full mt-4 py-3 rounded-xl text-center font-bold text-[13px]"
                   style={{ background: `${S.green}20`, color: S.green }}>
@@ -298,7 +295,6 @@ export default function DemoCard({
           {/* ── 결론 탭 ── */}
           {currentTab === '결론' && (
             <div className="p-4">
-              {/* 답변 요약 */}
               <div className="mb-4">
                 <p className="text-[11px] font-bold mb-2 font-mono tracking-widest text-white">내 답변 요약</p>
                 <div className="space-y-2">
@@ -326,7 +322,6 @@ export default function DemoCard({
                 </div>
               </div>
 
-              {/* 한 문장 전략 */}
               <div className="mb-4">
                 <p className="text-[11px] font-bold mb-1.5 font-mono tracking-widest text-white">한 문장 전략</p>
                 <p className="text-[11px] text-white mb-3" style={{ opacity: 0.8 }}>
@@ -358,7 +353,6 @@ export default function DemoCard({
                 )}
               </div>
 
-              {/* 카드 완료 버튼 */}
               {isCardCompleted ? (
                 <div className="w-full py-3 rounded-xl text-center font-bold text-[13px]"
                   style={{ background: `${S.green}20`, color: S.green }}>
@@ -417,8 +411,8 @@ function FillInBlankForm({
 }
 
 // ═══════════════════════════════════════════════════════
-// ⭐ BlankInput v6 - 보이지 않는 span으로 글자 너비 측정
-//   (canvas measureText 대신 실제 DOM 측정으로 모바일에서도 정확)
+// ⭐ BlankInput v7 - 글자 수 기반 단순 width 계산 (DOM 측정 안 씀)
+//   모든 문자를 한글 풀너비로 가정 → 잘림 절대 없음
 // ═══════════════════════════════════════════════════════
 function BlankInput({
   value, onChange, cardColor, disabled,
@@ -429,9 +423,6 @@ function BlankInput({
   disabled?: boolean;
 }) {
   const [localValue, setLocalValue] = useState(value);
-  const [width, setWidth] = useState(60); // 빈칸 기본 너비
-  const measureRef = useRef<HTMLSpanElement>(null);
-
   const isComposingRef = useRef(false);
   const localValueRef = useRef(localValue);
   const externalValueRef = useRef(value);
@@ -441,7 +432,6 @@ function BlankInput({
   useEffect(() => { externalValueRef.current = value; }, [value]);
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
-  // 외부 value 동기화
   useEffect(() => {
     if (isComposingRef.current) return;
     if (value !== localValueRef.current) {
@@ -449,7 +439,6 @@ function BlankInput({
     }
   }, [value]);
 
-  // 디바운스 저장
   useEffect(() => {
     if (isComposingRef.current) return;
     if (localValue === value) return;
@@ -458,96 +447,73 @@ function BlankInput({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localValue, value]);
 
-  // ⭐ 핵심: 보이지 않는 span의 실제 너비를 측정해서 input 너비로 사용
-  useLayoutEffect(() => {
-    if (measureRef.current) {
-      const measured = measureRef.current.offsetWidth;
-      // 양쪽 padding(20px) + border(2px) + 여유(10px) = 32px
-      const newWidth = Math.max(60, measured + 32);
-      if (newWidth !== width) {
-        setWidth(newWidth);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localValue]);
-
   const flushSave = () => {
     if (localValueRef.current !== externalValueRef.current) {
       onChangeRef.current(localValueRef.current);
     }
   };
 
-  const NEON_YELLOW = '#FFE680';
-
-  // 동일한 폰트로 측정 span 스타일
-  const measureStyle: React.CSSProperties = {
-    position: 'absolute',
-    visibility: 'hidden',
-    whiteSpace: 'pre',
-    fontSize: '13px',
-    fontWeight: 600,
-    fontFamily: 'inherit',
-    padding: 0,
-    margin: 0,
-    pointerEvents: 'none',
-    left: '-9999px',
-    top: 0,
+  // ⭐⭐⭐ v7: 단순 글자 수 기반 (한글 풀너비로 통일)
+  // 13px 폰트에서 한글 한 글자 = 약 14~15px
+  // 모든 문자를 16px로 잡으면 영문에서 좀 여유 있어도 절대 안 잘림
+  const calcWidth = (v: string) => {
+    if (!v) return 70;
+    // 글자 수 × 16 + 양쪽 여백 30
+    // 최대는 모바일에서 부모 너비 정도로 제한
+    const w = v.length * 16 + 30;
+    return Math.max(70, Math.min(w, 280));
   };
 
-  return (
-    <>
-      {/* ⭐ 숨겨진 측정용 span — 글자 너비를 정확히 측정 */}
-      <span ref={measureRef} style={measureStyle} aria-hidden="true">
-        {localValue || ''}
-      </span>
+  const NEON_YELLOW = '#FFE680';
 
-      <input
-        type="text"
-        value={localValue}
-        onChange={(e) => setLocalValue(e.target.value)}
-        onCompositionStart={() => { isComposingRef.current = true; }}
-        onCompositionEnd={(e) => {
-          isComposingRef.current = false;
-          const v = (e.target as HTMLInputElement).value;
-          setLocalValue(v);
-          if (v !== externalValueRef.current) {
-            onChangeRef.current(v);
-          }
-        }}
-        onBlur={() => flushSave()}
-        disabled={disabled}
-        autoComplete="off"
-        autoCorrect="off"
-        autoCapitalize="off"
-        spellCheck={false}
-        style={{
-          display: 'inline-block',
-          width: `${width}px`,
-          height: '26px',
-          boxSizing: 'border-box',
-          background: localValue ? `${NEON_YELLOW}15` : `${NEON_YELLOW}08`,
-          color: localValue ? NEON_YELLOW : '#FFFFFF',
-          border: `1px solid ${localValue ? NEON_YELLOW : NEON_YELLOW + '44'}`,
-          borderRadius: '5px',
-          padding: '0 10px',
-          margin: '0 3px',
-          fontSize: '13px',
-          fontWeight: 600,
-          lineHeight: '24px',
-          outline: 'none',
-          verticalAlign: 'middle',
-          minWidth: '60px',
-          transition: 'background 0.2s, border-color 0.2s, box-shadow 0.2s',
-          boxShadow: localValue ? `0 0 4px ${NEON_YELLOW}33` : 'none',
-          opacity: disabled ? 0.7 : 1,
-        }}
-      />
-    </>
+  return (
+    <input
+      type="text"
+      value={localValue}
+      onChange={(e) => setLocalValue(e.target.value)}
+      onCompositionStart={() => { isComposingRef.current = true; }}
+      onCompositionEnd={(e) => {
+        isComposingRef.current = false;
+        const v = (e.target as HTMLInputElement).value;
+        setLocalValue(v);
+        if (v !== externalValueRef.current) {
+          onChangeRef.current(v);
+        }
+      }}
+      onBlur={() => flushSave()}
+      disabled={disabled}
+      autoComplete="off"
+      autoCorrect="off"
+      autoCapitalize="off"
+      spellCheck={false}
+      style={{
+        display: 'inline-block',
+        width: `${calcWidth(localValue)}px`,
+        maxWidth: '100%',
+        height: '28px',
+        boxSizing: 'border-box',
+        background: localValue ? `${NEON_YELLOW}15` : `${NEON_YELLOW}08`,
+        color: localValue ? NEON_YELLOW : '#FFFFFF',
+        border: `1px solid ${localValue ? NEON_YELLOW : NEON_YELLOW + '44'}`,
+        borderRadius: '5px',
+        padding: '0 12px',
+        margin: '0 3px',
+        fontSize: '13px',
+        fontWeight: 600,
+        lineHeight: '26px',
+        outline: 'none',
+        verticalAlign: 'middle',
+        minWidth: '70px',
+        transition: 'background 0.2s, border-color 0.2s, box-shadow 0.2s',
+        boxShadow: localValue ? `0 0 4px ${NEON_YELLOW}33` : 'none',
+        opacity: disabled ? 0.7 : 1,
+      }}
+    />
   );
 }
 
 // ═══════════════════════════════════════════════════════
-// DemoTextArea - 답변 입력창
+// DemoTextArea
 // ═══════════════════════════════════════════════════════
 function DemoTextArea({
   value, onChange, placeholder, color, disabled,
