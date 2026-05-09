@@ -411,8 +411,7 @@ function FillInBlankForm({
 }
 
 // ═══════════════════════════════════════════════════════
-// ⭐⭐⭐ BlankInput v8 - contentEditable 사용
-//   width 측정 안 함, 글자에 맞게 박스 자동 늘어남 + 자연스러운 줄바꿈
+// ⭐ BlankInput v9 - 폰트 16px (iOS 자동 줌 방지)
 // ═══════════════════════════════════════════════════════
 function BlankInput({
   value, onChange, cardColor, disabled,
@@ -428,7 +427,6 @@ function BlankInput({
 
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
-  // 외부 value를 DOM에 동기화 (composition 중 아닐 때만)
   useEffect(() => {
     if (!ref.current) return;
     if (isComposingRef.current) return;
@@ -437,7 +435,6 @@ function BlankInput({
     }
   }, [value]);
 
-  // 입력 발생 시 즉시 부모 state로 전달
   const handleInput = () => {
     if (!ref.current) return;
     if (isComposingRef.current) return;
@@ -469,16 +466,17 @@ function BlankInput({
         display: 'inline-block',
         minWidth: '60px',
         maxWidth: '100%',
-        minHeight: '24px',
-        padding: '2px 10px',
+        minHeight: '28px',
+        padding: '3px 12px',
         margin: '0 3px',
         background: value ? `${NEON_YELLOW}15` : `${NEON_YELLOW}08`,
         color: value ? NEON_YELLOW : '#FFFFFF',
         border: `1px solid ${value ? NEON_YELLOW : NEON_YELLOW + '44'}`,
         borderRadius: '5px',
-        fontSize: '13px',
+        // ⭐ v9: 16px (iOS 자동 줌 방지)
+        fontSize: '16px',
         fontWeight: 600,
-        lineHeight: '20px',
+        lineHeight: '22px',
         outline: 'none',
         verticalAlign: 'middle',
         wordBreak: 'break-all',
@@ -493,7 +491,7 @@ function BlankInput({
 }
 
 // ═══════════════════════════════════════════════════════
-// DemoTextArea
+// ⭐ DemoTextArea v3 - 폰트 16px (iOS 자동 줌 방지)
 // ═══════════════════════════════════════════════════════
 function DemoTextArea({
   value, onChange, placeholder, color, disabled,
@@ -555,13 +553,15 @@ function DemoTextArea({
         autoCorrect="off"
         autoCapitalize="off"
         spellCheck={false}
-        className="w-full px-3 py-2.5 rounded-xl text-[13px] text-white leading-relaxed resize-none transition disabled:opacity-70"
+        className="w-full px-3 py-2.5 rounded-xl text-white leading-relaxed resize-none transition disabled:opacity-70"
         rows={5}
         style={{
           background: localValue ? `${color}10` : `${color}06`,
           border: `1.5px solid ${localValue ? color : color + '40'}`,
           outline: 'none',
           boxShadow: localValue ? `0 0 12px ${color}30` : 'none',
+          // ⭐ v9: 16px (iOS 자동 줌 방지)
+          fontSize: '16px',
         }}
       />
       <div className="flex justify-end mt-1">
