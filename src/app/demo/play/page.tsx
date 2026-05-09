@@ -36,13 +36,11 @@ export default function DemoPlayPage() {
   const [currentTab, setCurrentTab] = useState<TabType>('주제');
   const [completedCards, setCompletedCards] = useState<Set<string>>(new Set());
 
-  // 답변: { [subCardId]: string }  예: '01-1' → "..."
+  // 답변
   const [responses, setResponses] = useState<Record<string, string>>({});
-
-  // 중간 결론 빈칸: { [subCardId]: string[] }
+  // 중간 결론 빈칸
   const [interimConclusions, setInterimConclusions] = useState<Record<string, string[]>>({});
-
-  // 한 문장 전략 빈칸: { [topicId]: string[] }
+  // 한 문장 전략 빈칸
   const [finalStrategies, setFinalStrategies] = useState<Record<string, string[]>>({});
 
   // 스와이프
@@ -53,13 +51,24 @@ export default function DemoPlayPage() {
   const color = CARD_COLORS[topic.id].bg;
   const isCardCompleted = completedCards.has(topic.id);
 
+  // ⭐ 카드 잠금: 이전 카드까지 다 완료해야 진입 가능
+  const canAccessCard = (idx: number): boolean => {
+    if (idx === 0) return true;
+    for (let i = 0; i < idx; i++) {
+      if (!completedCards.has(DEMO_TOPICS[i].id)) return false;
+    }
+    return true;
+  };
+
   const goToCard = useCallback((idx: number) => {
     if (idx >= 0 && idx < TOTAL_CARDS) {
+      if (idx > currentCardIdx && !canAccessCard(idx)) return;
       setCurrentCardIdx(idx);
       setCurrentTab('주제');
       setSwipeOffset(0);
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentCardIdx, completedCards]);
 
   const handleSaveResponse = (subCardId: string, text: string) => {
     setResponses(prev => ({ ...prev, [subCardId]: text }));
@@ -73,41 +82,83 @@ export default function DemoPlayPage() {
     setFinalStrategies(prev => ({ ...prev, [topicId]: values }));
   };
 
+  // ⭐ 카드 완료 → 다음 카드로 이동
   const handleComplete = () => {
     setCompletedCards(prev => new Set([...prev, topic.id]));
 
     if (currentCardIdx < TOTAL_CARDS - 1) {
-      // 다음 카드로
-      setTimeout(() => goToCard(currentCardIdx + 1), 600);
+      setTimeout(() => {
+        setCurrentCardIdx(currentCardIdx + 1);
+        setCurrentTab('주제');
+      }, 600);
     } else {
-      // 마지막 카드 완료 → 메인 페이지로
       setTimeout(() => router.push('/'), 1500);
     }
   };
 
-  // 스와이프
+  // ⭐ 다음 탭으로 이동 가능 여부
+  const canGoNextTab = (): boolean => {
+    const tabIdx = TABS.indexOf(currentTab);
+
+    if (currentTab === '주제') return true;
+
+    if (currentTab === 'Q1' || currentTab === 'Q2' || currentTab === 'Q3') {
+      const subIdx = tabIdx - 1;
+      const sub = topic.subs[subIdx];
+      if (!sub) return false;
+      const r = responses[sub.id] || '';
+      const interim = interimConclusions[sub.id] || [];
+      return r.trim().length > 0 && isFillInBlankComplete(sub.conclusionTemplate, interim);
+    }
+
+    if (currentTab === '결론') return false;
+
+    return false;
+  };
+
+  const goPrevTab = () => {
+    const idx = TABS.indexOf(currentTab);
+    if (idx > 0) setCurrentTab(TABS[idx - 1]);
+  };
+
+  const goNextTab = () => {
+    const idx = TABS.indexOf(currentTab);
+    if (idx < TABS.length - 1) setCurrentTab(TABS[idx + 1]);
+  };
+
+  // 스와이프 (탭 이동)
   const onTouchStart = (e: React.TouchEvent) => setTouchStart(e.touches[0].clientX);
   const onTouchMove = (e: React.TouchEvent) => {
     if (touchStart !== null) setSwipeOffset(e.touches[0].clientX - touchStart);
   };
   const onTouchEnd = () => {
     if (Math.abs(swipeOffset) > 80) {
-      if (swipeOffset < 0 && currentCardIdx < TOTAL_CARDS - 1) goToCard(currentCardIdx + 1);
-      if (swipeOffset > 0 && currentCardIdx > 0) goToCard(currentCardIdx - 1);
+      if (swipeOffset < 0) {
+        if (canGoNextTab()) goNextTab();
+      } else {
+        goPrevTab();
+      }
     }
     setSwipeOffset(0);
     setTouchStart(null);
   };
 
-  // 키보드 화살표
+  // 키보드 화살표 (탭 이동)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight') goToCard(currentCardIdx + 1);
-      if (e.key === 'ArrowLeft') goToCard(currentCardIdx - 1);
+      if (e.key === 'ArrowRight') {
+        if (canGoNextTab()) goNextTab();
+      }
+      if (e.key === 'ArrowLeft') goPrevTab();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [currentCardIdx, goToCard]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTab, responses, interimConclusions]);
+
+  const currentTabIdx = TABS.indexOf(currentTab);
+  const isFirstTab = currentTabIdx === 0;
+  const isLastTab = currentTabIdx === TABS.length - 1;
 
   return (
     <div className="min-h-screen flex flex-col items-center px-3 md:px-4 py-3 md:py-4 relative overflow-hidden">
@@ -162,26 +213,35 @@ export default function DemoPlayPage() {
           </div>
         </div>
 
-        {/* 카드 번호 도트 */}
+        {/* ⭐ 카드 번호 도트 - 잠금 적용 */}
         <div className="flex gap-1 justify-center">
-          {DEMO_TOPICS.map((t, i) => (
-            <button key={t.id} onClick={() => goToCard(i)}
-              className="flex-shrink-0 w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-[10px] md:text-[11px] font-bold font-mono transition-all hover:scale-110"
-              style={{
-                background: currentCardIdx === i
-                  ? CARD_COLORS[t.id].bg
-                  : completedCards.has(t.id)
-                    ? CARD_COLORS[t.id].bg + '44'
-                    : 'rgba(255,255,255,0.06)',
-                border: currentCardIdx === i
-                  ? `2px solid ${CARD_COLORS[t.id].bg}`
-                  : '1px solid rgba(255,255,255,0.08)',
-                color: currentCardIdx === i ? '#fff' : completedCards.has(t.id) ? CARD_COLORS[t.id].bg : '#555',
-                boxShadow: currentCardIdx === i ? `0 4px 12px ${CARD_COLORS[t.id].bg}66` : 'none',
-              }}>
-              {completedCards.has(t.id) && currentCardIdx !== i ? '✓' : t.id}
-            </button>
-          ))}
+          {DEMO_TOPICS.map((t, i) => {
+            const isAccessible = canAccessCard(i);
+            const isDone = completedCards.has(t.id);
+            const isCurrent = currentCardIdx === i;
+
+            return (
+              <button key={t.id} onClick={() => goToCard(i)}
+                disabled={!isAccessible}
+                className="flex-shrink-0 w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center text-[10px] md:text-[11px] font-bold font-mono transition-all"
+                style={{
+                  background: isCurrent
+                    ? CARD_COLORS[t.id].bg
+                    : isDone
+                      ? CARD_COLORS[t.id].bg + '44'
+                      : 'rgba(255,255,255,0.06)',
+                  border: isCurrent
+                    ? `2px solid ${CARD_COLORS[t.id].bg}`
+                    : '1px solid rgba(255,255,255,0.08)',
+                  color: isCurrent ? '#fff' : isDone ? CARD_COLORS[t.id].bg : '#555',
+                  boxShadow: isCurrent ? `0 4px 12px ${CARD_COLORS[t.id].bg}66` : 'none',
+                  opacity: !isAccessible ? 0.3 : 1,
+                  cursor: !isAccessible ? 'not-allowed' : 'pointer',
+                }}>
+                {!isAccessible ? '🔒' : isDone && !isCurrent ? '✓' : t.id}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -203,25 +263,31 @@ export default function DemoPlayPage() {
         />
       </div>
 
-      {/* 네비게이션 */}
+      {/* ⭐ 네비게이션 - 탭 이동으로 변경 */}
       <div className="flex gap-3 items-center mt-3 md:mt-4 relative z-10">
-        <button onClick={() => goToCard(currentCardIdx - 1)} disabled={currentCardIdx === 0}
+        <button
+          onClick={goPrevTab}
+          disabled={isFirstTab}
           className="w-10 h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center text-base md:text-lg transition-all disabled:opacity-20 hover:scale-110"
           style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>
           ‹
         </button>
         <div className="text-center min-w-[140px] md:min-w-[160px]">
-          <div className="text-[12px] md:text-[13px] font-bold text-white">{topic.title}</div>
+          <div className="text-[12px] md:text-[13px] font-bold text-white">
+            {topic.title}
+          </div>
           <div className="text-[10px] text-gray-600 font-mono mt-0.5">
-            카드 {currentCardIdx + 1}/{TOTAL_CARDS} · {'★'.repeat(topic.difficulty)}{'☆'.repeat(5 - topic.difficulty)}
+            {currentTab} · 카드 {currentCardIdx + 1}/{TOTAL_CARDS}
           </div>
         </div>
-        <button onClick={() => goToCard(currentCardIdx + 1)} disabled={currentCardIdx === TOTAL_CARDS - 1}
+        <button
+          onClick={goNextTab}
+          disabled={isLastTab || !canGoNextTab()}
           className="w-10 h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center text-base md:text-lg font-bold transition-all disabled:opacity-20 hover:scale-110"
           style={{
-            background: currentCardIdx === TOTAL_CARDS - 1 ? 'rgba(255,255,255,0.06)' : color,
+            background: (isLastTab || !canGoNextTab()) ? 'rgba(255,255,255,0.06)' : color,
             color: '#fff',
-            boxShadow: currentCardIdx === TOTAL_CARDS - 1 ? 'none' : `0 6px 20px -5px ${color}88`,
+            boxShadow: (isLastTab || !canGoNextTab()) ? 'none' : `0 6px 20px -5px ${color}88`,
           }}>
           ›
         </button>
