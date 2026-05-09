@@ -1,21 +1,11 @@
 'use client';
-import { useState, useEffect, Fragment, useRef } from 'react';
+import { useState, useEffect, Fragment, useRef, useLayoutEffect } from 'react';
 import type { TopicCard, SubCard, CardCategory } from '@/types';
 import { CARD_COLORS, parseTemplate } from '@/data/cardData';
 
 const S = { green: '#E7FE55', aqua: '#C1E8EB', navy: '#111111', cyan: '#06B6D4', purple: '#8B5CF6' };
 const TABS = ['주제', 'Q1', 'Q2', 'Q3', '결론'] as const;
 type TabType = typeof TABS[number];
-
-let _measureCanvas: HTMLCanvasElement | null = null;
-function measureTextWidth(text: string, font: string): number {
-  if (typeof document === 'undefined') return text.length * 11;
-  if (!_measureCanvas) _measureCanvas = document.createElement('canvas');
-  const ctx = _measureCanvas.getContext('2d');
-  if (!ctx) return text.length * 11;
-  ctx.font = font;
-  return ctx.measureText(text).width;
-}
 
 function textColorForCard(bgColor: string): string {
   if (bgColor === '#FFC72C' || bgColor === '#E7FE55') return S.navy;
@@ -427,7 +417,8 @@ function FillInBlankForm({
 }
 
 // ═══════════════════════════════════════════════════════
-// ⭐ BlankInput v5 - 모바일 글자 잘림 fix + 자동완성 끄기
+// ⭐ BlankInput v6 - 보이지 않는 span으로 글자 너비 측정
+//   (canvas measureText 대신 실제 DOM 측정으로 모바일에서도 정확)
 // ═══════════════════════════════════════════════════════
 function BlankInput({
   value, onChange, cardColor, disabled,
@@ -438,6 +429,9 @@ function BlankInput({
   disabled?: boolean;
 }) {
   const [localValue, setLocalValue] = useState(value);
+  const [width, setWidth] = useState(60); // 빈칸 기본 너비
+  const measureRef = useRef<HTMLSpanElement>(null);
+
   const isComposingRef = useRef(false);
   const localValueRef = useRef(localValue);
   const externalValueRef = useRef(value);
@@ -447,6 +441,7 @@ function BlankInput({
   useEffect(() => { externalValueRef.current = value; }, [value]);
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
+  // 외부 value 동기화
   useEffect(() => {
     if (isComposingRef.current) return;
     if (value !== localValueRef.current) {
@@ -454,6 +449,7 @@ function BlankInput({
     }
   }, [value]);
 
+  // 디바운스 저장
   useEffect(() => {
     if (isComposingRef.current) return;
     if (localValue === value) return;
@@ -462,66 +458,91 @@ function BlankInput({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localValue, value]);
 
+  // ⭐ 핵심: 보이지 않는 span의 실제 너비를 측정해서 input 너비로 사용
+  useLayoutEffect(() => {
+    if (measureRef.current) {
+      const measured = measureRef.current.offsetWidth;
+      // 양쪽 padding(20px) + border(2px) + 여유(10px) = 32px
+      const newWidth = Math.max(60, measured + 32);
+      if (newWidth !== width) {
+        setWidth(newWidth);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localValue]);
+
   const flushSave = () => {
     if (localValueRef.current !== externalValueRef.current) {
       onChangeRef.current(localValueRef.current);
     }
   };
 
-  // ⭐ v5: 모바일 한글 width 보정 +30 (잘림 방지)
-  const calcWidth = (v: string) => {
-    if (!v) return 50;
-    const FONT = '600 12px Pretendard, -apple-system, BlinkMacSystemFont, sans-serif';
-    const w = measureTextWidth(v, FONT);
-    return Math.max(50, Math.ceil(w) + 30);
-  };
-
   const NEON_YELLOW = '#FFE680';
 
+  // 동일한 폰트로 측정 span 스타일
+  const measureStyle: React.CSSProperties = {
+    position: 'absolute',
+    visibility: 'hidden',
+    whiteSpace: 'pre',
+    fontSize: '13px',
+    fontWeight: 600,
+    fontFamily: 'inherit',
+    padding: 0,
+    margin: 0,
+    pointerEvents: 'none',
+    left: '-9999px',
+    top: 0,
+  };
+
   return (
-    <input
-      type="text"
-      value={localValue}
-      onChange={(e) => setLocalValue(e.target.value)}
-      onCompositionStart={() => { isComposingRef.current = true; }}
-      onCompositionEnd={(e) => {
-        isComposingRef.current = false;
-        const v = (e.target as HTMLInputElement).value;
-        setLocalValue(v);
-        if (v !== externalValueRef.current) {
-          onChangeRef.current(v);
-        }
-      }}
-      onBlur={() => flushSave()}
-      disabled={disabled}
-      // ⭐ v5: 모바일 자동완성 영역 끄기
-      autoComplete="off"
-      autoCorrect="off"
-      autoCapitalize="off"
-      spellCheck={false}
-      style={{
-        display: 'inline-block',
-        width: `${calcWidth(localValue)}px`,
-        height: '22px',
-        boxSizing: 'border-box',
-        background: localValue ? `${NEON_YELLOW}15` : `${NEON_YELLOW}08`,
-        color: localValue ? NEON_YELLOW : '#FFFFFF',
-        border: `1px solid ${localValue ? NEON_YELLOW : NEON_YELLOW + '44'}`,
-        borderRadius: '4px',
-        padding: '0 8px',
-        margin: '0 2px',
-        fontSize: '12px',
-        fontWeight: 600,
-        lineHeight: '20px',
-        outline: 'none',
-        verticalAlign: 'middle',
-        minWidth: '50px',
-        // ⭐ v5: width transition 제거 (글자 입력 시 짤려보이는 효과 방지)
-        transition: 'background 0.2s, border-color 0.2s, box-shadow 0.2s',
-        boxShadow: localValue ? `0 0 4px ${NEON_YELLOW}33` : 'none',
-        opacity: disabled ? 0.7 : 1,
-      }}
-    />
+    <>
+      {/* ⭐ 숨겨진 측정용 span — 글자 너비를 정확히 측정 */}
+      <span ref={measureRef} style={measureStyle} aria-hidden="true">
+        {localValue || ''}
+      </span>
+
+      <input
+        type="text"
+        value={localValue}
+        onChange={(e) => setLocalValue(e.target.value)}
+        onCompositionStart={() => { isComposingRef.current = true; }}
+        onCompositionEnd={(e) => {
+          isComposingRef.current = false;
+          const v = (e.target as HTMLInputElement).value;
+          setLocalValue(v);
+          if (v !== externalValueRef.current) {
+            onChangeRef.current(v);
+          }
+        }}
+        onBlur={() => flushSave()}
+        disabled={disabled}
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
+        style={{
+          display: 'inline-block',
+          width: `${width}px`,
+          height: '26px',
+          boxSizing: 'border-box',
+          background: localValue ? `${NEON_YELLOW}15` : `${NEON_YELLOW}08`,
+          color: localValue ? NEON_YELLOW : '#FFFFFF',
+          border: `1px solid ${localValue ? NEON_YELLOW : NEON_YELLOW + '44'}`,
+          borderRadius: '5px',
+          padding: '0 10px',
+          margin: '0 3px',
+          fontSize: '13px',
+          fontWeight: 600,
+          lineHeight: '24px',
+          outline: 'none',
+          verticalAlign: 'middle',
+          minWidth: '60px',
+          transition: 'background 0.2s, border-color 0.2s, box-shadow 0.2s',
+          boxShadow: localValue ? `0 0 4px ${NEON_YELLOW}33` : 'none',
+          opacity: disabled ? 0.7 : 1,
+        }}
+      />
+    </>
   );
 }
 
@@ -584,7 +605,6 @@ function DemoTextArea({
         onBlur={() => flushSave()}
         placeholder={placeholder}
         disabled={disabled}
-        // ⭐ v5: 자동완성 끄기
         autoComplete="off"
         autoCorrect="off"
         autoCapitalize="off"
