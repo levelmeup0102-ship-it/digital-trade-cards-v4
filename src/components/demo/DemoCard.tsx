@@ -391,7 +391,7 @@ function FillInBlankForm({
   const parts = parseTemplate(template);
 
   return (
-    <div className="text-[14px] text-white leading-[2.2]"
+    <div className="text-[14px] text-white leading-[2.4]"
       style={{ wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
       {parts.map((part, idx) => (
         <Fragment key={idx}>
@@ -411,8 +411,8 @@ function FillInBlankForm({
 }
 
 // ═══════════════════════════════════════════════════════
-// ⭐ BlankInput v7 - 글자 수 기반 단순 width 계산 (DOM 측정 안 씀)
-//   모든 문자를 한글 풀너비로 가정 → 잘림 절대 없음
+// ⭐⭐⭐ BlankInput v8 - contentEditable 사용
+//   width 측정 안 함, 글자에 맞게 박스 자동 늘어남 + 자연스러운 줄바꿈
 // ═══════════════════════════════════════════════════════
 function BlankInput({
   value, onChange, cardColor, disabled,
@@ -422,92 +422,72 @@ function BlankInput({
   cardColor: string;
   disabled?: boolean;
 }) {
-  const [localValue, setLocalValue] = useState(value);
+  const ref = useRef<HTMLSpanElement>(null);
   const isComposingRef = useRef(false);
-  const localValueRef = useRef(localValue);
-  const externalValueRef = useRef(value);
   const onChangeRef = useRef(onChange);
 
-  useEffect(() => { localValueRef.current = localValue; }, [localValue]);
-  useEffect(() => { externalValueRef.current = value; }, [value]);
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
+  // 외부 value를 DOM에 동기화 (composition 중 아닐 때만)
   useEffect(() => {
+    if (!ref.current) return;
     if (isComposingRef.current) return;
-    if (value !== localValueRef.current) {
-      setLocalValue(value);
+    if (ref.current.innerText !== value) {
+      ref.current.innerText = value;
     }
   }, [value]);
 
-  useEffect(() => {
+  // 입력 발생 시 즉시 부모 state로 전달
+  const handleInput = () => {
+    if (!ref.current) return;
     if (isComposingRef.current) return;
-    if (localValue === value) return;
-    const t = setTimeout(() => onChange(localValue), 200);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localValue, value]);
-
-  const flushSave = () => {
-    if (localValueRef.current !== externalValueRef.current) {
-      onChangeRef.current(localValueRef.current);
-    }
+    const text = ref.current.innerText;
+    onChangeRef.current(text);
   };
 
-  // ⭐⭐⭐ v7: 단순 글자 수 기반 (한글 풀너비로 통일)
-  // 13px 폰트에서 한글 한 글자 = 약 14~15px
-  // 모든 문자를 16px로 잡으면 영문에서 좀 여유 있어도 절대 안 잘림
-  const calcWidth = (v: string) => {
-    if (!v) return 70;
-    // 글자 수 × 16 + 양쪽 여백 30
-    // 최대는 모바일에서 부모 너비 정도로 제한
-    const w = v.length * 16 + 30;
-    return Math.max(70, Math.min(w, 280));
+  const handleCompositionEnd = () => {
+    isComposingRef.current = false;
+    if (ref.current) {
+      onChangeRef.current(ref.current.innerText);
+    }
   };
 
   const NEON_YELLOW = '#FFE680';
 
   return (
-    <input
-      type="text"
-      value={localValue}
-      onChange={(e) => setLocalValue(e.target.value)}
+    <span
+      ref={ref}
+      contentEditable={!disabled}
+      suppressContentEditableWarning
+      onInput={handleInput}
       onCompositionStart={() => { isComposingRef.current = true; }}
-      onCompositionEnd={(e) => {
-        isComposingRef.current = false;
-        const v = (e.target as HTMLInputElement).value;
-        setLocalValue(v);
-        if (v !== externalValueRef.current) {
-          onChangeRef.current(v);
-        }
-      }}
-      onBlur={() => flushSave()}
-      disabled={disabled}
-      autoComplete="off"
+      onCompositionEnd={handleCompositionEnd}
       autoCorrect="off"
       autoCapitalize="off"
       spellCheck={false}
       style={{
         display: 'inline-block',
-        width: `${calcWidth(localValue)}px`,
+        minWidth: '60px',
         maxWidth: '100%',
-        height: '28px',
-        boxSizing: 'border-box',
-        background: localValue ? `${NEON_YELLOW}15` : `${NEON_YELLOW}08`,
-        color: localValue ? NEON_YELLOW : '#FFFFFF',
-        border: `1px solid ${localValue ? NEON_YELLOW : NEON_YELLOW + '44'}`,
-        borderRadius: '5px',
-        padding: '0 12px',
+        minHeight: '24px',
+        padding: '2px 10px',
         margin: '0 3px',
+        background: value ? `${NEON_YELLOW}15` : `${NEON_YELLOW}08`,
+        color: value ? NEON_YELLOW : '#FFFFFF',
+        border: `1px solid ${value ? NEON_YELLOW : NEON_YELLOW + '44'}`,
+        borderRadius: '5px',
         fontSize: '13px',
         fontWeight: 600,
-        lineHeight: '26px',
+        lineHeight: '20px',
         outline: 'none',
         verticalAlign: 'middle',
-        minWidth: '70px',
-        transition: 'background 0.2s, border-color 0.2s, box-shadow 0.2s',
-        boxShadow: localValue ? `0 0 4px ${NEON_YELLOW}33` : 'none',
+        wordBreak: 'break-all',
+        whiteSpace: 'pre-wrap',
+        cursor: disabled ? 'not-allowed' : 'text',
+        boxShadow: value ? `0 0 4px ${NEON_YELLOW}33` : 'none',
         opacity: disabled ? 0.7 : 1,
-      }}
+        WebkitUserModify: disabled ? 'read-only' : 'read-write-plaintext-only',
+      } as React.CSSProperties}
     />
   );
 }
