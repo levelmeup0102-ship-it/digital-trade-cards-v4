@@ -172,13 +172,31 @@ export default function TeacherDashboard() {
         {/* 새 수업 만들기 버튼 */}
         {!showCreate && (
           <button onClick={() => setShowCreate(true)}
-            className="cyber-cta-btn relative w-full py-3.5 md:py-4 font-black rounded-2xl text-[13px] md:text-[14px] mb-5 md:mb-6 transition-all hover:scale-[1.02] overflow-hidden"
+            className="cyber-cta-btn relative w-full py-3.5 md:py-4 font-black rounded-2xl text-[13px] md:text-[14px] mb-3 transition-all hover:scale-[1.02] overflow-hidden"
             style={{
               background: S.cyan,
               color: S.navy,
               boxShadow: `0 8px 24px -8px ${S.cyan}AA, 0 0 24px ${S.cyan}55`,
             }}>
             <span className="relative z-10">{`>`} 새 수업 만들기</span>
+          </button>
+        )}
+
+        {/* ⭐⭐⭐ 체험판 QR 보기 버튼 (NEW) ⭐⭐⭐ */}
+        {!showCreate && (
+          <button onClick={() => router.push('/teacher/demo-qr')}
+            className="relative w-full py-3 md:py-3.5 font-bold rounded-2xl text-[12px] md:text-[13px] mb-5 md:mb-6 transition-all hover:scale-[1.01] overflow-hidden group"
+            style={{
+              background: `${S.purple}15`,
+              border: `1px solid ${S.purple}66`,
+              color: S.purple,
+              boxShadow: `0 0 16px ${S.purple}33`,
+              textShadow: `0 0 8px ${S.purple}66`,
+            }}>
+            <span className="relative z-10 flex items-center justify-center gap-2">
+              <span>⚡ 체험판 QR 보기</span>
+              <span className="text-[10px] opacity-70">— 박람회 / 오리엔테이션 용</span>
+            </span>
           </button>
         )}
 
