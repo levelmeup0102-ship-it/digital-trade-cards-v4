@@ -93,7 +93,6 @@ export default function DemoCard({
   const currentResponse = responses[subId] || '';
   const currentInterimValues = interimConclusions[subId] || [];
 
-  // ⭐ 현재 Q가 완료됐는지
   const isCurrentSubCompleted = sub ? completedSubCards.has(sub.id) : false;
 
   const isFinalStrategyFilled = isFillInBlankComplete(
@@ -101,7 +100,6 @@ export default function DemoCard({
     finalStrategyValues
   );
 
-  // ⭐ Q 완료 가능 여부
   const canCompleteSub = sub && !isCurrentSubCompleted &&
     currentResponse.trim().length > 0 &&
     isFillInBlankComplete(sub.conclusionTemplate, currentInterimValues);
@@ -163,14 +161,13 @@ export default function DemoCard({
       {/* ─── 우측 컨텐츠 ─── */}
       <div className="md:flex-1 md:min-w-0 w-full">
 
-        {/* ⭐ 탭 (잠금 + ✓ 표시) */}
+        {/* 탭 (잠금 + ✓ 표시) */}
         <div className="flex rounded-xl overflow-hidden mb-2"
           style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
-          {TABS.map((tab, i) => {
+          {TABS.map((tab) => {
             const isActive = currentTab === tab;
             const isLocked = isTabLocked(tab);
 
-            // 탭별 완료 상태
             let isDone = false;
             if (tab === 'Q1') isDone = completedSubCards.has(`${topic.id}-1`);
             if (tab === 'Q2') isDone = completedSubCards.has(`${topic.id}-2`);
@@ -283,7 +280,7 @@ export default function DemoCard({
                 </div>
               </div>
 
-              {/* ⭐ Q 완료 버튼 */}
+              {/* Q 완료 버튼 */}
               {isCurrentSubCompleted ? (
                 <div className="w-full mt-4 py-3 rounded-xl text-center font-bold text-[13px]"
                   style={{ background: `${S.green}20`, color: S.green }}>
@@ -430,6 +427,8 @@ function FillInBlankForm({
 }
 
 // ═══════════════════════════════════════════════════════
+// ⭐ BlankInput v5 - 모바일 글자 잘림 fix + 자동완성 끄기
+// ═══════════════════════════════════════════════════════
 function BlankInput({
   value, onChange, cardColor, disabled,
 }: {
@@ -463,11 +462,18 @@ function BlankInput({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localValue, value]);
 
+  const flushSave = () => {
+    if (localValueRef.current !== externalValueRef.current) {
+      onChangeRef.current(localValueRef.current);
+    }
+  };
+
+  // ⭐ v5: 모바일 한글 width 보정 +30 (잘림 방지)
   const calcWidth = (v: string) => {
-    if (!v) return 40;
+    if (!v) return 50;
     const FONT = '600 12px Pretendard, -apple-system, BlinkMacSystemFont, sans-serif';
     const w = measureTextWidth(v, FONT);
-    return Math.max(40, Math.ceil(w) + 16);
+    return Math.max(50, Math.ceil(w) + 30);
   };
 
   const NEON_YELLOW = '#FFE680';
@@ -486,25 +492,32 @@ function BlankInput({
           onChangeRef.current(v);
         }
       }}
+      onBlur={() => flushSave()}
       disabled={disabled}
+      // ⭐ v5: 모바일 자동완성 영역 끄기
+      autoComplete="off"
+      autoCorrect="off"
+      autoCapitalize="off"
+      spellCheck={false}
       style={{
         display: 'inline-block',
         width: `${calcWidth(localValue)}px`,
-        height: '20px',
+        height: '22px',
         boxSizing: 'border-box',
         background: localValue ? `${NEON_YELLOW}15` : `${NEON_YELLOW}08`,
         color: localValue ? NEON_YELLOW : '#FFFFFF',
         border: `1px solid ${localValue ? NEON_YELLOW : NEON_YELLOW + '44'}`,
         borderRadius: '4px',
-        padding: '0 6px',
+        padding: '0 8px',
         margin: '0 2px',
         fontSize: '12px',
         fontWeight: 600,
-        lineHeight: '18px',
+        lineHeight: '20px',
         outline: 'none',
         verticalAlign: 'middle',
-        minWidth: '40px',
-        transition: 'width 0.15s, background 0.2s, border-color 0.2s, box-shadow 0.2s',
+        minWidth: '50px',
+        // ⭐ v5: width transition 제거 (글자 입력 시 짤려보이는 효과 방지)
+        transition: 'background 0.2s, border-color 0.2s, box-shadow 0.2s',
         boxShadow: localValue ? `0 0 4px ${NEON_YELLOW}33` : 'none',
         opacity: disabled ? 0.7 : 1,
       }}
@@ -512,6 +525,8 @@ function BlankInput({
   );
 }
 
+// ═══════════════════════════════════════════════════════
+// DemoTextArea - 답변 입력창
 // ═══════════════════════════════════════════════════════
 function DemoTextArea({
   value, onChange, placeholder, color, disabled,
@@ -524,11 +539,17 @@ function DemoTextArea({
 }) {
   const [localValue, setLocalValue] = useState(value);
   const isComposingRef = useRef(false);
+  const localValueRef = useRef(localValue);
+  const externalValueRef = useRef(value);
+  const onChangeRef = useRef(onChange);
+
+  useEffect(() => { localValueRef.current = localValue; }, [localValue]);
+  useEffect(() => { externalValueRef.current = value; }, [value]);
+  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
   useEffect(() => {
     if (isComposingRef.current) return;
-    if (value !== localValue) setLocalValue(value);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (value !== localValueRef.current) setLocalValue(value);
   }, [value]);
 
   useEffect(() => {
@@ -539,6 +560,12 @@ function DemoTextArea({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localValue, value]);
 
+  const flushSave = () => {
+    if (localValueRef.current !== externalValueRef.current) {
+      onChangeRef.current(localValueRef.current);
+    }
+  };
+
   return (
     <div>
       <p className="text-[11px] font-bold mb-2 font-mono tracking-widest text-white">내 답변</p>
@@ -548,10 +575,20 @@ function DemoTextArea({
         onCompositionStart={() => { isComposingRef.current = true; }}
         onCompositionEnd={(e) => {
           isComposingRef.current = false;
-          setLocalValue((e.target as HTMLTextAreaElement).value);
+          const v = (e.target as HTMLTextAreaElement).value;
+          setLocalValue(v);
+          if (v !== externalValueRef.current) {
+            onChangeRef.current(v);
+          }
         }}
+        onBlur={() => flushSave()}
         placeholder={placeholder}
         disabled={disabled}
+        // ⭐ v5: 자동완성 끄기
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
         className="w-full px-3 py-2.5 rounded-xl text-[13px] text-white leading-relaxed resize-none transition disabled:opacity-70"
         rows={5}
         style={{
