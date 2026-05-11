@@ -17,6 +17,58 @@ const S = { green: '#E7FE55', aqua: '#C1E8EB', navy: '#111111', cyan: '#06B6D4',
 const TABS = ['주제', 'Q1', 'Q2', 'Q3', '결론'] as const;
 type TabType = typeof TABS[number];
 
+// ⭐ NEW: 직무별 인사이트 작성 가이드 (CEO 제외, 6직무)
+const ROLE_INSIGHT_GUIDES: Partial<Record<RoleCode, { label: string; tips: string[] }>> = {
+  market_analyst: {
+    label: '시장 분석가라면 이런 걸 고려해보세요',
+    tips: [
+      '시장 규모는 얼마나 큰가? (매출/사용자 수)',
+      '성장률은 어떤가? (커지는 시장인가?)',
+      '핵심 데이터·통계는 뭔가?',
+    ],
+  },
+  brand_strategist: {
+    label: '브랜드 전략가라면 이런 걸 고려해보세요',
+    tips: [
+      '우리 브랜드만의 차별점은?',
+      '경쟁사 대비 어떤 포지셔닝?',
+      '어떤 이미지로 기억되고 싶나?',
+    ],
+  },
+  customer_insight: {
+    label: '고객 인사이트 리드라면 이런 걸 고려해보세요',
+    tips: [
+      '타깃 고객은 누구? (페르소나)',
+      '그들의 진짜 욕구는?',
+      '어떤 행동 패턴을 보이나?',
+    ],
+  },
+  global_sales: {
+    label: '해외영업 매니저라면 이런 걸 고려해보세요',
+    tips: [
+      '어느 나라에 진출할 것인가?',
+      '현지 바이어·파트너는?',
+      '진출 방식은? (수출/현지법인 등)',
+    ],
+  },
+  digital_marketer: {
+    label: '디지털 마케터라면 이런 걸 고려해보세요',
+    tips: [
+      '어떤 채널이 효과적? (SNS/검색/광고)',
+      '어떤 콘텐츠로 알릴까?',
+      '트렌드·관심사 키워드는?',
+    ],
+  },
+  compliance_officer: {
+    label: '무역 규제 전문가라면 이런 걸 고려해보세요',
+    tips: [
+      '진출국별 인증·허가 요건은?',
+      '관세·비관세 장벽은?',
+      '라벨링·표준은 충족 가능한가?',
+    ],
+  },
+};
+
 function textColorForCard(bgColor: string): string {
   if (bgColor === '#FFC72C' || bgColor === '#E7FE55') return S.navy;
   return '#fff';
@@ -520,10 +572,7 @@ function FillInBlankForm({
 }
 
 // ═══════════════════════════════════════════════════════
-// ⭐⭐⭐ BlankInput v12 — 포커스 중에는 외부 업데이트 차단
-//
-//   v11 문제: 사용자 타이핑 → 부모 state → Realtime → 부모 리렌더 → DOM 다시 set
-//   v12 해결: 포커스 중에는 외부 업데이트 무시. blur되면 그때 동기화.
+// ⭐⭐⭐ BlankInput v12 — 포커스 중 외부 업데이트 차단 (기존 유지)
 // ═══════════════════════════════════════════════════════
 function BlankInput({
   value, onChange, disabled, cardColor,
@@ -542,7 +591,6 @@ function BlankInput({
 
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
-  // 첫 렌더: 초기값 설정
   useEffect(() => {
     if (!ref.current) return;
     if (isFirstMountRef.current) {
@@ -552,20 +600,11 @@ function BlankInput({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ⭐ 외부 value 변경 처리 — 포커스 중이면 보류, 아니면 즉시 적용
   useEffect(() => {
     if (!ref.current) return;
     if (isFirstMountRef.current) return;
-
-    // 포커스 중 = 사용자가 타이핑 중 = DOM 절대 안 건드림
-    // (blur될 때 pendingValueRef로 동기화)
     pendingValueRef.current = value;
-    
-    if (isFocusedRef.current || isComposingRef.current) {
-      return;
-    }
-
-    // 포커스 아닐 때만 외부 변경 반영
+    if (isFocusedRef.current || isComposingRef.current) return;
     if (ref.current.innerText !== value) {
       ref.current.innerText = value;
     }
@@ -585,15 +624,10 @@ function BlankInput({
     }
   };
 
-  const handleFocus = () => {
-    isFocusedRef.current = true;
-  };
-
+  const handleFocus = () => { isFocusedRef.current = true; };
   const handleBlur = () => {
     isFocusedRef.current = false;
     if (!ref.current) return;
-    
-    // blur 시점에 보류됐던 외부 변경 적용
     if (pendingValueRef.current !== ref.current.innerText) {
       ref.current.innerText = pendingValueRef.current;
     }
@@ -709,7 +743,6 @@ function LeaderQView({
   useEffect(() => { externalRef.current = currentResponse; }, [currentResponse]);
   useEffect(() => { onSaveRef.current = onSaveResponse; }, [onSaveResponse]);
 
-  // ⭐ 외부 변경 동기화 — 포커스 중이면 무시
   useEffect(() => {
     if (isComposingRef.current) return;
     if (isFocusedRef.current) return;
@@ -980,6 +1013,9 @@ function TeamInsightSidebar({
   );
 }
 
+// ═══════════════════════════════════════════════════════
+// ⭐ MemberQView v13 — 가이드 박스 추가 (14번 작업)
+// ═══════════════════════════════════════════════════════
 function MemberQView({
   sub, color,
   myMemberId, myRoleCode, teamId,
@@ -1009,7 +1045,6 @@ function MemberQView({
 
   useEffect(() => { contentRef.current = content; }, [content]);
 
-  // ⭐ 외부 변경 동기화 — 포커스 중이면 무시
   useEffect(() => {
     if (isComposingRef.current) return;
     if (isFocusedRef.current) return;
@@ -1025,6 +1060,9 @@ function MemberQView({
   const prompt = myRoleCode
     ? getRolePrompt(sub.id, myRoleCode)
     : '자기 관점에서 인사이트를 작성하세요';
+
+  // ⭐ NEW: 내 직무에 맞는 가이드 (CEO 제외 6직무만)
+  const myGuide = myRoleCode ? ROLE_INSIGHT_GUIDES[myRoleCode] : null;
 
   const canComplete = content.trim().length >= insightMinChars && !isCompleted;
 
@@ -1107,6 +1145,29 @@ function MemberQView({
         <p className="text-[10px] font-bold mb-1 font-mono tracking-widest" style={{ color }}>내 직무 관점 미션</p>
         <p className="text-[12.5px] text-white leading-relaxed">{prompt}</p>
       </div>
+
+      {/* ⭐⭐⭐ NEW: 직무별 가이드 박스 (14번 작업) */}
+      {myGuide && !isCompleted && (
+        <div className="mb-3 rounded-xl px-3 py-2.5"
+          style={{
+            background: 'rgba(255, 230, 128, 0.08)',
+            border: '1px dashed rgba(255, 230, 128, 0.4)',
+          }}>
+          <p className="text-[10.5px] font-bold mb-1.5"
+            style={{ color: '#FFE680' }}>
+            💡 {myGuide.label}
+          </p>
+          <ul className="m-0 pl-4 space-y-0.5">
+            {myGuide.tips.map((tip, idx) => (
+              <li key={idx}
+                className="text-[11px] leading-relaxed"
+                style={{ color: 'rgba(255,255,255,0.9)' }}>
+                {tip}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="mb-4">
         <p className="text-[10px] font-bold mb-2 font-mono tracking-widest text-gray-500">
