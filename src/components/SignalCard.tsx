@@ -488,8 +488,6 @@ export default function SignalCard({
 }
 
 // ═══════════════════════════════════════════════════════
-// FillInBlankForm
-// ═══════════════════════════════════════════════════════
 function FillInBlankForm({
   template, values, onChange, disabled, cardColor,
 }: {
@@ -522,8 +520,15 @@ function FillInBlankForm({
 }
 
 // ═══════════════════════════════════════════════════════
-// ⭐⭐⭐ BlankInput v10 (체험판 v9 패턴)
-//   contentEditable + 폰트 16px (iOS 줌 방지) + 자동 줄바꿈
+// ⭐⭐⭐ BlankInput v11 — 커서 위치 보존
+//
+//   v10 문제: 사용자가 타자 칠 때마다 부모 state 업데이트 → 리렌더
+//   → useEffect로 innerText 다시 set → 커서 맨 앞으로 튐
+//
+//   v11 해결:
+//   - "내가 친 값"을 isMineRef로 추적
+//   - 사용자 입력 직후: DOM 절대 안 건드림
+//   - 진짜 외부에서 바뀐 경우만 DOM 동기화
 // ═══════════════════════════════════════════════════════
 function BlankInput({
   value, onChange, disabled, cardColor,
@@ -537,13 +542,38 @@ function BlankInput({
   const isComposingRef = useRef(false);
   const onChangeRef = useRef(onChange);
 
+  // ⭐ "내가 마지막으로 부모로 보낸 값" — 리렌더 시 동일하면 동기화 스킵
+  const lastSentRef = useRef<string>(value);
+
+  // ⭐ 첫 렌더에만 초기값 세팅, 이후엔 외부 변경만 반영
+  const isFirstMountRef = useRef(true);
+
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
+  // 첫 렌더: 초기값 설정
   useEffect(() => {
     if (!ref.current) return;
+    if (isFirstMountRef.current) {
+      ref.current.innerText = value;
+      lastSentRef.current = value;
+      isFirstMountRef.current = false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 외부 value 변경 동기화 (내가 보낸 값과 다를 때만)
+  useEffect(() => {
+    if (!ref.current) return;
+    if (isFirstMountRef.current) return;
     if (isComposingRef.current) return;
+
+    // ⭐ 핵심: 내가 마지막으로 보낸 값과 같으면 = 내가 친 거니까 무시
+    if (value === lastSentRef.current) return;
+
+    // 진짜 외부 변경 (다른 사용자 수정, 카드 변경 등) → DOM 업데이트
     if (ref.current.innerText !== value) {
       ref.current.innerText = value;
+      lastSentRef.current = value;
     }
   }, [value]);
 
@@ -551,13 +581,16 @@ function BlankInput({
     if (!ref.current) return;
     if (isComposingRef.current) return;
     const text = ref.current.innerText;
+    lastSentRef.current = text; // ⭐ 내가 보낸 값으로 기록
     onChangeRef.current(text);
   };
 
   const handleCompositionEnd = () => {
     isComposingRef.current = false;
     if (ref.current) {
-      onChangeRef.current(ref.current.innerText);
+      const text = ref.current.innerText;
+      lastSentRef.current = text; // ⭐ 내가 보낸 값으로 기록
+      onChangeRef.current(text);
     }
   };
 
@@ -647,9 +680,6 @@ interface LeaderQViewProps {
   onCompleteSubCard: () => void;
 }
 
-// ═══════════════════════════════════════════════════════
-// ⭐ LeaderQView v10 — textarea 폰트 16px (iOS 줌 방지)
-// ═══════════════════════════════════════════════════════
 function LeaderQView({
   sub, color,
   currentResponse, onSaveResponse,
@@ -936,9 +966,6 @@ function TeamInsightSidebar({
   );
 }
 
-// ═══════════════════════════════════════════════════════
-// ⭐ MemberQView v10 — textarea 폰트 16px (iOS 줌 방지)
-// ═══════════════════════════════════════════════════════
 function MemberQView({
   sub, color,
   myMemberId, myRoleCode, teamId,
