@@ -1014,7 +1014,7 @@ function TeamInsightSidebar({
 }
 
 // ═══════════════════════════════════════════════════════
-// ⭐⭐⭐ NEW v14: RoleInfoModal — 팀원 직무 정보 바텀시트
+// ⭐⭐⭐ NEW v14: RoleInfoModal — 팀원 직무 정보 중앙 모달
 // 미션 + 가이드 박스 둘 다 표시
 // ═══════════════════════════════════════════════════════
 function RoleInfoModal({
@@ -1028,22 +1028,22 @@ function RoleInfoModal({
   if (!role) return null;
 
   return (
-    <div className="fixed inset-0 z-[200]" onClick={onClose}>
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+      onClick={onClose}>
       <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.6)' }} />
 
       <div
         onClick={e => e.stopPropagation()}
-        className="absolute bottom-0 left-0 right-0 role-modal-slideup"
+        className="relative role-modal-popin w-full max-w-md"
         style={{
           background: 'linear-gradient(180deg, #0A1228 0%, #0F1B3D 100%)',
-          borderTop: `1px solid ${role.color}40`,
-          borderRadius: '16px 16px 0 0',
-          padding: '14px 16px 24px',
-          maxHeight: '80vh',
+          border: `1px solid ${role.color}40`,
+          borderRadius: '16px',
+          padding: '16px 18px 20px',
+          maxHeight: '85vh',
           overflowY: 'auto',
-          boxShadow: '0 -8px 32px rgba(0,0,0,0.5)',
+          boxShadow: `0 20px 60px rgba(0,0,0,0.6), 0 0 40px ${role.color}25`,
         }}>
-        <div className="w-10 h-1 rounded-full mx-auto mb-4" style={{ background: 'rgba(255,255,255,0.2)' }} />
 
         <div className="flex items-center gap-2.5 mb-4">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center text-lg flex-shrink-0"
@@ -1095,10 +1095,10 @@ function RoleInfoModal({
       </div>
 
       <style jsx>{`
-        .role-modal-slideup { animation: roleModalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
-        @keyframes roleModalSlideUp {
-          0% { transform: translateY(100%); }
-          100% { transform: translateY(0); }
+        .role-modal-popin { animation: roleModalPopIn 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes roleModalPopIn {
+          0% { opacity: 0; transform: scale(0.92) translateY(8px); }
+          100% { opacity: 1; transform: scale(1) translateY(0); }
         }
       `}</style>
     </div>
