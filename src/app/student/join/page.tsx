@@ -31,6 +31,16 @@ const LEVELS: Record<string, { label: string; emoji: string; timer: number; minC
   advanced: { label: '심화', emoji: '🚀', timer: 900,  minChars: 100, color: '#582C83' },
 };
 
+// ⭐ 직무별 한 줄 소개 (CEO 제외, 팀원 6직무)
+const MEMBER_ROLE_GUIDES: Array<{ code: RoleCode; tagline: string }> = [
+  { code: 'market_analyst',     tagline: '데이터·통계로 시장 규모와 트렌드를 분석해 가능성을 예측해요.' },
+  { code: 'brand_strategist',   tagline: '브랜드 정체성과 경쟁사 대비 차별화 포인트를 설계해요.' },
+  { code: 'customer_insight',   tagline: '타깃 고객의 진짜 욕구와 행동 패턴을 깊이 이해해요.' },
+  { code: 'global_sales',       tagline: '진출국을 정하고 바이어·파트너를 발굴하는 글로벌 영업을 맡아요.' },
+  { code: 'digital_marketer',   tagline: 'SNS·콘텐츠 등 디지털 채널로 브랜드를 알리고 고객을 끌어와요.' },
+  { code: 'compliance_officer', tagline: '진출국별 인증·통관·관세 등 법적 요건을 분석하고 해결해요.' },
+];
+
 const WAITING_MESSAGES = [
   '✨ 잠시만 기다려주세요...',
   '🎯 팀장이 전략을 짜고 있어요',
@@ -129,6 +139,9 @@ export default function StudentJoin() {
   const [joinCode, setJoinCode] = useState('');
   const [codeError, setCodeError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // ⭐ NEW: 직무 가이드 펼침 상태
+  const [showRoleGuide, setShowRoleGuide] = useState(false);
 
   const [isMobile, setIsMobile] = useState(false);
   useEffect(() => {
@@ -300,7 +313,6 @@ export default function StudentJoin() {
   const handleLeaderSetup = async () => {
     if (!item || !team || !selectedMember) return;
     setLoading(true);
-    // ⭐ 산업군 + 품목 결합: "K-뷰티 (스킨케어) / 마스크팩 세트"
     const finalItem = item === '🔖 기타'
       ? customItem
       : (customItem ? `${item} / ${customItem}` : item);
@@ -549,7 +561,7 @@ export default function StudentJoin() {
                 style={{ textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}>
                 팀 코드 입력
               </h2>
-              <p className="text-[12px] text-gray-400">{`>`} 관리자가 알려준 코드를 입력하세요</p>
+              <p className="text-[12px] text-white" style={{ opacity: 0.75 }}>{`>`} 관리자가 알려준 코드를 입력하세요</p>
             </div>
             <input value={joinCode} onChange={e => { setJoinCode(e.target.value.toUpperCase()); setCodeError(''); }}
               onKeyDown={e => e.key === 'Enter' && handleCodeSubmit()}
@@ -592,17 +604,17 @@ export default function StudentJoin() {
             <div className="rounded-2xl p-5 mb-4" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <p className="text-[11px] text-gray-500 font-mono">팀 이름</p>
+                  <p className="text-[11px] font-mono text-white" style={{ opacity: 0.6 }}>팀 이름</p>
                   <p className="text-xl font-black text-white">{team.name}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-[11px] text-gray-500 font-mono">코드</p>
+                  <p className="text-[11px] font-mono text-white" style={{ opacity: 0.6 }}>코드</p>
                   <p className="text-base font-black font-mono" style={{ color: S.green }}>{team.join_code}</p>
                 </div>
               </div>
               {team.item && (
                 <div className="rounded-lg px-3 py-2 mt-2" style={{ background: `${S.green}10`, border: `1px solid ${S.green}20` }}>
-                  <p className="text-[11px] text-gray-500">아이템: <span style={{ color: S.green }}>{team.item}</span> · 수준: <span style={{ color: S.green }}>{LEVELS[team.level || 'standard']?.label}</span></p>
+                  <p className="text-[11px] text-white" style={{ opacity: 0.85 }}>아이템: <span style={{ color: S.green }}>{team.item}</span> · 수준: <span style={{ color: S.green }}>{LEVELS[team.level || 'standard']?.label}</span></p>
                 </div>
               )}
             </div>
@@ -624,12 +636,12 @@ export default function StudentJoin() {
             <div className="rounded-2xl p-5 mb-4" style={{ background: `${S.green}08`, border: `1px solid ${S.green}20` }}>
               <p className="text-[10px] font-mono tracking-widest mb-1" style={{ color: S.green }}>STEP 3 / 4</p>
               <h2 className="text-lg font-black text-white mb-1">본인 이름을 선택하세요</h2>
-              <p className="text-[12px] text-gray-500">명단에서 내 이름을 찾아 선택하세요</p>
+              <p className="text-[12px] text-white" style={{ opacity: 0.75 }}>명단에서 내 이름을 찾아 선택하세요</p>
             </div>
             {members.length === 0 ? (
               <div className="rounded-2xl p-5 text-center mb-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <p className="text-gray-500 text-[13px]">아직 명단이 등록되지 않았어요</p>
-                <p className="text-gray-600 text-[12px] mt-1">관리자에게 명단 등록을 요청하세요</p>
+                <p className="text-white text-[13px]" style={{ opacity: 0.7 }}>아직 명단이 등록되지 않았어요</p>
+                <p className="text-white text-[12px] mt-1" style={{ opacity: 0.5 }}>관리자에게 명단 등록을 요청하세요</p>
               </div>
             ) : (
               <div className="space-y-2 mb-4">
@@ -650,7 +662,7 @@ export default function StudentJoin() {
                     </div>
                     <div className="flex-1">
                       <p className="font-bold text-white text-[14px]">{m.name}</p>
-                      <p className="text-[11px]" style={{ color: m.is_leader ? S.green : '#666' }}>
+                      <p className="text-[11px]" style={{ color: m.is_leader ? S.green : 'rgba(255,255,255,0.6)' }}>
                         {m.is_leader ? '팀장 (CEO)' : '팀원'}
                         {m.joined_at && (
                           <span className="ml-2 font-bold"
@@ -694,7 +706,7 @@ export default function StudentJoin() {
             <div className="rounded-2xl p-5 mb-4" style={{ background: `${S.green}08`, border: `1px solid ${S.green}20` }}>
               <p className="text-[10px] font-mono tracking-widest mb-1" style={{ color: S.green }}>👑 팀장 설정</p>
               <h2 className="text-lg font-black text-white mb-1">팀 기본 설정</h2>
-              <p className="text-[12px] text-gray-500">팀장만 설정할 수 있어요. 팀원들에게도 적용됩니다.</p>
+              <p className="text-[12px] text-white" style={{ opacity: 0.75 }}>팀장만 설정할 수 있어요. 팀원들에게도 적용됩니다.</p>
             </div>
 
             {/* ⭐ ① 산업군 선택 */}
@@ -711,7 +723,7 @@ export default function StudentJoin() {
                   </div>
                   <p className="text-sm font-bold text-white">팀 산업군 선택</p>
                 </div>
-                <p className="text-[10px] text-gray-500">우리 팀이 다룰 큰 카테고리</p>
+                <p className="text-[10px] text-white" style={{ opacity: 0.6 }}>우리 팀이 다룰 큰 카테고리</p>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {INDUSTRIES.map(it => (
@@ -734,7 +746,7 @@ export default function StudentJoin() {
               </div>
             </div>
 
-            {/* ⭐ ② 세부 아이템 입력 (산업군 선택 시 활성화) */}
+            {/* ⭐ ② 세부 아이템 입력 */}
             <div className="mb-5">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -759,7 +771,7 @@ export default function StudentJoin() {
                     </span>
                   )}
                 </div>
-                <p className="text-[10px] text-gray-500">팀이 다룰 구체 제품·브랜드</p>
+                <p className="text-[10px] text-white" style={{ opacity: 0.6 }}>팀이 다룰 구체 제품·브랜드</p>
               </div>
 
               {!item ? (
@@ -768,7 +780,7 @@ export default function StudentJoin() {
                     background: 'rgba(255,255,255,0.02)',
                     border: '1px dashed rgba(255,255,255,0.1)',
                   }}>
-                  <p className="text-[12px] text-gray-600">먼저 위에서 산업군을 선택하세요</p>
+                  <p className="text-[12px] text-white" style={{ opacity: 0.6 }}>먼저 위에서 산업군을 선택하세요</p>
                 </div>
               ) : (
                 <div className="rounded-xl p-3 transition-all"
@@ -797,15 +809,14 @@ export default function StudentJoin() {
                     }}
                   />
                   <div className="mt-2 px-1">
-                    <p className="text-[10px] text-gray-500 leading-relaxed">
-                      💡 <span className="text-gray-400">한 가지에 집중할수록 카드별 답변이 구체적으로 나옵니다</span> · 여러 개라면 쉼표로 구분
+                    <p className="text-[10px] text-white leading-relaxed" style={{ opacity: 0.7 }}>
+                      💡 한 가지에 집중할수록 카드별 답변이 구체적으로 나옵니다 · 여러 개라면 쉼표로 구분
                     </p>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* ⭐ 최종 선택 요약 바 */}
             {item && customItem && (
               <div className="rounded-xl p-3 mb-5 flex items-center gap-2 transition-all"
                 style={{
@@ -820,7 +831,7 @@ export default function StudentJoin() {
                 <div className="flex-1 min-w-0">
                   <p className="text-[12px] font-bold text-white truncate">
                     <span style={{ color: S.aqua }}>{item.split(' (')[0]}</span>
-                    <span className="text-gray-500 mx-1">·</span>
+                    <span className="text-white mx-1" style={{ opacity: 0.5 }}>·</span>
                     <span style={{ color: S.green }}>{customItem}</span>
                   </p>
                 </div>
@@ -854,11 +865,12 @@ export default function StudentJoin() {
                   }}>
                   <span className="text-xl">{v.emoji}</span>
                   <div className="flex-1 text-left text-[13px] font-bold text-white">{v.label}</div>
-                  <span className="text-[11px] text-gray-500">{Math.floor(v.timer / 60)}분 · {v.minChars}자</span>
+                  <span className="text-[11px] text-white" style={{ opacity: 0.7 }}>{Math.floor(v.timer / 60)}분 · {v.minChars}자</span>
                 </InteractiveButton>
               ))}
             </div>
 
+            {/* ⭐ Step 4 — 팀원 직무 배정 (가독성 개선 + 직무 가이드 박스 추가) */}
             <div className="mb-6">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black flex-shrink-0"
@@ -871,8 +883,11 @@ export default function StudentJoin() {
                 </div>
                 <p className="text-sm font-bold text-white">팀원 직무 배정</p>
               </div>
-              <p className="text-[11px] text-gray-500 mb-3">팀장은 자동으로 CEO입니다. 팀원들의 직무를 정해주세요.</p>
+              <p className="text-[11px] text-white mb-3" style={{ opacity: 0.85 }}>
+                팀장은 자동으로 CEO입니다. 팀원들의 직무를 정해주세요.
+              </p>
 
+              {/* 👑 CEO 카드 */}
               {members.filter(m => m.is_leader).map(m => (
                 <div key={m.id} className="rounded-xl p-3 mb-2 flex items-center gap-3"
                   style={{ background: `${S.green}10`, border: `1px solid ${S.green}40` }}>
@@ -881,10 +896,76 @@ export default function StudentJoin() {
                     <p className="text-[13px] font-bold text-white">{m.name}</p>
                     <p className="text-[11px]" style={{ color: S.green }}>대표이사 (CEO)</p>
                   </div>
-                  <span className="text-[10px] text-gray-600 font-mono">자동 배정</span>
+                  <span className="text-[10px] font-mono text-white" style={{ opacity: 0.6 }}>자동 배정</span>
                 </div>
               ))}
 
+              {/* ⭐⭐⭐ NEW: 직무 가이드 박스 (펼치기/접기) */}
+              {members.filter(m => !m.is_leader).length > 0 && (
+                <div className="mb-3">
+                  <button
+                    onClick={() => setShowRoleGuide(!showRoleGuide)}
+                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl transition-all hover:scale-[1.01]"
+                    style={{
+                      background: showRoleGuide ? `${S.cyan}12` : `${S.cyan}06`,
+                      border: `1px dashed ${S.cyan}${showRoleGuide ? '66' : '40'}`,
+                      color: S.cyan,
+                    }}>
+                    <span className="text-[12px] font-bold flex items-center gap-1.5">
+                      📖 직무 가이드 보기
+                      <span className="text-[10px] font-mono opacity-70">(어떤 직무들이 있는지)</span>
+                    </span>
+                    <span className="text-[11px] transition-transform"
+                      style={{ transform: showRoleGuide ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                      ⌄
+                    </span>
+                  </button>
+
+                  {showRoleGuide && (
+                    <div className="mt-2 rounded-xl p-3 role-guide-expand"
+                      style={{
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                      }}>
+                      <p className="text-[10px] font-mono tracking-widest text-white font-bold mb-2.5"
+                        style={{ opacity: 0.65 }}>
+                        팀원 직무 가이드 (6개)
+                      </p>
+                      <div className="space-y-0">
+                        {MEMBER_ROLE_GUIDES.map((guide, idx) => {
+                          const role = ROLES[guide.code];
+                          const isLast = idx === MEMBER_ROLE_GUIDES.length - 1;
+                          return (
+                            <div key={guide.code}
+                              className="flex gap-2.5 py-2"
+                              style={{
+                                borderBottom: isLast ? 'none' : '1px solid rgba(255,255,255,0.06)',
+                              }}>
+                              <span className="text-[15px] flex-shrink-0 leading-snug">{role.icon}</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[11.5px] font-bold mb-0.5"
+                                  style={{ color: role.color }}>
+                                  {role.nameKr}
+                                </p>
+                                <p className="text-[11px] text-white leading-snug"
+                                  style={{ opacity: 0.9 }}>
+                                  {guide.tagline}
+                                </p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <p className="text-[10px] text-white mt-2 italic"
+                        style={{ opacity: 0.55 }}>
+                        💡 위 가이드를 참고해서 팀원들에게 직무를 배정해주세요
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 팀원 직무 배정 드롭다운 */}
               {members.filter(m => !m.is_leader).map(m => (
                 <div key={m.id} className="rounded-xl p-3 mb-2"
                   style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -915,8 +996,10 @@ export default function StudentJoin() {
                       );
                     })}
                   </select>
+                  {/* ⭐ 직무 설명 — 회색에서 흰색으로 (가독성 개선) */}
                   {roleAssignments[m.id] && (
-                    <p className="text-[10px] text-gray-500 mt-1.5 px-1">
+                    <p className="text-[11px] text-white mt-1.5 px-1 leading-relaxed"
+                      style={{ opacity: 0.85 }}>
                       {ROLES[roleAssignments[m.id]]?.description}
                     </p>
                   )}
@@ -925,7 +1008,7 @@ export default function StudentJoin() {
 
               {members.filter(m => !m.is_leader).length === 0 && (
                 <div className="rounded-xl p-4 text-center" style={{ background: 'rgba(255,255,255,0.04)' }}>
-                  <p className="text-[12px] text-gray-500">팀원이 없어요. 혼자 진행됩니다.</p>
+                  <p className="text-[12px] text-white" style={{ opacity: 0.6 }}>팀원이 없어요. 혼자 진행됩니다.</p>
                 </div>
               )}
             </div>
@@ -946,7 +1029,9 @@ export default function StudentJoin() {
                   style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)' }} />
               )}
             </button>
-            <p className="text-[10px] text-gray-600 text-center mt-2">시작하면 모든 팀원이 자동으로 게임 화면으로 이동합니다.</p>
+            <p className="text-[10px] text-white text-center mt-2" style={{ opacity: 0.6 }}>
+              시작하면 모든 팀원이 자동으로 게임 화면으로 이동합니다.
+            </p>
           </div>
         )}
 
@@ -1047,7 +1132,7 @@ export default function StudentJoin() {
               <h2 className="text-base font-black text-white">
                 {team.name}
               </h2>
-              <p className="text-[12px] mt-0.5" style={{ color: '#888' }}>팀장이 게임을 준비하고 있어요</p>
+              <p className="text-[12px] text-white mt-0.5" style={{ opacity: 0.7 }}>팀장이 게임을 준비하고 있어요</p>
             </div>
 
             <div className="rounded-xl p-4 mb-4 min-h-[60px] flex items-center justify-center relative z-10"
@@ -1244,9 +1329,10 @@ export default function StudentJoin() {
                   {`>`} WELCOME ABOARD
                 </p>
                 <h2 className="text-2xl md:text-3xl font-black text-white mb-1">환영해요, {selectedMember.name}!</h2>
-                <p className="text-[13px] md:text-[14px] text-gray-400 mb-5 md:mb-6">{team.name} · {selectedMember.is_leader ? '팀장' : '팀원'}</p>
+                <p className="text-[13px] md:text-[14px] text-white mb-5 md:mb-6" style={{ opacity: 0.75 }}>
+                  {team.name} · {selectedMember.is_leader ? '팀장' : '팀원'}
+                </p>
 
-                {/* ⭐ 좌우분할 영역 (PC) / 세로 배치 (모바일) */}
                 <div className="flex flex-col md:flex-row md:items-stretch gap-5 md:gap-6 mb-5 md:mb-6 md:text-left">
                   {myRole && (
                     <div className="flex justify-center md:flex-shrink-0 md:items-start">
@@ -1640,6 +1726,17 @@ export default function StudentJoin() {
         @keyframes countdownTextPulse {
           0%, 100% { opacity: 0.6; }
           50% { opacity: 1; }
+        }
+        @keyframes fadeIn {
+          0% { opacity: 0; transform: translateY(4px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        .role-guide-expand {
+          animation: roleGuideExpand 0.25s ease-out;
+        }
+        @keyframes roleGuideExpand {
+          0% { opacity: 0; transform: translateY(-4px); }
+          100% { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </div>
