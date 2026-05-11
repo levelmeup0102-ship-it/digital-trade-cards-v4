@@ -520,15 +520,10 @@ function FillInBlankForm({
 }
 
 // ═══════════════════════════════════════════════════════
-// ⭐⭐⭐ BlankInput v11 — 커서 위치 보존
+// ⭐⭐⭐ BlankInput v12 — 포커스 중에는 외부 업데이트 차단
 //
-//   v10 문제: 사용자가 타자 칠 때마다 부모 state 업데이트 → 리렌더
-//   → useEffect로 innerText 다시 set → 커서 맨 앞으로 튐
-//
-//   v11 해결:
-//   - "내가 친 값"을 isMineRef로 추적
-//   - 사용자 입력 직후: DOM 절대 안 건드림
-//   - 진짜 외부에서 바뀐 경우만 DOM 동기화
+//   v11 문제: 사용자 타이핑 → 부모 state → Realtime → 부모 리렌더 → DOM 다시 set
+//   v12 해결: 포커스 중에는 외부 업데이트 무시. blur되면 그때 동기화.
 // ═══════════════════════════════════════════════════════
 function BlankInput({
   value, onChange, disabled, cardColor,
@@ -540,12 +535,9 @@ function BlankInput({
 }) {
   const ref = useRef<HTMLSpanElement>(null);
   const isComposingRef = useRef(false);
+  const isFocusedRef = useRef(false);
   const onChangeRef = useRef(onChange);
-
-  // ⭐ "내가 마지막으로 부모로 보낸 값" — 리렌더 시 동일하면 동기화 스킵
-  const lastSentRef = useRef<string>(value);
-
-  // ⭐ 첫 렌더에만 초기값 세팅, 이후엔 외부 변경만 반영
+  const pendingValueRef = useRef<string>(value);
   const isFirstMountRef = useRef(true);
 
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
@@ -555,25 +547,27 @@ function BlankInput({
     if (!ref.current) return;
     if (isFirstMountRef.current) {
       ref.current.innerText = value;
-      lastSentRef.current = value;
       isFirstMountRef.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 외부 value 변경 동기화 (내가 보낸 값과 다를 때만)
+  // ⭐ 외부 value 변경 처리 — 포커스 중이면 보류, 아니면 즉시 적용
   useEffect(() => {
     if (!ref.current) return;
     if (isFirstMountRef.current) return;
-    if (isComposingRef.current) return;
 
-    // ⭐ 핵심: 내가 마지막으로 보낸 값과 같으면 = 내가 친 거니까 무시
-    if (value === lastSentRef.current) return;
+    // 포커스 중 = 사용자가 타이핑 중 = DOM 절대 안 건드림
+    // (blur될 때 pendingValueRef로 동기화)
+    pendingValueRef.current = value;
+    
+    if (isFocusedRef.current || isComposingRef.current) {
+      return;
+    }
 
-    // 진짜 외부 변경 (다른 사용자 수정, 카드 변경 등) → DOM 업데이트
+    // 포커스 아닐 때만 외부 변경 반영
     if (ref.current.innerText !== value) {
       ref.current.innerText = value;
-      lastSentRef.current = value;
     }
   }, [value]);
 
@@ -581,16 +575,27 @@ function BlankInput({
     if (!ref.current) return;
     if (isComposingRef.current) return;
     const text = ref.current.innerText;
-    lastSentRef.current = text; // ⭐ 내가 보낸 값으로 기록
     onChangeRef.current(text);
   };
 
   const handleCompositionEnd = () => {
     isComposingRef.current = false;
     if (ref.current) {
-      const text = ref.current.innerText;
-      lastSentRef.current = text; // ⭐ 내가 보낸 값으로 기록
-      onChangeRef.current(text);
+      onChangeRef.current(ref.current.innerText);
+    }
+  };
+
+  const handleFocus = () => {
+    isFocusedRef.current = true;
+  };
+
+  const handleBlur = () => {
+    isFocusedRef.current = false;
+    if (!ref.current) return;
+    
+    // blur 시점에 보류됐던 외부 변경 적용
+    if (pendingValueRef.current !== ref.current.innerText) {
+      ref.current.innerText = pendingValueRef.current;
     }
   };
 
@@ -604,6 +609,8 @@ function BlankInput({
       onInput={handleInput}
       onCompositionStart={() => { isComposingRef.current = true; }}
       onCompositionEnd={handleCompositionEnd}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
       autoCorrect="off"
       autoCapitalize="off"
       spellCheck={false}
@@ -693,6 +700,7 @@ function LeaderQView({
   const [localResponse, setLocalResponse] = useState(currentResponse);
 
   const isComposingRef = useRef(false);
+  const isFocusedRef = useRef(false);
   const localRef = useRef(localResponse);
   const externalRef = useRef(currentResponse);
   const onSaveRef = useRef(onSaveResponse);
@@ -701,8 +709,10 @@ function LeaderQView({
   useEffect(() => { externalRef.current = currentResponse; }, [currentResponse]);
   useEffect(() => { onSaveRef.current = onSaveResponse; }, [onSaveResponse]);
 
+  // ⭐ 외부 변경 동기화 — 포커스 중이면 무시
   useEffect(() => {
     if (isComposingRef.current) return;
+    if (isFocusedRef.current) return;
     if (currentResponse !== localRef.current) {
       setLocalResponse(currentResponse);
     }
@@ -760,12 +770,16 @@ function LeaderQView({
         <textarea
           value={localResponse}
           onChange={e => setLocalResponse(e.target.value)}
+          onFocus={() => { isFocusedRef.current = true; }}
           onCompositionStart={() => { isComposingRef.current = true; }}
           onCompositionEnd={(e) => {
             isComposingRef.current = false;
             setLocalResponse((e.target as HTMLTextAreaElement).value);
           }}
-          onBlur={() => flushSave()}
+          onBlur={() => {
+            isFocusedRef.current = false;
+            flushSave();
+          }}
           placeholder={`팀원 인사이트를 종합해서 ${displayItem} 기준 팀 답변을 작성하세요...`}
           disabled={isCurrentSubCompleted}
           autoComplete="off"
@@ -989,13 +1003,16 @@ function MemberQView({
   const [saving, setSaving] = useState(false);
 
   const isComposingRef = useRef(false);
+  const isFocusedRef = useRef(false);
   const contentRef = useRef(content);
   const lastSavedRef = useRef(content);
 
   useEffect(() => { contentRef.current = content; }, [content]);
 
+  // ⭐ 외부 변경 동기화 — 포커스 중이면 무시
   useEffect(() => {
     if (isComposingRef.current) return;
+    if (isFocusedRef.current) return;
     if (myInsight && myInsight.content !== contentRef.current) {
       setContent(myInsight.content);
       setIsCompleted(myInsight.is_completed);
@@ -1098,12 +1115,16 @@ function MemberQView({
         <textarea
           value={content}
           onChange={e => setContent(e.target.value)}
+          onFocus={() => { isFocusedRef.current = true; }}
           onCompositionStart={() => { isComposingRef.current = true; }}
           onCompositionEnd={(e) => {
             isComposingRef.current = false;
             setContent((e.target as HTMLTextAreaElement).value);
           }}
-          onBlur={() => flushSave()}
+          onBlur={() => {
+            isFocusedRef.current = false;
+            flushSave();
+          }}
           disabled={isCompleted}
           placeholder="자기 직무 관점에서 한두 문장으로..."
           autoComplete="off"
