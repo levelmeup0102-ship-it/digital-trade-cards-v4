@@ -17,7 +17,7 @@ const S = { green: '#E7FE55', aqua: '#C1E8EB', navy: '#111111', cyan: '#06B6D4',
 const TABS = ['주제', 'Q1', 'Q2', 'Q3', '결론'] as const;
 type TabType = typeof TABS[number];
 
-// ⭐ NEW: 직무별 인사이트 작성 가이드 (CEO 제외, 6직무)
+// ⭐ 직무별 인사이트 작성 가이드 (CEO 제외, 6직무)
 const ROLE_INSIGHT_GUIDES: Partial<Record<RoleCode, { label: string; tips: string[] }>> = {
   market_analyst: {
     label: '시장 분석가라면 이런 걸 고려해보세요',
@@ -572,7 +572,7 @@ function FillInBlankForm({
 }
 
 // ═══════════════════════════════════════════════════════
-// ⭐⭐⭐ BlankInput v12 — 포커스 중 외부 업데이트 차단 (기존 유지)
+// BlankInput v12 — 포커스 중 외부 업데이트 차단 (유지)
 // ═══════════════════════════════════════════════════════
 function BlankInput({
   value, onChange, disabled, cardColor,
@@ -1014,7 +1014,101 @@ function TeamInsightSidebar({
 }
 
 // ═══════════════════════════════════════════════════════
-// ⭐ MemberQView v13 — 가이드 박스 추가 (14번 작업)
+// ⭐⭐⭐ NEW v14: RoleInfoModal — 팀원 직무 정보 바텀시트
+// 미션 + 가이드 박스 둘 다 표시
+// ═══════════════════════════════════════════════════════
+function RoleInfoModal({
+  role, prompt, guide, onClose,
+}: {
+  role: ReturnType<typeof getRole>;
+  prompt: string;
+  guide: { label: string; tips: string[] } | null;
+  onClose: () => void;
+}) {
+  if (!role) return null;
+
+  return (
+    <div className="fixed inset-0 z-[200]" onClick={onClose}>
+      <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.6)' }} />
+
+      <div
+        onClick={e => e.stopPropagation()}
+        className="absolute bottom-0 left-0 right-0 role-modal-slideup"
+        style={{
+          background: 'linear-gradient(180deg, #0A1228 0%, #0F1B3D 100%)',
+          borderTop: `1px solid ${role.color}40`,
+          borderRadius: '16px 16px 0 0',
+          padding: '14px 16px 24px',
+          maxHeight: '80vh',
+          overflowY: 'auto',
+          boxShadow: '0 -8px 32px rgba(0,0,0,0.5)',
+        }}>
+        <div className="w-10 h-1 rounded-full mx-auto mb-4" style={{ background: 'rgba(255,255,255,0.2)' }} />
+
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center text-lg flex-shrink-0"
+            style={{ background: `${role.color}30`, border: `1px solid ${role.color}` }}>
+            {role.icon}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-mono tracking-widest" style={{ color: role.color }}>YOUR ROLE</p>
+            <p className="text-[14px] font-bold text-white">{role.nameKr} · {role.nameEn}</p>
+          </div>
+          <button onClick={onClose}
+            className="text-gray-400 text-xl leading-none px-2 hover:text-white transition">
+            ×
+          </button>
+        </div>
+
+        <div className="mb-3 rounded-xl p-3"
+          style={{ background: `${role.color}10`, border: `1px solid ${role.color}30` }}>
+          <p className="text-[10px] font-bold mb-1.5 font-mono tracking-widest" style={{ color: role.color }}>
+            내 직무 관점 미션
+          </p>
+          <p className="text-[12.5px] text-white leading-relaxed">{prompt}</p>
+        </div>
+
+        {guide && (
+          <div className="rounded-xl px-3 py-3"
+            style={{
+              background: 'rgba(255, 230, 128, 0.08)',
+              border: '1px dashed rgba(255, 230, 128, 0.4)',
+            }}>
+            <p className="text-[11px] font-bold mb-2" style={{ color: '#FFE680' }}>
+              💡 {guide.label}
+            </p>
+            <ul className="m-0 pl-4 space-y-1">
+              {guide.tips.map((tip, idx) => (
+                <li key={idx}
+                  className="text-[12px] leading-relaxed"
+                  style={{ color: 'rgba(255,255,255,0.9)' }}>
+                  {tip}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        <p className="text-[10px] text-gray-500 text-center mt-3 italic">
+          ✕ 또는 바깥 영역을 탭하면 닫혀요
+        </p>
+      </div>
+
+      <style jsx>{`
+        .role-modal-slideup { animation: roleModalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes roleModalSlideUp {
+          0% { transform: translateY(100%); }
+          100% { transform: translateY(0); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// ⭐⭐⭐ MemberQView v14 — 12번 레이아웃 개선
+// 흐름: 직무 띠 + 노란 바운스 버튼 → 답변창
+// 미션 + 가이드는 모달로 이동
 // ═══════════════════════════════════════════════════════
 function MemberQView({
   sub, color,
@@ -1037,6 +1131,8 @@ function MemberQView({
   const [content, setContent] = useState(myInsight?.content || '');
   const [isCompleted, setIsCompleted] = useState(!!myInsight?.is_completed);
   const [saving, setSaving] = useState(false);
+  // ⭐ NEW: 직무 정보 모달 상태
+  const [showRoleModal, setShowRoleModal] = useState(false);
 
   const isComposingRef = useRef(false);
   const isFocusedRef = useRef(false);
@@ -1061,8 +1157,7 @@ function MemberQView({
     ? getRolePrompt(sub.id, myRoleCode)
     : '자기 관점에서 인사이트를 작성하세요';
 
-  // ⭐ NEW: 내 직무에 맞는 가이드 (CEO 제외 6직무만)
-  const myGuide = myRoleCode ? ROLE_INSIGHT_GUIDES[myRoleCode] : null;
+  const myGuide = myRoleCode ? ROLE_INSIGHT_GUIDES[myRoleCode] || null : null;
 
   const canComplete = content.trim().length >= insightMinChars && !isCompleted;
 
@@ -1124,48 +1219,36 @@ function MemberQView({
 
   return (
     <>
+      {/* ⭐⭐⭐ NEW: 직무 띠 + 노란 바운스 버튼 (12번 핵심) */}
       {myRole && (
-        <div className="mb-3 rounded-xl p-3 flex items-center gap-2.5"
+        <div className="mb-3 rounded-xl p-2.5 flex items-center gap-2"
           style={{ background: `${myRole.color}15`, border: `1px solid ${myRole.color}40` }}>
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center text-base flex-shrink-0"
+          <div className="w-8 h-8 rounded-md flex items-center justify-center text-sm flex-shrink-0"
             style={{ background: `${myRole.color}30`, border: `1px solid ${myRole.color}` }}>
             {myRole.icon}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-mono tracking-widest" style={{ color: myRole.color }}>YOUR ROLE</p>
-            <p className="text-[13px] font-bold text-white leading-tight">
-              {myRole.nameKr} · {myRole.nameEn}
+            <p className="text-[9px] font-mono tracking-widest leading-tight" style={{ color: myRole.color }}>YOUR ROLE</p>
+            <p className="text-[12px] font-bold text-white leading-tight truncate">
+              {myRole.nameKr}
             </p>
           </div>
-        </div>
-      )}
-
-      <div className="mb-3 rounded-xl p-3"
-        style={{ background: `${color}10`, border: `1px solid ${color}30` }}>
-        <p className="text-[10px] font-bold mb-1 font-mono tracking-widest" style={{ color }}>내 직무 관점 미션</p>
-        <p className="text-[12.5px] text-white leading-relaxed">{prompt}</p>
-      </div>
-
-      {/* ⭐⭐⭐ NEW: 직무별 가이드 박스 (14번 작업) */}
-      {myGuide && !isCompleted && (
-        <div className="mb-3 rounded-xl px-3 py-2.5"
-          style={{
-            background: 'rgba(255, 230, 128, 0.08)',
-            border: '1px dashed rgba(255, 230, 128, 0.4)',
-          }}>
-          <p className="text-[10.5px] font-bold mb-1.5"
-            style={{ color: '#FFE680' }}>
-            💡 {myGuide.label}
-          </p>
-          <ul className="m-0 pl-4 space-y-0.5">
-            {myGuide.tips.map((tip, idx) => (
-              <li key={idx}
-                className="text-[11px] leading-relaxed"
-                style={{ color: 'rgba(255,255,255,0.9)' }}>
-                {tip}
-              </li>
-            ))}
-          </ul>
+          <button
+            onClick={() => setShowRoleModal(true)}
+            className="role-bounce-btn flex items-center gap-1 px-2.5 py-1.5 rounded-md flex-shrink-0"
+            style={{
+              background: 'linear-gradient(135deg, #FFE680 0%, #FFD93D 100%)',
+              border: 'none',
+              color: S.navy,
+              fontSize: '11px',
+              fontWeight: 800,
+              cursor: 'pointer',
+              boxShadow: '0 0 12px rgba(255,217,61,0.5)',
+              whiteSpace: 'nowrap',
+            }}>
+            <span>📋</span>
+            <span>내 직무 보기</span>
+          </button>
         </div>
       )}
 
@@ -1193,7 +1276,7 @@ function MemberQView({
           autoCapitalize="off"
           spellCheck={false}
           className="w-full px-3 py-2.5 rounded-xl text-white leading-relaxed resize-none transition disabled:opacity-70"
-          rows={4}
+          rows={5}
           style={{
             background: content ? `${color}10` : `${color}06`,
             border: `1.5px solid ${content ? color : color + '40'}`,
@@ -1240,6 +1323,40 @@ function MemberQView({
           제출 후에는 수정할 수 없어요. 신중히 작성하세요.
         </p>
       )}
+
+      {/* ⭐ NEW: 직무 정보 모달 (바텀시트) */}
+      {showRoleModal && (
+        <RoleInfoModal
+          role={myRole}
+          prompt={prompt}
+          guide={myGuide}
+          onClose={() => setShowRoleModal(false)}
+        />
+      )}
+
+      {/* ⭐ NEW: 노란 바운스 버튼 애니메이션 */}
+      <style jsx>{`
+        .role-bounce-btn {
+          animation: roleBtnBounce 2.5s ease-in-out infinite;
+          transition: transform 0.15s ease-out;
+        }
+        .role-bounce-btn:hover {
+          transform: scale(1.05);
+        }
+        .role-bounce-btn:active {
+          transform: scale(0.97);
+        }
+        @keyframes roleBtnBounce {
+          0%, 100% {
+            transform: translateY(0);
+            box-shadow: 0 0 12px rgba(255,217,61,0.5);
+          }
+          50% {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 20px rgba(255,217,61,0.75), 0 0 30px rgba(255,217,61,0.3);
+          }
+        }
+      `}</style>
     </>
   );
 }
