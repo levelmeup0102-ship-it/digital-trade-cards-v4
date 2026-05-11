@@ -13,23 +13,6 @@ import {
   areAllMembersComplete,
 } from '@/lib/collaborative';
 
-// ─────────────────────────────────────────
-// v5: canvas 기반 텍스트 너비 측정 헬퍼 (모듈 1회만 생성)
-// BlankInput의 calcWidth에서 사용
-// ─────────────────────────────────────────
-let _measureCanvas: HTMLCanvasElement | null = null;
-function measureTextWidth(text: string, font: string): number {
-  if (typeof document === 'undefined') {
-    // SSR fallback — 한글 위주 근사치
-    return text.length * 11;
-  }
-  if (!_measureCanvas) _measureCanvas = document.createElement('canvas');
-  const ctx = _measureCanvas.getContext('2d');
-  if (!ctx) return text.length * 11;
-  ctx.font = font;
-  return ctx.measureText(text).width;
-}
-
 const S = { green: '#E7FE55', aqua: '#C1E8EB', navy: '#111111', cyan: '#06B6D4', purple: '#8B5CF6' };
 const TABS = ['주제', 'Q1', 'Q2', 'Q3', '결론'] as const;
 type TabType = typeof TABS[number];
@@ -377,15 +360,12 @@ export default function SignalCard({
             {isLeader ? (
               <>
                 <div className="mb-4">
-                  {/* ⭐ v9: 결론 탭에도 '작성 완료' 버튼 추가
-                      (LeaderQView의 중간 결론과 동일한 IME 문제 해결) */}
                   <div className="flex items-center justify-between mb-1">
                     <p className="text-[10px] font-bold font-mono tracking-widest text-gray-500">한 문장 전략</p>
                     {!isCardCompleted && (
                       <button
                         type="button"
                         onClick={() => {
-                          // 활성 input.blur() → composition 강제 종료 → 자동 동기화
                           if (document.activeElement instanceof HTMLElement) {
                             document.activeElement.blur();
                           }
@@ -511,11 +491,7 @@ export default function SignalCard({
 // FillInBlankForm
 // ═══════════════════════════════════════════════════════
 function FillInBlankForm({
-  template,
-  values,
-  onChange,
-  disabled,
-  cardColor,
+  template, values, onChange, disabled, cardColor,
 }: {
   template: string;
   values: string[];
@@ -526,7 +502,7 @@ function FillInBlankForm({
   const parts = parseTemplate(template);
 
   return (
-    <div className="text-[14px] text-white leading-[2.2]"
+    <div className="text-[14px] text-white leading-[2.4]"
       style={{ wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
       {parts.map((part, idx) => (
         <Fragment key={idx}>
@@ -546,139 +522,81 @@ function FillInBlankForm({
 }
 
 // ═══════════════════════════════════════════════════════
-// ⭐ BlankInput v6 — onCompositionEnd에서 즉시 부모 동기화 추가
-//   (PC 한글 IME에서 조합 끝난 후 디바운스 useEffect가
-//    재트리거되지 않아 버튼 활성화가 지연되던 문제 해결)
+// ⭐⭐⭐ BlankInput v10 (체험판 v9 패턴)
+//   contentEditable + 폰트 16px (iOS 줌 방지) + 자동 줄바꿈
 // ═══════════════════════════════════════════════════════
 function BlankInput({
-  value,
-  onChange,
-  disabled,
-  cardColor,
+  value, onChange, disabled, cardColor,
 }: {
   value: string;
   onChange: (v: string) => void;
   disabled?: boolean;
   cardColor: string;
 }) {
-  const [localValue, setLocalValue] = useState(value);
-
+  const ref = useRef<HTMLSpanElement>(null);
   const isComposingRef = useRef(false);
-  const localValueRef = useRef(localValue);
-  const externalValueRef = useRef(value);
   const onChangeRef = useRef(onChange);
 
-  useEffect(() => { localValueRef.current = localValue; }, [localValue]);
-  useEffect(() => { externalValueRef.current = value; }, [value]);
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
-  // ⭐⭐⭐ 핵심: 외부 value 변경 시 localValue 동기화
   useEffect(() => {
+    if (!ref.current) return;
     if (isComposingRef.current) return;
-    if (value !== localValueRef.current) {
-      setLocalValue(value);
+    if (ref.current.innerText !== value) {
+      ref.current.innerText = value;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
-  // 디바운스 저장 (200ms)
-  useEffect(() => {
+  const handleInput = () => {
+    if (!ref.current) return;
     if (isComposingRef.current) return;
-    if (localValue === value) return;
-    const t = setTimeout(() => onChange(localValue), 200);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localValue, value]);
-
-  const flushSave = () => {
-    if (localValueRef.current !== externalValueRef.current) {
-      onChangeRef.current(localValueRef.current);
-    }
+    const text = ref.current.innerText;
+    onChangeRef.current(text);
   };
 
-  useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState === 'hidden') flushSave();
-    };
-    const handleBeforeUnload = () => flushSave();
-    document.addEventListener('visibilitychange', handleVisibility);
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibility);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      flushSave();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ─────────────────────────────────────────
-  // ⭐ v5 변경: canvas measureText로 정확한 텍스트 너비 측정
-  //   - input 실제 스타일과 일치: font-size 12px, font-weight 600
-  //   - 좌우 padding 12px (6+6) + border 2px (1+1) = 14px 보정
-  //   - 안전 여유 2px 추가 → +16px
-  // ─────────────────────────────────────────
-  const calcWidth = (v: string) => {
-    if (!v) return 40;
-    const FONT = '600 12px Pretendard, -apple-system, BlinkMacSystemFont, sans-serif';
-    const w = measureTextWidth(v, FONT);
-    return Math.max(40, Math.ceil(w) + 16);
+  const handleCompositionEnd = () => {
+    isComposingRef.current = false;
+    if (ref.current) {
+      onChangeRef.current(ref.current.innerText);
+    }
   };
 
   const NEON_YELLOW = '#FFE680';
 
   return (
-    <input
-      type="text"
-      value={localValue}
-      onChange={(e) => setLocalValue(e.target.value)}
+    <span
+      ref={ref}
+      contentEditable={!disabled}
+      suppressContentEditableWarning
+      onInput={handleInput}
       onCompositionStart={() => { isComposingRef.current = true; }}
-      onCompositionEnd={(e) => {
-        isComposingRef.current = false;
-        const v = (e.target as HTMLInputElement).value;
-        setLocalValue(v);
-        // ⭐ v6: 조합 끝나는 즉시 부모에 전달 (디바운스 우회)
-        // — PC 한글 IME에서 버튼 활성화가 지연되던 문제 해결
-        if (v !== externalValueRef.current) {
-          onChangeRef.current(v);
-        }
-      }}
-      onBlur={(e) => {
-        flushSave();
-        if (localValueRef.current) {
-          e.currentTarget.style.boxShadow = `0 0 4px ${NEON_YELLOW}33`;
-          e.currentTarget.style.background = `${NEON_YELLOW}15`;
-        } else {
-          e.currentTarget.style.boxShadow = 'none';
-          e.currentTarget.style.borderColor = `${NEON_YELLOW}44`;
-          e.currentTarget.style.background = `${NEON_YELLOW}08`;
-        }
-      }}
-      onFocus={(e) => {
-        e.currentTarget.style.boxShadow = `0 0 8px ${NEON_YELLOW}66`;
-        e.currentTarget.style.borderColor = NEON_YELLOW;
-        e.currentTarget.style.background = `${NEON_YELLOW}1A`;
-      }}
-      disabled={disabled}
+      onCompositionEnd={handleCompositionEnd}
+      autoCorrect="off"
+      autoCapitalize="off"
+      spellCheck={false}
       style={{
         display: 'inline-block',
-        width: `${calcWidth(localValue)}px`,
-        height: '20px',
-        boxSizing: 'border-box',
-        background: localValue ? `${NEON_YELLOW}15` : `${NEON_YELLOW}08`,
-        color: localValue ? NEON_YELLOW : '#888',
-        border: `1px solid ${localValue ? NEON_YELLOW : NEON_YELLOW + '44'}`,
-        borderRadius: '4px',
-        padding: '0 6px',
-        margin: '0 2px',
-        fontSize: '12px',
+        minWidth: '60px',
+        maxWidth: '100%',
+        minHeight: '28px',
+        padding: '3px 12px',
+        margin: '0 3px',
+        background: value ? `${NEON_YELLOW}15` : `${NEON_YELLOW}08`,
+        color: value ? NEON_YELLOW : '#FFFFFF',
+        border: `1px solid ${value ? NEON_YELLOW : NEON_YELLOW + '44'}`,
+        borderRadius: '5px',
+        fontSize: '16px',
         fontWeight: 600,
-        lineHeight: '18px',
+        lineHeight: '22px',
         outline: 'none',
         verticalAlign: 'middle',
-        minWidth: '40px',
-        transition: 'width 0.15s, background 0.2s, border-color 0.2s, box-shadow 0.2s',
-        boxShadow: localValue ? `0 0 4px ${NEON_YELLOW}33` : 'none',
-      }}
+        wordBreak: 'break-all',
+        whiteSpace: 'pre-wrap',
+        cursor: disabled ? 'not-allowed' : 'text',
+        boxShadow: value ? `0 0 4px ${NEON_YELLOW}33` : 'none',
+        opacity: disabled ? 0.7 : 1,
+        WebkitUserModify: disabled ? 'read-only' : 'read-write-plaintext-only',
+      } as React.CSSProperties}
     />
   );
 }
@@ -730,7 +648,7 @@ interface LeaderQViewProps {
 }
 
 // ═══════════════════════════════════════════════════════
-// ⭐ LeaderQView v4
+// ⭐ LeaderQView v10 — textarea 폰트 16px (iOS 줌 방지)
 // ═══════════════════════════════════════════════════════
 function LeaderQView({
   sub, color,
@@ -753,7 +671,6 @@ function LeaderQView({
   useEffect(() => { externalRef.current = currentResponse; }, [currentResponse]);
   useEffect(() => { onSaveRef.current = onSaveResponse; }, [onSaveResponse]);
 
-  // 외부 currentResponse 동기화
   useEffect(() => {
     if (isComposingRef.current) return;
     if (currentResponse !== localRef.current) {
@@ -821,13 +738,18 @@ function LeaderQView({
           onBlur={() => flushSave()}
           placeholder={`팀원 인사이트를 종합해서 ${displayItem} 기준 팀 답변을 작성하세요...`}
           disabled={isCurrentSubCompleted}
-          className="w-full px-3 py-2.5 rounded-xl text-[13px] text-white leading-relaxed resize-none transition disabled:opacity-60"
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          className="w-full px-3 py-2.5 rounded-xl text-white leading-relaxed resize-none transition disabled:opacity-60"
           rows={5}
           style={{
             background: localResponse ? `${color}10` : `${color}06`,
             border: `1.5px solid ${localResponse ? color : color + '40'}`,
             outline: 'none',
             boxShadow: localResponse ? `0 0 12px ${color}30` : 'none',
+            fontSize: '16px',
           }}
         />
         <div className="flex justify-between mt-1">
@@ -837,15 +759,12 @@ function LeaderQView({
       </div>
 
       <div className="mb-4">
-        {/* ⭐ v8: 헤더 우측에 '작성 완료' 버튼 추가
-            (한글 IME가 안 끝나서 동기화 안 된 경우의 명시적 트리거) */}
         <div className="flex items-center justify-between mb-1.5">
           <p className="text-[10px] font-bold font-mono tracking-widest text-gray-500">중간 결론</p>
           {!isCurrentSubCompleted && (
             <button
               type="button"
               onClick={() => {
-                // 활성 input.blur() → composition 강제 종료 → onBlur가 flushSave 호출
                 if (document.activeElement instanceof HTMLElement) {
                   document.activeElement.blur();
                 }
@@ -924,10 +843,7 @@ function LeaderQView({
 }
 
 function TeamInsightSidebar({
-  color,
-  memberInsights,
-  teamMembers,
-  onClose,
+  color, memberInsights, teamMembers, onClose,
 }: {
   color: string;
   memberInsights: MemberInsight[];
@@ -1021,7 +937,7 @@ function TeamInsightSidebar({
 }
 
 // ═══════════════════════════════════════════════════════
-// ⭐ MemberQView v4
+// ⭐ MemberQView v10 — textarea 폰트 16px (iOS 줌 방지)
 // ═══════════════════════════════════════════════════════
 function MemberQView({
   sub, color,
@@ -1051,7 +967,6 @@ function MemberQView({
 
   useEffect(() => { contentRef.current = content; }, [content]);
 
-  // myInsight 업데이트 시 동기화 (composition 중 아닐 때)
   useEffect(() => {
     if (isComposingRef.current) return;
     if (myInsight && myInsight.content !== contentRef.current) {
@@ -1164,13 +1079,18 @@ function MemberQView({
           onBlur={() => flushSave()}
           disabled={isCompleted}
           placeholder="자기 직무 관점에서 한두 문장으로..."
-          className="w-full px-3 py-2.5 rounded-xl text-[13px] text-white leading-relaxed resize-none transition disabled:opacity-70"
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          className="w-full px-3 py-2.5 rounded-xl text-white leading-relaxed resize-none transition disabled:opacity-70"
           rows={4}
           style={{
             background: content ? `${color}10` : `${color}06`,
             border: `1.5px solid ${content ? color : color + '40'}`,
             outline: 'none',
             boxShadow: content ? `0 0 12px ${color}30` : 'none',
+            fontSize: '16px',
           }}
         />
         <div className="flex justify-between mt-1">
