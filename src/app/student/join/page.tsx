@@ -1,6 +1,6 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useRef, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   getTeamWithMembersByCode, joinAsStudent,
   assignRoles, startTeamGame,
@@ -133,12 +133,19 @@ function InteractiveButton({
   );
 }
 
-export default function StudentJoin() {
+function StudentJoinInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // ⭐ NEW: URL 파라미터에서 팀 코드 읽기 (학급 페이지에서 팀 클릭 시 자동 전달)
+  const codeFromUrl = searchParams.get('code');
+
   const [step, setStep] = useState<Step>('code');
   const [joinCode, setJoinCode] = useState('');
   const [codeError, setCodeError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // ⭐ NEW: URL 자동 처리 중인지 (중복 호출 방지)
+  const autoProcessedRef = useRef(false);
 
   // ⭐ NEW: 직무 가이드 펼침 상태
   const [showRoleGuide, setShowRoleGuide] = useState(false);
@@ -278,6 +285,47 @@ export default function StudentJoin() {
       setCodeError('오류가 발생했어요. 다시 시도해주세요.');
     } finally { setLoading(false); }
   };
+
+  // ⭐⭐⭐ NEW: URL 파라미터 자동 처리 (학급 페이지에서 팀 클릭 시)
+  // /student/join?code=DT-XX-XXXX 형태로 들어왔을 때 자동으로 팀 정보 조회 + 이름 선택 단계로 이동
+  useEffect(() => {
+    if (!codeFromUrl) return;
+    if (autoProcessedRef.current) return;
+    autoProcessedRef.current = true;
+
+    const autoJoin = async () => {
+      const upperCode = codeFromUrl.toUpperCase().trim();
+      setJoinCode(upperCode);
+      setLoading(true);
+      setCodeError('');
+
+      try {
+        const result = await getTeamWithMembersByCode(upperCode);
+        if (!result) {
+          setCodeError('팀 코드를 찾을 수 없어요. 관리자에게 확인하세요.');
+          setLoading(false);
+          // URL 코드 잘못된 경우 → 코드 입력 화면 유지 (수동 입력 가능)
+          return;
+        }
+
+        setTeam(result.team);
+        setMembers(result.members);
+        if (result.team.item) setItem(result.team.item);
+        if (result.team.level) setLevel(result.team.level);
+
+        // 게임 시작 여부 관계없이 바로 이름 선택 단계로
+        // (학급 페이지에서 이미 팀 골랐으니 confirm 단계 스킵)
+        setStep('select');
+      } catch (e) {
+        setCodeError('오류가 발생했어요. 다시 시도해주세요.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    autoJoin();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [codeFromUrl]);
 
   const handleJoin = async () => {
     if (!selectedMember || !team) return;
@@ -1740,5 +1788,21 @@ export default function StudentJoin() {
         }
       `}</style>
     </div>
+  );
+}
+
+// ⭐⭐⭐ NEW: Suspense 래퍼 (useSearchParams는 Suspense boundary 필요)
+export default function StudentJoin() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center px-4"
+        style={{ background: '#0A0A0A' }}>
+        <p className="font-mono text-sm" style={{ color: '#06B6D4' }}>
+          {`>`} 로딩 중...
+        </p>
+      </div>
+    }>
+      <StudentJoinInner />
+    </Suspense>
   );
 }
