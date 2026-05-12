@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { getClassWithTeamsByCode } from '@/lib/teacher';
 import type { Class, Team } from '@/lib/teacher';
@@ -21,7 +21,7 @@ const LEVELS: Record<string, { label: string; emoji: string; color: string }> = 
   advanced: { label: '심화', emoji: '🚀', color: '#A78BFA' },
 };
 
-// 팀별 컬러 (시안에서 가져옴 - 1팀부터 순서대로)
+// 팀별 컬러 (시안에서 가져옴 - 1팀부터 순서대로 순환)
 const TEAM_COLORS = [
   '#06B6D4', '#8B5CF6', '#FF6FB5', '#E7FE55',
   '#FFD700', '#06B6D4', '#8B5CF6', '#FF6FB5',
@@ -37,6 +37,9 @@ export default function StudentClassPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+
+  // ⭐ NEW: 검색 쿼리
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -57,8 +60,19 @@ export default function StudentClassPage() {
     })();
   }, [joinCode]);
 
-  // 팀 선택 → 기존 student/join 페이지로 이동
-  // 팀 코드를 URL 파라미터로 전달
+  // ⭐ NEW: 검색 필터링 (이름 + 번호 둘 다)
+  const filteredTeams = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return teams;
+    return teams.filter(team => {
+      const name = team.name.toLowerCase();           // "3팀"
+      const nameOnly = name.replace(/팀$/, '').trim(); // "3"
+      // "3" 검색 → "3팀"의 "3" 매칭, "3팀" 검색 → "3팀" 매칭
+      return name.includes(q) || nameOnly.includes(q);
+    });
+  }, [teams, searchQuery]);
+
+  // 팀 선택 → 기존 student/join 페이지로 이동 (팀 코드 URL 파라미터로 전달)
   const handleTeamSelect = (team: Team) => {
     setSelectedTeamId(team.id);
     setTimeout(() => {
@@ -203,12 +217,44 @@ export default function StudentClassPage() {
         </div>
 
         {/* 안내 문구 */}
-        <p className="text-[13px] font-bold text-white mb-3 px-1">
+        <p className="text-[13px] font-bold text-white mb-2.5 px-1">
           본인 팀을 선택하세요
         </p>
 
+        {/* ⭐⭐⭐ NEW: 검색창 (항상 표시) ⭐⭐⭐ */}
+        <div className="mb-3 relative">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="🔍 팀 이름 또는 번호 검색..."
+            className="w-full px-3.5 py-2.5 pr-10 rounded-xl text-[13px] text-white transition-all"
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: searchQuery
+                ? `1.5px solid ${S.cyan}66`
+                : '1px solid rgba(255,255,255,0.08)',
+              outline: 'none',
+              boxShadow: searchQuery ? `0 0 12px ${S.cyan}22` : 'none',
+            }}
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center text-[14px] font-bold transition hover:scale-110"
+              style={{
+                background: 'rgba(255,255,255,0.1)',
+                color: '#aaa',
+              }}
+              aria-label="검색어 지우기">
+              ✕
+            </button>
+          )}
+        </div>
+
         {/* 팀 카드 그리드 (2열) */}
         {teams.length === 0 ? (
+          // 학급에 팀이 아예 없는 경우
           <div className="rounded-2xl p-5 text-center mb-4"
             style={{
               background: 'rgba(255,255,255,0.04)',
@@ -221,80 +267,104 @@ export default function StudentClassPage() {
               관리자에게 문의해주세요
             </p>
           </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-2.5 mb-4">
-            {teams.map((team, idx) => {
-              const teamColor = TEAM_COLORS[idx % TEAM_COLORS.length];
-              const isSelected = selectedTeamId === team.id;
-              const memberCount = team.member_count || 0;
-              // E7FE55, FFD700 같은 밝은 색은 검은 글씨, 나머지는 흰 글씨
-              const isLight = teamColor === '#E7FE55' || teamColor === '#FFD700';
-              const numTextColor = isLight ? S.navy : '#fff';
-
-              return (
-                <button
-                  key={team.id}
-                  onClick={() => handleTeamSelect(team)}
-                  disabled={isSelected}
-                  className="team-card rounded-2xl p-3 text-center transition-all hover:scale-[1.03] active:scale-[0.97] relative overflow-hidden disabled:opacity-60"
-                  style={{
-                    background: isSelected ? `${teamColor}25` : 'rgba(255,255,255,0.04)',
-                    border: `1.5px solid ${isSelected ? teamColor : teamColor + '50'}`,
-                    boxShadow: isSelected
-                      ? `0 0 18px ${teamColor}88, inset 0 0 20px ${teamColor}22`
-                      : `0 0 10px ${teamColor}25`,
-                  }}>
-
-                  {/* 팀 번호 원 */}
-                  <div className="mx-auto mb-2 rounded-2xl flex items-center justify-center font-black"
-                    style={{
-                      width: '52px',
-                      height: '52px',
-                      background: teamColor,
-                      color: numTextColor,
-                      fontSize: '15px',
-                      letterSpacing: '-0.5px',
-                      boxShadow: `0 4px 14px ${teamColor}66, inset 0 -2px 8px rgba(0,0,0,0.15)`,
-                    }}>
-                    {team.name}
-                  </div>
-
-                  {/* 입장 현황 */}
-                  <p className="text-[15px] font-black text-white leading-tight">
-                    {memberCount}
-                    <span className="text-[11px] font-bold" style={{ color: '#888' }}>
-                      {' '}/ {memberCount === 0 ? '?' : memberCount}명
-                    </span>
-                  </p>
-
-                  {/* 상태 라벨 */}
-                  <p className="text-[10px] font-mono mt-0.5"
-                    style={{ color: teamColor, opacity: 0.8 }}>
-                    {memberCount === 0 ? '비어있음' : '입장 가능'}
-                  </p>
-
-                  {/* 팀 코드 (작게) */}
-                  <p className="text-[9px] font-mono mt-1.5 px-1 py-0.5 rounded"
-                    style={{
-                      color: '#666',
-                      background: 'rgba(0,0,0,0.3)',
-                    }}>
-                    {team.join_code}
-                  </p>
-
-                  {/* 선택 시 체크 */}
-                  {isSelected && (
-                    <div className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center"
-                      style={{ background: teamColor }}>
-                      <svg width="10" height="10" viewBox="0 0 10 10">
-                        <path d="M1.5 5l2.5 2.5 4.5-5" stroke={numTextColor} strokeWidth="1.5" fill="none" strokeLinecap="round" />
-                      </svg>
-                    </div>
-                  )}
-                </button>
-              );
-            })}
+        ) : filteredTeams.length === 0 ? (
+          // ⭐ NEW: 검색 결과가 없는 경우
+          <div className="rounded-2xl p-5 text-center mb-4"
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px dashed rgba(255,255,255,0.15)',
+            }}>
+            <p className="text-3xl mb-2">🔍</p>
+            <p className="text-[13px] text-white mb-1" style={{ opacity: 0.8 }}>
+              검색 결과가 없어요
+            </p>
+            <p className="text-[11px]" style={{ color: '#666' }}>
+              다시 확인해주세요
+            </p>
           </div>
+        ) : (
+          <>
+            {/* 검색 중일 때 결과 개수 표시 */}
+            {searchQuery && (
+              <p className="text-[10px] font-mono mb-2 px-1" style={{ color: '#888' }}>
+                {`>`} {filteredTeams.length}개 팀 일치
+              </p>
+            )}
+
+            <div className="grid grid-cols-2 gap-2.5 mb-4">
+              {filteredTeams.map((team) => {
+                // ⭐ 원본 teams 배열에서 인덱스 찾기 (컬러 일관성 유지)
+                const originalIdx = teams.findIndex(t => t.id === team.id);
+                const teamColor = TEAM_COLORS[originalIdx % TEAM_COLORS.length];
+                const isSelected = selectedTeamId === team.id;
+                const memberCount = team.member_count || 0;
+                // E7FE55, FFD700 같은 밝은 색은 검은 글씨, 나머지는 흰 글씨
+                const isLight = teamColor === '#E7FE55' || teamColor === '#FFD700';
+                const numTextColor = isLight ? S.navy : '#fff';
+
+                return (
+                  <button
+                    key={team.id}
+                    onClick={() => handleTeamSelect(team)}
+                    disabled={isSelected}
+                    className="team-card rounded-2xl p-3 text-center transition-all hover:scale-[1.03] active:scale-[0.97] relative overflow-hidden disabled:opacity-60"
+                    style={{
+                      background: isSelected ? `${teamColor}25` : 'rgba(255,255,255,0.04)',
+                      border: `1.5px solid ${isSelected ? teamColor : teamColor + '50'}`,
+                      boxShadow: isSelected
+                        ? `0 0 18px ${teamColor}88, inset 0 0 20px ${teamColor}22`
+                        : `0 0 10px ${teamColor}25`,
+                    }}>
+
+                    {/* 팀 번호 원 */}
+                    <div className="mx-auto mb-2 rounded-2xl flex items-center justify-center font-black"
+                      style={{
+                        width: '52px',
+                        height: '52px',
+                        background: teamColor,
+                        color: numTextColor,
+                        fontSize: '15px',
+                        letterSpacing: '-0.5px',
+                        boxShadow: `0 4px 14px ${teamColor}66, inset 0 -2px 8px rgba(0,0,0,0.15)`,
+                      }}>
+                      {team.name}
+                    </div>
+
+                    {/* ⭐ NEW: 입장한 팀원 N명 (아이콘 + 숫자) */}
+                    <p className="text-[13px] font-black text-white leading-tight">
+                      <span style={{ marginRight: '3px' }}>👥</span>
+                      {memberCount}명
+                    </p>
+
+                    {/* 상태 라벨 */}
+                    <p className="text-[10px] font-mono mt-0.5"
+                      style={{ color: teamColor, opacity: 0.8 }}>
+                      {memberCount === 0 ? '아직 입장 안 함' : '입장 중'}
+                    </p>
+
+                    {/* 팀 코드 (작게) */}
+                    <p className="text-[9px] font-mono mt-1.5 px-1 py-0.5 rounded"
+                      style={{
+                        color: '#666',
+                        background: 'rgba(0,0,0,0.3)',
+                      }}>
+                      {team.join_code}
+                    </p>
+
+                    {/* 선택 시 체크 */}
+                    {isSelected && (
+                      <div className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center"
+                        style={{ background: teamColor }}>
+                        <svg width="10" height="10" viewBox="0 0 10 10">
+                          <path d="M1.5 5l2.5 2.5 4.5-5" stroke={numTextColor} strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                        </svg>
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </>
         )}
 
         {/* 안내 박스 */}
@@ -350,6 +420,11 @@ export default function StudentClassPage() {
           10% { opacity: 1; }
           90% { opacity: 1; }
           100% { transform: translateX(-100vw); opacity: 0; }
+        }
+
+        /* input placeholder 색상 */
+        input::placeholder {
+          color: rgba(255, 255, 255, 0.35);
         }
       `}</style>
     </div>
