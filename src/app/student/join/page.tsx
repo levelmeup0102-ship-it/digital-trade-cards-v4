@@ -453,6 +453,86 @@ function StudentJoinInner() {
 
   const availableRoles = (Object.keys(ROLES) as RoleCode[]).filter(c => c !== 'ceo');
 
+  // ⭐⭐⭐ NEW: URL 코드 자동 처리 중에는 코드 입력 화면 깜빡임 방지 (로딩 화면 표시)
+  // URL에 code 파라미터가 있고, 아직 'code' 단계인 동안 = 자동 처리 중
+  if (codeFromUrl && step === 'code') {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4"
+        style={{ background: '#0A0A0A' }}>
+        <div className="flex flex-col items-center gap-6">
+          {/* SIGNAL 로고 */}
+          <div className="text-center">
+            <p className="text-[10px] tracking-[5px] font-mono font-bold mb-1"
+              style={{ color: S.green, textShadow: `0 0 8px ${S.green}AA` }}>
+              CONNECTAI
+            </p>
+            <h1 className="text-4xl font-black text-white"
+              style={{ textShadow: `0 0 20px ${S.green}66, 0 0 40px ${S.green}33` }}>
+              SIGNAL
+            </h1>
+            <p className="text-[10px] font-bold tracking-[2.5px] font-mono mt-1"
+              style={{ color: S.aqua }}>
+              DIGITAL TRADE CARDS
+            </p>
+          </div>
+
+          {/* 회전 스피너 */}
+          <div className="relative" style={{ width: '48px', height: '48px' }}>
+            <div className="absolute inset-0 rounded-full join-loader-ring"
+              style={{
+                border: `3px solid ${S.green}22`,
+                borderTopColor: S.green,
+                boxShadow: `0 0 12px ${S.green}66`,
+              }} />
+          </div>
+
+          {/* 로딩 메시지 */}
+          <p className="text-[13px] font-mono font-bold"
+            style={{ color: S.green, textShadow: `0 0 6px ${S.green}66` }}>
+            {`>`} 팀 정보 불러오는 중...
+          </p>
+
+          {/* 에러 발생 시 표시 (혹시 모를 케이스) */}
+          {codeError && (
+            <div className="rounded-xl p-4 max-w-sm text-center"
+              style={{
+                background: 'rgba(239, 68, 68, 0.08)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+              }}>
+              <p className="text-[12px] text-red-400 mb-3">⚠ {codeError}</p>
+              <button
+                onClick={() => {
+                  // URL 코드를 무효화하고 수동 입력 화면으로
+                  autoProcessedRef.current = false;
+                  setCodeError('');
+                  setJoinCode('');
+                  // codeFromUrl을 null로 만들 수는 없지만, joinCode 초기화하면 사용자가 다시 입력 가능
+                  router.replace('/student/join');
+                }}
+                className="w-full py-2.5 rounded-lg text-[12px] font-bold transition hover:scale-[1.02]"
+                style={{
+                  background: S.green,
+                  color: S.navy,
+                }}>
+                → 팀 코드 직접 입력하기
+              </button>
+            </div>
+          )}
+        </div>
+
+        <style jsx>{`
+          .join-loader-ring {
+            animation: joinLoaderSpin 1s linear infinite;
+          }
+          @keyframes joinLoaderSpin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-4 py-8 relative overflow-hidden">
 
