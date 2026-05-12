@@ -208,10 +208,20 @@ function generateTeamCode(idx: number): string {
 }
 
 export async function createTeams(classId: string, teamCount: number): Promise<Team[]> {
+  // ⭐ NEW: 학급의 level을 가져와서 팀에도 자동 적용
+  const { data: cls } = await supabase
+    .from('classes')
+    .select('level')
+    .eq('id', classId)
+    .single();
+
+  const classLevel = cls?.level || 'standard';
+
   const teams = Array.from({ length: teamCount }, (_, i) => ({
     class_id: classId,
     name: `${i + 1}팀`,
     join_code: generateTeamCode(i),
+    level: classLevel, // ⭐ NEW: 학급 난이도 자동 복사
   }));
   const { data, error } = await supabase
     .from('teams')
