@@ -33,6 +33,7 @@ export type Team = {
   created_at: string;
   member_count?: number;
   completed_count?: number;
+  completed_card_ids?: string[]; // ⭐ NEW: 완료한 카드 ID 목록 (정렬됨)
 };
 
 export type TeamMember = {
@@ -236,22 +237,32 @@ export async function getTeamsByClass(classId: string): Promise<Team[]> {
     .select('team_id')
     .in('team_id', teamIds);
 
+  // ⭐ NEW: card_id도 가져옴 (격자 표시용)
   const { data: progress } = await supabase
     .from('card_progress')
-    .select('team_id')
+    .select('team_id, card_id')
     .in('team_id', teamIds)
     .eq('completed', true);
 
   const memberCount: Record<string, number> = {};
   members?.forEach(m => { memberCount[m.team_id] = (memberCount[m.team_id] || 0) + 1; });
 
-  const completedCount: Record<string, number> = {};
-  progress?.forEach(p => { completedCount[p.team_id] = (completedCount[p.team_id] || 0) + 1; });
+  // ⭐ NEW: 팀별 완료 카드 ID 목록 (정렬)
+  const completedCardIds: Record<string, string[]> = {};
+  progress?.forEach(p => {
+    if (!completedCardIds[p.team_id]) completedCardIds[p.team_id] = [];
+    completedCardIds[p.team_id].push(p.card_id);
+  });
+  // 각 팀의 카드 ID 정렬
+  Object.keys(completedCardIds).forEach(teamId => {
+    completedCardIds[teamId].sort();
+  });
 
   return teams.map(t => ({
     ...t,
     member_count: memberCount[t.id] || 0,
-    completed_count: completedCount[t.id] || 0,
+    completed_count: (completedCardIds[t.id] || []).length,
+    completed_card_ids: completedCardIds[t.id] || [],
   })) as Team[];
 }
 
