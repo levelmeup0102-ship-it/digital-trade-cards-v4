@@ -16,6 +16,9 @@ export type Class = {
   description: string;
   status: 'draft' | 'active' | 'completed';
   created_at: string;
+  // ⭐ NEW: 난이도 + 학급 코드
+  level?: string;        // 'basic' | 'standard' | 'advanced'
+  join_code?: string;    // 예) 'CL-AB-X7K2', NULL 가능
 };
 
 export type Team = {
@@ -117,14 +120,41 @@ export async function getCurrentTeacher(): Promise<Teacher | null> {
 }
 
 // ── 수업 ──────────────────────────────────────────────────
-export async function createClass(teacherId: string, { name, school, schedule, description }: {
-  name: string; school: string; schedule: string; description: string;
+// ⭐ NEW v2: level 파라미터 추가 + join_code 자동 생성
+export async function createClass(teacherId: string, { name, school, schedule, description, level }: {
+  name: string;
+  school: string;
+  schedule: string;
+  description: string;
+  level?: string; // ⭐ 'basic' | 'standard' | 'advanced' (default: 'standard')
 }) {
+  // 1) 학급 코드 자동 생성 (DB 함수 호출)
+  const { data: codeData, error: codeError } = await supabase
+    .rpc('generate_class_join_code');
+
+  if (codeError) {
+    console.error('학급 코드 생성 실패:', codeError);
+    throw new Error('학급 코드 생성 중 오류가 발생했습니다.');
+  }
+
+  const join_code = codeData as string;
+
+  // 2) 학급 insert (level + join_code 포함)
   const { data, error } = await supabase
     .from('classes')
-    .insert({ teacher_id: teacherId, name, school, schedule, description, status: 'active' })
+    .insert({
+      teacher_id: teacherId,
+      name,
+      school,
+      schedule,
+      description,
+      status: 'active',
+      level: level || 'standard',
+      join_code,
+    })
     .select()
     .single();
+
   if (error) throw error;
   return data as Class;
 }
@@ -146,6 +176,25 @@ export async function getClass(classId: string): Promise<Class | null> {
     .eq('id', classId)
     .single();
   return data as Class | null;
+}
+
+// ⭐⭐⭐ NEW v3: 학급 코드로 학급 + 팀 목록 조회 (학생 입장용)
+export async function getClassWithTeamsByCode(joinCode: string): Promise<{ class: Class; teams: Team[] } | null> {
+  const trimmedCode = joinCode.toUpperCase().trim();
+
+  // 1) 학급 조회
+  const { data: cls, error: clsError } = await supabase
+    .from('classes')
+    .select('*')
+    .eq('join_code', trimmedCode)
+    .single();
+
+  if (clsError || !cls) return null;
+
+  // 2) 학급의 모든 팀 + 멤버 수 조회
+  const teams = await getTeamsByClass(cls.id);
+
+  return { class: cls as Class, teams };
 }
 
 // ── 팀 ──────────────────────────────────────────────────
