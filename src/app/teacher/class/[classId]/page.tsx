@@ -41,6 +41,8 @@ export default function ClassDetail() {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   // ⭐ NEW: 학급 코드 복사 상태
   const [copiedClassCode, setCopiedClassCode] = useState(false);
+  // ⭐⭐⭐ NEW: 카드 진행 격자 펼침 상태
+  const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -448,17 +450,42 @@ export default function ClassDetail() {
                   )}
                 </div>
 
-                {/* 진행도 바 */}
-                {(team.completed_count || 0) > 0 && (
-                  <div className="px-4 pb-3">
-                    <div className="h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                      <div className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${((team.completed_count || 0) / 16) * 100}%`,
-                          background: `linear-gradient(90deg, ${S.cyan}, ${S.purple})`,
-                          boxShadow: `0 0 12px ${S.cyan}88`,
-                        }} />
+                {/* ⭐⭐⭐ NEW: 진행도 + 카드 격자 펼침 ⭐⭐⭐ */}
+                <button
+                  onClick={() => setExpandedTeamId(prev => prev === team.id ? null : team.id)}
+                  className="w-full px-4 pb-3 text-left hover:bg-white/5 transition group">
+                  {/* 진행도 바 */}
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="flex-1 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                      {(team.completed_count || 0) > 0 && (
+                        <div className="h-full rounded-full transition-all"
+                          style={{
+                            width: `${((team.completed_count || 0) / 16) * 100}%`,
+                            background: `linear-gradient(90deg, ${S.cyan}, ${S.purple})`,
+                            boxShadow: `0 0 12px ${S.cyan}88`,
+                          }} />
+                      )}
                     </div>
+                    <span className="text-[10px] font-mono"
+                      style={{
+                        color: expandedTeamId === team.id ? S.cyan : '#666',
+                        transform: expandedTeamId === team.id ? 'rotate(180deg)' : 'rotate(0deg)',
+                        transition: 'all 0.3s',
+                        display: 'inline-block',
+                      }}>
+                      ▼
+                    </span>
+                  </div>
+                  <p className="text-[10px] font-mono"
+                    style={{ color: expandedTeamId === team.id ? S.cyan : '#666' }}>
+                    {expandedTeamId === team.id ? '▲ 카드 진행 격자 접기' : '▼ 카드 진행 격자 보기'}
+                  </p>
+                </button>
+
+                {/* 카드 진행 격자 (펼침) */}
+                {expandedTeamId === team.id && (
+                  <div className="px-4 pb-4 pt-1">
+                    <ClassTeamCardGrid team={team} />
                   </div>
                 )}
               </div>
@@ -552,6 +579,145 @@ export default function ClassDetail() {
         @keyframes detailParticleTwinkle {
           0%, 100% { opacity: 0.3; transform: scale(1); }
           50% { opacity: 1; transform: scale(1.5); }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// ⭐⭐⭐ NEW: 학급 페이지용 카드 진행 격자 컴포넌트 ⭐⭐⭐
+const CARD_NAMES_FULL: Record<string, string> = {
+  '01': '시장 개요', '02': '시장 분석', '03': '세분화', '04': '경쟁 분석',
+  '05': '시장 기회', '06': '규제', '07': '고객 여정', '08': '비즈니스 모델',
+  '09': '가격 전략', '10': '제품 전략', '11': '유통 채널', '12': '마케팅',
+  '13': 'GTM 실행', '14': '리스크', '15': '성장 전략', '16': 'TBT·인증',
+};
+
+function ClassTeamCardGrid({ team }: { team: Team }) {
+  const completedIds = team.completed_card_ids || [];
+  const completedSet = new Set(completedIds);
+
+  // 진행 중 카드 = 완료한 카드 중 가장 마지막의 다음 번호
+  let inProgressId: string | null = null;
+  if (completedIds.length > 0 && completedIds.length < 16) {
+    const lastCompletedNum = parseInt(completedIds[completedIds.length - 1], 10);
+    const nextNum = lastCompletedNum + 1;
+    if (nextNum <= 16) {
+      inProgressId = String(nextNum).padStart(2, '0');
+    }
+  } else if (completedIds.length === 0) {
+    inProgressId = '01';
+  }
+
+  return (
+    <div>
+      <p className="text-[10px] font-mono tracking-widest font-bold mb-2"
+        style={{ color: S.cyan, textShadow: `0 0 6px ${S.cyan}66` }}>
+        🃏 CARD PROGRESS
+      </p>
+
+      {/* 8x2 격자 (16개) */}
+      <div className="grid grid-cols-8 gap-1 mb-2">
+        {Array.from({ length: 16 }, (_, i) => {
+          const cardId = String(i + 1).padStart(2, '0');
+          const isCompleted = completedSet.has(cardId);
+          const isInProgress = cardId === inProgressId;
+
+          let bg = 'rgba(255,255,255,0.05)';
+          let color = '#555';
+          let border = '1px solid rgba(255,255,255,0.08)';
+          let boxShadow = 'none';
+          let className = '';
+
+          if (isCompleted) {
+            bg = S.cyan;
+            color = S.navy;
+            border = `1px solid ${S.cyan}`;
+            boxShadow = `0 0 8px ${S.cyan}66`;
+          } else if (isInProgress) {
+            bg = `${S.gold}25`;
+            color = S.gold;
+            border = `1.5px solid ${S.gold}`;
+            boxShadow = `0 0 10px ${S.gold}88`;
+            className = 'class-card-in-progress-pulse';
+          }
+
+          return (
+            <div key={cardId}
+              className={`rounded ${className}`}
+              style={{
+                aspectRatio: '1',
+                background: bg,
+                color: color,
+                border: border,
+                boxShadow: boxShadow,
+                fontSize: '10px',
+                fontWeight: 700,
+                fontFamily: 'monospace',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: 1,
+              }}>
+              {isCompleted ? (
+                <span style={{ fontSize: '12px' }}>✓</span>
+              ) : (
+                <span>{cardId}</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 범례 */}
+      <div className="flex items-center gap-2 text-[9px] font-mono mb-2" style={{ color: '#888' }}>
+        <span className="flex items-center gap-1">
+          <span style={{ width: '8px', height: '8px', background: S.cyan, borderRadius: '2px', display: 'inline-block' }} />
+          완료
+        </span>
+        <span className="flex items-center gap-1">
+          <span style={{ width: '8px', height: '8px', background: `${S.gold}66`, border: `1px solid ${S.gold}`, borderRadius: '2px', display: 'inline-block' }} />
+          진행 중
+        </span>
+        <span className="flex items-center gap-1">
+          <span style={{ width: '8px', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', display: 'inline-block' }} />
+          대기
+        </span>
+      </div>
+
+      {/* 현재 진행 카드 */}
+      {inProgressId && CARD_NAMES_FULL[inProgressId] && (
+        <div className="rounded-lg px-3 py-2"
+          style={{
+            background: `${S.gold}12`,
+            border: `1px solid ${S.gold}44`,
+          }}>
+          <p className="text-[11px] font-bold" style={{ color: S.gold }}>
+            📍 <span className="font-mono">{inProgressId}</span>. {CARD_NAMES_FULL[inProgressId]} 진행 중
+          </p>
+        </div>
+      )}
+
+      {/* 완주 시 */}
+      {completedIds.length === 16 && (
+        <div className="rounded-lg px-3 py-2 text-center"
+          style={{
+            background: `${S.gold}20`,
+            border: `1.5px solid ${S.gold}`,
+          }}>
+          <p className="text-[12px] font-black" style={{ color: S.gold }}>
+            🎉 모든 카드 완주!
+          </p>
+        </div>
+      )}
+
+      <style jsx>{`
+        @keyframes classCardInProgressPulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.08); }
+        }
+        .class-card-in-progress-pulse {
+          animation: classCardInProgressPulse 1.5s ease-in-out infinite;
         }
       `}</style>
     </div>
