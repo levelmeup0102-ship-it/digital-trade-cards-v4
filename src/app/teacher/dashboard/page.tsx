@@ -14,6 +14,18 @@ const S = {
   bg: '#0A0A0A',
 };
 
+// ⭐ 난이도 옵션 (student/join에 있는 것과 동일)
+const LEVELS: Record<string, { label: string; emoji: string; timer: number; minChars: number; color: string; description: string }> = {
+  basic:    { label: '초급', emoji: '🌱', timer: 1800, minChars: 20,  color: '#059669', description: '30분 · 20자 이상 답변' },
+  standard: { label: '표준', emoji: '📘', timer: 1200, minChars: 50,  color: '#4FB0C6', description: '20분 · 50자 이상 답변' },
+  advanced: { label: '심화', emoji: '🚀', timer: 900,  minChars: 100, color: '#582C83', description: '15분 · 100자 이상 답변' },
+};
+
+// ⭐ NEW: 팀 수 자주 쓰는 옵션 (3, 5, 8, 10, 15, 20)
+const TEAM_QUICK_OPTIONS = [3, 5, 8, 10, 15, 20];
+const MIN_TEAMS = 1;
+const MAX_TEAMS = 20;
+
 export default function TeacherDashboard() {
   const router = useRouter();
   const [teacher, setTeacher] = useState<Teacher | null>(null);
@@ -21,8 +33,18 @@ export default function TeacherDashboard() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
 
+  // 클립보드 복사 피드백
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
   // 수업 생성 폼
-  const [form, setForm] = useState({ name: '', school: '', schedule: '', description: '', teamCount: 3 });
+  const [form, setForm] = useState({
+    name: '',
+    school: '',
+    schedule: '',
+    description: '',
+    teamCount: 3,
+    level: 'standard',
+  });
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
 
@@ -37,8 +59,29 @@ export default function TeacherDashboard() {
     })();
   }, [router]);
 
+  // ⭐ NEW: 팀 수 증감 함수
+  const incrementTeams = () => {
+    setForm(f => ({ ...f, teamCount: Math.min(MAX_TEAMS, f.teamCount + 1) }));
+  };
+  const decrementTeams = () => {
+    setForm(f => ({ ...f, teamCount: Math.max(MIN_TEAMS, f.teamCount - 1) }));
+  };
+  const setTeamsDirect = (value: string) => {
+    const num = parseInt(value, 10);
+    if (isNaN(num)) {
+      setForm(f => ({ ...f, teamCount: MIN_TEAMS }));
+      return;
+    }
+    const clamped = Math.max(MIN_TEAMS, Math.min(MAX_TEAMS, num));
+    setForm(f => ({ ...f, teamCount: clamped }));
+  };
+
   const handleCreateClass = async () => {
     if (!form.name.trim()) { setCreateError('수업 이름을 입력해주세요.'); return; }
+    if (form.teamCount < MIN_TEAMS || form.teamCount > MAX_TEAMS) {
+      setCreateError(`팀 수는 ${MIN_TEAMS}~${MAX_TEAMS} 사이여야 합니다.`);
+      return;
+    }
     setCreating(true); setCreateError('');
     try {
       const newClass = await createClass(teacher!.id, {
@@ -46,11 +89,12 @@ export default function TeacherDashboard() {
         school: form.school || teacher!.school,
         schedule: form.schedule,
         description: form.description,
+        level: form.level,
       });
       await createTeams(newClass.id, form.teamCount);
       setClasses(prev => [newClass, ...prev]);
       setShowCreate(false);
-      setForm({ name: '', school: '', schedule: '', description: '', teamCount: 3 });
+      setForm({ name: '', school: '', schedule: '', description: '', teamCount: 3, level: 'standard' });
       router.push(`/teacher/class/${newClass.id}`);
     } catch (e: any) {
       setCreateError(e.message || '오류가 발생했습니다.');
@@ -60,6 +104,18 @@ export default function TeacherDashboard() {
   const handleSignOut = async () => {
     await signOut();
     router.push('/teacher');
+  };
+
+  // 학급 코드 클립보드 복사
+  const handleCopyJoinCode = async (e: React.MouseEvent, code: string) => {
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedCode(code);
+      setTimeout(() => setCopiedCode(null), 1500);
+    } catch (err) {
+      console.error('복사 실패:', err);
+    }
   };
 
   const statusLabel = { draft: '준비중', active: '진행중', completed: '완료' };
@@ -75,8 +131,6 @@ export default function TeacherDashboard() {
     <div className="min-h-screen px-3 md:px-4 py-4 md:py-6 relative overflow-hidden"
       style={{ background: S.bg }}>
 
-      {/* ⭐⭐⭐ 오로라 배경 ⭐⭐⭐ */}
-
       {/* 메시 그라디언트 */}
       <div className="fixed inset-0 pointer-events-none"
         style={{
@@ -88,38 +142,29 @@ export default function TeacherDashboard() {
           zIndex: 0,
         }} />
 
-      {/* 빛 신호 4개 */}
+      {/* 빛 신호 */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
         <div className="absolute dash-signal-1"
           style={{
-            top: '15%',
-            left: 0,
-            width: '100px',
-            height: '2px',
+            top: '15%', left: 0, width: '100px', height: '2px',
             background: `linear-gradient(90deg, transparent, ${S.cyan}, transparent)`,
             boxShadow: `0 0 14px ${S.cyan}, 0 0 28px ${S.cyan}66`,
           }} />
         <div className="absolute dash-signal-2"
           style={{
-            top: '50%',
-            right: 0,
-            width: '120px',
-            height: '2px',
+            top: '50%', right: 0, width: '120px', height: '2px',
             background: `linear-gradient(90deg, transparent, ${S.purple}, transparent)`,
             boxShadow: `0 0 14px ${S.purple}, 0 0 28px ${S.purple}66`,
           }} />
         <div className="absolute dash-signal-3"
           style={{
-            top: '85%',
-            left: 0,
-            width: '90px',
-            height: '2px',
+            top: '85%', left: 0, width: '90px', height: '2px',
             background: `linear-gradient(90deg, transparent, ${S.blue}, transparent)`,
             boxShadow: `0 0 14px ${S.blue}, 0 0 28px ${S.blue}66`,
           }} />
       </div>
 
-      {/* 떠다니는 빛 입자 */}
+      {/* 떠다니는 입자 */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
         {Array.from({ length: 12 }).map((_, i) => {
           const colors = [S.cyan, S.purple, S.blue];
@@ -131,10 +176,8 @@ export default function TeacherDashboard() {
           return (
             <div key={i} className="absolute rounded-full dash-particle"
               style={{
-                left: `${left}%`,
-                top: `${top}%`,
-                width: `${size}px`,
-                height: `${size}px`,
+                left: `${left}%`, top: `${top}%`,
+                width: `${size}px`, height: `${size}px`,
                 background: colors[i % 3],
                 boxShadow: `0 0 ${size * 4}px ${colors[i % 3]}`,
                 animationDuration: `${duration}s`,
@@ -182,7 +225,7 @@ export default function TeacherDashboard() {
           </button>
         )}
 
-        {/* ⭐⭐⭐ 체험판 QR 보기 버튼 (NEW) ⭐⭐⭐ */}
+        {/* 체험판 QR 보기 버튼 */}
         {!showCreate && (
           <button onClick={() => router.push('/teacher/demo-qr')}
             className="relative w-full py-3 md:py-3.5 font-bold rounded-2xl text-[12px] md:text-[13px] mb-5 md:mb-6 transition-all hover:scale-[1.01] overflow-hidden group"
@@ -248,12 +291,46 @@ export default function TeacherDashboard() {
                     outline: 'none',
                   }} />
               </div>
+
+              {/* ⭐ 난이도 선택 */}
               <div>
-                <p className="text-[10px] md:text-[11px] mb-1 font-mono" style={{ color: S.cyan }}>
-                  {`>`} 팀 수 <span style={{ color: '#666' }}>(자동으로 팀 코드 발급)</span>
+                <p className="text-[10px] md:text-[11px] mb-1.5 font-mono" style={{ color: S.cyan }}>
+                  {`>`} 수업 난이도 <span style={{ color: '#666' }}>(전체 팀에 적용)</span>
                 </p>
-                <div className="grid grid-cols-6 gap-1.5 md:gap-2">
-                  {[2, 3, 4, 5, 6, 8].map(n => (
+                <div className="space-y-1.5">
+                  {Object.entries(LEVELS).map(([k, v]) => (
+                    <button key={k} onClick={() => setForm(f => ({ ...f, level: k }))}
+                      className="w-full px-3 py-2.5 rounded-xl flex items-center gap-3 text-left transition"
+                      style={{
+                        background: form.level === k ? `${v.color}25` : 'rgba(255,255,255,0.04)',
+                        border: form.level === k ? `1.5px solid ${v.color}` : `1px solid ${S.cyan}22`,
+                        boxShadow: form.level === k ? `0 0 14px ${v.color}44` : 'none',
+                      }}>
+                      <span className="text-xl">{v.emoji}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] md:text-[14px] font-bold text-white">{v.label}</p>
+                        <p className="text-[10px] md:text-[11px]" style={{ color: form.level === k ? v.color : '#888' }}>
+                          {v.description}
+                        </p>
+                      </div>
+                      {form.level === k && (
+                        <span className="text-[14px] flex-shrink-0" style={{ color: v.color }}>✓</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* ⭐⭐⭐ NEW: 팀 수 (1-20, 자주 쓰는 옵션 + 직접 입력) */}
+              <div>
+                <p className="text-[10px] md:text-[11px] mb-1.5 font-mono" style={{ color: S.cyan }}>
+                  {`>`} 팀 수 <span style={{ color: '#666' }}>(1~{MAX_TEAMS}, 자동으로 팀 코드 발급)</span>
+                </p>
+
+                {/* 자주 쓰는 옵션 (3, 5, 8, 10, 15, 20) */}
+                <p className="text-[10px] mb-1.5" style={{ color: '#888' }}>자주 쓰는 옵션</p>
+                <div className="grid grid-cols-6 gap-1.5 md:gap-2 mb-3">
+                  {TEAM_QUICK_OPTIONS.map(n => (
                     <button key={n} onClick={() => setForm(f => ({ ...f, teamCount: n }))}
                       className="py-2 md:py-2.5 rounded-lg text-[12px] md:text-[13px] font-bold transition"
                       style={{
@@ -266,7 +343,73 @@ export default function TeacherDashboard() {
                     </button>
                   ))}
                 </div>
+
+                {/* 직접 입력 (-/+ 증감 버튼) */}
+                <p className="text-[10px] mb-1.5" style={{ color: '#888' }}>또는 직접 입력</p>
+                <div className="flex items-center gap-2 rounded-xl p-2"
+                  style={{
+                    background: 'rgba(0,0,0,0.4)',
+                    border: `1px solid ${S.cyan}33`,
+                  }}>
+                  <button
+                    onClick={decrementTeams}
+                    disabled={form.teamCount <= MIN_TEAMS}
+                    className="w-10 h-10 rounded-lg font-black text-lg flex items-center justify-center transition active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+                    style={{
+                      background: `${S.cyan}15`,
+                      color: S.cyan,
+                      border: `1px solid ${S.cyan}44`,
+                    }}>
+                    −
+                  </button>
+
+                  <div className="flex-1 flex items-center justify-center gap-2">
+                    <input
+                      type="number"
+                      min={MIN_TEAMS}
+                      max={MAX_TEAMS}
+                      value={form.teamCount}
+                      onChange={e => setTeamsDirect(e.target.value)}
+                      onBlur={e => setTeamsDirect(e.target.value)}
+                      className="w-16 text-center bg-transparent text-white font-black text-xl outline-none"
+                      style={{
+                        fontFamily: 'monospace',
+                        textShadow: `0 0 8px ${S.cyan}AA`,
+                      }}
+                    />
+                    <span className="text-[14px] text-gray-400 font-bold">팀</span>
+                  </div>
+
+                  <button
+                    onClick={incrementTeams}
+                    disabled={form.teamCount >= MAX_TEAMS}
+                    className="w-10 h-10 rounded-lg font-black text-lg flex items-center justify-center transition active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+                    style={{
+                      background: `${S.cyan}15`,
+                      color: S.cyan,
+                      border: `1px solid ${S.cyan}44`,
+                    }}>
+                    +
+                  </button>
+                </div>
+                <p className="text-[10px] mt-1.5 text-center" style={{ color: '#666' }}>
+                  최소 {MIN_TEAMS}팀 · 최대 {MAX_TEAMS}팀
+                </p>
               </div>
+
+              {/* 학급 코드 자동 생성 안내 */}
+              <div className="rounded-lg p-2.5 flex items-center gap-2"
+                style={{
+                  background: `${S.green}10`,
+                  border: `1px solid ${S.green}33`,
+                }}>
+                <span className="text-[16px]">🎫</span>
+                <p className="text-[10.5px] md:text-[11px] leading-relaxed" style={{ color: '#bbb' }}>
+                  <span style={{ color: S.green, fontWeight: 700 }}>학급 코드 자동 생성</span> —
+                  수업 생성 시 학급 코드(예: CL-AB-X7K2)가 자동으로 발급됩니다.
+                </p>
+              </div>
+
               {createError && <p className="text-red-400 text-[11px] md:text-[12px]">⚠ {createError}</p>}
               <button onClick={handleCreateClass} disabled={creating || !form.name.trim()}
                 className="cyber-cta-btn relative w-full py-3 font-black rounded-xl text-[13px] md:text-[14px] transition disabled:opacity-30 overflow-hidden"
@@ -297,34 +440,72 @@ export default function TeacherDashboard() {
           </div>
         ) : (
           <div className="space-y-2.5 md:space-y-3">
-            {classes.map(cls => (
-              <button key={cls.id}
-                onClick={() => router.push(`/teacher/class/${cls.id}`)}
-                className="w-full text-left rounded-2xl p-3.5 md:p-4 transition hover:scale-[1.01] cyber-class-card"
-                style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  border: `1px solid ${S.cyan}33`,
-                  boxShadow: `0 0 16px ${S.cyan}11`,
-                }}>
-                <div className="flex items-start justify-between mb-1.5 md:mb-2 gap-2">
-                  <h3 className="text-[15px] md:text-base font-bold text-white min-w-0 break-words">{cls.name}</h3>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full font-mono flex-shrink-0"
-                    style={{
-                      background: `${statusColor[cls.status]}20`,
-                      color: statusColor[cls.status],
-                      border: `1px solid ${statusColor[cls.status]}55`,
-                      boxShadow: `0 0 8px ${statusColor[cls.status]}44`,
-                    }}>
-                    {statusLabel[cls.status]}
-                  </span>
-                </div>
-                <p className="text-[11px] md:text-[12px]" style={{ color: '#888' }}>{cls.school}</p>
-                {cls.schedule && <p className="text-[10px] md:text-[11px] mt-1" style={{ color: '#666' }}>📅 {cls.schedule}</p>}
-                <p className="text-[10px] md:text-[11px] mt-2 font-mono" style={{ color: S.cyan }}>
-                  {`>`} 팀 관리 & 학생 명단 보기 →
-                </p>
-              </button>
-            ))}
+            {classes.map(cls => {
+              const lvlInfo = cls.level ? LEVELS[cls.level] : null;
+              return (
+                <button key={cls.id}
+                  onClick={() => router.push(`/teacher/class/${cls.id}`)}
+                  className="w-full text-left rounded-2xl p-3.5 md:p-4 transition hover:scale-[1.01] cyber-class-card"
+                  style={{
+                    background: 'rgba(255,255,255,0.03)',
+                    border: `1px solid ${S.cyan}33`,
+                    boxShadow: `0 0 16px ${S.cyan}11`,
+                  }}>
+                  <div className="flex items-start justify-between mb-1.5 md:mb-2 gap-2">
+                    <h3 className="text-[15px] md:text-base font-bold text-white min-w-0 break-words">{cls.name}</h3>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      {lvlInfo && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                          style={{
+                            background: `${lvlInfo.color}25`,
+                            color: lvlInfo.color,
+                            border: `1px solid ${lvlInfo.color}55`,
+                          }}>
+                          {lvlInfo.emoji} {lvlInfo.label}
+                        </span>
+                      )}
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full font-mono"
+                        style={{
+                          background: `${statusColor[cls.status]}20`,
+                          color: statusColor[cls.status],
+                          border: `1px solid ${statusColor[cls.status]}55`,
+                          boxShadow: `0 0 8px ${statusColor[cls.status]}44`,
+                        }}>
+                        {statusLabel[cls.status]}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-[11px] md:text-[12px]" style={{ color: '#888' }}>{cls.school}</p>
+                  {cls.schedule && <p className="text-[10px] md:text-[11px] mt-1" style={{ color: '#666' }}>📅 {cls.schedule}</p>}
+
+                  {cls.join_code && (
+                    <div className="mt-2.5 flex items-center gap-2">
+                      <span
+                        onClick={(e) => handleCopyJoinCode(e, cls.join_code!)}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] md:text-[12px] font-mono font-bold cursor-pointer transition-all hover:scale-[1.03]"
+                        style={{
+                          background: copiedCode === cls.join_code ? `${S.green}25` : `${S.green}12`,
+                          color: copiedCode === cls.join_code ? S.green : S.green,
+                          border: `1px solid ${S.green}${copiedCode === cls.join_code ? '88' : '40'}`,
+                          boxShadow: copiedCode === cls.join_code
+                            ? `0 0 12px ${S.green}66`
+                            : `0 0 6px ${S.green}22`,
+                        }}>
+                        <span>🎫</span>
+                        <span>{cls.join_code}</span>
+                        <span className="text-[10px] opacity-70">
+                          {copiedCode === cls.join_code ? '✓ 복사됨' : '📋 복사'}
+                        </span>
+                      </span>
+                    </div>
+                  )}
+
+                  <p className="text-[10px] md:text-[11px] mt-2 font-mono" style={{ color: S.cyan }}>
+                    {`>`} 팀 관리 & 학생 명단 보기 →
+                  </p>
+                </button>
+              );
+            })}
           </div>
         )}
 
@@ -332,13 +513,8 @@ export default function TeacherDashboard() {
       </div>
 
       <style jsx>{`
-        /* 빛 신호 흐름 */
-        .dash-signal-1 {
-          animation: dashSignalRight 5s linear infinite;
-        }
-        .dash-signal-3 {
-          animation: dashSignalRight 7s linear infinite 1.5s;
-        }
+        .dash-signal-1 { animation: dashSignalRight 5s linear infinite; }
+        .dash-signal-3 { animation: dashSignalRight 7s linear infinite 1.5s; }
         @keyframes dashSignalRight {
           0% { transform: translateX(-100px); opacity: 0; }
           10% { opacity: 1; }
@@ -346,9 +522,7 @@ export default function TeacherDashboard() {
           100% { transform: translateX(100vw); opacity: 0; }
         }
 
-        .dash-signal-2 {
-          animation: dashSignalLeft 6s linear infinite 0.5s;
-        }
+        .dash-signal-2 { animation: dashSignalLeft 6s linear infinite 0.5s; }
         @keyframes dashSignalLeft {
           0% { transform: translateX(120px); opacity: 0; }
           10% { opacity: 1; }
@@ -356,7 +530,6 @@ export default function TeacherDashboard() {
           100% { transform: translateX(-100vw); opacity: 0; }
         }
 
-        /* 떠다니는 입자 */
         .dash-particle {
           animation-name: dashParticleTwinkle;
           animation-iteration-count: infinite;
@@ -367,24 +540,26 @@ export default function TeacherDashboard() {
           50% { opacity: 1; transform: scale(1.5); }
         }
 
-        /* CTA 버튼 펄스 */
-        .cyber-cta-btn {
-          animation: ctaPulse 2.5s ease-in-out infinite;
-        }
+        .cyber-cta-btn { animation: ctaPulse 2.5s ease-in-out infinite; }
         @keyframes ctaPulse {
-          0%, 100% {
-            box-shadow: 0 8px 24px -8px ${S.cyan}AA, 0 0 24px ${S.cyan}55;
-          }
-          50% {
-            box-shadow: 0 8px 32px -8px ${S.cyan}FF, 0 0 40px ${S.cyan}88;
-          }
+          0%, 100% { box-shadow: 0 8px 24px -8px ${S.cyan}AA, 0 0 24px ${S.cyan}55; }
+          50% { box-shadow: 0 8px 32px -8px ${S.cyan}FF, 0 0 40px ${S.cyan}88; }
         }
 
-        /* 수업 카드 호버 */
         .cyber-class-card:hover {
           background: rgba(6, 182, 212, 0.08) !important;
           border-color: ${S.cyan}88 !important;
           box-shadow: 0 0 24px ${S.cyan}33 !important;
+        }
+
+        /* number input 스피너 제거 */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        input[type="number"] {
+          -moz-appearance: textfield;
         }
       `}</style>
     </div>
