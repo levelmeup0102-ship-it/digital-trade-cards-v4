@@ -1,8 +1,16 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { getCurrentTeacher, getClass, getTeamsByClass, getTeamMembers, saveTeamMembers } from '@/lib/teacher';
+import {
+  getCurrentTeacher,
+  getClass,
+  getTeamsByClass,
+  getTeamMembers,
+  saveTeamMembers,
+  subscribeToClassProgress,
+} from '@/lib/teacher';
 import type { Teacher, Class, Team, TeamMember } from '@/lib/teacher';
+import { supabase } from '@/lib/supabase';
 
 const S = {
   green: '#E7FE55',
@@ -71,6 +79,63 @@ export default function ClassDetail() {
       setLoading(false);
     })();
   }, [classId, router]);
+
+  // ⭐⭐⭐ NEW: Realtime 구독 (카드 완료 + 학생 입장)
+  // 새로고침 없이 격자/인원 수 자동 갱신
+  useEffect(() => {
+    if (loading || teams.length === 0) return;
+    const teamIds = teams.map(t => t.id);
+
+    // 갱신 함수: teams 전체 다시 조회 + 명단도 다시 조회
+    const refreshAll = async () => {
+      const freshTeams = await getTeamsByClass(classId);
+      setTeams(freshTeams);
+      // 명단도 갱신 (학생 입장 시 명단에는 변화 없지만, 안전하게 다시 조회)
+      const membersMap: Record<string, TeamMember[]> = {};
+      await Promise.all(
+        freshTeams.map(async team => {
+          const members = await getTeamMembers(team.id);
+          membersMap[team.id] = members;
+        })
+      );
+      setTeamMembers(membersMap);
+    };
+
+    // 1) card_progress 구독 (카드 완료 시 격자 갱신)
+    const unsubscribeCards = subscribeToClassProgress(
+      classId,
+      teamIds,
+      async () => {
+        // 카드 완료 → teams 다시 조회 (completed_card_ids 갱신용)
+        await refreshAll();
+      }
+    );
+
+    // 2) team_members 구독 (학생 입장/퇴장 시 인원 수 갱신)
+    const teamMembersChannel = supabase
+      .channel(`class-${classId}-team-members`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'team_members',
+        },
+        async (payload: any) => {
+          const record = payload.new || payload.old;
+          if (!record) return;
+          // 이 학급의 팀에 속한 멤버만 처리
+          if (!teamIds.includes(record.team_id)) return;
+          await refreshAll();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      unsubscribeCards();
+      supabase.removeChannel(teamMembersChannel);
+    };
+  }, [classId, loading, teams.length]);
 
   const handleSaveMembers = async (teamId: string) => {
     setSaving(true);
