@@ -80,6 +80,9 @@ export default function RankingPage() {
   const [showFirework, setShowFirework] = useState(false);
   const [newFirstTeamName, setNewFirstTeamName] = useState<string | null>(null);
 
+  // ⭐⭐⭐ NEW: 카드 진행 격자 펼침 상태 (한 번에 1개만 열림)
+  const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
+
   useEffect(() => {
     teamsRef.current = teams;
   }, [teams]);
@@ -448,21 +451,36 @@ export default function RankingPage() {
                 {/* 2등 (왼쪽, 데스크탑) */}
                 {secondPlace && (
                   <div className={`podium-slot podium-slot-2 ${recentlyUpdatedTeam === secondPlace.id ? 'rank-flash' : ''}`}>
-                    <PodiumCard team={secondPlace} rank={1} />
+                    <PodiumCard
+                      team={secondPlace}
+                      rank={1}
+                      isExpanded={expandedTeamId === secondPlace.id}
+                      onToggle={() => setExpandedTeamId(prev => prev === secondPlace.id ? null : secondPlace.id)}
+                    />
                   </div>
                 )}
 
                 {/* 1등 (중앙, 가장 큼) */}
                 {firstPlace && (
                   <div className={`podium-slot podium-slot-1 ${recentlyUpdatedTeam === firstPlace.id ? 'rank-flash' : ''}`}>
-                    <PodiumCard team={firstPlace} rank={0} />
+                    <PodiumCard
+                      team={firstPlace}
+                      rank={0}
+                      isExpanded={expandedTeamId === firstPlace.id}
+                      onToggle={() => setExpandedTeamId(prev => prev === firstPlace.id ? null : firstPlace.id)}
+                    />
                   </div>
                 )}
 
                 {/* 3등 (오른쪽, 데스크탑) */}
                 {thirdPlace && (
                   <div className={`podium-slot podium-slot-3 ${recentlyUpdatedTeam === thirdPlace.id ? 'rank-flash' : ''}`}>
-                    <PodiumCard team={thirdPlace} rank={2} />
+                    <PodiumCard
+                      team={thirdPlace}
+                      rank={2}
+                      isExpanded={expandedTeamId === thirdPlace.id}
+                      onToggle={() => setExpandedTeamId(prev => prev === thirdPlace.id ? null : thirdPlace.id)}
+                    />
                   </div>
                 )}
               </div>
@@ -486,71 +504,93 @@ export default function RankingPage() {
                     const completed = team.completed_count || 0;
                     const progress = (completed / 16) * 100;
                     const isUpdated = recentlyUpdatedTeam === team.id;
+                    const isExpanded = expandedTeamId === team.id;
 
                     return (
                       <div key={team.id}
-                        className={`rounded-xl p-3 md:p-4 flex items-center gap-4 transition-all ${isUpdated ? 'rank-flash' : ''}`}
+                        className={`rounded-xl transition-all overflow-hidden ${isUpdated ? 'rank-flash' : ''}`}
                         style={{
-                          background: 'rgba(255,255,255,0.04)',
-                          border: '1px solid rgba(255,255,255,0.08)',
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                          background: isExpanded ? 'rgba(6, 182, 212, 0.06)' : 'rgba(255,255,255,0.04)',
+                          border: isExpanded ? `1px solid ${S.cyan}66` : '1px solid rgba(255,255,255,0.08)',
+                          boxShadow: isExpanded ? `0 4px 24px ${S.cyan}33` : '0 2px 8px rgba(0,0,0,0.2)',
                         }}>
-                        {/* 순위 번호 */}
-                        <div className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center font-black text-lg"
-                          style={{
-                            background: 'rgba(255,255,255,0.06)',
-                            color: '#aaa',
-                          }}>
-                          {rank + 1}
-                        </div>
+                        {/* 클릭 가능한 헤더 */}
+                        <button
+                          onClick={() => setExpandedTeamId(prev => prev === team.id ? null : team.id)}
+                          className="w-full p-3 md:p-4 flex items-center gap-4 text-left hover:bg-white/5 transition">
+                          {/* 순위 번호 */}
+                          <div className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center font-black text-lg"
+                            style={{
+                              background: 'rgba(255,255,255,0.06)',
+                              color: '#aaa',
+                            }}>
+                            {rank + 1}
+                          </div>
 
-                        {/* 팀 정보 */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <h4 className="text-base md:text-lg font-black text-white"
-                              style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
-                              {team.name}
-                            </h4>
-                            {team.item && (
-                              <span className="text-[10px] md:text-[11px] px-2 py-0.5 rounded-full font-bold truncate max-w-[150px] md:max-w-none"
+                          {/* 팀 정보 */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              <h4 className="text-base md:text-lg font-black text-white"
+                                style={{ textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>
+                                {team.name}
+                              </h4>
+                              {team.item && (
+                                <span className="text-[10px] md:text-[11px] px-2 py-0.5 rounded-full font-bold truncate max-w-[150px] md:max-w-none"
+                                  style={{
+                                    color: S.cyan,
+                                    background: `${S.cyan}15`,
+                                    border: `1px solid ${S.cyan}40`,
+                                  }}>
+                                  {team.item}
+                                </span>
+                              )}
+                            </div>
+                            {/* 진행률 바 */}
+                            <div className="h-1.5 rounded-full overflow-hidden"
+                              style={{ background: 'rgba(0,0,0,0.4)' }}>
+                              <div className="h-full rounded-full transition-all duration-700"
                                 style={{
-                                  color: S.cyan,
-                                  background: `${S.cyan}15`,
-                                  border: `1px solid ${S.cyan}40`,
-                                }}>
-                                {team.item}
-                              </span>
+                                  width: `${progress}%`,
+                                  background: completed > 0
+                                    ? `linear-gradient(90deg, ${S.cyan} 0%, ${S.blue} 100%)`
+                                    : 'transparent',
+                                  boxShadow: completed > 0 ? `0 0 8px ${S.cyan}66` : 'none',
+                                }} />
+                            </div>
+                          </div>
+
+                          {/* 점수 */}
+                          <div className="flex-shrink-0 text-right">
+                            <p className="font-black font-mono text-lg md:text-xl"
+                              style={{
+                                color: completed > 0 ? S.cyan : '#888',
+                                textShadow: completed > 0 ? `0 0 8px ${S.cyan}66` : 'none',
+                              }}>
+                              {completed}<span className="text-xs text-gray-500">/16</span>
+                            </p>
+                            {team.member_count !== undefined && (
+                              <p className="text-[10px] text-gray-500 font-mono mt-0.5">
+                                👥 {team.member_count}
+                              </p>
                             )}
                           </div>
-                          {/* 진행률 바 */}
-                          <div className="h-1.5 rounded-full overflow-hidden"
-                            style={{ background: 'rgba(0,0,0,0.4)' }}>
-                            <div className="h-full rounded-full transition-all duration-700"
-                              style={{
-                                width: `${progress}%`,
-                                background: completed > 0
-                                  ? `linear-gradient(90deg, ${S.cyan} 0%, ${S.blue} 100%)`
-                                  : 'transparent',
-                                boxShadow: completed > 0 ? `0 0 8px ${S.cyan}66` : 'none',
-                              }} />
-                          </div>
-                        </div>
 
-                        {/* 점수 */}
-                        <div className="flex-shrink-0 text-right">
-                          <p className="font-black font-mono text-lg md:text-xl"
+                          {/* 펼침 화살표 */}
+                          <div className="flex-shrink-0 text-gray-500 text-xs"
                             style={{
-                              color: completed > 0 ? S.cyan : '#888',
-                              textShadow: completed > 0 ? `0 0 8px ${S.cyan}66` : 'none',
+                              transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                              transition: 'transform 0.3s',
                             }}>
-                            {completed}<span className="text-xs text-gray-500">/16</span>
-                          </p>
-                          {team.member_count !== undefined && (
-                            <p className="text-[10px] text-gray-500 font-mono mt-0.5">
-                              👥 {team.member_count}
-                            </p>
-                          )}
-                        </div>
+                            ▼
+                          </div>
+                        </button>
+
+                        {/* ⭐ NEW: 카드 진행 격자 (펼침) */}
+                        {isExpanded && (
+                          <div className="px-3 md:px-4 pb-3 md:pb-4 pt-1">
+                            <CardProgressGrid team={team} compact />
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -763,7 +803,17 @@ export default function RankingPage() {
 }
 
 // ⭐⭐⭐ NEW: 시상대 카드 컴포넌트 ⭐⭐⭐
-function PodiumCard({ team, rank }: { team: Team; rank: number }) {
+function PodiumCard({
+  team,
+  rank,
+  isExpanded,
+  onToggle,
+}: {
+  team: Team;
+  rank: number;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
   const completed = team.completed_count || 0;
   const progress = (completed / 16) * 100;
 
@@ -779,7 +829,9 @@ function PodiumCard({ team, rank }: { team: Team; rank: number }) {
   const isThird = rank === 2;
 
   return (
-    <div className={`relative rounded-2xl p-4 md:p-5 transition-all ${isFirst ? 'podium-1st' : ''}`}
+    <button
+      onClick={onToggle}
+      className={`relative rounded-2xl p-4 md:p-5 transition-all w-full text-left cursor-pointer ${isFirst ? 'podium-1st' : ''}`}
       style={{
         background: isFirst
           ? `linear-gradient(135deg, ${m.color}25 0%, ${S.cyan}15 100%)`
@@ -921,6 +973,19 @@ function PodiumCard({ team, rank }: { team: Team; rank: number }) {
         </div>
       )}
 
+      {/* ⭐⭐⭐ NEW: 카드 진행 격자 (펼침) ⭐⭐⭐ */}
+      {isExpanded && (
+        <div className="mt-3 pt-3 border-t" style={{ borderColor: `${m.color}33` }}>
+          <CardProgressGrid team={team} />
+        </div>
+      )}
+
+      {/* 펼침 인디케이터 */}
+      <div className="text-center mt-2 text-[10px] font-mono"
+        style={{ color: `${m.color}AA` }}>
+        {isExpanded ? '▲ 접기' : '▼ 카드 진행 보기'}
+      </div>
+
       <style jsx>{`
         @keyframes medalPulseBig {
           0%, 100% { transform: scale(1); filter: brightness(1); }
@@ -944,6 +1009,150 @@ function PodiumCard({ team, rank }: { team: Team; rank: number }) {
         }
         .podium-1st {
           animation: podium1stGlow 3s ease-in-out infinite;
+        }
+      `}</style>
+    </button>
+  );
+}
+
+// ⭐⭐⭐ NEW: 카드 진행 격자 컴포넌트 (재사용 가능) ⭐⭐⭐
+const CARD_NAMES_FULL: Record<string, string> = {
+  '01': '시장 개요', '02': '시장 분석', '03': '세분화', '04': '경쟁 분석',
+  '05': '시장 기회', '06': '규제', '07': '고객 여정', '08': '비즈니스 모델',
+  '09': '가격 전략', '10': '제품 전략', '11': '유통 채널', '12': '마케팅',
+  '13': 'GTM 실행', '14': '리스크', '15': '성장 전략', '16': 'TBT·인증',
+};
+
+function CardProgressGrid({ team, compact = false }: { team: Team; compact?: boolean }) {
+  const completedIds = team.completed_card_ids || [];
+  const completedSet = new Set(completedIds);
+
+  // 완료한 카드 중 가장 마지막 = 진행 중 카드 다음 번호
+  // 예: ['01', '02', '03'] 완료 → '04'가 진행 중
+  let inProgressId: string | null = null;
+  if (completedIds.length > 0 && completedIds.length < 16) {
+    const lastCompletedNum = parseInt(completedIds[completedIds.length - 1], 10);
+    const nextNum = lastCompletedNum + 1;
+    if (nextNum <= 16) {
+      inProgressId = String(nextNum).padStart(2, '0');
+    }
+  } else if (completedIds.length === 0) {
+    // 아직 시작 안 함 → 01번이 진행 중
+    inProgressId = '01';
+  }
+
+  return (
+    <div className={compact ? 'space-y-2' : 'space-y-2.5'}>
+      <p className="text-[10px] font-mono tracking-widest font-bold mb-1.5"
+        style={{ color: S.cyan, textShadow: `0 0 6px ${S.cyan}66` }}>
+        🃏 CARD PROGRESS
+      </p>
+
+      {/* 4x4 격자 */}
+      <div className="grid grid-cols-8 gap-1 md:gap-1.5">
+        {Array.from({ length: 16 }, (_, i) => {
+          const cardId = String(i + 1).padStart(2, '0');
+          const isCompleted = completedSet.has(cardId);
+          const isInProgress = cardId === inProgressId;
+          const isWaiting = !isCompleted && !isInProgress;
+
+          let bg = 'rgba(255,255,255,0.05)';
+          let color = '#555';
+          let border = '1px solid rgba(255,255,255,0.08)';
+          let boxShadow = 'none';
+          let className = '';
+
+          if (isCompleted) {
+            bg = S.cyan;
+            color = S.navy;
+            border = `1px solid ${S.cyan}`;
+            boxShadow = `0 0 8px ${S.cyan}66`;
+          } else if (isInProgress) {
+            bg = `${S.gold}25`;
+            color = S.gold;
+            border = `1.5px solid ${S.gold}`;
+            boxShadow = `0 0 10px ${S.gold}88`;
+            className = 'card-in-progress-pulse';
+          }
+
+          return (
+            <div key={cardId}
+              className={`rounded relative ${className}`}
+              style={{
+                aspectRatio: '1',
+                background: bg,
+                color: color,
+                border: border,
+                boxShadow: boxShadow,
+                fontSize: compact ? '9px' : '10px',
+                fontWeight: 700,
+                fontFamily: 'monospace',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                lineHeight: 1,
+              }}>
+              {isCompleted ? (
+                <span style={{ fontSize: '12px' }}>✓</span>
+              ) : (
+                <span>{cardId}</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 범례 + 진행 중 카드 안내 */}
+      <div className="flex items-center justify-between gap-2 flex-wrap mt-2">
+        <div className="flex items-center gap-2 text-[9px] font-mono" style={{ color: '#888' }}>
+          <span className="flex items-center gap-1">
+            <span style={{ width: '8px', height: '8px', background: S.cyan, borderRadius: '2px', display: 'inline-block' }} />
+            완료
+          </span>
+          <span className="flex items-center gap-1">
+            <span style={{ width: '8px', height: '8px', background: `${S.gold}66`, border: `1px solid ${S.gold}`, borderRadius: '2px', display: 'inline-block' }} />
+            진행 중
+          </span>
+          <span className="flex items-center gap-1">
+            <span style={{ width: '8px', height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', display: 'inline-block' }} />
+            대기
+          </span>
+        </div>
+      </div>
+
+      {/* 현재 진행 카드 이름 */}
+      {inProgressId && CARD_NAMES_FULL[inProgressId] && (
+        <div className="rounded-lg px-3 py-2 mt-2"
+          style={{
+            background: `${S.gold}12`,
+            border: `1px solid ${S.gold}44`,
+          }}>
+          <p className="text-[11px] font-bold" style={{ color: S.gold }}>
+            📍 <span className="font-mono">{inProgressId}</span>. {CARD_NAMES_FULL[inProgressId]} 진행 중
+          </p>
+        </div>
+      )}
+
+      {/* 완주 시 */}
+      {completedIds.length === 16 && (
+        <div className="rounded-lg px-3 py-2 mt-2 text-center"
+          style={{
+            background: `${S.gold}20`,
+            border: `1.5px solid ${S.gold}`,
+          }}>
+          <p className="text-[12px] font-black" style={{ color: S.gold }}>
+            🎉 모든 카드 완주!
+          </p>
+        </div>
+      )}
+
+      <style jsx>{`
+        @keyframes cardInProgressPulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.08); }
+        }
+        .card-in-progress-pulse {
+          animation: cardInProgressPulse 1.5s ease-in-out infinite;
         }
       `}</style>
     </div>
