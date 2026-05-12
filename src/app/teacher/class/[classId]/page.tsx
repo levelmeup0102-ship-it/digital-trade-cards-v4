@@ -16,6 +16,13 @@ const S = {
   gold: '#FFD700'
 };
 
+// ⭐ NEW: 난이도 매핑
+const LEVELS: Record<string, { label: string; emoji: string; color: string }> = {
+  basic:    { label: '초급', emoji: '🌱', color: '#4ADE80' },
+  standard: { label: '표준', emoji: '📘', color: '#4FB0C6' },
+  advanced: { label: '심화', emoji: '🚀', color: '#A78BFA' },
+};
+
 export default function ClassDetail() {
   const router = useRouter();
   const params = useParams();
@@ -32,6 +39,8 @@ export default function ClassDetail() {
   const [teamMembers, setTeamMembers] = useState<Record<string, TeamMember[]>>({});
   const [saving, setSaving] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  // ⭐ NEW: 학급 코드 복사 상태
+  const [copiedClassCode, setCopiedClassCode] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -76,16 +85,27 @@ export default function ClassDetail() {
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
+  // ⭐ NEW: 학급 코드 복사
+  const copyClassCode = () => {
+    if (!cls?.join_code) return;
+    navigator.clipboard.writeText(cls.join_code);
+    setCopiedClassCode(true);
+    setTimeout(() => setCopiedClassCode(false), 2000);
+  };
+
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: S.bg }}>
       <p className="font-mono text-sm" style={{ color: S.cyan }}>{`>`} 불러오는 중...</p>
     </div>
   );
 
+  const lvlInfo = cls?.level ? LEVELS[cls.level] : null;
+  const hasJoinCode = !!cls?.join_code;
+
   return (
     <div className="min-h-screen px-4 py-6 relative overflow-hidden" style={{ background: S.bg }}>
 
-      {/* ⭐⭐⭐ 오로라 배경 ⭐⭐⭐ */}
+      {/* 오로라 배경 */}
       <div className="fixed inset-0 pointer-events-none"
         style={{
           background: `
@@ -100,19 +120,13 @@ export default function ClassDetail() {
       <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
         <div className="absolute detail-signal-1"
           style={{
-            top: '20%',
-            left: 0,
-            width: '100px',
-            height: '2px',
+            top: '20%', left: 0, width: '100px', height: '2px',
             background: `linear-gradient(90deg, transparent, ${S.cyan}, transparent)`,
             boxShadow: `0 0 14px ${S.cyan}, 0 0 28px ${S.cyan}66`,
           }} />
         <div className="absolute detail-signal-2"
           style={{
-            top: '60%',
-            right: 0,
-            width: '120px',
-            height: '2px',
+            top: '60%', right: 0, width: '120px', height: '2px',
             background: `linear-gradient(90deg, transparent, ${S.purple}, transparent)`,
             boxShadow: `0 0 14px ${S.purple}, 0 0 28px ${S.purple}66`,
           }} />
@@ -130,10 +144,8 @@ export default function ClassDetail() {
           return (
             <div key={i} className="absolute rounded-full detail-particle"
               style={{
-                left: `${left}%`,
-                top: `${top}%`,
-                width: `${size}px`,
-                height: `${size}px`,
+                left: `${left}%`, top: `${top}%`,
+                width: `${size}px`, height: `${size}px`,
                 background: colors[i % 3],
                 boxShadow: `0 0 ${size * 4}px ${colors[i % 3]}`,
                 animationDuration: `${duration}s`,
@@ -152,7 +164,8 @@ export default function ClassDetail() {
             style={{ color: S.cyan }}>{`<`} 대시보드</button>
         </div>
 
-        <div className="rounded-2xl p-5 mb-6"
+        {/* 수업 정보 헤더 */}
+        <div className="rounded-2xl p-5 mb-4"
           style={{
             background: `${S.cyan}08`,
             border: `1.5px solid ${S.cyan}40`,
@@ -164,22 +177,105 @@ export default function ClassDetail() {
           </p>
           <h1 className="text-xl font-black text-white"
             style={{ textShadow: `0 0 12px ${S.cyan}55` }}>{cls?.name}</h1>
-          <p className="text-[12px] mt-1" style={{ color: '#888' }}>{cls?.school} {cls?.schedule && `· ${cls.schedule}`}</p>
+          <div className="flex items-center gap-2 mt-2 flex-wrap">
+            {/* ⭐ NEW: 난이도 뱃지 */}
+            {lvlInfo && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md"
+                style={{
+                  background: `${lvlInfo.color}20`,
+                  color: lvlInfo.color,
+                  border: `1px solid ${lvlInfo.color}50`,
+                }}>
+                {lvlInfo.emoji} {lvlInfo.label}
+              </span>
+            )}
+            <p className="text-[12px]" style={{ color: '#888' }}>{cls?.school} {cls?.schedule && `· ${cls.schedule}`}</p>
+          </div>
         </div>
 
-        {/* 학생 접속 URL 안내 */}
-        <div className="rounded-xl p-4 mb-6"
-          style={{
-            background: `${S.purple}08`,
-            border: `1px solid ${S.purple}33`,
-            boxShadow: `inset 0 0 12px ${S.purple}11`,
-          }}>
-          <p className="text-[11px] font-bold mb-1" style={{ color: S.purple }}>{`>`} 학생 접속 주소</p>
-          <p className="text-[12px] font-mono break-all" style={{ color: S.cyan, textShadow: `0 0 6px ${S.cyan}66` }}>
-            digital-trade-cards-production.up.railway.app/student/join
-          </p>
-          <p className="text-[11px] mt-1" style={{ color: '#666' }}>학생들에게 팀 코드와 함께 공유하세요</p>
-        </div>
+        {/* ⭐⭐⭐ NEW: 학급 코드 + QR 박스 (학급 코드 있을 때만) */}
+        {hasJoinCode && (
+          <div className="rounded-2xl p-4 mb-4 relative overflow-hidden"
+            style={{
+              background: `${S.gold}08`,
+              border: `1.5px solid ${S.gold}50`,
+              boxShadow: `0 0 24px ${S.gold}25`,
+            }}>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-1.5 h-1.5 rounded-full animate-pulse"
+                style={{ background: S.gold, boxShadow: `0 0 6px ${S.gold}` }} />
+              <p className="text-[10px] font-mono tracking-widest font-bold"
+                style={{ color: S.gold, textShadow: `0 0 8px ${S.gold}AA` }}>
+                ★ CLASS CODE
+              </p>
+              <p className="ml-auto text-[10px]" style={{ color: '#888' }}>
+                학생 입장용
+              </p>
+            </div>
+
+            {/* 학급 코드 (클릭 시 복사) */}
+            <button onClick={copyClassCode}
+              className="w-full mb-3 px-4 py-3 rounded-xl flex items-center justify-center gap-3 transition-all hover:scale-[1.01]"
+              style={{
+                background: copiedClassCode ? `${S.green}15` : 'rgba(0,0,0,0.3)',
+                border: `2px solid ${copiedClassCode ? S.green : S.gold}66`,
+                boxShadow: `0 0 16px ${copiedClassCode ? S.green : S.gold}33`,
+              }}>
+              <span className="text-2xl">🎫</span>
+              <span className="text-[20px] font-black font-mono tracking-wider"
+                style={{
+                  color: copiedClassCode ? S.green : S.gold,
+                  textShadow: `0 0 8px ${copiedClassCode ? S.green : S.gold}66`,
+                }}>
+                {cls!.join_code}
+              </span>
+              <span className="text-[9px] font-bold px-2 py-1 rounded-md"
+                style={{
+                  background: copiedClassCode ? `${S.green}25` : 'rgba(0,0,0,0.4)',
+                  color: copiedClassCode ? S.green : '#888',
+                }}>
+                {copiedClassCode ? '✓ 복사됨' : '📋 복사'}
+              </span>
+            </button>
+
+            {/* QR 보기 버튼 (강조) */}
+            <button onClick={() => router.push(`/teacher/class-qr/${classId}`)}
+              className="qr-btn w-full py-3 rounded-xl font-black text-[14px] transition-all hover:scale-[1.02] flex items-center justify-center gap-2 relative overflow-hidden"
+              style={{
+                background: `linear-gradient(135deg, ${S.gold} 0%, #FFA500 100%)`,
+                color: S.navy,
+                boxShadow: `0 6px 20px ${S.gold}66`,
+              }}>
+              <span className="text-[18px]">📱</span>
+              <span>학급 QR 코드 보기</span>
+              <span className="text-[18px]">→</span>
+            </button>
+
+            <p className="text-[10.5px] mt-2.5 text-center leading-relaxed" style={{ color: '#aaa' }}>
+              💡 학생들이 QR을 스캔하거나 코드를 입력하면 팀 선택 화면으로 이동합니다
+            </p>
+          </div>
+        )}
+
+        {/* 학생 접속 URL 안내 (학급 코드 없을 때만 기존 안내) */}
+        {!hasJoinCode && (
+          <div className="rounded-xl p-4 mb-6"
+            style={{
+              background: `${S.purple}08`,
+              border: `1px solid ${S.purple}33`,
+              boxShadow: `inset 0 0 12px ${S.purple}11`,
+            }}>
+            <p className="text-[11px] font-bold mb-1" style={{ color: S.purple }}>{`>`} 학생 접속 주소</p>
+            <p className="text-[12px] font-mono break-all" style={{ color: S.cyan, textShadow: `0 0 6px ${S.cyan}66` }}>
+              digital-trade-cards-production.up.railway.app/student/join
+            </p>
+            <p className="text-[11px] mt-1" style={{ color: '#666' }}>
+              학생들에게 팀 코드와 함께 공유하세요
+              <br />
+              <span style={{ color: '#999' }}>※ 이 학급은 학급 코드/QR 시스템 도입 전 학급입니다</span>
+            </p>
+          </div>
+        )}
 
         {/* ⭐⭐⭐ 강렬한 랭킹 보기 버튼 ⭐⭐⭐ */}
         <button onClick={() => router.push(`/teacher/class/${classId}/ranking`)}
@@ -190,18 +286,15 @@ export default function ClassDetail() {
             boxShadow: `0 12px 40px ${S.gold}66, inset 0 0 40px rgba(255,255,255,0.1)`,
             padding: '24px',
           }}>
-          {/* 빛 흐르는 효과 */}
           <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 pointer-events-none"
             style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.5) 50%, transparent 100%)' }} />
 
-          {/* 빛 입자 (반짝임) */}
           <span className="sparkle sparkle-1">✨</span>
           <span className="sparkle sparkle-2">✨</span>
           <span className="sparkle sparkle-3">⭐</span>
           <span className="sparkle sparkle-4">✨</span>
 
           <div className="relative z-10 flex items-center gap-4">
-            {/* 트로피 아이콘 */}
             <div className="trophy-bounce flex-shrink-0 w-16 h-16 rounded-full flex items-center justify-center"
               style={{
                 background: 'rgba(0,0,0,0.2)',
@@ -210,7 +303,6 @@ export default function ClassDetail() {
               <span className="text-4xl">🏆</span>
             </div>
 
-            {/* 텍스트 */}
             <div className="flex-1 text-left">
               <p className="text-[10px] font-mono tracking-widest mb-1 font-bold"
                 style={{ color: 'rgba(0,0,0,0.7)' }}>
@@ -226,7 +318,6 @@ export default function ClassDetail() {
               </p>
             </div>
 
-            {/* 화살표 */}
             <div className="flex-shrink-0 text-3xl font-black arrow-bounce"
               style={{ color: S.navy }}>
               →
@@ -267,7 +358,7 @@ export default function ClassDetail() {
                     {/* 팀 코드 */}
                     <button onClick={() => copyCode(team.join_code)}
                       className="flex flex-col items-end gap-1">
-                      <p className="text-[9px] font-mono" style={{ color: S.cyan }}>수업 코드</p>
+                      <p className="text-[9px] font-mono" style={{ color: S.cyan }}>팀 코드</p>
                       <div className="px-3 py-1.5 rounded-lg font-black font-mono text-sm transition"
                         style={{
                           background: copiedCode === team.join_code ? `${S.cyan}20` : 'rgba(0,0,0,0.4)',
@@ -379,6 +470,15 @@ export default function ClassDetail() {
       </div>
 
       <style jsx>{`
+        /* QR 버튼 살짝 펄스 */
+        .qr-btn {
+          animation: qrPulse 2.5s ease-in-out infinite;
+        }
+        @keyframes qrPulse {
+          0%, 100% { box-shadow: 0 6px 20px rgba(255,215,0,0.4); }
+          50% { box-shadow: 0 8px 28px rgba(255,215,0,0.7); }
+        }
+
         /* 트로피 바운스 */
         @keyframes trophyBounce {
           0%, 100% { transform: translateY(0) rotate(-5deg); }
@@ -409,28 +509,12 @@ export default function ClassDetail() {
           0%, 100% { opacity: 0; transform: scale(0.5) rotate(0deg); }
           50% { opacity: 1; transform: scale(1.2) rotate(180deg); }
         }
-        .sparkle-1 {
-          top: 15%;
-          left: 10%;
-          animation: sparkleAnim 2.5s ease-in-out 0s infinite;
-        }
-        .sparkle-2 {
-          top: 60%;
-          left: 75%;
-          animation: sparkleAnim 2.5s ease-in-out 0.7s infinite;
-        }
-        .sparkle-3 {
-          top: 25%;
-          right: 15%;
-          animation: sparkleAnim 2.5s ease-in-out 1.2s infinite;
-        }
-        .sparkle-4 {
-          bottom: 20%;
-          left: 30%;
-          animation: sparkleAnim 2.5s ease-in-out 1.8s infinite;
-        }
+        .sparkle-1 { top: 15%; left: 10%; animation: sparkleAnim 2.5s ease-in-out 0s infinite; }
+        .sparkle-2 { top: 60%; left: 75%; animation: sparkleAnim 2.5s ease-in-out 0.7s infinite; }
+        .sparkle-3 { top: 25%; right: 15%; animation: sparkleAnim 2.5s ease-in-out 1.2s infinite; }
+        .sparkle-4 { bottom: 20%; left: 30%; animation: sparkleAnim 2.5s ease-in-out 1.8s infinite; }
 
-        /* 버튼 자체 글로우 펄스 */
+        /* 랭킹 버튼 글로우 펄스 */
         @keyframes btnPulse {
           0%, 100% {
             box-shadow: 0 12px 40px rgba(255,215,0,0.4), inset 0 0 40px rgba(255,255,255,0.1);
@@ -443,19 +527,15 @@ export default function ClassDetail() {
           animation: btnPulse 3s ease-in-out infinite;
         }
 
-        /* ⭐ 빛 신호 흐름 */
-        .detail-signal-1 {
-          animation: detailSignalRight 5s linear infinite;
-        }
+        /* 빛 신호 */
+        .detail-signal-1 { animation: detailSignalRight 5s linear infinite; }
         @keyframes detailSignalRight {
           0% { transform: translateX(-100px); opacity: 0; }
           10% { opacity: 1; }
           90% { opacity: 1; }
           100% { transform: translateX(100vw); opacity: 0; }
         }
-        .detail-signal-2 {
-          animation: detailSignalLeft 6s linear infinite 0.5s;
-        }
+        .detail-signal-2 { animation: detailSignalLeft 6s linear infinite 0.5s; }
         @keyframes detailSignalLeft {
           0% { transform: translateX(120px); opacity: 0; }
           10% { opacity: 1; }
