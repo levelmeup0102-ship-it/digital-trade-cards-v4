@@ -967,38 +967,8 @@ function StudentJoinInner() {
               </div>
             )}
 
-            <div className="mb-5">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black flex-shrink-0"
-                  style={{
-                    background: S.purple,
-                    color: '#fff',
-                    boxShadow: `0 0 10px ${S.purple}88`,
-                  }}>
-                  3
-                </div>
-                <p className="text-sm font-bold text-white">수업 수준</p>
-              </div>
-              {Object.entries(LEVELS).map(([k, v]) => (
-                <InteractiveButton key={k}
-                  uniqueKey={`level-${k}`}
-                  isSelected={level === k}
-                  onClick={() => setLevel(k)}
-                  color={v.color}
-                  className="w-full mb-2 px-4 py-3 rounded-xl flex items-center gap-3 transition"
-                  style={{
-                    background: level === k ? v.color + '22' : 'rgba(255,255,255,0.04)',
-                    border: level === k ? `1px solid ${v.color}` : '1px solid rgba(255,255,255,0.08)',
-                    boxShadow: level === k ? `0 0 16px ${v.color}33` : 'none',
-                  }}>
-                  <span className="text-xl">{v.emoji}</span>
-                  <div className="flex-1 text-left text-[13px] font-bold text-white">{v.label}</div>
-                  <span className="text-[11px] text-white" style={{ opacity: 0.7 }}>{Math.floor(v.timer / 60)}분 · {v.minChars}자</span>
-                </InteractiveButton>
-              ))}
-            </div>
-
-            {/* ⭐ Step 4 — 팀원 직무 배정 (가독성 개선 + 직무 가이드 박스 추가) */}
+            {/* ⭐ Step 3 — 팀원 직무 배정 (이전 Step 4) */}
+            {/* 수업 수준(난이도)는 학급에서 자동 적용되므로 학생 화면에서 제거됨 */}
             <div className="mb-6">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black flex-shrink-0"
@@ -1007,7 +977,7 @@ function StudentJoinInner() {
                     color: '#fff',
                     boxShadow: `0 0 10px ${S.pink}88`,
                   }}>
-                  4
+                  3
                 </div>
                 <p className="text-sm font-bold text-white">팀원 직무 배정</p>
               </div>
