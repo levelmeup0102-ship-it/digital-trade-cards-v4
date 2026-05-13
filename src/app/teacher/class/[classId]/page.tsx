@@ -8,6 +8,7 @@ import {
   getTeamMembers,
   saveTeamMembers,
   subscribeToClassProgress,
+  startClassGame,
 } from '@/lib/teacher';
 import type { Teacher, Class, Team, TeamMember } from '@/lib/teacher';
 import { supabase } from '@/lib/supabase';
@@ -51,6 +52,11 @@ export default function ClassDetail() {
   const [copiedClassCode, setCopiedClassCode] = useState(false);
   // ⭐⭐⭐ NEW: 카드 진행 격자 펼침 상태
   const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
+
+  // ⭐⭐⭐ NEW 8번: 일괄 시작 상태
+  const [showBulkStartModal, setShowBulkStartModal] = useState(false);
+  const [bulkStarting, setBulkStarting] = useState(false);
+  const [bulkStartError, setBulkStartError] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -136,6 +142,32 @@ export default function ClassDetail() {
       supabase.removeChannel(teamMembersChannel);
     };
   }, [classId, loading, teams.length]);
+
+  // ⭐⭐⭐ NEW 8번: 일괄 시작 핸들러 ⭐⭐⭐
+  const handleBulkStart = async () => {
+    if (!cls || bulkStarting) return;
+    setBulkStarting(true);
+    setBulkStartError('');
+    try {
+      const result = await startClassGame(cls.id);
+      if (!result.success) {
+        setBulkStartError(result.error || '일괄 시작에 실패했어요.');
+        setBulkStarting(false);
+        return;
+      }
+      // 성공 → 학급 정보 갱신 (game_started_at 받기)
+      const updatedCls = await getClass(cls.id);
+      if (updatedCls) setCls(updatedCls);
+      // 팀 정보도 갱신
+      const updatedTeams = await getTeamsByClass(cls.id);
+      setTeams(updatedTeams);
+      setShowBulkStartModal(false);
+      setBulkStarting(false);
+    } catch (e: any) {
+      setBulkStartError(e.message || '일괄 시작 중 오류가 발생했어요.');
+      setBulkStarting(false);
+    }
+  };
 
   const handleSaveMembers = async (teamId: string) => {
     setSaving(true);
@@ -343,6 +375,69 @@ export default function ClassDetail() {
             </p>
           </div>
         )}
+
+        {/* ⭐⭐⭐ NEW 8번: 일괄 시작 버튼 ⭐⭐⭐ */}
+        {(() => {
+          const alreadyStarted = !!cls?.game_started_at;
+          return (
+            <button
+              onClick={() => !alreadyStarted && setShowBulkStartModal(true)}
+              disabled={alreadyStarted}
+              className={`w-full rounded-2xl overflow-hidden mb-3 transition-all relative ${alreadyStarted ? 'cursor-not-allowed opacity-70' : 'hover:scale-[1.02] bulk-start-pulse group'}`}
+              style={{
+                background: alreadyStarted
+                  ? `linear-gradient(135deg, rgba(107,114,128,0.2) 0%, rgba(107,114,128,0.1) 100%)`
+                  : `linear-gradient(135deg, ${S.cyan} 0%, ${S.purple} 50%, ${S.pink} 100%)`,
+                border: alreadyStarted
+                  ? '2px solid rgba(107,114,128,0.4)'
+                  : `2px solid ${S.cyan}`,
+                boxShadow: alreadyStarted
+                  ? 'none'
+                  : `0 12px 40px ${S.cyan}66, inset 0 0 40px rgba(255,255,255,0.08)`,
+                padding: '20px',
+              }}>
+
+              {!alreadyStarted && (
+                <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 pointer-events-none"
+                  style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)' }} />
+              )}
+
+              <div className="relative z-10 flex items-center gap-4">
+                <div className="flex-shrink-0 w-14 h-14 rounded-full flex items-center justify-center"
+                  style={{
+                    background: alreadyStarted ? 'rgba(107,114,128,0.2)' : 'rgba(0,0,0,0.2)',
+                    boxShadow: alreadyStarted ? 'none' : '0 4px 16px rgba(0,0,0,0.3)',
+                  }}>
+                  <span className="text-3xl">{alreadyStarted ? '🎮' : '🚀'}</span>
+                </div>
+
+                <div className="flex-1 text-left">
+                  <p className="text-[10px] font-mono tracking-widest mb-1 font-bold"
+                    style={{ color: alreadyStarted ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.85)' }}>
+                    {alreadyStarted ? 'GAME IN PROGRESS' : 'BULK START'}
+                  </p>
+                  <h2 className="text-xl font-black mb-0.5"
+                    style={{ color: alreadyStarted ? 'rgba(255,255,255,0.6)' : '#fff' }}>
+                    {alreadyStarted ? '게임 진행 중' : '▶ 일괄 시작'}
+                  </h2>
+                  <p className="text-[11px] font-bold"
+                    style={{ color: alreadyStarted ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.75)' }}>
+                    {alreadyStarted
+                      ? `시작 시각: ${cls?.game_started_at ? new Date(cls.game_started_at).toLocaleTimeString('ko-KR') : ''}`
+                      : '준비된 모든 팀이 동시에 시작합니다'}
+                  </p>
+                </div>
+
+                {!alreadyStarted && (
+                  <div className="flex-shrink-0 text-2xl font-black"
+                    style={{ color: '#fff' }}>
+                    →
+                  </div>
+                )}
+              </div>
+            </button>
+          );
+        })()}
 
         {/* ⭐⭐⭐ 강렬한 랭킹 보기 버튼 ⭐⭐⭐ */}
         <button onClick={() => router.push(`/teacher/class/${classId}/ranking`)}
@@ -645,7 +740,134 @@ export default function ClassDetail() {
           0%, 100% { opacity: 0.3; transform: scale(1); }
           50% { opacity: 1; transform: scale(1.5); }
         }
+
+        /* ⭐⭐⭐ NEW 8번: 일괄 시작 펄스 ⭐⭐⭐ */
+        @keyframes bulkStartPulse {
+          0%, 100% {
+            box-shadow: 0 12px 40px rgba(6,182,212,0.4), inset 0 0 40px rgba(255,255,255,0.08);
+          }
+          50% {
+            box-shadow: 0 12px 50px rgba(6,182,212,0.7), 0 0 60px rgba(139,92,246,0.4), inset 0 0 40px rgba(255,255,255,0.12);
+          }
+        }
+        .bulk-start-pulse {
+          animation: bulkStartPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes modalFadeIn {
+          0% { opacity: 0; transform: scale(0.92); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+        .modal-enter {
+          animation: modalFadeIn 0.3s ease-out forwards;
+        }
       `}</style>
+
+      {/* ⭐⭐⭐ NEW 8번: 일괄 시작 확인 모달 ⭐⭐⭐ */}
+      {showBulkStartModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center px-4"
+          style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}
+          onClick={() => !bulkStarting && setShowBulkStartModal(false)}>
+          <div className="modal-enter w-full max-w-md rounded-2xl p-6 relative"
+            style={{
+              background: 'linear-gradient(135deg, rgba(6,182,212,0.1) 0%, rgba(139,92,246,0.08) 100%), #0A0A0A',
+              border: `2px solid ${S.cyan}66`,
+              boxShadow: `0 20px 60px ${S.cyan}33, 0 0 80px ${S.cyan}22`,
+            }}
+            onClick={(e) => e.stopPropagation()}>
+
+            {/* 코너 장식 */}
+            <div className="absolute top-3 left-3 w-5 h-5 pointer-events-none"
+              style={{ borderTop: `2px solid ${S.cyan}`, borderLeft: `2px solid ${S.cyan}` }} />
+            <div className="absolute top-3 right-3 w-5 h-5 pointer-events-none"
+              style={{ borderTop: `2px solid ${S.cyan}`, borderRight: `2px solid ${S.cyan}` }} />
+            <div className="absolute bottom-3 left-3 w-5 h-5 pointer-events-none"
+              style={{ borderBottom: `2px solid ${S.cyan}`, borderLeft: `2px solid ${S.cyan}` }} />
+            <div className="absolute bottom-3 right-3 w-5 h-5 pointer-events-none"
+              style={{ borderBottom: `2px solid ${S.cyan}`, borderRight: `2px solid ${S.cyan}` }} />
+
+            <div className="text-center mb-4">
+              <div className="inline-flex w-16 h-16 rounded-full items-center justify-center mb-3"
+                style={{
+                  background: `radial-gradient(circle, ${S.cyan}33 0%, ${S.purple}22 100%)`,
+                  border: `2px solid ${S.cyan}`,
+                  boxShadow: `0 0 24px ${S.cyan}66`,
+                }}>
+                <span className="text-3xl">🚀</span>
+              </div>
+              <p className="text-[10px] font-mono tracking-[4px] font-bold mb-2"
+                style={{ color: S.cyan, textShadow: `0 0 8px ${S.cyan}AA` }}>
+                BULK START CONFIRMATION
+              </p>
+              <h2 className="text-xl font-black text-white mb-2">
+                정말 시작하시겠습니까?
+              </h2>
+              <p className="text-[13px] leading-relaxed" style={{ color: '#aaa' }}>
+                <span className="font-bold text-white">모든 팀</span>이 <span style={{ color: S.cyan }} className="font-bold">동시에 시작</span>합니다.<br />
+                현재 welcome 화면에서 대기 중인 학생들이<br />
+                <span style={{ color: S.green }} className="font-bold">5초 카운트다운</span> 후 게임 화면으로 이동해요.
+              </p>
+            </div>
+
+            {/* 학급 정보 요약 */}
+            <div className="rounded-xl p-3 mb-4"
+              style={{
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.08)',
+              }}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-mono" style={{ color: '#888' }}>학급</span>
+                <span className="text-[13px] font-bold text-white">{cls?.name}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono" style={{ color: '#888' }}>팀 수</span>
+                <span className="text-[13px] font-bold text-white">{teams.length}개</span>
+              </div>
+            </div>
+
+            {/* 에러 메시지 */}
+            {bulkStartError && (
+              <div className="rounded-lg p-3 mb-3 text-[12px]"
+                style={{
+                  background: 'rgba(239,68,68,0.1)',
+                  border: '1px solid rgba(239,68,68,0.4)',
+                  color: '#FCA5A5',
+                }}>
+                ⚠️ {bulkStartError}
+              </div>
+            )}
+
+            {/* 버튼 */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowBulkStartModal(false)}
+                disabled={bulkStarting}
+                className="flex-1 py-3 rounded-xl text-[13px] font-bold transition hover:bg-white/10 disabled:opacity-50"
+                style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: '#aaa',
+                }}>
+                취소
+              </button>
+              <button
+                onClick={handleBulkStart}
+                disabled={bulkStarting}
+                className="flex-[1.4] py-3 rounded-xl text-[14px] font-black transition hover:scale-[1.02] disabled:opacity-60 disabled:cursor-not-allowed"
+                style={{
+                  background: bulkStarting
+                    ? 'rgba(107,114,128,0.4)'
+                    : `linear-gradient(135deg, ${S.cyan} 0%, ${S.purple} 100%)`,
+                  border: `1px solid ${S.cyan}`,
+                  color: '#fff',
+                  boxShadow: bulkStarting ? 'none' : `0 8px 24px ${S.cyan}66`,
+                }}>
+                {bulkStarting ? '⚡ 시작 중...' : '🚀 일괄 시작!'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
