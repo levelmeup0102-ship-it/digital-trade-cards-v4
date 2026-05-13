@@ -365,7 +365,8 @@ export default function Home() {
           return;
         }
 
-        const v2Raw = typeof window !== 'undefined' ? localStorage.getItem('dtc_session_token_v2') : null;
+        // ⭐ NEW: sessionStorage 우선 읽기 (localStorage는 폐기됨)
+        const v2Raw = typeof window !== 'undefined' ? sessionStorage.getItem('dtc_session_token_v2') : null;
         if (v2Raw) {
           const v2 = JSON.parse(v2Raw);
           const v2Role: 'leader' | 'member' = v2.isLeader ? 'leader' : 'member';
@@ -761,6 +762,9 @@ export default function Home() {
   }, [currentCardIdx, goToCard, screen]);
 
   const exitGame = () => {
+    // ⭐ NEW: sessionStorage 사용 + 옛 localStorage 흔적도 제거 (안전망)
+    sessionStorage.removeItem('dtc_session_token');
+    sessionStorage.removeItem('dtc_session_token_v2');
     localStorage.removeItem('dtc_session_token');
     localStorage.removeItem('dtc_session_token_v2');
     if (timerRef.current) clearInterval(timerRef.current);
