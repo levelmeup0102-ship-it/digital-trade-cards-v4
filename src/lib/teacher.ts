@@ -19,6 +19,8 @@ export type Class = {
   // ⭐ NEW: 난이도 + 학급 코드
   level?: string;        // 'basic' | 'standard' | 'advanced'
   join_code?: string;    // 예) 'CL-AB-X7K2', NULL 가능
+  // ⭐⭐⭐ NEW: 일괄 시작 (8번 작업)
+  game_started_at?: string | null; // NULL이면 미시작, NOT NULL이면 일괄 시작됨
 };
 
 export type Team = {
@@ -485,3 +487,81 @@ export async function getTeamRankings(classId: string): Promise<Team[]> {
     return 0;
   });
 }
+
+// ═══════════════════════════════════════════════════════
+// ⭐⭐⭐ 8번 작업: 일괄 시작 (Bulk Start) ⭐⭐⭐
+// ═══════════════════════════════════════════════════════
+
+/**
+ * 학급 단위로 게임 일괄 시작
+ * - classes.game_started_at에 NOW() 기록
+ * - 모든 팀의 game_started=true 업데이트
+ * - 학생 welcome 화면이 Realtime으로 감지 → 5초 카운트다운 → game 진입
+ */
+export async function startClassGame(classId: string): Promise<{ success: boolean; startedAt?: string; error?: string }> {
+  try {
+    // 1. 학급에 game_started_at 기록 (이게 학생에게 보내는 시그널)
+    const now = new Date().toISOString();
+    const { error: classError } = await supabase
+      .from('classes')
+      .update({ game_started_at: now, status: 'active' })
+      .eq('id', classId);
+
+    if (classError) {
+      console.error('학급 일괄 시작 실패', classError);
+      return { success: false, error: classError.message };
+    }
+
+    // 2. 학급 내 모든 팀에 game_started=true (이미 true인 팀은 그대로)
+    const { error: teamsError } = await supabase
+      .from('teams')
+      .update({ game_started: true, game_started_at: now })
+      .eq('class_id', classId)
+      .eq('game_started', false); // 아직 시작 안 한 팀만 업데이트
+
+    if (teamsError) {
+      console.error('팀 일괄 시작 실패', teamsError);
+      // 학급 시그널은 이미 보냈으니 부분 성공으로 처리
+      return { success: true, startedAt: now, error: `팀 업데이트 일부 실패: ${teamsError.message}` };
+    }
+
+    return { success: true, startedAt: now };
+  } catch (e: any) {
+    console.error('startClassGame 오류', e);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * 학급의 game_started_at 변경을 Realtime으로 구독
+ * 학생 welcome 화면에서 사용
+ * - 신호 받으면 카운트다운 시작 → game 진입
+ */
+export function subscribeToClassGameStart(
+  classId: string,
+  callback: (gameStartedAt: string) => void,
+) {
+  const channel = supabase
+    .channel(`class_game_start:${classId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'classes',
+        filter: `id=eq.${classId}`,
+      },
+      (payload: any) => {
+        const newRecord = payload.new;
+        if (newRecord && newRecord.game_started_at) {
+          callback(newRecord.game_started_at);
+        }
+      },
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
