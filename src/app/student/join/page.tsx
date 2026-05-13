@@ -395,7 +395,9 @@ function StudentJoinInner() {
     const myMember = members.find(m => m.id === selectedMember.id);
     const myRole = myMember?.role_code || (selectedMember.is_leader ? 'ceo' : roleAssignments[selectedMember.id]);
 
-    localStorage.setItem('dtc_session_token_v2', JSON.stringify({
+    localStorage.removeItem('dtc_session_token');
+    localStorage.removeItem('dtc_session_token_v2');
+    sessionStorage.setItem('dtc_session_token_v2', JSON.stringify({
       teamId: team.id,
       teamName: team.name,
       memberId: selectedMember.id,
@@ -425,7 +427,9 @@ function StudentJoinInner() {
       .eq('id', team.id)
       .single();
 
-    localStorage.setItem('dtc_session_token_v2', JSON.stringify({
+    localStorage.removeItem('dtc_session_token');
+    localStorage.removeItem('dtc_session_token_v2');
+    sessionStorage.setItem('dtc_session_token_v2', JSON.stringify({
       teamId: team.id,
       teamName: team.name,
       memberId: selectedMember.id,
