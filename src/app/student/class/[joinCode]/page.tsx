@@ -42,6 +42,16 @@ export default function StudentClassPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
+    // ⭐⭐⭐ NEW: 학급 페이지 진입 시 이전 학생 세션 자동 초기화 (같은 기기 다른 학생 보호)
+    // 게임 화면 상단에 이전 학생의 직무가 남아있는 문제 해결
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('dtc_session_token');
+      sessionStorage.removeItem('dtc_session_token_v2');
+      // 옛 localStorage 흔적도 같이 청소
+      localStorage.removeItem('dtc_session_token');
+      localStorage.removeItem('dtc_session_token_v2');
+    }
+
     (async () => {
       try {
         const result = await getClassWithTeamsByCode(joinCode);
