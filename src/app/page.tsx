@@ -802,7 +802,7 @@ export default function Home() {
   // ⚠️ screen === 'game' 이면 인트로 스킵 (이미 게임 중인 학생 보호)
   if (screen !== 'game') {
     if (rootIntroState === 'show') {
-      return <SignalIntro onComplete={handleRootIntroComplete} durationMs={5000} />;
+      return <SignalIntro onComplete={handleRootIntroComplete} durationMs={6000} />;
     }
     if (rootIntroState === 'unknown') {
       return (
