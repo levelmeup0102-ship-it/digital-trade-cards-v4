@@ -599,6 +599,97 @@ export async function deleteMember(
   }
 }
 
+// ═══════════════════════════════════════════════════════
+// ⭐⭐⭐ NEW Phase 4 (20번): 관리자 팀장 교체 ⭐⭐⭐
+// 4번 양도와의 차이:
+// - 4번: 학생 본인이 사퇴/양도 (leader-setup에서만)
+// - 20번: 관리자가 강제 교체 (게임 시작 후에도 가능)
+// - 게임 시작 여부에 따라 동작 분기:
+//   * 게임 시작 전 → 직무/산업군/수준 초기화 (transferLeader와 동일)
+//   * 게임 시작 후 → is_leader 플래그만 변경 (게임 데이터 보존)
+// ═══════════════════════════════════════════════════════
+
+/**
+ * 관리자가 팀장 강제 교체
+ * - 게임 시작 전: 직무/산업군/수준 모두 초기화 (새 팀장이 처음부터 다시)
+ * - 게임 시작 후: is_leader 플래그만 변경 (카드 응답, 인사이트, 직무 모두 유지)
+ *
+ * @param teamId 팀 ID
+ * @param oldLeaderId 현재 팀장 ID
+ * @param newLeaderId 새 팀장이 될 학생 ID
+ */
+export async function replaceLeader(
+  teamId: string,
+  oldLeaderId: string,
+  newLeaderId: string,
+): Promise<{ success: boolean; error?: string; gameInProgress?: boolean }> {
+  try {
+    if (oldLeaderId === newLeaderId) {
+      return { success: false, error: '동일한 학생에게 교체할 수 없어요.' };
+    }
+
+    // 1. 게임 시작 여부 확인
+    const { data: teamData, error: teamError } = await supabase
+      .from('teams')
+      .select('game_started, item, level')
+      .eq('id', teamId)
+      .single();
+    if (teamError || !teamData) {
+      return { success: false, error: '팀 정보를 불러올 수 없어요.' };
+    }
+    const gameInProgress = teamData.game_started === true;
+
+    // 2. 새 팀장이 같은 팀 멤버인지 검증
+    const { data: newLeaderMember } = await supabase
+      .from('team_members')
+      .select('id, name')
+      .eq('id', newLeaderId)
+      .eq('team_id', teamId)
+      .maybeSingle();
+    if (!newLeaderMember) {
+      return { success: false, error: '새 팀장이 같은 팀 학생이 아니에요.' };
+    }
+
+    // 3. 옛 팀장 is_leader = false
+    const { error: e1 } = await supabase
+      .from('team_members')
+      .update({ is_leader: false })
+      .eq('id', oldLeaderId)
+      .eq('team_id', teamId);
+    if (e1) return { success: false, error: e1.message };
+
+    // 4. 새 팀장 is_leader = true
+    const { error: e2 } = await supabase
+      .from('team_members')
+      .update({ is_leader: true })
+      .eq('id', newLeaderId)
+      .eq('team_id', teamId);
+    if (e2) return { success: false, error: e2.message };
+
+    // 5. 게임 시작 전이면 → 모든 데이터 초기화
+    if (!gameInProgress) {
+      // 모든 팀원의 role_code 초기화
+      const { error: e3 } = await supabase
+        .from('team_members')
+        .update({ role_code: null, role_assigned_at: null })
+        .eq('team_id', teamId);
+      if (e3) return { success: false, error: e3.message };
+
+      // teams의 산업군, 수준 초기화
+      const { error: e4 } = await supabase
+        .from('teams')
+        .update({ item: null, level: null })
+        .eq('id', teamId);
+      if (e4) return { success: false, error: e4.message };
+    }
+    // 게임 시작 후면 → 데이터 그대로 유지 (is_leader만 변경됨)
+
+    return { success: true, gameInProgress };
+  } catch (e: any) {
+    return { success: false, error: e.message || '팀장 교체 중 오류가 발생했어요.' };
+  }
+}
+
 // ─────────────────────────────────────────────────────────────
 // 직무 배정 + 게임 시작 + Realtime
 // ─────────────────────────────────────────────────────────────
