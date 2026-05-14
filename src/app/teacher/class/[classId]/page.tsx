@@ -1153,11 +1153,12 @@ export default function ClassDetail() {
                   }}>
                   <p className="text-[12px] font-black text-white mb-1 flex items-center gap-1.5">
                     <span className="text-base">🎮</span>
-                    <span>게임 진행 중 — 데이터 유지</span>
+                    <span>게임 진행 중 — 데이터 유지 + 직무 스왑</span>
                   </p>
                   <p className="text-[11px] leading-relaxed" style={{ color: '#E7FE55' }}>
-                    카드 응답, 인사이트, 직무 모두 그대로 유지됩니다.<br/>
-                    팀장 권한만 새 학생에게 이동해요.
+                    카드 응답과 인사이트는 그대로 유지되고,<br/>
+                    옛 팀장과 새 팀장의 <span className="font-bold">직무가 서로 교환</span>됩니다.<br/>
+                    (예: 옛 팀장 CEO ↔ 새 팀장 시장분석가)
                   </p>
                 </div>
               ) : (
