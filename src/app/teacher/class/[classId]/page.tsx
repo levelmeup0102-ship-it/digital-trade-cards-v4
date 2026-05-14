@@ -605,6 +605,48 @@ export default function ClassDetail() {
           </div>
         </button>
 
+        {/* ⭐⭐⭐ NEW Phase 4 (17번): PDF 보관함 버튼 ⭐⭐⭐ */}
+        <button onClick={() => router.push(`/teacher/class/${classId}/reports`)}
+          className="w-full rounded-2xl overflow-hidden mb-6 transition-all hover:scale-[1.02] relative group"
+          style={{
+            background: `linear-gradient(135deg, ${S.purple} 0%, ${S.blue} 100%)`,
+            border: `1.5px solid ${S.purple}`,
+            boxShadow: `0 8px 28px ${S.purple}55`,
+            padding: '18px',
+          }}>
+          <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 pointer-events-none"
+            style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.3) 50%, transparent 100%)' }} />
+
+          <div className="relative z-10 flex items-center gap-3">
+            <div className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center"
+              style={{
+                background: 'rgba(0,0,0,0.25)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+              }}>
+              <span className="text-2xl">📚</span>
+            </div>
+
+            <div className="flex-1 text-left">
+              <p className="text-[10px] font-mono tracking-widest mb-0.5 font-bold"
+                style={{ color: 'rgba(255,255,255,0.8)' }}>
+                REPORT ARCHIVE
+              </p>
+              <h2 className="text-base font-black text-white">
+                📚 보고서 보관함
+              </h2>
+              <p className="text-[11px] mt-0.5"
+                style={{ color: 'rgba(255,255,255,0.7)' }}>
+                완료된 팀 보고서 모아보기 + PDF 다운로드
+              </p>
+            </div>
+
+            <div className="flex-shrink-0 text-2xl font-black"
+              style={{ color: '#fff' }}>
+              →
+            </div>
+          </div>
+        </button>
+
         {/* 팀 목록 (기존 — 명단 관리) */}
         <div className="mb-4">
           <p className="text-sm font-bold text-white">
