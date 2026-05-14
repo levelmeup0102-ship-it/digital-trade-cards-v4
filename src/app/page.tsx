@@ -8,7 +8,7 @@ import CelebrationModal from '@/components/CelebrationModal';
 import { generateTeamReport } from '@/lib/reportGenerator';
 import type { SubCard } from '@/types';
 import {
-  getOrCreateSession, restoreSession,
+  getOrCreateSession,
   saveCardResponse, loadCardResponses, saveCardProgress, loadCardProgress,
 } from '@/lib/session';
 import { supabase, type Session } from '@/lib/supabase';
@@ -329,43 +329,13 @@ export default function Home() {
   useEffect(() => {
     (async () => {
       try {
-        const saved = await restoreSession();
-        if (saved) {
-          setSession(saved); setTeamId(saved.team_id);
-          setPlayerName(saved.player_name); setRole(saved.role);
-          setLevel(saved.level); setItem(saved.item || '');
+        // ⭐⭐⭐ FIX (버그 수정): restoreSession() 사용 제거 ⭐⭐⭐
+        // 이유: Supabase sessions 테이블에서 가져온 세션이
+        //   1) 같은 PC에서 여러 학생 테스트 시 다른 학생 세션을 끌어옴
+        //   2) restoreSession 분기에선 roleCode/teamName 등이 안 채워져 화면 깨짐
+        // 해결: sessionStorage만 신뢰 (같은 탭 새로고침 시 그대로 유지됨)
 
-          if (saved.role === 'leader') {
-            await ensureFirstSubCardUnlocked(saved.team_id);
-          }
-
-          const [resps, prog, members, insights, locks, interims, leaderConcs] = await Promise.all([
-            loadCardResponses(saved.team_id),
-            loadCardProgress(saved.team_id),
-            getTeamMembers(saved.team_id),
-            loadTeamInsights(saved.team_id),
-            loadSubCardLocks(saved.team_id),
-            loadInterimConclusionsDB(saved.team_id),
-            loadLeaderConclusionsDB(saved.team_id),
-          ]);
-          setResponses(resps);
-          setCompletedCards(prog.completedCards);
-          setTeamMembers(members);
-          setMemberInsights(insights);
-          setSubCardLocks(locks);
-          setInterimConclusions(interims);
-          setLeaderConclusions(leaderConcs);
-
-          const myMember = members.find(m => m.name === saved.player_name);
-          if (myMember) setMyMemberId(myMember.id);
-
-          setTimer(LEVELS[saved.level]?.timer || 1200);
-          setScreen('game');
-          setSessionLoading(false);
-          return;
-        }
-
-        // ⭐ NEW: sessionStorage 우선 읽기 (localStorage는 폐기됨)
+        // sessionStorage 우선 읽기 (localStorage는 폐기됨)
         const v2Raw = typeof window !== 'undefined' ? sessionStorage.getItem('dtc_session_token_v2') : null;
         if (v2Raw) {
           const v2 = JSON.parse(v2Raw);
