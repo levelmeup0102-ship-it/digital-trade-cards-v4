@@ -572,6 +572,33 @@ export async function transferLeader(
   }
 }
 
+// ═══════════════════════════════════════════════════════
+// ⭐⭐⭐ NEW Phase 4 (18번): 관리자 강제 퇴장 ⭐⭐⭐
+// ═══════════════════════════════════════════════════════
+
+/**
+ * 관리자가 학생을 강제 퇴장 (team_members 행 삭제)
+ * - cascade로 member_insights, personal_scores도 자동 삭제됨
+ * - card_responses는 team 단위라 영향 없음 (다른 팀원이 계속 게임 가능)
+ * - 삭제된 학생은 다시 입장 가능 (블랙리스트 X)
+ *
+ * @param memberId 삭제할 학생 ID
+ */
+export async function deleteMember(
+  memberId: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from('team_members')
+      .delete()
+      .eq('id', memberId);
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message || '학생 삭제 중 오류가 발생했어요.' };
+  }
+}
+
 // ─────────────────────────────────────────────────────────────
 // 직무 배정 + 게임 시작 + Realtime
 // ─────────────────────────────────────────────────────────────
