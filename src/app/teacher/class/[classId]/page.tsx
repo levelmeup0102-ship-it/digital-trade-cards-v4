@@ -9,6 +9,7 @@ import {
   saveTeamMembers,
   subscribeToClassProgress,
   startClassGame,
+  deleteMember,
 } from '@/lib/teacher';
 import type { Teacher, Class, Team, TeamMember } from '@/lib/teacher';
 import { supabase } from '@/lib/supabase';
@@ -57,6 +58,12 @@ export default function ClassDetail() {
   const [showBulkStartModal, setShowBulkStartModal] = useState(false);
   const [bulkStarting, setBulkStarting] = useState(false);
   const [bulkStartError, setBulkStartError] = useState('');
+
+  // ⭐⭐⭐ NEW Phase 4 (18번): 관리자 강제 퇴장 ⭐⭐⭐
+  const [deleteTargetMember, setDeleteTargetMember] = useState<TeamMember | null>(null);
+  const [deleteTargetTeam, setDeleteTargetTeam] = useState<Team | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -166,6 +173,50 @@ export default function ClassDetail() {
     } catch (e: any) {
       setBulkStartError(e.message || '일괄 시작 중 오류가 발생했어요.');
       setBulkStarting(false);
+    }
+  };
+
+  // ⭐⭐⭐ NEW Phase 4 (18번): 학생 강제 퇴장 ⭐⭐⭐
+  const openDeleteModal = (member: TeamMember, team: Team) => {
+    setDeleteTargetMember(member);
+    setDeleteTargetTeam(team);
+    setDeleteError('');
+  };
+
+  const closeDeleteModal = () => {
+    if (deleting) return;
+    setDeleteTargetMember(null);
+    setDeleteTargetTeam(null);
+    setDeleteError('');
+  };
+
+  const handleDeleteMember = async () => {
+    if (!deleteTargetMember || deleting) return;
+    setDeleteError('');
+    setDeleting(true);
+
+    try {
+      const result = await deleteMember(deleteTargetMember.id);
+      if (!result.success) {
+        setDeleteError(result.error || '삭제에 실패했어요.');
+        setDeleting(false);
+        return;
+      }
+
+      // 성공: 로컬 state에서도 즉시 제거 (Realtime이 따라잡기 전까지 UI 반응성)
+      if (deleteTargetTeam) {
+        setTeamMembers(prev => ({
+          ...prev,
+          [deleteTargetTeam.id]: (prev[deleteTargetTeam.id] || []).filter(m => m.id !== deleteTargetMember.id),
+        }));
+      }
+
+      setDeleteTargetMember(null);
+      setDeleteTargetTeam(null);
+      setDeleting(false);
+    } catch (e: any) {
+      setDeleteError(e.message || '삭제 중 오류가 발생했어요.');
+      setDeleting(false);
     }
   };
 
@@ -543,14 +594,29 @@ export default function ClassDetail() {
                         <div className="flex flex-wrap gap-1.5 mb-3">
                           {members.map(m => (
                             <span key={m.id}
-                              className="px-2.5 py-1 rounded-full text-[11px] font-bold"
+                              className="inline-flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-full text-[11px] font-bold"
                               style={{
                                 background: m.is_leader ? `${S.cyan}20` : 'rgba(255,255,255,0.06)',
                                 color: m.is_leader ? S.cyan : '#aaa',
                                 border: `1px solid ${m.is_leader ? S.cyan + '66' : 'rgba(255,255,255,0.08)'}`,
                                 boxShadow: m.is_leader ? `0 0 8px ${S.cyan}33` : 'none',
                               }}>
-                              {m.is_leader ? '👑 ' : ''}{m.name}
+                              <span>{m.is_leader ? '👑 ' : ''}{m.name}</span>
+                              {/* ⭐⭐⭐ NEW Phase 4 (18번): 학생 강제 퇴장 버튼 ⭐⭐⭐ */}
+                              <button
+                                onClick={() => openDeleteModal(m, team)}
+                                title={`${m.name} 강제 퇴장`}
+                                className="inline-flex items-center justify-center w-4 h-4 rounded-full transition-all hover:scale-110"
+                                style={{
+                                  background: 'rgba(239,68,68,0.15)',
+                                  border: '1px solid rgba(239,68,68,0.35)',
+                                  color: '#FCA5A5',
+                                  fontSize: '10px',
+                                  lineHeight: 1,
+                                  cursor: 'pointer',
+                                }}>
+                                ×
+                              </button>
                             </span>
                           ))}
                         </div>
@@ -868,6 +934,99 @@ export default function ClassDetail() {
           </div>
         </div>
       )}
+
+      {/* ⭐⭐⭐ NEW Phase 4 (18번): 학생 강제 퇴장 확인 모달 ⭐⭐⭐ */}
+      {deleteTargetMember && deleteTargetTeam && (() => {
+        const teamGameStarted = deleteTargetTeam.game_started === true;
+        const classGameStarted = cls?.game_started_at != null;
+        const inProgress = teamGameStarted || classGameStarted;
+
+        return (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)' }}
+            onClick={closeDeleteModal}>
+            <div className="max-w-md w-full rounded-2xl p-6"
+              style={{
+                background: 'linear-gradient(135deg, rgba(20,15,15,0.98) 0%, rgba(40,15,15,0.95) 100%)',
+                border: `1.5px solid ${inProgress ? 'rgba(239,68,68,0.6)' : 'rgba(239,68,68,0.4)'}`,
+                boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 30px rgba(239,68,68,0.25)',
+              }}
+              onClick={(e) => e.stopPropagation()}>
+              <p className="text-[10px] font-mono tracking-widest mb-2 font-bold"
+                style={{ color: '#FCA5A5' }}>
+                {`>`} 학생 강제 퇴장
+              </p>
+              <h3 className="text-lg font-black text-white mb-3">
+                {deleteTargetMember.is_leader ? '👑 ' : ''}{deleteTargetMember.name} 학생을 퇴장시킬까요?
+              </h3>
+
+              {/* 게임 진행 중 강한 경고 */}
+              {inProgress && (
+                <div className="rounded-xl p-3 mb-3"
+                  style={{
+                    background: 'rgba(239,68,68,0.12)',
+                    border: '1.5px solid rgba(239,68,68,0.5)',
+                    boxShadow: 'inset 0 0 12px rgba(239,68,68,0.1)',
+                  }}>
+                  <p className="text-[13px] font-black text-white mb-1.5 flex items-center gap-1.5">
+                    <span className="text-base">⚠️</span>
+                    <span>게임 진행 중입니다!</span>
+                  </p>
+                  <p className="text-[11px] leading-relaxed" style={{ color: '#FCA5A5' }}>
+                    이 학생이 작성한 인사이트와 점수는 모두 삭제되며,<br/>
+                    팀의 게임 진행에 영향을 줄 수 있어요.
+                  </p>
+                </div>
+              )}
+
+              <div className="rounded-xl p-3 mb-4"
+                style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                <p className="text-[12px] text-white mb-1.5" style={{ opacity: 0.85 }}>
+                  📋 {deleteTargetTeam.name} · 퇴장 시 삭제 항목:
+                </p>
+                <ul className="text-[11px] text-white ml-3 space-y-0.5" style={{ opacity: 0.7 }}>
+                  <li>• 팀 멤버에서 제거 (이름, 직무)</li>
+                  <li>• 본인의 카드 인사이트 (자동 cascade)</li>
+                  <li>• 본인의 점수 기록 (자동 cascade)</li>
+                  {deleteTargetMember.is_leader && (
+                    <li style={{ color: '#FCA5A5' }}>• 팀에 팀장이 사라짐 → 다른 학생이 자원 필요</li>
+                  )}
+                </ul>
+              </div>
+
+              <p className="text-[11px] text-center mb-4" style={{ color: '#aaa' }}>
+                💡 퇴장된 학생은 같은 팀에 다시 입장할 수 있어요 (새 멤버로 처리됨)
+              </p>
+
+              {deleteError && (
+                <div className="rounded-xl px-3 py-2 mb-3 text-[12px] text-center"
+                  style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.5)', color: '#FCA5A5' }}>
+                  ⚠️ {deleteError}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={closeDeleteModal}
+                  disabled={deleting}
+                  className="py-3 rounded-xl text-[13px] font-bold transition disabled:opacity-30"
+                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#ccc' }}>
+                  취소
+                </button>
+                <button onClick={handleDeleteMember}
+                  disabled={deleting}
+                  className="py-3 rounded-xl text-[13px] font-black transition disabled:opacity-50"
+                  style={{
+                    background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)',
+                    color: 'white',
+                    boxShadow: '0 4px 12px rgba(239,68,68,0.4)',
+                  }}>
+                  {deleting ? '처리 중...' : '🗑️ 강제 퇴장'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
