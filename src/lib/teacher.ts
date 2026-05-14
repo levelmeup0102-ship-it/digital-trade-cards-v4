@@ -330,6 +330,141 @@ export async function joinAsStudent(teamId: string, memberId: string) {
     .eq('id', memberId);
 }
 
+// ═══════════════════════════════════════════════════════
+// ⭐⭐⭐ NEW Phase 4: 자유 이름 입력 + 팀장 자원 ⭐⭐⭐
+// ═══════════════════════════════════════════════════════
+
+/**
+ * 학생이 자유 이름 입력으로 팀에 입장
+ * - 같은 팀에 중복 이름 있으면 자동 번호 붙임 (이서연, 이서연(2))
+ * - is_leader=false로 시작 (팀장은 별도 자원 단계)
+ * - 새 team_members row 생성
+ * 
+ * @param teamId 팀 ID
+ * @param rawName 학생이 입력한 원본 이름
+ * @returns 생성된 TeamMember
+ * @throws Error 이름 검증 실패 또는 DB 오류
+ */
+export async function joinTeamWithName(teamId: string, rawName: string): Promise<TeamMember> {
+  const name = rawName.trim();
+  if (name.length < 2 || name.length > 15) {
+    throw new Error('이름은 2~15자로 입력해주세요.');
+  }
+
+  // 같은 팀의 기존 멤버 이름 모두 조회 (중복 체크용)
+  const { data: existingMembers, error: queryError } = await supabase
+    .from('team_members')
+    .select('name')
+    .eq('team_id', teamId);
+
+  if (queryError) {
+    throw new Error('팀 정보를 불러오는 중 오류가 발생했어요.');
+  }
+
+  const existingNames = new Set((existingMembers || []).map((m: any) => m.name));
+
+  // 중복 이름 자동 번호 붙임
+  let finalName = name;
+  if (existingNames.has(name)) {
+    let counter = 2;
+    while (existingNames.has(`${name}(${counter})`)) {
+      counter++;
+      if (counter > 99) {
+        throw new Error('같은 이름이 너무 많아요. 다른 이름을 입력해주세요.');
+      }
+    }
+    finalName = `${name}(${counter})`;
+  }
+
+  // 새 멤버 생성
+  const { data, error } = await supabase
+    .from('team_members')
+    .insert({
+      team_id: teamId,
+      name: finalName,
+      is_leader: false,
+      joined_at: new Date().toISOString(),
+    })
+    .select('*')
+    .single();
+
+  if (error || !data) {
+    throw new Error('팀 입장에 실패했어요. 다시 시도해주세요.');
+  }
+
+  return data as TeamMember;
+}
+
+/**
+ * 팀장 자원하기 (먼저 누른 사람이 팀장)
+ * - 이미 팀에 팀장이 있으면 실패 (race condition 방지)
+ * - 트랜잭션처럼 동작: 팀에 팀장이 없을 때만 본인이 팀장
+ *
+ * @param teamId 팀 ID
+ * @param memberId 자원하는 멤버 ID
+ * @returns { success: true } 또는 { success: false, leaderName?: string, error?: string }
+ */
+export async function claimLeader(
+  teamId: string,
+  memberId: string,
+): Promise<{ success: boolean; leaderName?: string; error?: string }> {
+  try {
+    // 1. 이미 팀장이 있는지 확인
+    const { data: existingLeader } = await supabase
+      .from('team_members')
+      .select('id, name')
+      .eq('team_id', teamId)
+      .eq('is_leader', true)
+      .maybeSingle();
+
+    if (existingLeader) {
+      return {
+        success: false,
+        leaderName: existingLeader.name,
+        error: '이미 다른 학생이 팀장으로 자원했어요.',
+      };
+    }
+
+    // 2. 본인을 팀장으로 업데이트
+    const { error: updateError } = await supabase
+      .from('team_members')
+      .update({ is_leader: true })
+      .eq('id', memberId)
+      .eq('team_id', teamId);
+
+    if (updateError) {
+      return { success: false, error: updateError.message };
+    }
+
+    // 3. 다시 확인 (race condition 방지 — 두 명이 거의 동시에 누른 경우)
+    const { data: leaderCheck } = await supabase
+      .from('team_members')
+      .select('id, name')
+      .eq('team_id', teamId)
+      .eq('is_leader', true);
+
+    if (leaderCheck && leaderCheck.length > 1) {
+      // 2명 이상이 팀장이 됨 → 가장 먼저 자원한 사람만 남기고 본인 취소
+      const firstLeader = leaderCheck[0]; // joined_at 정렬은 아니지만 단순화
+      if (firstLeader.id !== memberId) {
+        await supabase
+          .from('team_members')
+          .update({ is_leader: false })
+          .eq('id', memberId);
+        return {
+          success: false,
+          leaderName: firstLeader.name,
+          error: '거의 동시에 다른 학생이 먼저 자원했어요.',
+        };
+      }
+    }
+
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message || '팀장 자원 중 오류가 발생했어요.' };
+  }
+}
+
 // ─────────────────────────────────────────────────────────────
 // 직무 배정 + 게임 시작 + Realtime
 // ─────────────────────────────────────────────────────────────
