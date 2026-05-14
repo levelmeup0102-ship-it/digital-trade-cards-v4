@@ -118,7 +118,7 @@ export default function StudentClassPage() {
 
   // ⭐⭐⭐ NEW: 인트로 표시 중이면 인트로만 렌더 (학급 정보는 백그라운드에서 로딩) ⭐⭐⭐
   if (introState === 'show') {
-    return <SignalIntro onComplete={handleIntroComplete} durationMs={5000} />;
+    return <SignalIntro onComplete={handleIntroComplete} durationMs={6000} />;
   }
 
   // ⭐ 인트로 상태가 'unknown'이면 (SSR 안전) 잠깐 빈 화면 — 클라이언트 렌더 후 즉시 결정됨
