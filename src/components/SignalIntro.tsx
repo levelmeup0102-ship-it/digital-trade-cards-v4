@@ -161,7 +161,7 @@ export default function SignalIntro({ onComplete, durationMs = 5000 }: SignalInt
 
   return (
     <div className="fixed inset-0 flex flex-col items-center justify-center overflow-hidden z-[200]"
-      style={{ background: '#0A0A0A' }}>
+      style={{ background: '#000000' }}>
 
       {/* 별빛 */}
       <div id="intro-stars" className="absolute inset-0 pointer-events-none" />
