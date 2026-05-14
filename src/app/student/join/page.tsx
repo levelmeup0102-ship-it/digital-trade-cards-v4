@@ -6,9 +6,10 @@ import {
   assignRoles, startTeamGame,
   subscribeToTeamStart, subscribeToTeamMembers,
   getTeamGameStatus, getTeamMembers,
+  subscribeToClassGameStart, getClass,
 } from '@/lib/teacher';
 import { supabase } from '@/lib/supabase';
-import type { Team, TeamMember } from '@/lib/teacher';
+import type { Team, TeamMember, Class } from '@/lib/teacher';
 import { ROLES, MEMBER_ROLE_SETS, getRecommendedRoles, getRole, type RoleCode } from '@/data/roleData';
 import { getRoleMission } from '@/data/roleMissions';
 import RoleCard from '@/components/RoleCard';
@@ -190,6 +191,14 @@ function StudentJoinInner() {
   const [recentJoiners, setRecentJoiners] = useState<TeamMember[]>([]);
   const previousMembersRef = useRef<Set<string>>(new Set());
 
+  // ⭐⭐⭐ NEW 8번: welcome 화면 3가지 상태 ⭐⭐⭐
+  // 'waiting'   - 다른 팀 대기 중 (관리자 신호 대기)
+  // 'rejoining' - 이미 게임 시작됨 → 재입장 가능
+  // (countdown 신호 받으면 step을 'countdown'으로 전환하여 기존 멋진 카운트다운 재활용)
+  type WelcomeState = 'waiting' | 'rejoining';
+  const [welcomeState, setWelcomeState] = useState<WelcomeState>('waiting');
+  const [cls, setCls] = useState<Class | null>(null);
+
   useEffect(() => {
     if (step !== 'waiting') return;
     const interval = setInterval(() => {
@@ -205,14 +214,49 @@ function StudentJoinInner() {
       setCountdown(prev => {
         if (prev <= 1) {
           clearInterval(interval);
-          setTimeout(() => setStep('welcome'), 700);
+          // ⭐⭐⭐ NEW 8번: countdown 끝나면 welcome이 아닌 game(/)으로 직접 이동
+          setTimeout(() => router.push('/'), 700);
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [step]);
+  }, [step, router]);
+
+  // ⭐⭐⭐ NEW 8번: welcome 화면 진입 시 학급 정보 로드 + Realtime 구독 ⭐⭐⭐
+  useEffect(() => {
+    if (step !== 'welcome' || !team) return;
+    let unsubscribe: (() => void) | null = null;
+
+    (async () => {
+      try {
+        // 1. 학급 정보 가져오기 (game_started_at 확인용)
+        const classInfo = await getClass(team.class_id);
+        if (!classInfo) return;
+        setCls(classInfo);
+
+        // 2. 이미 게임이 시작됐는지 체크 (재입장 케이스)
+        if (classInfo.game_started_at) {
+          setWelcomeState('rejoining');
+          return; // 재입장 모드는 구독 안 함, 버튼 누르면 직접 이동
+        }
+
+        // 3. 기본 대기 모드 → Realtime 구독
+        setWelcomeState('waiting');
+        unsubscribe = subscribeToClassGameStart(team.class_id, (gameStartedAt) => {
+          // 관리자 일괄 시작 신호 받음 → 5초 카운트다운 시작
+          setStep('countdown');
+        });
+      } catch (e) {
+        console.error('학급 정보 로드 실패', e);
+      }
+    })();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [step, team]);
 
   useEffect(() => {
     if (step !== 'waiting' || !team) return;
@@ -409,7 +453,9 @@ function StudentJoinInner() {
       roleCode: myRole,
     }));
 
-    setStep('countdown');
+    // ⭐⭐⭐ NEW 8번: countdown 거치지 않고 welcome으로 바로 (대기 모드)
+    // welcome 화면에서 관리자 일괄 시작 신호 받으면 → countdown → game
+    setStep('welcome');
     setLoading(false);
   };
 
@@ -441,7 +487,8 @@ function StudentJoinInner() {
       roleCode: myRole,
     }));
 
-    setStep('countdown');
+    // ⭐⭐⭐ NEW 8번: countdown 거치지 않고 welcome으로 바로 (대기 모드)
+    setStep('welcome');
   };
 
   const handleStart = () => router.push('/');
@@ -1558,17 +1605,72 @@ function StudentJoinInner() {
                   )}
                 </div>
 
-                <button onClick={handleStart}
-                  className="cyber-cta-btn relative w-full md:max-w-md md:mx-auto md:block py-4 font-black rounded-2xl text-[15px] transition-all hover:scale-[1.02] overflow-hidden group"
-                  style={{
-                    background: S.green,
-                    color: S.navy,
-                    boxShadow: `0 10px 30px -5px ${S.green}66, 0 0 24px ${S.green}55`,
-                  }}>
-                  <span className="relative z-10">{`>`} 카드게임 시작하기 →</span>
-                  <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700"
-                    style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)' }} />
-                </button>
+                {/* ⭐⭐⭐ NEW 8번: welcome 화면 상태별 박스 ⭐⭐⭐ */}
+                {welcomeState === 'rejoining' ? (
+                  // 상태 3) 재입장: 이미 게임 시작됨 → [▶ 게임으로 돌아가기]
+                  <div className="rounded-2xl p-4 md:p-5 md:max-w-md md:mx-auto"
+                    style={{
+                      background: `linear-gradient(135deg, ${S.green}15 0%, ${S.aqua}10 100%)`,
+                      border: `1.5px solid ${S.green}66`,
+                      boxShadow: `0 0 24px ${S.green}33`,
+                    }}>
+                    <div className="flex items-center justify-center gap-2 mb-3">
+                      <span className="text-base">✅</span>
+                      <p className="text-[11px] font-mono tracking-[3px] font-bold"
+                        style={{ color: S.green, textShadow: `0 0 8px ${S.green}88` }}>
+                        GAME IN PROGRESS
+                      </p>
+                    </div>
+                    <p className="text-[13px] md:text-[14px] text-center text-white mb-4 font-bold">
+                      게임이 이미 시작되었어요!
+                    </p>
+                    <button onClick={handleStart}
+                      className="cyber-cta-btn relative w-full py-3.5 font-black rounded-2xl text-[14px] transition-all hover:scale-[1.02] overflow-hidden group"
+                      style={{
+                        background: S.green,
+                        color: S.navy,
+                        boxShadow: `0 10px 30px -5px ${S.green}66, 0 0 24px ${S.green}55`,
+                      }}>
+                      <span className="relative z-10">▶ 게임으로 돌아가기</span>
+                      <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700"
+                        style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)' }} />
+                    </button>
+                  </div>
+                ) : (
+                  // 상태 1) 대기 중: 노란 펄스 + 안내 메시지 (관리자 신호 대기)
+                  <div className="rounded-2xl p-4 md:p-5 md:max-w-md md:mx-auto"
+                    style={{
+                      background: 'rgba(234,179,8,0.06)',
+                      border: '1.5px solid rgba(234,179,8,0.35)',
+                      boxShadow: '0 0 20px rgba(234,179,8,0.15)',
+                    }}>
+                    <div className="flex items-center justify-center gap-2 mb-3">
+                      <span className="w-2.5 h-2.5 rounded-full waiting-pulse-dot"
+                        style={{ background: '#EAB308', boxShadow: '0 0 10px #EAB308' }} />
+                      <p className="text-[11px] font-mono tracking-[3px] font-bold"
+                        style={{ color: '#EAB308', textShadow: '0 0 8px rgba(234,179,8,0.7)' }}>
+                        WAITING FOR START
+                      </p>
+                      <span className="w-2.5 h-2.5 rounded-full waiting-pulse-dot"
+                        style={{ background: '#EAB308', boxShadow: '0 0 10px #EAB308', animationDelay: '0.5s' }} />
+                    </div>
+                    <p className="text-[14px] md:text-[15px] text-center text-white mb-2 font-bold leading-relaxed">
+                      다른 팀이 준비되는 동안<br/>잠시만 기다려주세요
+                    </p>
+                    <p className="text-[11px] text-center" style={{ color: 'rgba(255,255,255,0.55)' }}>
+                      관리자가 시작 신호 보내면 자동으로 시작됩니다
+                    </p>
+
+                    {/* 사원증 / 미션을 다시 읽으라는 힌트 */}
+                    <div className="mt-3 pt-3 border-t flex items-center justify-center gap-1.5"
+                      style={{ borderColor: 'rgba(234,179,8,0.2)' }}>
+                      <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>💡</span>
+                      <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                        그동안 위의 사원증과 미션을 다시 읽어보세요
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -1839,6 +1941,15 @@ function StudentJoinInner() {
         @keyframes roleGuideExpand {
           0% { opacity: 0; transform: translateY(-4px); }
           100% { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ⭐⭐⭐ NEW 8번: welcome 대기 상태 펄스 ⭐⭐⭐ */
+        @keyframes waitingPulseDot {
+          0%, 100% { opacity: 0.5; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.35); }
+        }
+        .waiting-pulse-dot {
+          animation: waitingPulseDot 1.4s ease-in-out infinite;
         }
       `}</style>
     </div>
