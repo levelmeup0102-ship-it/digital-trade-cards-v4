@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { getClassWithTeamsByCode } from '@/lib/teacher';
 import type { Class, Team } from '@/lib/teacher';
+import SignalIntro from '@/components/SignalIntro';
 
 const S = {
   green: '#E7FE55',
@@ -41,6 +42,12 @@ export default function StudentClassPage() {
   // ⭐ NEW: 검색 쿼리
   const [searchQuery, setSearchQuery] = useState('');
 
+  // ⭐⭐⭐ NEW: 인트로 표시 여부 (sessionStorage로 기록, 첫 진입만 강제 5초) ⭐⭐⭐
+  // 'unknown' = 아직 sessionStorage 안 읽음 (SSR 안전성)
+  // 'show'    = 인트로 표시 중
+  // 'done'    = 인트로 끝남 (또는 이미 본 적 있음)
+  const [introState, setIntroState] = useState<'unknown' | 'show' | 'done'>('unknown');
+
   useEffect(() => {
     // ⭐⭐⭐ NEW: 학급 페이지 진입 시 이전 학생 세션 자동 초기화 (같은 기기 다른 학생 보호)
     // 게임 화면 상단에 이전 학생의 직무가 남아있는 문제 해결
@@ -50,6 +57,17 @@ export default function StudentClassPage() {
       // 옛 localStorage 흔적도 같이 청소
       localStorage.removeItem('dtc_session_token');
       localStorage.removeItem('dtc_session_token_v2');
+
+      // ⭐⭐⭐ NEW: 인트로 본 적 있는지 확인 ⭐⭐⭐
+      // 키: 'dtc_intro_seen_v1' = 'true' 이면 한 번 봤음 → 스킵
+      // 같은 탭 새로고침: sessionStorage 유지 → 자동 스킵
+      // 새 탭/새 학생: sessionStorage 비어있음 → 처음 봄 → 5초 인트로
+      const introSeen = sessionStorage.getItem('dtc_intro_seen_v1');
+      if (introSeen === 'true') {
+        setIntroState('done'); // 이미 봤음 → 스킵
+      } else {
+        setIntroState('show'); // 처음 → 표시
+      }
     }
 
     (async () => {
@@ -70,6 +88,14 @@ export default function StudentClassPage() {
     })();
   }, [joinCode]);
 
+  // ⭐⭐⭐ NEW: 인트로 완료 핸들러 ⭐⭐⭐
+  const handleIntroComplete = () => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('dtc_intro_seen_v1', 'true');
+    }
+    setIntroState('done');
+  };
+
   // ⭐ NEW: 검색 필터링 (이름 + 번호 둘 다)
   const filteredTeams = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -89,6 +115,19 @@ export default function StudentClassPage() {
       router.push(`/student/join?code=${team.join_code}`);
     }, 300);
   };
+
+  // ⭐⭐⭐ NEW: 인트로 표시 중이면 인트로만 렌더 (학급 정보는 백그라운드에서 로딩) ⭐⭐⭐
+  if (introState === 'show') {
+    return <SignalIntro onComplete={handleIntroComplete} durationMs={5000} />;
+  }
+
+  // ⭐ 인트로 상태가 'unknown'이면 (SSR 안전) 잠깐 빈 화면 — 클라이언트 렌더 후 즉시 결정됨
+  if (introState === 'unknown') {
+    return (
+      <div className="min-h-screen flex items-center justify-center"
+        style={{ background: '#0A0A0A' }} />
+    );
+  }
 
   if (loading) {
     return (
