@@ -7,6 +7,7 @@ import {
   subscribeToTeamStart, subscribeToTeamMembers,
   getTeamGameStatus, getTeamMembers,
   subscribeToClassGameStart, getClass,
+  joinTeamWithName, claimLeader,
 } from '@/lib/teacher';
 import { supabase } from '@/lib/supabase';
 import type { Team, TeamMember, Class } from '@/lib/teacher';
@@ -198,6 +199,13 @@ function StudentJoinInner() {
   type WelcomeState = 'waiting' | 'rejoining';
   const [welcomeState, setWelcomeState] = useState<WelcomeState>('waiting');
   const [cls, setCls] = useState<Class | null>(null);
+
+  // ⭐⭐⭐ NEW Phase 4: 자유 이름 입력 + 팀장 자원 ⭐⭐⭐
+  const [nameInput, setNameInput] = useState('');         // confirm 단계 이름 입력 박스
+  const [nameError, setNameError] = useState('');         // 이름 검증 에러
+  const [joining, setJoining] = useState(false);          // 입장 처리 중 (중복 클릭 방지)
+  const [claimingLeader, setClaimingLeader] = useState(false); // 팀장 자원 처리 중
+  const [claimError, setClaimError] = useState('');       // 자원 실패 메시지
 
   useEffect(() => {
     if (step !== 'waiting') return;
@@ -428,6 +436,72 @@ function StudentJoinInner() {
     } catch (e) {
       setLoading(false);
       alert('설정 중 오류가 발생했어요. 다시 시도해주세요.');
+    }
+  };
+
+  // ⭐⭐⭐ NEW Phase 4: confirm 단계에서 이름 입력 후 입장 처리 ⭐⭐⭐
+  const handleConfirmAndJoin = async () => {
+    if (!team || joining) return;
+    setNameError('');
+
+    const trimmed = nameInput.trim();
+    if (trimmed.length < 2) {
+      setNameError('이름은 2자 이상 입력해주세요.');
+      return;
+    }
+    if (trimmed.length > 15) {
+      setNameError('이름은 15자 이하로 입력해주세요.');
+      return;
+    }
+
+    setJoining(true);
+    try {
+      // 새 멤버 생성 (중복 시 자동 번호)
+      const newMember = await joinTeamWithName(team.id, trimmed);
+      setSelectedMember(newMember);
+
+      // 최신 멤버 목록 다시 가져오기
+      const latestMembers = await getTeamMembers(team.id);
+      setMembers(latestMembers);
+
+      // 팀 대기실(waiting)로 이동
+      setStep('waiting');
+    } catch (e: any) {
+      setNameError(e.message || '입장에 실패했어요.');
+    } finally {
+      setJoining(false);
+    }
+  };
+
+  // ⭐⭐⭐ NEW Phase 4: 팀장 자원하기 ⭐⭐⭐
+  const handleClaimLeader = async () => {
+    if (!team || !selectedMember || claimingLeader) return;
+    setClaimError('');
+    setClaimingLeader(true);
+
+    try {
+      const result = await claimLeader(team.id, selectedMember.id);
+      if (!result.success) {
+        setClaimError(result.error || '팀장 자원에 실패했어요.');
+        // 멤버 목록 새로고침 (이미 다른 학생이 팀장 된 상태 반영)
+        const latestMembers = await getTeamMembers(team.id);
+        setMembers(latestMembers);
+        setClaimingLeader(false);
+        return;
+      }
+
+      // 성공: 본인 selectedMember 업데이트 + 멤버 목록 갱신
+      const latestMembers = await getTeamMembers(team.id);
+      setMembers(latestMembers);
+      const updatedMe = latestMembers.find(m => m.id === selectedMember.id);
+      if (updatedMe) setSelectedMember(updatedMe);
+
+      // leader-setup 단계로 이동 (산업군/직무 설정)
+      setStep('leader-setup');
+      setClaimingLeader(false);
+    } catch (e: any) {
+      setClaimError(e.message || '팀장 자원 중 오류가 발생했어요.');
+      setClaimingLeader(false);
     }
   };
 
@@ -777,9 +851,11 @@ function StudentJoinInner() {
         {step === 'confirm' && team && (
           <div>
             <div className="rounded-2xl p-5 mb-4" style={{ background: `${S.green}08`, border: `1px solid ${S.green}20` }}>
-              <p className="text-[10px] font-mono tracking-widest mb-1" style={{ color: S.green }}>STEP 2 / 4</p>
-              <h2 className="text-lg font-black text-white mb-1">이 팀이 맞으세요?</h2>
+              <p className="text-[10px] font-mono tracking-widest mb-1" style={{ color: S.green }}>STEP 2 / 3</p>
+              <h2 className="text-lg font-black text-white mb-1">팀 확인 + 이름 입력</h2>
             </div>
+
+            {/* 팀 정보 */}
             <div className="rounded-2xl p-5 mb-4" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
               <div className="flex items-center justify-between mb-3">
                 <div>
@@ -796,20 +872,77 @@ function StudentJoinInner() {
                   <p className="text-[11px] text-white" style={{ opacity: 0.85 }}>아이템: <span style={{ color: S.green }}>{team.item}</span> · 수준: <span style={{ color: S.green }}>{LEVELS[team.level || 'standard']?.label}</span></p>
                 </div>
               )}
+              {members.length > 0 && (
+                <div className="mt-3 pt-3 border-t" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+                  <p className="text-[10px] font-mono mb-1.5" style={{ color: '#888' }}>현재 입장한 학생 ({members.length}명)</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {members.map(m => (
+                      <span key={m.id}
+                        className="text-[11px] px-2 py-0.5 rounded-md"
+                        style={{
+                          background: m.is_leader ? 'rgba(255,215,0,0.15)' : 'rgba(255,255,255,0.05)',
+                          border: `1px solid ${m.is_leader ? 'rgba(255,215,0,0.5)' : 'rgba(255,255,255,0.1)'}`,
+                          color: m.is_leader ? '#FFD700' : '#ccc',
+                        }}>
+                        {m.is_leader && '👑 '}{m.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-            <button onClick={() => setStep('select')}
-              className="w-full py-4 font-black rounded-2xl text-[15px] transition mb-3"
-              style={{ background: S.green, color: S.navy }}>
-              맞아요! 이름 선택하기 →
+
+            {/* ⭐⭐⭐ NEW Phase 4: 이름 입력 박스 ⭐⭐⭐ */}
+            <div className="rounded-2xl p-5 mb-4" style={{ background: `${S.cyan}08`, border: `1px solid ${S.cyan}30` }}>
+              <label className="block text-[11px] font-mono tracking-widest mb-2" style={{ color: S.cyan }}>
+                YOUR NAME · 본인 이름을 입력하세요
+              </label>
+              <input
+                type="text"
+                value={nameInput}
+                onChange={(e) => { setNameInput(e.target.value); setNameError(''); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleConfirmAndJoin(); }}
+                placeholder="예: 이서연 (2~15자)"
+                maxLength={15}
+                disabled={joining}
+                autoFocus
+                className="w-full px-4 py-3 rounded-xl text-[15px] font-bold text-white text-center"
+                style={{
+                  background: 'rgba(0,0,0,0.3)',
+                  border: nameError ? '1.5px solid #EF4444' : `1.5px solid ${S.cyan}40`,
+                  outline: 'none',
+                  caretColor: S.cyan,
+                }}
+              />
+              {nameError && (
+                <p className="text-[11px] mt-2" style={{ color: '#FCA5A5' }}>⚠️ {nameError}</p>
+              )}
+              <p className="text-[10px] mt-2" style={{ color: '#888' }}>
+                💡 같은 이름이 이미 있으면 자동으로 번호가 붙어요 (예: 이서연(2))
+              </p>
+            </div>
+
+            {/* 입장 버튼 */}
+            <button onClick={handleConfirmAndJoin} disabled={joining || !nameInput.trim()}
+              className="w-full py-4 font-black rounded-2xl text-[15px] transition mb-3 disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                background: S.green,
+                color: S.navy,
+                boxShadow: joining ? 'none' : `0 8px 24px ${S.green}66`,
+              }}>
+              {joining ? '⏳ 입장 중...' : '▶ 팀 입장하기'}
             </button>
-            <button onClick={() => { setStep('code'); setTeam(null); setMembers([]); }}
-              className="w-full py-3 rounded-2xl text-[13px] text-gray-500"
+
+            <button onClick={() => { setStep('code'); setTeam(null); setMembers([]); setNameInput(''); setNameError(''); }}
+              disabled={joining}
+              className="w-full py-3 rounded-2xl text-[13px] text-gray-500 disabled:opacity-30"
               style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
               ← 다시 입력하기
             </button>
           </div>
         )}
 
+        {/* ⚠️ DEPRECATED: 옛 select 단계 (명단 시스템) — 더 이상 사용 안 함 (Phase 4) */}
         {step === 'select' && (
           <div>
             <div className="rounded-2xl p-5 mb-4" style={{ background: `${S.green}08`, border: `1px solid ${S.green}20` }}>
@@ -1184,200 +1317,134 @@ function StudentJoinInner() {
           </div>
         )}
 
-        {step === 'waiting' && team && selectedMember && (
-          <div className="text-center relative">
-            <div className="absolute top-12 left-1/2 -translate-x-1/2 pointer-events-none">
-              <div className="halo-pulse"
-                style={{
-                  width: '320px', height: '320px', borderRadius: '50%',
-                  background: `radial-gradient(circle, ${S.cyan}25 0%, ${S.purple}15 40%, transparent 70%)`,
-                  filter: 'blur(20px)',
-                }} />
-            </div>
+        {step === 'waiting' && team && selectedMember && (() => {
+          const existingLeader = members.find(m => m.is_leader);
+          const isMeLeader = existingLeader?.id === selectedMember.id;
+          const noLeaderYet = !existingLeader;
 
-            <div className="relative z-10 mb-5 flex justify-center">
-              {(() => {
-                const myMember = members.find(m => m.id === selectedMember.id);
-                const myRoleCode = myMember?.role_code || (selectedMember.is_leader ? 'ceo' : null);
-                const myRole = myRoleCode ? getRole(myRoleCode) : null;
-                if (myRole) {
-                  return <RoleCard role={myRole} memberName={selectedMember.name} isMobile={isMobile} />;
-                }
-                return (
-                  <div className="relative rounded-2xl overflow-hidden waiting-role-card"
-                    style={{
-                      width: isMobile ? '220px' : '280px',
-                      height: isMobile ? '180px' : '220px',
-                      background: `linear-gradient(135deg, rgba(10,10,10,0.95) 0%, rgba(20,20,40,0.9) 100%)`,
-                      border: `2px solid ${S.cyan}66`,
-                      boxShadow: `0 0 24px ${S.cyan}33, inset 0 0 20px ${S.cyan}11`,
-                    }}>
-                    <div className="absolute inset-0 opacity-30 pointer-events-none"
-                      style={{
-                        backgroundImage: `linear-gradient(${S.cyan}44 1px, transparent 1px), linear-gradient(90deg, ${S.cyan}44 1px, transparent 1px)`,
-                        backgroundSize: '14px 14px',
-                      }} />
-                    <div className="absolute top-2 left-2 font-mono text-[8px] waiting-bit-1" style={{ color: `${S.cyan}AA` }}>01010111</div>
-                    <div className="absolute top-2 right-2 font-mono text-[8px] waiting-bit-2" style={{ color: `${S.cyan}AA` }}>10110001</div>
-                    <div className="absolute bottom-2 left-2 font-mono text-[8px] waiting-bit-3" style={{ color: `${S.cyan}AA` }}>11001010</div>
-                    <div className="absolute bottom-2 right-2 font-mono text-[8px] waiting-bit-4" style={{ color: `${S.cyan}AA` }}>00101101</div>
-                    <div className="absolute left-0 right-0 pointer-events-none waiting-scan-line"
-                      style={{
-                        height: '3px',
-                        background: `linear-gradient(180deg, transparent, ${S.cyan}, transparent)`,
-                        boxShadow: `0 0 12px ${S.cyan}, 0 0 24px ${S.cyan}66`,
-                      }} />
-                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                      <div className="relative mb-3">
-                        <div className="rounded-full waiting-ring-outer"
-                          style={{
-                            width: '50px', height: '50px',
-                            border: `2px solid ${S.cyan}`,
-                            borderTopColor: 'transparent',
-                            borderRightColor: 'transparent',
-                            boxShadow: `0 0 12px ${S.cyan}, inset 0 0 8px ${S.cyan}66`,
-                          }} />
-                        <div className="absolute inset-0 m-auto rounded-full waiting-ring-inner"
-                          style={{
-                            width: '30px', height: '30px', top: '10px', left: '10px',
-                            border: `2px solid ${S.purple}`,
-                            borderBottomColor: 'transparent',
-                            borderLeftColor: 'transparent',
-                            boxShadow: `0 0 10px ${S.purple}`,
-                          }} />
-                        <div className="absolute inset-0 m-auto rounded-full waiting-center-dot"
-                          style={{
-                            width: '8px', height: '8px', top: '21px', left: '21px',
-                            background: S.cyan,
-                            boxShadow: `0 0 12px ${S.cyan}, 0 0 24px ${S.cyan}AA`,
-                          }} />
-                      </div>
-                      <p className="font-mono font-bold tracking-[3px] mb-1 waiting-scan-text"
-                        style={{ fontSize: '11px', color: S.cyan, textShadow: `0 0 8px ${S.cyan}` }}>
-                        ASSIGNING ROLE
-                      </p>
-                      <p className="font-mono font-bold tracking-widest waiting-dots"
-                        style={{ fontSize: '14px', color: S.cyan, textShadow: `0 0 6px ${S.cyan}` }}>
-                        ▰▰▰
-                      </p>
-                    </div>
-                    <div className="absolute inset-0 pointer-events-none waiting-glitch"
-                      style={{ background: `linear-gradient(90deg, transparent 49%, ${S.cyan}33 50%, transparent 51%)` }} />
+          return (
+            <div>
+              {/* 헤더 */}
+              <div className="rounded-2xl p-5 mb-4" style={{ background: `${S.cyan}08`, border: `1px solid ${S.cyan}33` }}>
+                <p className="text-[10px] font-mono tracking-widest mb-1 font-bold"
+                  style={{ color: S.cyan, textShadow: `0 0 6px ${S.cyan}AA` }}>
+                  STEP 3 / 3 · TEAM ROOM
+                </p>
+                <h2 className="text-lg font-black text-white mb-1">{team.name} 대기실</h2>
+                <p className="text-[12px] text-white" style={{ opacity: 0.65 }}>
+                  {noLeaderYet
+                    ? '팀장을 정하면 게임 설정을 시작합니다'
+                    : isMeLeader
+                      ? '잠시 후 게임 설정 화면으로 이동합니다...'
+                      : `${existingLeader?.name}님이 팀장이에요. 게임 시작을 기다려주세요`}
+                </p>
+              </div>
+
+              {/* 팀원 명단 */}
+              <div className="rounded-2xl p-4 mb-4"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[10px] font-mono tracking-widest font-bold" style={{ color: S.cyan }}>
+                    {`>`} 팀원 ({members.length}명)
+                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                    <span className="text-[10px] font-mono" style={{ color: '#888' }}>LIVE</span>
                   </div>
-                );
-              })()}
-            </div>
+                </div>
 
-            <div className="rounded-2xl p-4 mb-4 relative z-10"
-              style={{
-                background: `${S.cyan}08`,
-                border: `1px solid ${S.cyan}33`,
-                boxShadow: `inset 0 0 12px ${S.cyan}11`,
-              }}>
-              <p className="text-[10px] font-mono tracking-widest mb-1 font-bold"
-                style={{ color: S.cyan, textShadow: `0 0 6px ${S.cyan}AA` }}>
-                {`>`} WAITING ROOM
-              </p>
-              <h2 className="text-base font-black text-white">
-                {team.name}
-              </h2>
-              <p className="text-[12px] text-white mt-0.5" style={{ opacity: 0.7 }}>팀장이 게임을 준비하고 있어요</p>
-            </div>
-
-            <div className="rounded-xl p-4 mb-4 min-h-[60px] flex items-center justify-center relative z-10"
-              style={{
-                background: `${S.purple}08`,
-                border: `1px solid ${S.purple}33`,
-                boxShadow: `inset 0 0 12px ${S.purple}11`,
-              }}>
-              <p key={waitingMsgIdx} className="text-[13px] font-bold text-white"
-                style={{ animation: 'fadeIn 0.5s ease-out' }}>
-                {WAITING_MESSAGES[waitingMsgIdx]}
-              </p>
-            </div>
-
-            <div className="rounded-xl p-4 mb-4 text-left relative z-10"
-              style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${S.cyan}22` }}>
-              <p className="text-[10px] font-mono tracking-widest mb-2 font-bold"
-                style={{ color: S.cyan }}>
-                {`>`} 입장 현황 ({members.filter(m => m.joined_at).length} / {members.length})
-              </p>
-              <div className="space-y-2">
-                {members.map(m => {
-                  const joined = !!m.joined_at;
-                  const memberRole = m.role_code ? getRole(m.role_code) : (m.is_leader ? getRole('ceo') : null);
-                  return (
-                    <div key={m.id} className="flex items-center gap-2.5">
-                      {memberRole && (
-                        <div className="rounded-lg overflow-hidden flex-shrink-0"
-                          style={{
-                            width: '32px', height: '32px',
-                            border: `1.5px solid ${joined ? memberRole.color : 'rgba(255,255,255,0.1)'}`,
-                            boxShadow: joined ? `0 0 8px ${memberRole.color}66` : 'none',
-                            opacity: joined ? 1 : 0.3,
-                          }}>
-                          <img src={memberRole.image} alt={memberRole.nameKr}
-                            className="w-full h-full object-cover" />
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                <div className="space-y-2">
+                  {members.map(m => {
+                    const isMe = m.id === selectedMember.id;
+                    return (
+                      <div key={m.id}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all"
+                        style={{
+                          background: isMe
+                            ? `${S.cyan}10`
+                            : m.is_leader
+                              ? 'rgba(255,215,0,0.08)'
+                              : 'rgba(255,255,255,0.02)',
+                          border: `1px solid ${isMe ? S.cyan + '50' : m.is_leader ? 'rgba(255,215,0,0.35)' : 'rgba(255,255,255,0.06)'}`,
+                        }}>
+                        <span className="text-base flex-shrink-0">
+                          {m.is_leader ? '👑' : '👤'}
+                        </span>
+                        <span className="flex-1 text-[14px] font-bold text-white truncate">
+                          {m.name}
+                          {isMe && <span className="ml-1.5 text-[10px] font-mono" style={{ color: S.cyan }}>(나)</span>}
+                        </span>
+                        {m.is_leader && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-md font-bold flex-shrink-0"
                             style={{
-                              background: joined ? S.cyan : 'rgba(255,255,255,0.15)',
-                              boxShadow: joined ? `0 0 6px ${S.cyan}` : 'none',
-                            }} />
-                          <span className={`text-[12px] truncate ${joined ? 'text-white font-bold' : 'text-gray-600'}`}>
-                            {m.is_leader ? '👑 ' : ''}{m.name}
+                              background: 'rgba(255,215,0,0.15)',
+                              border: '1px solid rgba(255,215,0,0.4)',
+                              color: '#FFD700',
+                            }}>
+                            팀장
                           </span>
-                        </div>
-                        {memberRole && (
-                          <p className="text-[10px] font-mono ml-3 truncate"
-                            style={{ color: joined ? memberRole.color : '#444' }}>
-                            {memberRole.nameKr}
-                          </p>
                         )}
                       </div>
-                      {joined && <span className="text-[9px] font-mono flex-shrink-0"
-                        style={{ color: S.cyan }}>✓ READY</span>}
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
 
-            <p className="text-[10px] font-mono relative z-10" style={{ color: '#666' }}>
-              ⚡ 게임이 시작되면 자동으로 화면이 전환됩니다
-            </p>
-
-            <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[200] flex flex-col gap-2 pointer-events-none">
-              {recentJoiners.map(joiner => {
-                const joinerRole = joiner.role_code ? getRole(joiner.role_code) : (joiner.is_leader ? getRole('ceo') : null);
-                const toastColor = joinerRole?.color || S.cyan;
-                return (
-                  <div key={joiner.id}
-                    className="rounded-xl px-4 py-2.5 flex items-center gap-2 backdrop-blur-md"
+              {/* 팀장 자원 영역 */}
+              {noLeaderYet ? (
+                <>
+                  <button onClick={handleClaimLeader}
+                    disabled={claimingLeader}
+                    className="w-full py-4 font-black rounded-2xl text-[15px] transition mb-3 disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group"
                     style={{
-                      background: `${toastColor}15`,
-                      border: `1px solid ${toastColor}66`,
-                      boxShadow: `0 0 16px ${toastColor}33`,
-                      animation: 'slideDownFade 3s ease-out forwards',
+                      background: 'linear-gradient(135deg, #FFD700 0%, #FFA500 100%)',
+                      color: '#111',
+                      boxShadow: claimingLeader ? 'none' : '0 8px 24px rgba(255,215,0,0.4), 0 0 16px rgba(255,165,0,0.3)',
                     }}>
-                    {joinerRole && (
-                      <div className="rounded-md overflow-hidden flex-shrink-0"
-                        style={{ width: '24px', height: '24px', border: `1px solid ${toastColor}` }}>
-                        <img src={joinerRole.image} alt="" className="w-full h-full object-cover" />
-                      </div>
-                    )}
-                    <span className="text-[13px] font-bold text-white">
-                      <span style={{ color: toastColor }}>{joiner.name}</span>님 입장!
+                    <span className="relative z-10">
+                      {claimingLeader ? '⏳ 자원 처리 중...' : '👑 팀장 자원하기'}
                     </span>
-                  </div>
-                );
-              })}
+                    {!claimingLeader && (
+                      <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700"
+                        style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.5) 50%, transparent 100%)' }} />
+                    )}
+                  </button>
+                  <p className="text-[11px] text-center mb-3" style={{ color: '#aaa' }}>
+                    💡 먼저 자원한 학생이 팀장이 됩니다 · 팀장은 산업군과 직무를 정해요
+                  </p>
+                  {claimError && (
+                    <div className="rounded-xl px-3 py-2 mb-3 text-[12px] text-center"
+                      style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.4)', color: '#FCA5A5' }}>
+                      ⚠️ {claimError}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="rounded-2xl p-4 mb-3 text-center"
+                  style={{
+                    background: isMeLeader ? `${S.green}10` : `${S.cyan}08`,
+                    border: `1px solid ${isMeLeader ? S.green + '40' : S.cyan + '33'}`,
+                  }}>
+                  <p className="text-[12px] font-bold mb-1"
+                    style={{ color: isMeLeader ? S.green : S.cyan }}>
+                    {isMeLeader ? '✅ 당신이 팀장입니다!' : `👑 ${existingLeader?.name}님이 팀장이에요`}
+                  </p>
+                  <p className="text-[11px]" style={{ color: '#aaa' }}>
+                    {isMeLeader
+                      ? '잠시 후 자동으로 게임 설정 화면으로 이동합니다'
+                      : '팀장이 산업군과 직무를 정하는 동안 잠시만 기다려주세요'}
+                  </p>
+                </div>
+              )}
+
+              <button onClick={() => { setStep('confirm'); setSelectedMember(null); setMembers([]); setNameInput(''); setClaimError(''); }}
+                className="w-full py-2.5 rounded-xl text-[12px]"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#888' }}>
+                ← 이름 다시 입력
+              </button>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {step === 'countdown' && (() => {
           const colorMap: Record<number, { main: string; glow: string; label: string }> = {
