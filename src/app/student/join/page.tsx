@@ -236,33 +236,64 @@ function StudentJoinInner() {
   useEffect(() => {
     if (step !== 'welcome' || !team) return;
     let unsubscribe: (() => void) | null = null;
+    let pollInterval: ReturnType<typeof setInterval> | null = null;
+    let isCancelled = false;
 
     (async () => {
       try {
-        // 1. 학급 정보 가져오기 (game_started_at 확인용)
-        const classInfo = await getClass(team.class_id);
-        if (!classInfo) return;
-        setCls(classInfo);
-
-        // 2. 이미 게임이 시작됐는지 체크 (재입장 케이스)
-        if (classInfo.game_started_at) {
-          setWelcomeState('rejoining');
-          return; // 재입장 모드는 구독 안 함, 버튼 누르면 직접 이동
-        }
-
-        // 3. 기본 대기 모드 → Realtime 구독
-        setWelcomeState('waiting');
+        // ⭐⭐⭐ FIX: 구독을 FIRST 시작 (race condition 방지) ⭐⭐⭐
+        // 학급 정보 로드 사이에 관리자가 일괄 시작 누르면 UPDATE 놓침 → 구독을 먼저
         unsubscribe = subscribeToClassGameStart(team.class_id, (gameStartedAt) => {
+          if (isCancelled) return;
           // 관리자 일괄 시작 신호 받음 → 5초 카운트다운 시작
           setStep('countdown');
         });
+
+        // 1. 학급 정보 가져오기 (game_started_at 확인용)
+        const classInfo = await getClass(team.class_id);
+        if (isCancelled) return;
+        if (!classInfo) return;
+        setCls(classInfo);
+
+        // 2. 이미 게임이 시작됐는지 체크
+        if (classInfo.game_started_at) {
+          // ⭐⭐⭐ FIX: 시간 차이로 race condition vs 재입장 구분 ⭐⭐⭐
+          const startedAt = new Date(classInfo.game_started_at).getTime();
+          const secsAgo = (Date.now() - startedAt) / 1000;
+          if (secsAgo < 15) {
+            // 15초 이내: race condition - 카운트다운으로 즉시 진입
+            setStep('countdown');
+          } else {
+            // 15초 이상: 게임 도중 합류 - 재입장 박스
+            setWelcomeState('rejoining');
+          }
+          return;
+        }
+
+        // 3. 기본 대기 모드
+        setWelcomeState('waiting');
+
+        // ⭐⭐⭐ FIX: 폴링 안전망 - Realtime 구독 실패해도 3초마다 직접 확인 ⭐⭐⭐
+        pollInterval = setInterval(async () => {
+          if (isCancelled) return;
+          try {
+            const latestClass = await getClass(team.class_id);
+            if (latestClass?.game_started_at) {
+              setStep('countdown');
+            }
+          } catch (e) {
+            // 무시 (다음 폴링 시도)
+          }
+        }, 3000);
       } catch (e) {
         console.error('학급 정보 로드 실패', e);
       }
     })();
 
     return () => {
+      isCancelled = true;
       if (unsubscribe) unsubscribe();
+      if (pollInterval) clearInterval(pollInterval);
     };
   }, [step, team]);
 
