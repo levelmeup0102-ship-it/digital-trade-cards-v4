@@ -10,6 +10,7 @@ import {
   subscribeToClassProgress,
   startClassGame,
   deleteMember,
+  replaceLeader,
 } from '@/lib/teacher';
 import type { Teacher, Class, Team, TeamMember } from '@/lib/teacher';
 import { supabase } from '@/lib/supabase';
@@ -64,6 +65,12 @@ export default function ClassDetail() {
   const [deleteTargetTeam, setDeleteTargetTeam] = useState<Team | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+
+  // ⭐⭐⭐ NEW Phase 4 (20번): 관리자 팀장 교체 ⭐⭐⭐
+  const [replaceTargetLeader, setReplaceTargetLeader] = useState<TeamMember | null>(null);
+  const [replaceTargetTeam, setReplaceTargetTeam] = useState<Team | null>(null);
+  const [replacing, setReplacing] = useState(false);
+  const [replaceError, setReplaceError] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -217,6 +224,66 @@ export default function ClassDetail() {
     } catch (e: any) {
       setDeleteError(e.message || '삭제 중 오류가 발생했어요.');
       setDeleting(false);
+    }
+  };
+
+  // ⭐⭐⭐ NEW Phase 4 (20번): 관리자 팀장 교체 ⭐⭐⭐
+  const openReplaceModal = (leader: TeamMember, team: Team) => {
+    setReplaceTargetLeader(leader);
+    setReplaceTargetTeam(team);
+    setReplaceError('');
+  };
+
+  const closeReplaceModal = () => {
+    if (replacing) return;
+    setReplaceTargetLeader(null);
+    setReplaceTargetTeam(null);
+    setReplaceError('');
+  };
+
+  const handleReplaceLeader = async (newLeaderId: string) => {
+    if (!replaceTargetLeader || !replaceTargetTeam || replacing) return;
+    setReplaceError('');
+    setReplacing(true);
+
+    try {
+      const result = await replaceLeader(
+        replaceTargetTeam.id,
+        replaceTargetLeader.id,
+        newLeaderId,
+      );
+      if (!result.success) {
+        setReplaceError(result.error || '교체에 실패했어요.');
+        setReplacing(false);
+        return;
+      }
+
+      // 성공: 로컬 state 즉시 갱신 (Realtime이 따라잡기 전까지 UI 반응성)
+      const updatedMembers = (teamMembers[replaceTargetTeam.id] || []).map(m => {
+        if (m.id === replaceTargetLeader.id) return { ...m, is_leader: false };
+        if (m.id === newLeaderId) return { ...m, is_leader: true };
+        // 게임 시작 전이면 role_code 초기화 (UI 즉시 반영)
+        if (!result.gameInProgress) return { ...m, role_code: null };
+        return m;
+      });
+      setTeamMembers(prev => ({
+        ...prev,
+        [replaceTargetTeam.id]: updatedMembers,
+      }));
+
+      // 게임 시작 전이면 teams.item/level도 초기화 (UI 즉시 반영)
+      if (!result.gameInProgress) {
+        setTeams(prev => prev.map(t =>
+          t.id === replaceTargetTeam.id ? { ...t, item: null as any, level: null as any } : t
+        ));
+      }
+
+      setReplaceTargetLeader(null);
+      setReplaceTargetTeam(null);
+      setReplacing(false);
+    } catch (e: any) {
+      setReplaceError(e.message || '교체 중 오류가 발생했어요.');
+      setReplacing(false);
     }
   };
 
@@ -592,33 +659,53 @@ export default function ClassDetail() {
                         <p className="text-[12px] mb-3" style={{ color: '#666' }}>아직 학생 명단이 없어요</p>
                       ) : (
                         <div className="flex flex-wrap gap-1.5 mb-3">
-                          {members.map(m => (
-                            <span key={m.id}
-                              className="inline-flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-full text-[11px] font-bold"
-                              style={{
-                                background: m.is_leader ? `${S.cyan}20` : 'rgba(255,255,255,0.06)',
-                                color: m.is_leader ? S.cyan : '#aaa',
-                                border: `1px solid ${m.is_leader ? S.cyan + '66' : 'rgba(255,255,255,0.08)'}`,
-                                boxShadow: m.is_leader ? `0 0 8px ${S.cyan}33` : 'none',
-                              }}>
-                              <span>{m.is_leader ? '👑 ' : ''}{m.name}</span>
-                              {/* ⭐⭐⭐ NEW Phase 4 (18번): 학생 강제 퇴장 버튼 ⭐⭐⭐ */}
-                              <button
-                                onClick={() => openDeleteModal(m, team)}
-                                title={`${m.name} 강제 퇴장`}
-                                className="inline-flex items-center justify-center w-4 h-4 rounded-full transition-all hover:scale-110"
+                          {members.map(m => {
+                            const otherMembersExist = members.some(mm => mm.id !== m.id);
+                            return (
+                              <span key={m.id}
+                                className="inline-flex items-center gap-1.5 pl-2.5 pr-1 py-1 rounded-full text-[11px] font-bold"
                                 style={{
-                                  background: 'rgba(239,68,68,0.15)',
-                                  border: '1px solid rgba(239,68,68,0.35)',
-                                  color: '#FCA5A5',
-                                  fontSize: '10px',
-                                  lineHeight: 1,
-                                  cursor: 'pointer',
+                                  background: m.is_leader ? `${S.cyan}20` : 'rgba(255,255,255,0.06)',
+                                  color: m.is_leader ? S.cyan : '#aaa',
+                                  border: `1px solid ${m.is_leader ? S.cyan + '66' : 'rgba(255,255,255,0.08)'}`,
+                                  boxShadow: m.is_leader ? `0 0 8px ${S.cyan}33` : 'none',
                                 }}>
-                                ×
-                              </button>
-                            </span>
-                          ))}
+                                <span>{m.is_leader ? '👑 ' : ''}{m.name}</span>
+                                {/* ⭐⭐⭐ NEW Phase 4 (20번): 팀장 교체 버튼 ⭐⭐⭐ */}
+                                {m.is_leader && otherMembersExist && (
+                                  <button
+                                    onClick={() => openReplaceModal(m, team)}
+                                    title={`${m.name} 팀장 교체`}
+                                    className="inline-flex items-center justify-center w-4 h-4 rounded-full transition-all hover:scale-110"
+                                    style={{
+                                      background: 'rgba(139,92,246,0.18)',
+                                      border: '1px solid rgba(139,92,246,0.4)',
+                                      color: '#C4B5FD',
+                                      fontSize: '9px',
+                                      lineHeight: 1,
+                                      cursor: 'pointer',
+                                    }}>
+                                    ↗
+                                  </button>
+                                )}
+                                {/* ⭐⭐⭐ NEW Phase 4 (18번): 학생 강제 퇴장 버튼 ⭐⭐⭐ */}
+                                <button
+                                  onClick={() => openDeleteModal(m, team)}
+                                  title={`${m.name} 강제 퇴장`}
+                                  className="inline-flex items-center justify-center w-4 h-4 rounded-full transition-all hover:scale-110"
+                                  style={{
+                                    background: 'rgba(239,68,68,0.15)',
+                                    border: '1px solid rgba(239,68,68,0.35)',
+                                    color: '#FCA5A5',
+                                    fontSize: '10px',
+                                    lineHeight: 1,
+                                    cursor: 'pointer',
+                                  }}>
+                                  ×
+                                </button>
+                              </span>
+                            );
+                          })}
                         </div>
                       )}
                       <button onClick={() => {
@@ -1023,6 +1110,114 @@ export default function ClassDetail() {
                   {deleting ? '처리 중...' : '🗑️ 강제 퇴장'}
                 </button>
               </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ⭐⭐⭐ NEW Phase 4 (20번): 팀장 교체 모달 ⭐⭐⭐ */}
+      {replaceTargetLeader && replaceTargetTeam && (() => {
+        const candidates = (teamMembers[replaceTargetTeam.id] || []).filter(
+          m => m.id !== replaceTargetLeader.id,
+        );
+        const gameInProgress = replaceTargetTeam.game_started === true;
+
+        return (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)' }}
+            onClick={closeReplaceModal}>
+            <div className="max-w-md w-full rounded-2xl p-6"
+              style={{
+                background: 'linear-gradient(135deg, rgba(20,15,30,0.98) 0%, rgba(30,20,50,0.95) 100%)',
+                border: '1.5px solid rgba(139,92,246,0.4)',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 30px rgba(139,92,246,0.25)',
+              }}
+              onClick={(e) => e.stopPropagation()}>
+              <p className="text-[10px] font-mono tracking-widest mb-2 font-bold"
+                style={{ color: '#C4B5FD' }}>
+                {`>`} 팀장 교체
+              </p>
+              <h3 className="text-lg font-black text-white mb-1">
+                👑 {replaceTargetLeader.name} → 누구로 교체할까요?
+              </h3>
+              <p className="text-[11px] mb-4" style={{ color: '#aaa' }}>
+                팀: <span className="text-white font-bold">{replaceTargetTeam.name}</span>
+              </p>
+
+              {/* 시점별 안내 박스 */}
+              {gameInProgress ? (
+                <div className="rounded-xl p-3 mb-4"
+                  style={{
+                    background: 'rgba(231,254,85,0.08)',
+                    border: '1.5px solid rgba(231,254,85,0.35)',
+                  }}>
+                  <p className="text-[12px] font-black text-white mb-1 flex items-center gap-1.5">
+                    <span className="text-base">🎮</span>
+                    <span>게임 진행 중 — 데이터 유지</span>
+                  </p>
+                  <p className="text-[11px] leading-relaxed" style={{ color: '#E7FE55' }}>
+                    카드 응답, 인사이트, 직무 모두 그대로 유지됩니다.<br/>
+                    팀장 권한만 새 학생에게 이동해요.
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-xl p-3 mb-4"
+                  style={{
+                    background: 'rgba(139,92,246,0.08)',
+                    border: '1.5px solid rgba(139,92,246,0.3)',
+                  }}>
+                  <p className="text-[12px] font-black text-white mb-1 flex items-center gap-1.5">
+                    <span className="text-base">⏸️</span>
+                    <span>게임 시작 전 — 초기화</span>
+                  </p>
+                  <p className="text-[11px] leading-relaxed" style={{ color: '#C4B5FD' }}>
+                    산업군 / 수준 / 모든 팀원의 직무 배정이 초기화됩니다.<br/>
+                    새 팀장이 처음부터 다시 설정합니다.
+                  </p>
+                </div>
+              )}
+
+              {/* 후보 학생 목록 */}
+              <div className="space-y-2 mb-4 max-h-[280px] overflow-y-auto">
+                {candidates.map(m => (
+                  <button key={m.id}
+                    onClick={() => handleReplaceLeader(m.id)}
+                    disabled={replacing}
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition disabled:opacity-50 hover:scale-[1.01]"
+                    style={{
+                      background: 'rgba(139,92,246,0.08)',
+                      border: '1.5px solid rgba(139,92,246,0.3)',
+                      textAlign: 'left',
+                    }}>
+                    <span className="text-xl">👤</span>
+                    <span className="flex-1 text-[14px] font-bold text-white">{m.name}</span>
+                    <span className="text-[10px] font-mono"
+                      style={{ color: '#C4B5FD' }}>
+                      {replacing ? '⏳' : '↗ 새 팀장으로'}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {candidates.length === 0 && (
+                <p className="text-[12px] text-center mb-4" style={{ color: '#888' }}>
+                  교체할 다른 학생이 없어요.
+                </p>
+              )}
+
+              {replaceError && (
+                <div className="rounded-xl px-3 py-2 mb-3 text-[12px] text-center"
+                  style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.5)', color: '#FCA5A5' }}>
+                  ⚠️ {replaceError}
+                </div>
+              )}
+
+              <button onClick={closeReplaceModal}
+                disabled={replacing}
+                className="w-full py-3 rounded-xl text-[13px] font-bold transition disabled:opacity-30"
+                style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#ccc' }}>
+                취소
+              </button>
             </div>
           </div>
         );
