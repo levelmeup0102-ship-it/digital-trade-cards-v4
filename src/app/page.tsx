@@ -6,6 +6,8 @@ import SignalCard, { type LeaderConclusionState } from '@/components/SignalCard'
 // ⭐⭐⭐ Step 3 추가: 축하 모달 + 보고서 생성 함수 ⭐⭐⭐
 import CelebrationModal from '@/components/CelebrationModal';
 import { generateTeamReport } from '@/lib/reportGenerator';
+// ⭐⭐⭐ NEW: 인트로 컴포넌트 (학급 페이지와 정책 공유) ⭐⭐⭐
+import SignalIntro from '@/components/SignalIntro';
 import type { SubCard } from '@/types';
 import {
   getOrCreateSession,
@@ -252,11 +254,18 @@ export default function Home() {
   const isMobile = useIsMobile();
 
   // ⭐⭐⭐ NEW: 인트로는 학급 페이지로 이동 (SignalIntro 컴포넌트) ⭐⭐⭐
-  // 루트(/) 진입은 바로 landing부터 시작
+  // 루트(/) 진입도 인트로 표시 (학급 페이지와 sessionStorage 정책 공유)
   const [screen, setScreen] = useState<'intro'|'landing'|'guide'|'game'>('landing');
   const [sessionLoading, setSessionLoading] = useState(true);
   const [introDone, setIntroDone] = useState(false);
   const [exiting, setExiting] = useState(false);
+
+  // ⭐⭐⭐ NEW: 루트(/) 진입 시 인트로 표시 여부 ⭐⭐⭐
+  // 학급 페이지와 sessionStorage 키 공유 ('dtc_intro_seen_v1')
+  // 'unknown' = 아직 sessionStorage 안 읽음 (SSR 안전)
+  // 'show'    = 인트로 표시 중
+  // 'done'    = 인트로 끝남 (또는 이미 본 적 있음)
+  const [rootIntroState, setRootIntroState] = useState<'unknown' | 'show' | 'done'>('unknown');
 
   const [item, setItem] = useState('');
   const [customItem, setCustomItem] = useState('');
@@ -317,6 +326,26 @@ export default function Home() {
 
   const introCards = getIntroCards(isMobile);
   const fireworkParticles = getFireworkParticles(isMobile);
+
+  // ⭐⭐⭐ NEW: 루트(/) 진입 시 인트로 표시 여부 결정 ⭐⭐⭐
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    // 학급 페이지와 동일한 sessionStorage 키 사용 → 정책 공유
+    const introSeen = sessionStorage.getItem('dtc_intro_seen_v1');
+    if (introSeen === 'true') {
+      setRootIntroState('done'); // 이미 봤음 → 스킵
+    } else {
+      setRootIntroState('show'); // 처음 → 표시
+    }
+  }, []);
+
+  // ⭐⭐⭐ NEW: 인트로 완료 핸들러 ⭐⭐⭐
+  const handleRootIntroComplete = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('dtc_intro_seen_v1', 'true');
+    }
+    setRootIntroState('done');
+  }, []);
 
   useEffect(() => {
     if (screen !== 'intro') return;
@@ -765,6 +794,23 @@ export default function Home() {
       <p className="text-gray-500 font-mono text-sm">불러오는 중...</p>
     </div>
   );
+
+  // ⭐⭐⭐ NEW: 루트(/) 진입 시 인트로 (랜딩 화면 진입 전에만, 게임 진행 중은 스킵) ⭐⭐⭐
+  // - rootIntroState === 'show'  → 인트로 표시 (5초)
+  // - rootIntroState === 'unknown' → 잠깐 빈 화면 (SSR 안전성, 클라이언트에서 즉시 결정)
+  // - rootIntroState === 'done'   → 정상 진행 (인트로 통과)
+  // ⚠️ screen === 'game' 이면 인트로 스킵 (이미 게임 중인 학생 보호)
+  if (screen !== 'game') {
+    if (rootIntroState === 'show') {
+      return <SignalIntro onComplete={handleRootIntroComplete} durationMs={5000} />;
+    }
+    if (rootIntroState === 'unknown') {
+      return (
+        <div className="min-h-screen flex items-center justify-center"
+          style={{ background: '#000000' }} />
+      );
+    }
+  }
 
   // ─── INTRO 화면 ───
   if (screen === 'intro') {
