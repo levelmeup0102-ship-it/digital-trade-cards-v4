@@ -656,33 +656,21 @@ export async function replaceLeader(
     }
 
     if (gameInProgress) {
-      // ⭐⭐⭐ 게임 진행 중: 직무 스왑 ⭐⭐⭐
-      // is_leader 플래그 변경 + role_code 서로 교환
-      // (다른 데이터는 모두 보존)
+      // ⭐⭐⭐ 게임 진행 중: 직무 스왑 + 데이터 소유권 스왑 ⭐⭐⭐
+      // DB 함수(swap_leader_data)로 트랜잭션 처리:
+      // - is_leader, role_code 교환
+      // - member_insights, personal_scores, card_responses의 작성자 ID 교환
+      // - UNIQUE 제약 충돌 회피 (임시 dummy UUID 사용)
+      // → 자리(역할)에 데이터가 따라옴
 
-      // 3a. 옛 팀장 → is_leader=false, role_code=새팀장의 옛 직무
-      const { error: e1 } = await supabase
-        .from('team_members')
-        .update({
-          is_leader: false,
-          role_code: newLeaderMember.role_code,
-          role_assigned_at: newLeaderMember.role_assigned_at,
-        })
-        .eq('id', oldLeaderId)
-        .eq('team_id', teamId);
-      if (e1) return { success: false, error: e1.message };
-
-      // 3b. 새 팀장 → is_leader=true, role_code=옛팀장의 옛 직무
-      const { error: e2 } = await supabase
-        .from('team_members')
-        .update({
-          is_leader: true,
-          role_code: oldLeaderMember.role_code,
-          role_assigned_at: oldLeaderMember.role_assigned_at,
-        })
-        .eq('id', newLeaderId)
-        .eq('team_id', teamId);
-      if (e2) return { success: false, error: e2.message };
+      const { error: rpcError } = await supabase.rpc('swap_leader_data', {
+        p_team_id: teamId,
+        p_old_leader_id: oldLeaderId,
+        p_new_leader_id: newLeaderId,
+      });
+      if (rpcError) {
+        return { success: false, error: `데이터 스왑 실패: ${rpcError.message}` };
+      }
     } else {
       // ⭐⭐⭐ 게임 시작 전: 모든 데이터 초기화 ⭐⭐⭐
 
