@@ -465,6 +465,113 @@ export async function claimLeader(
   }
 }
 
+// ═══════════════════════════════════════════════════════
+// ⭐⭐⭐ NEW Phase 4 (4번): 팀장 사퇴 + 양도 ⭐⭐⭐
+// ═══════════════════════════════════════════════════════
+
+/**
+ * 팀장 사퇴
+ * - 산업군/수준/모든 직무 초기화 (처음부터 다시 배정)
+ * - is_leader = false
+ * - 모든 팀원: 다시 팀 대기실로 자동 이동 (Realtime 멤버 갱신으로)
+ *
+ * @param teamId 팀 ID
+ * @param memberId 사퇴하는 팀장 ID
+ */
+export async function resignLeader(
+  teamId: string,
+  memberId: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // 1. 본인 is_leader = false
+    const { error: e1 } = await supabase
+      .from('team_members')
+      .update({ is_leader: false })
+      .eq('id', memberId)
+      .eq('team_id', teamId);
+    if (e1) return { success: false, error: e1.message };
+
+    // 2. 모든 팀원의 role_code 초기화 (새 팀장이 다시 배정해야 함)
+    const { error: e2 } = await supabase
+      .from('team_members')
+      .update({ role_code: null, role_assigned_at: null })
+      .eq('team_id', teamId);
+    if (e2) return { success: false, error: e2.message };
+
+    // 3. teams의 산업군, 수준 초기화 (새 팀장이 다시 정해야 함)
+    const { error: e3 } = await supabase
+      .from('teams')
+      .update({ item: null, level: null })
+      .eq('id', teamId);
+    if (e3) return { success: false, error: e3.message };
+
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message || '사퇴 처리 중 오류가 발생했어요.' };
+  }
+}
+
+/**
+ * 팀장 양도
+ * - 산업군/수준 유지 (재배정 불필요)
+ * - 직무는 모두 초기화 (새 팀장이 다시 배정)
+ * - from.is_leader = false, to.is_leader = true
+ * - 양도받은 학생: 자동으로 leader-setup 진입 (Realtime으로)
+ *
+ * @param teamId 팀 ID
+ * @param fromMemberId 현재 팀장 ID
+ * @param toMemberId 새 팀장이 될 학생 ID
+ */
+export async function transferLeader(
+  teamId: string,
+  fromMemberId: string,
+  toMemberId: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (fromMemberId === toMemberId) {
+      return { success: false, error: '본인에게는 양도할 수 없어요.' };
+    }
+
+    // 1. to가 같은 팀 멤버인지 검증
+    const { data: toMember } = await supabase
+      .from('team_members')
+      .select('id')
+      .eq('id', toMemberId)
+      .eq('team_id', teamId)
+      .maybeSingle();
+    if (!toMember) return { success: false, error: '양도 대상이 같은 팀 학생이 아니에요.' };
+
+    // 2. from.is_leader = false
+    const { error: e1 } = await supabase
+      .from('team_members')
+      .update({ is_leader: false })
+      .eq('id', fromMemberId)
+      .eq('team_id', teamId);
+    if (e1) return { success: false, error: e1.message };
+
+    // 3. to.is_leader = true
+    const { error: e2 } = await supabase
+      .from('team_members')
+      .update({ is_leader: true })
+      .eq('id', toMemberId)
+      .eq('team_id', teamId);
+    if (e2) return { success: false, error: e2.message };
+
+    // 4. 모든 팀원의 role_code 초기화 (새 팀장이 다시 배정)
+    const { error: e3 } = await supabase
+      .from('team_members')
+      .update({ role_code: null, role_assigned_at: null })
+      .eq('team_id', teamId);
+    if (e3) return { success: false, error: e3.message };
+
+    // 5. teams의 산업군, 수준은 유지 (item, level 그대로)
+
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message || '양도 처리 중 오류가 발생했어요.' };
+  }
+}
+
 // ─────────────────────────────────────────────────────────────
 // 직무 배정 + 게임 시작 + Realtime
 // ─────────────────────────────────────────────────────────────
