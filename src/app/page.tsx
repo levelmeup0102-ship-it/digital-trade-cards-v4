@@ -251,7 +251,9 @@ export default function Home() {
   const router = useRouter();
   const isMobile = useIsMobile();
 
-  const [screen, setScreen] = useState<'intro'|'landing'|'guide'|'game'>('intro');
+  // ⭐⭐⭐ NEW: 인트로는 학급 페이지로 이동 (SignalIntro 컴포넌트) ⭐⭐⭐
+  // 루트(/) 진입은 바로 landing부터 시작
+  const [screen, setScreen] = useState<'intro'|'landing'|'guide'|'game'>('landing');
   const [sessionLoading, setSessionLoading] = useState(true);
   const [introDone, setIntroDone] = useState(false);
   const [exiting, setExiting] = useState(false);
