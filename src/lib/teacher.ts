@@ -676,8 +676,9 @@ export function subscribeToClassGameStart(
   classId: string,
   callback: (gameStartedAt: string) => void,
 ) {
+  // ⭐ FIX: channel name 콜론(:) → 하이픈(-) (Supabase 권장 형식, subscribeToTeamStart와 동일 패턴)
   const channel = supabase
-    .channel(`class_game_start:${classId}`)
+    .channel(`class-game-start-${classId}`)
     .on(
       'postgres_changes',
       {
@@ -686,10 +687,25 @@ export function subscribeToClassGameStart(
         table: 'classes',
         filter: `id=eq.${classId}`,
       },
-      (payload: any) => {
-        const newRecord = payload.new;
-        if (newRecord && newRecord.game_started_at) {
-          callback(newRecord.game_started_at);
+      async (payload: any) => {
+        // ⭐ FIX: 1차 - payload에 game_started_at 있으면 즉시 사용
+        if (payload.new?.game_started_at) {
+          callback(payload.new.game_started_at);
+          return;
+        }
+        // ⭐ FIX: 2차 안전망 - payload.new에 없으면 직접 SELECT로 확인
+        // (REPLICA IDENTITY DEFAULT 때문에 일부 컬럼이 누락될 수 있음)
+        try {
+          const { data } = await supabase
+            .from('classes')
+            .select('game_started_at')
+            .eq('id', classId)
+            .single();
+          if (data?.game_started_at) {
+            callback(data.game_started_at);
+          }
+        } catch (e) {
+          // 무시 (다음 UPDATE 이벤트 또는 폴링으로 처리)
         }
       },
     )
