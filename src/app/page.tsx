@@ -26,7 +26,7 @@ import {
   type MemberInsight,
   type SubCardLock,
 } from '@/lib/collaborative';
-import { getTeamMembers } from '@/lib/teacher';
+import { getTeamMembers, subscribeToTeamMembers } from '@/lib/teacher';
 import type { TeamMember } from '@/lib/teacher';
 
 const LEVELS: Record<string, { label: string; emoji: string; timer: number; minChars: number; color: string }> = {
@@ -444,6 +444,50 @@ export default function Home() {
       }
     })();
   }, [teamId, screen]);
+
+  // ⭐⭐⭐ NEW Phase 4 (20번): 관리자 팀장 교체 시 자동 권한 갱신 ⭐⭐⭐
+  // 관리자가 학급 페이지에서 [↗] 클릭하여 팀장을 교체하면
+  // 게임 화면에 있는 학생들의 is_leader 상태가 DB에서 변경됨.
+  // Realtime으로 감지하여 role state + sessionStorage + teamMembers 즉시 갱신.
+  useEffect(() => {
+    if (screen !== 'game' || !teamId || !myMemberId) return;
+
+    const unsubscribe = subscribeToTeamMembers(teamId, (newMembers) => {
+      setTeamMembers(newMembers);
+
+      // 본인 멤버 찾기 (관리자가 강제 퇴장했으면 본인이 없을 수도)
+      const me = newMembers.find(m => m.id === myMemberId);
+      if (!me) return; // 본인 사라짐 - 별도 처리 안 함 (학생이 새로고침 시 다시 체크)
+
+      // 본인 is_leader 변경 감지
+      const wasLeader = role === 'leader';
+      const isNowLeader = me.is_leader === true;
+
+      if (wasLeader !== isNowLeader) {
+        // 권한 자동 갱신
+        setRole(isNowLeader ? 'leader' : 'member');
+
+        // sessionStorage도 갱신 (새로고침 시 일관성)
+        try {
+          const v2Raw = sessionStorage.getItem('dtc_session_token_v2');
+          if (v2Raw) {
+            const v2 = JSON.parse(v2Raw);
+            v2.isLeader = isNowLeader;
+            sessionStorage.setItem('dtc_session_token_v2', JSON.stringify(v2));
+          }
+        } catch (e) {
+          // 무시 (다음 새로고침 시 DB에서 다시 가져옴)
+        }
+
+        // role_code도 갱신 (DB가 변경됐을 수 있음, 게임 시작 전 교체 시 초기화됨)
+        if (me.role_code) {
+          setRoleCode(me.role_code as RoleCode);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, [screen, teamId, myMemberId, role]);
 
   // ⭐ Realtime 구독: 5종류 (인사이트/잠금/답변/중간결론/한문장전략)
   useEffect(() => {
