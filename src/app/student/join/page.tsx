@@ -8,6 +8,7 @@ import {
   getTeamGameStatus, getTeamMembers,
   subscribeToClassGameStart, getClass,
   joinTeamWithName, claimLeader,
+  resignLeader, transferLeader,
 } from '@/lib/teacher';
 import { supabase } from '@/lib/supabase';
 import type { Team, TeamMember, Class } from '@/lib/teacher';
@@ -207,6 +208,13 @@ function StudentJoinInner() {
   const [claimingLeader, setClaimingLeader] = useState(false); // 팀장 자원 처리 중
   const [claimError, setClaimError] = useState('');       // 자원 실패 메시지
 
+  // ⭐⭐⭐ NEW Phase 4 (4번): 팀장 사퇴/양도 ⭐⭐⭐
+  const [showTransferModal, setShowTransferModal] = useState(false); // 양도 모달
+  const [resigning, setResigning] = useState(false);      // 사퇴 처리 중
+  const [transferring, setTransferring] = useState(false); // 양도 처리 중
+  const [leaderActionError, setLeaderActionError] = useState(''); // 사퇴/양도 에러
+  const [showResignConfirm, setShowResignConfirm] = useState(false); // 사퇴 확인 모달
+
   useEffect(() => {
     if (step !== 'waiting') return;
     const interval = setInterval(() => {
@@ -343,6 +351,36 @@ function StudentJoinInner() {
 
     return () => unsubscribe();
   }, [step, team]);
+
+  // ⭐⭐⭐ NEW Phase 4 (4번): 팀장 변경 시 자동 이동 ⭐⭐⭐
+  // - 양도 받은 학생: waiting → leader-setup으로 자동 진입
+  // - 팀장 사퇴 후 본인: leader-setup → waiting으로 자동 후퇴
+  // - 다른 학생: 팀장이 사퇴/양도되면 명단만 자동 갱신 (이미 잘 됨)
+  useEffect(() => {
+    if (!selectedMember || members.length === 0) return;
+    if (step !== 'waiting' && step !== 'leader-setup') return;
+
+    const me = members.find(m => m.id === selectedMember.id);
+    if (!me) return;
+
+    // 본인 is_leader 상태가 selectedMember와 다르면 갱신 + step 전환
+    if (me.is_leader && step === 'waiting') {
+      // ⭐ 양도 받음: waiting → leader-setup
+      setSelectedMember(me);
+      setStep('leader-setup');
+      // 양도 받은 경우 산업군/수준 유지, 직무 배정만 새로 (이미 초기화됨)
+      setRoleAssignments({});
+    } else if (!me.is_leader && step === 'leader-setup') {
+      // ⭐ 팀장 강등 (사퇴 또는 다른 사람에게 양도): leader-setup → waiting
+      setSelectedMember(me);
+      setStep('waiting');
+      // 사퇴/양도 시 로컬 state 정리
+      setItem('');
+      setCustomItem('');
+      setLevel('standard');
+      setRoleAssignments({});
+    }
+  }, [members, step, selectedMember]);
 
   const handleCodeSubmit = async () => {
     if (joinCode.trim().length < 4) { setCodeError('올바른 코드를 입력해주세요.'); return; }
@@ -533,6 +571,84 @@ function StudentJoinInner() {
     } catch (e: any) {
       setClaimError(e.message || '팀장 자원 중 오류가 발생했어요.');
       setClaimingLeader(false);
+    }
+  };
+
+  // ⭐⭐⭐ NEW Phase 4 (4번): 팀장 사퇴 ⭐⭐⭐
+  const handleResign = async () => {
+    if (!team || !selectedMember || resigning) return;
+    setLeaderActionError('');
+    setResigning(true);
+    setShowResignConfirm(false); // 확인 모달 닫기
+
+    try {
+      const result = await resignLeader(team.id, selectedMember.id);
+      if (!result.success) {
+        setLeaderActionError(result.error || '사퇴에 실패했어요.');
+        setResigning(false);
+        return;
+      }
+
+      // 성공: 로컬 state 정리
+      // - 본인 selectedMember 갱신 (is_leader=false)
+      // - leader-setup에서 입력했던 값 초기화
+      // - 자동 이동 useEffect가 step을 'waiting'으로 변경
+      setItem('');
+      setCustomItem('');
+      setLevel('standard');
+      setRoleAssignments({});
+
+      const latestMembers = await getTeamMembers(team.id);
+      setMembers(latestMembers);
+      const me = latestMembers.find(m => m.id === selectedMember.id);
+      if (me) setSelectedMember(me);
+
+      // ⭐ team 데이터도 갱신 (item/level이 null로 비워짐)
+      const { data: latestTeam } = await supabase
+        .from('teams')
+        .select('*')
+        .eq('id', team.id)
+        .single();
+      if (latestTeam) setTeam(latestTeam as Team);
+
+      setStep('waiting');
+      setResigning(false);
+    } catch (e: any) {
+      setLeaderActionError(e.message || '사퇴 처리 중 오류가 발생했어요.');
+      setResigning(false);
+    }
+  };
+
+  // ⭐⭐⭐ NEW Phase 4 (4번): 팀장 양도 ⭐⭐⭐
+  const handleTransfer = async (toMemberId: string) => {
+    if (!team || !selectedMember || transferring) return;
+    setLeaderActionError('');
+    setTransferring(true);
+
+    try {
+      const result = await transferLeader(team.id, selectedMember.id, toMemberId);
+      if (!result.success) {
+        setLeaderActionError(result.error || '양도에 실패했어요.');
+        setTransferring(false);
+        return;
+      }
+
+      // 성공: 로컬 state 정리
+      // - 본인 selectedMember 갱신 (is_leader=false)
+      // - leader-setup에서 입력했던 직무 배정만 초기화 (item/level은 유지)
+      setRoleAssignments({});
+
+      const latestMembers = await getTeamMembers(team.id);
+      setMembers(latestMembers);
+      const me = latestMembers.find(m => m.id === selectedMember.id);
+      if (me) setSelectedMember(me);
+
+      setShowTransferModal(false);
+      setStep('waiting');
+      setTransferring(false);
+    } catch (e: any) {
+      setLeaderActionError(e.message || '양도 처리 중 오류가 발생했어요.');
+      setTransferring(false);
     }
   };
 
@@ -1345,6 +1461,156 @@ function StudentJoinInner() {
             <p className="text-[10px] text-white text-center mt-2" style={{ opacity: 0.6 }}>
               시작하면 모든 팀원이 자동으로 게임 화면으로 이동합니다.
             </p>
+
+            {/* ⭐⭐⭐ NEW Phase 4 (4번): 팀장 사퇴/양도 영역 (하단 작게) ⭐⭐⭐ */}
+            <div className="mt-6 pt-4 border-t" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
+              <p className="text-[10px] font-mono text-center mb-2" style={{ color: '#666' }}>
+                팀장이 부담스러우신가요?
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {/* 사퇴 버튼 */}
+                <button onClick={() => setShowResignConfirm(true)}
+                  disabled={resigning || transferring || loading}
+                  className="py-2.5 rounded-xl text-[12px] font-bold transition disabled:opacity-30"
+                  style={{
+                    background: 'rgba(239,68,68,0.08)',
+                    border: '1px solid rgba(239,68,68,0.3)',
+                    color: '#FCA5A5',
+                  }}>
+                  {resigning ? '⏳ 사퇴 중...' : '👋 팀장 사퇴'}
+                </button>
+
+                {/* 양도 버튼 */}
+                <button onClick={() => setShowTransferModal(true)}
+                  disabled={resigning || transferring || loading || members.filter(m => m.id !== selectedMember?.id).length === 0}
+                  className="py-2.5 rounded-xl text-[12px] font-bold transition disabled:opacity-30"
+                  style={{
+                    background: 'rgba(139,92,246,0.08)',
+                    border: '1px solid rgba(139,92,246,0.3)',
+                    color: '#C4B5FD',
+                  }}>
+                  ↗ 다른 팀원에게 양도
+                </button>
+              </div>
+              {leaderActionError && (
+                <div className="rounded-xl px-3 py-2 mt-2 text-[11px] text-center"
+                  style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.4)', color: '#FCA5A5' }}>
+                  ⚠️ {leaderActionError}
+                </div>
+              )}
+            </div>
+
+            {/* 사퇴 확인 모달 */}
+            {showResignConfirm && (
+              <div className="fixed inset-0 z-[300] flex items-center justify-center p-4"
+                style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)' }}
+                onClick={() => setShowResignConfirm(false)}>
+                <div className="max-w-sm w-full rounded-2xl p-6"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(20,20,30,0.98) 0%, rgba(40,20,30,0.95) 100%)',
+                    border: '1.5px solid rgba(239,68,68,0.4)',
+                    boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 30px rgba(239,68,68,0.2)',
+                  }}
+                  onClick={(e) => e.stopPropagation()}>
+                  <p className="text-[10px] font-mono tracking-widest mb-2 font-bold"
+                    style={{ color: '#FCA5A5' }}>
+                    {`>`} 사퇴 확인
+                  </p>
+                  <h3 className="text-lg font-black text-white mb-3">정말 팀장 사퇴하시겠어요?</h3>
+                  <div className="rounded-xl p-3 mb-4"
+                    style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                    <p className="text-[12px] text-white" style={{ opacity: 0.85 }}>
+                      ⚠️ 사퇴하면 다음이 모두 <span style={{ color: '#FCA5A5' }}>초기화</span>됩니다:
+                    </p>
+                    <ul className="text-[11px] text-white mt-2 ml-3 space-y-0.5" style={{ opacity: 0.7 }}>
+                      <li>• 선택한 산업군 ({item || '미설정'})</li>
+                      <li>• 수준 ({LEVELS[level]?.label || '표준'})</li>
+                      <li>• 모든 팀원의 직무 배정</li>
+                    </ul>
+                  </div>
+                  <p className="text-[11px] text-center mb-4" style={{ color: '#aaa' }}>
+                    팀 대기실로 돌아가서 다른 학생이 자원할 수 있어요.
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={() => setShowResignConfirm(false)}
+                      className="py-3 rounded-xl text-[13px] font-bold transition"
+                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#ccc' }}>
+                      취소
+                    </button>
+                    <button onClick={handleResign}
+                      disabled={resigning}
+                      className="py-3 rounded-xl text-[13px] font-black transition disabled:opacity-50"
+                      style={{
+                        background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)',
+                        color: 'white',
+                        boxShadow: '0 4px 12px rgba(239,68,68,0.4)',
+                      }}>
+                      {resigning ? '처리 중...' : '👋 사퇴하기'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 양도 모달 (팀원 선택) */}
+            {showTransferModal && (
+              <div className="fixed inset-0 z-[300] flex items-center justify-center p-4"
+                style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)' }}
+                onClick={() => !transferring && setShowTransferModal(false)}>
+                <div className="max-w-sm w-full rounded-2xl p-6"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(20,20,30,0.98) 0%, rgba(30,25,50,0.95) 100%)',
+                    border: '1.5px solid rgba(139,92,246,0.4)',
+                    boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 30px rgba(139,92,246,0.2)',
+                  }}
+                  onClick={(e) => e.stopPropagation()}>
+                  <p className="text-[10px] font-mono tracking-widest mb-2 font-bold"
+                    style={{ color: '#C4B5FD' }}>
+                    {`>`} 팀장 양도
+                  </p>
+                  <h3 className="text-lg font-black text-white mb-1">누구에게 양도할까요?</h3>
+                  <p className="text-[11px] mb-4" style={{ color: '#aaa' }}>
+                    산업군({item || '미설정'})은 그대로 유지되고, 직무 배정만 새 팀장이 다시 합니다.
+                  </p>
+
+                  <div className="space-y-2 mb-4 max-h-[300px] overflow-y-auto">
+                    {members
+                      .filter(m => m.id !== selectedMember?.id) // 본인 제외
+                      .map(m => (
+                        <button key={m.id}
+                          onClick={() => handleTransfer(m.id)}
+                          disabled={transferring}
+                          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition disabled:opacity-50 hover:scale-[1.01]"
+                          style={{
+                            background: 'rgba(139,92,246,0.08)',
+                            border: '1.5px solid rgba(139,92,246,0.3)',
+                            textAlign: 'left',
+                          }}>
+                          <span className="text-xl">👤</span>
+                          <span className="flex-1 text-[14px] font-bold text-white">{m.name}</span>
+                          <span className="text-[10px] font-mono"
+                            style={{ color: '#C4B5FD' }}>
+                            {transferring ? '⏳' : '↗ 양도'}
+                          </span>
+                        </button>
+                      ))}
+                  </div>
+
+                  {members.filter(m => m.id !== selectedMember?.id).length === 0 && (
+                    <p className="text-[12px] text-center mb-4" style={{ color: '#888' }}>
+                      양도할 다른 팀원이 없어요.
+                    </p>
+                  )}
+
+                  <button onClick={() => setShowTransferModal(false)}
+                    disabled={transferring}
+                    className="w-full py-3 rounded-xl text-[13px] font-bold transition disabled:opacity-30"
+                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#ccc' }}>
+                    취소
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
