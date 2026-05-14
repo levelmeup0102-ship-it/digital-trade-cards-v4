@@ -612,7 +612,8 @@ export async function deleteMember(
 /**
  * 관리자가 팀장 강제 교체
  * - 게임 시작 전: 직무/산업군/수준 모두 초기화 (새 팀장이 처음부터 다시)
- * - 게임 시작 후: is_leader 플래그만 변경 (카드 응답, 인사이트, 직무 모두 유지)
+ * - 게임 시작 후: is_leader 플래그 변경 + 직무 스왑 (옛 팀장 ↔ 새 팀장 role_code 교환)
+ *                다른 데이터(카드 응답, 인사이트, 산업군 등)는 모두 보존
  *
  * @param teamId 팀 ID
  * @param oldLeaderId 현재 팀장 ID
@@ -639,50 +640,82 @@ export async function replaceLeader(
     }
     const gameInProgress = teamData.game_started === true;
 
-    // 2. 새 팀장이 같은 팀 멤버인지 검증
-    const { data: newLeaderMember } = await supabase
+    // 2. 양쪽 멤버 정보 조회 (검증 + 직무 스왑용)
+    const { data: bothMembers } = await supabase
       .from('team_members')
-      .select('id, name')
-      .eq('id', newLeaderId)
+      .select('id, role_code, role_assigned_at')
       .eq('team_id', teamId)
-      .maybeSingle();
-    if (!newLeaderMember) {
-      return { success: false, error: '새 팀장이 같은 팀 학생이 아니에요.' };
+      .in('id', [oldLeaderId, newLeaderId]);
+    if (!bothMembers || bothMembers.length !== 2) {
+      return { success: false, error: '팀원 정보를 불러올 수 없어요.' };
+    }
+    const oldLeaderMember = bothMembers.find(m => m.id === oldLeaderId);
+    const newLeaderMember = bothMembers.find(m => m.id === newLeaderId);
+    if (!oldLeaderMember || !newLeaderMember) {
+      return { success: false, error: '팀원 정보가 올바르지 않아요.' };
     }
 
-    // 3. 옛 팀장 is_leader = false
-    const { error: e1 } = await supabase
-      .from('team_members')
-      .update({ is_leader: false })
-      .eq('id', oldLeaderId)
-      .eq('team_id', teamId);
-    if (e1) return { success: false, error: e1.message };
+    if (gameInProgress) {
+      // ⭐⭐⭐ 게임 진행 중: 직무 스왑 ⭐⭐⭐
+      // is_leader 플래그 변경 + role_code 서로 교환
+      // (다른 데이터는 모두 보존)
 
-    // 4. 새 팀장 is_leader = true
-    const { error: e2 } = await supabase
-      .from('team_members')
-      .update({ is_leader: true })
-      .eq('id', newLeaderId)
-      .eq('team_id', teamId);
-    if (e2) return { success: false, error: e2.message };
+      // 3a. 옛 팀장 → is_leader=false, role_code=새팀장의 옛 직무
+      const { error: e1 } = await supabase
+        .from('team_members')
+        .update({
+          is_leader: false,
+          role_code: newLeaderMember.role_code,
+          role_assigned_at: newLeaderMember.role_assigned_at,
+        })
+        .eq('id', oldLeaderId)
+        .eq('team_id', teamId);
+      if (e1) return { success: false, error: e1.message };
 
-    // 5. 게임 시작 전이면 → 모든 데이터 초기화
-    if (!gameInProgress) {
-      // 모든 팀원의 role_code 초기화
+      // 3b. 새 팀장 → is_leader=true, role_code=옛팀장의 옛 직무
+      const { error: e2 } = await supabase
+        .from('team_members')
+        .update({
+          is_leader: true,
+          role_code: oldLeaderMember.role_code,
+          role_assigned_at: oldLeaderMember.role_assigned_at,
+        })
+        .eq('id', newLeaderId)
+        .eq('team_id', teamId);
+      if (e2) return { success: false, error: e2.message };
+    } else {
+      // ⭐⭐⭐ 게임 시작 전: 모든 데이터 초기화 ⭐⭐⭐
+
+      // 3a. 옛 팀장 is_leader = false
+      const { error: e1 } = await supabase
+        .from('team_members')
+        .update({ is_leader: false })
+        .eq('id', oldLeaderId)
+        .eq('team_id', teamId);
+      if (e1) return { success: false, error: e1.message };
+
+      // 3b. 새 팀장 is_leader = true
+      const { error: e2 } = await supabase
+        .from('team_members')
+        .update({ is_leader: true })
+        .eq('id', newLeaderId)
+        .eq('team_id', teamId);
+      if (e2) return { success: false, error: e2.message };
+
+      // 3c. 모든 팀원의 role_code 초기화
       const { error: e3 } = await supabase
         .from('team_members')
         .update({ role_code: null, role_assigned_at: null })
         .eq('team_id', teamId);
       if (e3) return { success: false, error: e3.message };
 
-      // teams의 산업군, 수준 초기화
+      // 3d. teams의 산업군, 수준 초기화
       const { error: e4 } = await supabase
         .from('teams')
         .update({ item: null, level: null })
         .eq('id', teamId);
       if (e4) return { success: false, error: e4.message };
     }
-    // 게임 시작 후면 → 데이터 그대로 유지 (is_leader만 변경됨)
 
     return { success: true, gameInProgress };
   } catch (e: any) {
