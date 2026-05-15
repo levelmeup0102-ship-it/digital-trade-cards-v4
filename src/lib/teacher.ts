@@ -600,6 +600,115 @@ export async function deleteMember(
 }
 
 // ═══════════════════════════════════════════════════════
+// ⭐⭐⭐ NEW: 학급/팀 삭제 ⭐⭐⭐
+// ═══════════════════════════════════════════════════════
+
+/**
+ * 팀 삭제
+ * - CASCADE로 team_members, member_insights, personal_scores, card_responses,
+ *   card_progress, sub_card_locks, team_reports 등 모두 자동 삭제됨
+ */
+export async function deleteTeam(
+  teamId: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase
+      .from('teams')
+      .delete()
+      .eq('id', teamId);
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message || '팀 삭제 중 오류가 발생했어요.' };
+  }
+}
+
+/**
+ * 학급 삭제
+ * - 학급에 속한 모든 팀을 먼저 삭제 (그래야 팀의 데이터가 CASCADE로 정리됨)
+ * - 그 후 학급 삭제
+ * - DB의 classes → teams FK가 SET NULL 정책이라 코드에서 명시적으로 처리
+ */
+export async function deleteClass(
+  classId: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // 1. 학급의 모든 팀 ID 조회
+    const { data: teamsData } = await supabase
+      .from('teams')
+      .select('id')
+      .eq('class_id', classId);
+
+    const teamIds = (teamsData || []).map(t => t.id);
+
+    // 2. 모든 팀 삭제 (CASCADE로 멤버/인사이트/점수/보고서 자동 정리)
+    if (teamIds.length > 0) {
+      const { error: teamsError } = await supabase
+        .from('teams')
+        .delete()
+        .in('id', teamIds);
+      if (teamsError) return { success: false, error: teamsError.message };
+    }
+
+    // 3. 학급 삭제
+    const { error } = await supabase
+      .from('classes')
+      .delete()
+      .eq('id', classId);
+    if (error) return { success: false, error: error.message };
+
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message || '학급 삭제 중 오류가 발생했어요.' };
+  }
+}
+
+/**
+ * 학급의 보고서 개수 조회 (삭제 전 경고용)
+ */
+export async function getReportCountForClass(
+  classId: string,
+): Promise<number> {
+  try {
+    // 1. 학급의 팀 ID 목록
+    const { data: teamsData } = await supabase
+      .from('teams')
+      .select('id')
+      .eq('class_id', classId);
+    const teamIds = (teamsData || []).map(t => t.id);
+    if (teamIds.length === 0) return 0;
+
+    // 2. 보고서 개수
+    const { count } = await supabase
+      .from('team_reports')
+      .select('id', { count: 'exact', head: true })
+      .in('team_id', teamIds);
+
+    return count || 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * 팀의 보고서 존재 여부 (삭제 전 경고용)
+ */
+export async function hasTeamReport(
+  teamId: string,
+): Promise<boolean> {
+  try {
+    const { data } = await supabase
+      .from('team_reports')
+      .select('id')
+      .eq('team_id', teamId)
+      .maybeSingle();
+    return !!data;
+  } catch {
+    return false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
 // ⭐⭐⭐ NEW Phase 4 (20번): 관리자 팀장 교체 ⭐⭐⭐
 // 4번 양도와의 차이:
 // - 4번: 학생 본인이 사퇴/양도 (leader-setup에서만)
