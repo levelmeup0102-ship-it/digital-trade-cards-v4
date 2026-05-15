@@ -183,16 +183,17 @@ export default function SignalIntro({ onComplete, durationMs = 5000 }: SignalInt
       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
         <svg
           className="intro-circuit"
-          width="340"
-          height="200"
-          viewBox="0 0 340 200"
-          style={{ opacity: 0, transition: 'opacity 0.8s ease' }}>
-          <path className="intro-cp intro-cp1" d="M 0,100 Q 85,40 170,100 T 340,100" stroke="#06B6D4" strokeWidth="1.5" fill="none" strokeDasharray="700" strokeDashoffset="700" style={{ filter: 'drop-shadow(0 0 6px #06B6D4)' }} />
-          <path className="intro-cp intro-cp2" d="M 0,100 Q 85,160 170,100 T 340,100" stroke="#8B5CF6" strokeWidth="1.5" fill="none" strokeDasharray="700" strokeDashoffset="700" style={{ filter: 'drop-shadow(0 0 6px #8B5CF6)' }} />
-          <path className="intro-cp intro-cp3" d="M 0,50 Q 170,140 340,50" stroke="#FF6FB5" strokeWidth="1" fill="none" strokeDasharray="700" strokeDashoffset="700" opacity="0.6" style={{ filter: 'drop-shadow(0 0 4px #FF6FB5)' }} />
-          <path className="intro-cp intro-cp4" d="M 0,150 Q 170,60 340,150" stroke="#E7FE55" strokeWidth="1" fill="none" strokeDasharray="700" strokeDashoffset="700" opacity="0.5" style={{ filter: 'drop-shadow(0 0 4px #E7FE55)' }} />
-          <circle className="intro-node intro-node1" cx="0" cy="100" r="3" fill="#06B6D4" opacity="0" style={{ filter: 'drop-shadow(0 0 8px #06B6D4)' }} />
-          <circle className="intro-node intro-node2" cx="340" cy="100" r="3" fill="#8B5CF6" opacity="0" style={{ filter: 'drop-shadow(0 0 8px #8B5CF6)' }} />
+          width="100%"
+          height="100%"
+          viewBox="0 0 1600 400"
+          preserveAspectRatio="none"
+          style={{ opacity: 0, transition: 'opacity 0.8s ease', maxHeight: '70vh' }}>
+          <path className="intro-cp intro-cp1" d="M 0,200 Q 400,100 800,200 T 1600,200" stroke="#06B6D4" strokeWidth="1.8" fill="none" strokeDasharray="3300" strokeDashoffset="3300" vectorEffect="non-scaling-stroke" style={{ filter: 'drop-shadow(0 0 8px #06B6D4)' }} />
+          <path className="intro-cp intro-cp2" d="M 0,200 Q 400,300 800,200 T 1600,200" stroke="#8B5CF6" strokeWidth="1.8" fill="none" strokeDasharray="3300" strokeDashoffset="3300" vectorEffect="non-scaling-stroke" style={{ filter: 'drop-shadow(0 0 8px #8B5CF6)' }} />
+          <path className="intro-cp intro-cp3" d="M 0,120 Q 800,260 1600,120" stroke="#FF6FB5" strokeWidth="1.2" fill="none" strokeDasharray="3300" strokeDashoffset="3300" opacity="0.6" vectorEffect="non-scaling-stroke" style={{ filter: 'drop-shadow(0 0 4px #FF6FB5)' }} />
+          <path className="intro-cp intro-cp4" d="M 0,280 Q 800,140 1600,280" stroke="#E7FE55" strokeWidth="1.2" fill="none" strokeDasharray="3300" strokeDashoffset="3300" opacity="0.5" vectorEffect="non-scaling-stroke" style={{ filter: 'drop-shadow(0 0 4px #E7FE55)' }} />
+          <circle className="intro-node intro-node1" cx="0" cy="200" r="3" fill="#06B6D4" opacity="0" vectorEffect="non-scaling-stroke" style={{ filter: 'drop-shadow(0 0 8px #06B6D4)' }} />
+          <circle className="intro-node intro-node2" cx="1600" cy="200" r="3" fill="#8B5CF6" opacity="0" vectorEffect="non-scaling-stroke" style={{ filter: 'drop-shadow(0 0 8px #8B5CF6)' }} />
         </svg>
       </div>
 
@@ -220,16 +221,17 @@ export default function SignalIntro({ onComplete, durationMs = 5000 }: SignalInt
             }} />
 
           {/* 블러 그림자 (등장 효과) */}
-          <h1 className="intro-title-shadow absolute font-medium m-0"
+          <h1 className="intro-title-shadow absolute font-black m-0"
             style={{
               top: '8px',
               left: '20px',
               fontSize: 'clamp(56px, 14vw, 96px)',
+              fontWeight: 900,
               background: 'linear-gradient(135deg, #06B6D4 0%, #8B5CF6 100%)',
               WebkitBackgroundClip: 'text',
               backgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
-              letterSpacing: '-1.5px',
+              letterSpacing: '-2px',
               filter: 'blur(16px)',
               opacity: 0,
               zIndex: 1,
@@ -238,14 +240,15 @@ export default function SignalIntro({ onComplete, durationMs = 5000 }: SignalInt
           </h1>
 
           {/* 메인 타이틀 (선명) */}
-          <h1 className="intro-main-title font-medium m-0 relative"
+          <h1 className="intro-main-title font-black m-0 relative"
             style={{
               fontSize: 'clamp(56px, 14vw, 96px)',
+              fontWeight: 900,
               background: 'linear-gradient(135deg, #FFFFFF 0%, #C1E8EB 40%, #FFFFFF 60%, #06B6D4 100%)',
               WebkitBackgroundClip: 'text',
               backgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
-              letterSpacing: '-1.5px',
+              letterSpacing: '-2px',
               opacity: 0,
               transform: 'scale(0.95)',
               filter: 'blur(8px)',
