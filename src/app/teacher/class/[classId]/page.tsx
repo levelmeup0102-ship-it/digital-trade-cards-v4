@@ -11,6 +11,8 @@ import {
   startClassGame,
   deleteMember,
   replaceLeader,
+  deleteTeam,
+  hasTeamReport,
 } from '@/lib/teacher';
 import type { Teacher, Class, Team, TeamMember } from '@/lib/teacher';
 import { supabase } from '@/lib/supabase';
@@ -71,6 +73,12 @@ export default function ClassDetail() {
   const [replaceTargetTeam, setReplaceTargetTeam] = useState<Team | null>(null);
   const [replacing, setReplacing] = useState(false);
   const [replaceError, setReplaceError] = useState('');
+
+  // ⭐⭐⭐ NEW: 팀 삭제 ⭐⭐⭐
+  const [deleteTargetTeamObj, setDeleteTargetTeamObj] = useState<Team | null>(null);
+  const [deleteTeamHasReport, setDeleteTeamHasReport] = useState(false);
+  const [deletingTeam, setDeletingTeam] = useState(false);
+  const [deleteTeamError, setDeleteTeamError] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -284,6 +292,51 @@ export default function ClassDetail() {
     } catch (e: any) {
       setReplaceError(e.message || '교체 중 오류가 발생했어요.');
       setReplacing(false);
+    }
+  };
+
+  // ⭐⭐⭐ NEW: 팀 삭제 핸들러 ⭐⭐⭐
+  const openDeleteTeamModal = async (e: React.MouseEvent, team: Team) => {
+    e.stopPropagation();
+    setDeleteTargetTeamObj(team);
+    setDeleteTeamError('');
+    setDeleteTeamHasReport(false);
+    const hasReport = await hasTeamReport(team.id);
+    setDeleteTeamHasReport(hasReport);
+  };
+
+  const closeDeleteTeamModal = () => {
+    if (deletingTeam) return;
+    setDeleteTargetTeamObj(null);
+    setDeleteTeamError('');
+    setDeleteTeamHasReport(false);
+  };
+
+  const handleDeleteTeam = async () => {
+    if (!deleteTargetTeamObj || deletingTeam) return;
+    setDeleteTeamError('');
+    setDeletingTeam(true);
+
+    try {
+      const result = await deleteTeam(deleteTargetTeamObj.id);
+      if (!result.success) {
+        setDeleteTeamError(result.error || '삭제에 실패했어요.');
+        setDeletingTeam(false);
+        return;
+      }
+      // 로컬 state에서 즉시 제거
+      setTeams(prev => prev.filter(t => t.id !== deleteTargetTeamObj.id));
+      setTeamMembers(prev => {
+        const next = { ...prev };
+        delete next[deleteTargetTeamObj.id];
+        return next;
+      });
+      setDeleteTargetTeamObj(null);
+      setDeleteTeamHasReport(false);
+      setDeletingTeam(false);
+    } catch (e: any) {
+      setDeleteTeamError(e.message || '삭제 중 오류가 발생했어요.');
+      setDeletingTeam(false);
     }
   };
 
@@ -671,11 +724,28 @@ export default function ClassDetail() {
                 {/* 팀 헤더 */}
                 <div className="p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <h3 className="text-base font-bold text-white">{team.name}</h3>
-                      <p className="text-[11px] mt-0.5" style={{ color: S.cyan }}>
-                        완료 {team.completed_count || 0}/16장
-                      </p>
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <h3 className="text-base font-bold text-white">{team.name}</h3>
+                        <p className="text-[11px] mt-0.5" style={{ color: S.cyan }}>
+                          완료 {team.completed_count || 0}/16장
+                        </p>
+                      </div>
+                      {/* ⭐⭐⭐ NEW: 팀 삭제 버튼 ⭐⭐⭐ */}
+                      <button
+                        onClick={(e) => openDeleteTeamModal(e, team)}
+                        title={`${team.name} 삭제`}
+                        className="inline-flex items-center justify-center w-6 h-6 rounded-full transition-all hover:scale-110"
+                        style={{
+                          background: 'rgba(239,68,68,0.12)',
+                          border: '1px solid rgba(239,68,68,0.35)',
+                          color: '#FCA5A5',
+                          fontSize: '11px',
+                          lineHeight: 1,
+                          cursor: 'pointer',
+                        }}>
+                        🗑
+                      </button>
                     </div>
                     {/* 팀 코드 */}
                     <button onClick={() => copyCode(team.join_code)}
@@ -1261,6 +1331,114 @@ export default function ClassDetail() {
                 style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#ccc' }}>
                 취소
               </button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ⭐⭐⭐ NEW: 팀 삭제 확인 모달 ⭐⭐⭐ */}
+      {deleteTargetTeamObj && (() => {
+        const teamInProgress = deleteTargetTeamObj.game_started === true;
+        const classInProgress = cls?.game_started_at != null;
+        const inProgress = teamInProgress || classInProgress;
+        const memberCount = (teamMembers[deleteTargetTeamObj.id] || []).length;
+        return (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)' }}
+            onClick={closeDeleteTeamModal}>
+            <div className="max-w-md w-full rounded-2xl p-6"
+              style={{
+                background: 'linear-gradient(135deg, rgba(20,15,15,0.98) 0%, rgba(40,15,15,0.95) 100%)',
+                border: '1.5px solid rgba(239,68,68,0.5)',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 30px rgba(239,68,68,0.3)',
+              }}
+              onClick={(e) => e.stopPropagation()}>
+              <p className="text-[10px] font-mono tracking-widest mb-2 font-bold"
+                style={{ color: '#FCA5A5' }}>
+                {`>`} 팀 삭제
+              </p>
+              <h3 className="text-lg font-black text-white mb-3">
+                🗑 {deleteTargetTeamObj.name}을(를) 삭제할까요?
+              </h3>
+
+              {/* 게임 진행 중 경고 */}
+              {inProgress && (
+                <div className="rounded-xl p-3 mb-3"
+                  style={{
+                    background: 'rgba(239,68,68,0.12)',
+                    border: '1.5px solid rgba(239,68,68,0.5)',
+                  }}>
+                  <p className="text-[13px] font-black text-white mb-1.5 flex items-center gap-1.5">
+                    <span className="text-base">⚠️</span>
+                    <span>게임 진행 중입니다!</span>
+                  </p>
+                  <p className="text-[11px] leading-relaxed" style={{ color: '#FCA5A5' }}>
+                    팀원이 작성 중인 모든 내용이<br/>
+                    삭제되며 복구할 수 없어요.
+                  </p>
+                </div>
+              )}
+
+              {/* 보고서 있음 경고 */}
+              {deleteTeamHasReport && (
+                <div className="rounded-xl p-3 mb-3"
+                  style={{
+                    background: 'rgba(255,215,0,0.10)',
+                    border: '1.5px solid rgba(255,215,0,0.45)',
+                  }}>
+                  <p className="text-[13px] font-black text-white mb-1.5 flex items-center gap-1.5">
+                    <span className="text-base">📚</span>
+                    <span>이 팀에 보고서가 있어요</span>
+                  </p>
+                  <p className="text-[11px] leading-relaxed" style={{ color: '#FFE082' }}>
+                    삭제하면 보고서도 함께 사라져요.<br/>
+                    <span className="font-bold">PDF로 미리 다운받으셨나요?</span>
+                  </p>
+                </div>
+              )}
+
+              <div className="rounded-xl p-3 mb-4"
+                style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                <p className="text-[12px] text-white mb-1.5" style={{ opacity: 0.85 }}>
+                  📋 삭제될 항목:
+                </p>
+                <ul className="text-[11px] text-white ml-3 space-y-0.5" style={{ opacity: 0.7 }}>
+                  <li>• 팀 (이름, 팀 코드)</li>
+                  <li>• 팀원 {memberCount}명 모두</li>
+                  <li>• 카드 응답·인사이트·점수</li>
+                  {deleteTeamHasReport && <li>• 보고서</li>}
+                </ul>
+              </div>
+
+              <p className="text-[11px] text-center mb-4" style={{ color: '#FCA5A5' }}>
+                ⚠️ 삭제 후에는 되돌릴 수 없어요
+              </p>
+
+              {deleteTeamError && (
+                <div className="rounded-xl px-3 py-2 mb-3 text-[12px] text-center"
+                  style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.5)', color: '#FCA5A5' }}>
+                  ⚠️ {deleteTeamError}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={closeDeleteTeamModal}
+                  disabled={deletingTeam}
+                  className="py-3 rounded-xl text-[13px] font-bold transition disabled:opacity-30"
+                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#ccc' }}>
+                  취소
+                </button>
+                <button onClick={handleDeleteTeam}
+                  disabled={deletingTeam}
+                  className="py-3 rounded-xl text-[13px] font-black transition disabled:opacity-50"
+                  style={{
+                    background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)',
+                    color: 'white',
+                    boxShadow: '0 4px 12px rgba(239,68,68,0.4)',
+                  }}>
+                  {deletingTeam ? '처리 중...' : '🗑 팀 삭제'}
+                </button>
+              </div>
             </div>
           </div>
         );
