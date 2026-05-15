@@ -632,6 +632,14 @@ export default function Home() {
     if (timer <= 0 && timerRef.current) clearInterval(timerRef.current);
   }, [timerActive, timer]);
 
+  // ⭐⭐⭐ NEW: 게임 진입 시 타이머 자동 시작 ⭐⭐⭐
+  // screen === 'game'이 되면 자동으로 타이머 활성화 (수동 ▶ 버튼 누를 필요 X)
+  useEffect(() => {
+    if (screen === 'game' && timer > 0) {
+      setTimerActive(true);
+    }
+  }, [screen]);
+
   const flushPendingSaves = useCallback(() => {
     if (!teamId) return;
 
