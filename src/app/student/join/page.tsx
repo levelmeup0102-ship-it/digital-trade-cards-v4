@@ -383,11 +383,20 @@ function StudentJoinInner() {
   }, [members, step, selectedMember]);
 
   const handleCodeSubmit = async () => {
-    if (joinCode.trim().length < 4) { setCodeError('올바른 코드를 입력해주세요.'); return; }
+    const trimmedCode = joinCode.trim().toUpperCase();
+    if (trimmedCode.length < 4) { setCodeError('올바른 코드를 입력해주세요.'); return; }
+
+    // ⭐⭐⭐ NEW: 학급 코드(CL-) 자동 라우팅 ⭐⭐⭐
+    // 입력값이 CL-로 시작하면 학급 페이지로 이동 (QR 스캔과 동일한 흐름)
+    if (trimmedCode.startsWith('CL-')) {
+      router.push(`/student/class/${trimmedCode}`);
+      return;
+    }
+
     setLoading(true); setCodeError('');
     try {
-      const result = await getTeamWithMembersByCode(joinCode);
-      if (!result) { setCodeError('팀 코드를 찾을 수 없어요. 관리자에게 확인하세요.'); setLoading(false); return; }
+      const result = await getTeamWithMembersByCode(trimmedCode);
+      if (!result) { setCodeError('코드를 찾을 수 없어요. 관리자에게 확인하세요.'); setLoading(false); return; }
 
       if (result.team.game_started) {
         setTeam(result.team);
@@ -959,13 +968,13 @@ function StudentJoinInner() {
               </p>
               <h2 className="text-lg font-black text-white mb-1"
                 style={{ textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}>
-                팀 코드 입력
+                학급 / 팀 코드 입력
               </h2>
               <p className="text-[12px] text-white" style={{ opacity: 0.75 }}>{`>`} 관리자가 알려준 코드를 입력하세요</p>
             </div>
             <input value={joinCode} onChange={e => { setJoinCode(e.target.value.toUpperCase()); setCodeError(''); }}
               onKeyDown={e => e.key === 'Enter' && handleCodeSubmit()}
-              placeholder="예) DT-AB-X7K2"
+              placeholder="예) CL-AB-X7K2"
               maxLength={12}
               className="w-full px-4 py-4 rounded-2xl text-white text-lg font-black tracking-widest uppercase text-center mb-3 cyber-input"
               style={{
