@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getCurrentTeacher, getClasses, createClass, createTeams, signOut } from '@/lib/teacher';
+import { getCurrentTeacher, getClasses, createClass, createTeams, signOut, deleteClass, getReportCountForClass } from '@/lib/teacher';
 import type { Teacher, Class } from '@/lib/teacher';
 
 const S = {
@@ -47,6 +47,12 @@ export default function TeacherDashboard() {
   });
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState('');
+
+  // ⭐⭐⭐ NEW: 학급 삭제 ⭐⭐⭐
+  const [deleteTargetClass, setDeleteTargetClass] = useState<Class | null>(null);
+  const [deleteReportCount, setDeleteReportCount] = useState(0);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -115,6 +121,47 @@ export default function TeacherDashboard() {
       setTimeout(() => setCopiedCode(null), 1500);
     } catch (err) {
       console.error('복사 실패:', err);
+    }
+  };
+
+  // ⭐⭐⭐ NEW: 학급 삭제 핸들러 ⭐⭐⭐
+  const openDeleteClassModal = async (e: React.MouseEvent, cls: Class) => {
+    e.stopPropagation();
+    setDeleteTargetClass(cls);
+    setDeleteError('');
+    setDeleteReportCount(0);
+    // 보고서 개수 비동기 로드
+    const count = await getReportCountForClass(cls.id);
+    setDeleteReportCount(count);
+  };
+
+  const closeDeleteClassModal = () => {
+    if (deleting) return;
+    setDeleteTargetClass(null);
+    setDeleteError('');
+    setDeleteReportCount(0);
+  };
+
+  const handleDeleteClass = async () => {
+    if (!deleteTargetClass || deleting) return;
+    setDeleteError('');
+    setDeleting(true);
+
+    try {
+      const result = await deleteClass(deleteTargetClass.id);
+      if (!result.success) {
+        setDeleteError(result.error || '삭제에 실패했어요.');
+        setDeleting(false);
+        return;
+      }
+      // 로컬 state에서도 즉시 제거
+      setClasses(prev => prev.filter(c => c.id !== deleteTargetClass.id));
+      setDeleteTargetClass(null);
+      setDeleteReportCount(0);
+      setDeleting(false);
+    } catch (e: any) {
+      setDeleteError(e.message || '삭제 중 오류가 발생했어요.');
+      setDeleting(false);
     }
   };
 
@@ -473,6 +520,21 @@ export default function TeacherDashboard() {
                         }}>
                         {statusLabel[cls.status]}
                       </span>
+                      {/* ⭐⭐⭐ NEW: 학급 삭제 버튼 ⭐⭐⭐ */}
+                      <button
+                        onClick={(e) => openDeleteClassModal(e, cls)}
+                        title="학급 삭제"
+                        className="inline-flex items-center justify-center w-6 h-6 rounded-full transition-all hover:scale-110"
+                        style={{
+                          background: 'rgba(239,68,68,0.12)',
+                          border: '1px solid rgba(239,68,68,0.35)',
+                          color: '#FCA5A5',
+                          fontSize: '12px',
+                          lineHeight: 1,
+                          cursor: 'pointer',
+                        }}>
+                        🗑
+                      </button>
                     </div>
                   </div>
                   <p className="text-[11px] md:text-[12px]" style={{ color: '#888' }}>{cls.school}</p>
@@ -511,6 +573,112 @@ export default function TeacherDashboard() {
 
         <p className="text-center text-gray-700 text-[10px] mt-6 md:mt-8 font-mono">© 2026 SIGNAL — ConnectAI</p>
       </div>
+
+      {/* ⭐⭐⭐ NEW: 학급 삭제 확인 모달 ⭐⭐⭐ */}
+      {deleteTargetClass && (() => {
+        const inProgress = deleteTargetClass.game_started_at != null;
+        const hasReports = deleteReportCount > 0;
+        return (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4"
+            style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)' }}
+            onClick={closeDeleteClassModal}>
+            <div className="max-w-md w-full rounded-2xl p-6"
+              style={{
+                background: 'linear-gradient(135deg, rgba(20,15,15,0.98) 0%, rgba(40,15,15,0.95) 100%)',
+                border: '1.5px solid rgba(239,68,68,0.5)',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 30px rgba(239,68,68,0.3)',
+              }}
+              onClick={(e) => e.stopPropagation()}>
+              <p className="text-[10px] font-mono tracking-widest mb-2 font-bold"
+                style={{ color: '#FCA5A5' }}>
+                {`>`} 학급 삭제
+              </p>
+              <h3 className="text-lg font-black text-white mb-3">
+                🗑 {deleteTargetClass.name} 학급을 삭제할까요?
+              </h3>
+
+              {/* 게임 진행 중 경고 */}
+              {inProgress && (
+                <div className="rounded-xl p-3 mb-3"
+                  style={{
+                    background: 'rgba(239,68,68,0.12)',
+                    border: '1.5px solid rgba(239,68,68,0.5)',
+                  }}>
+                  <p className="text-[13px] font-black text-white mb-1.5 flex items-center gap-1.5">
+                    <span className="text-base">⚠️</span>
+                    <span>게임 진행 중입니다!</span>
+                  </p>
+                  <p className="text-[11px] leading-relaxed" style={{ color: '#FCA5A5' }}>
+                    학생들이 작성 중인 모든 내용이<br/>
+                    삭제되며 복구할 수 없어요.
+                  </p>
+                </div>
+              )}
+
+              {/* 보고서 있음 경고 */}
+              {hasReports && (
+                <div className="rounded-xl p-3 mb-3"
+                  style={{
+                    background: 'rgba(255,215,0,0.10)',
+                    border: '1.5px solid rgba(255,215,0,0.45)',
+                  }}>
+                  <p className="text-[13px] font-black text-white mb-1.5 flex items-center gap-1.5">
+                    <span className="text-base">📚</span>
+                    <span>이 학급에 보고서가 {deleteReportCount}개 있어요</span>
+                  </p>
+                  <p className="text-[11px] leading-relaxed" style={{ color: '#FFE082' }}>
+                    삭제하면 보고서도 함께 사라져요.<br/>
+                    <span className="font-bold">PDF로 미리 다운받으셨나요?</span>
+                  </p>
+                </div>
+              )}
+
+              <div className="rounded-xl p-3 mb-4"
+                style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                <p className="text-[12px] text-white mb-1.5" style={{ opacity: 0.85 }}>
+                  📋 삭제될 항목:
+                </p>
+                <ul className="text-[11px] text-white ml-3 space-y-0.5" style={{ opacity: 0.7 }}>
+                  <li>• 학급 (이름, 학급 코드)</li>
+                  <li>• 모든 팀과 팀원 정보</li>
+                  <li>• 모든 카드 응답·인사이트·점수</li>
+                  <li>• 모든 보고서 ({deleteReportCount}개)</li>
+                </ul>
+              </div>
+
+              <p className="text-[11px] text-center mb-4" style={{ color: '#FCA5A5' }}>
+                ⚠️ 삭제 후에는 되돌릴 수 없어요
+              </p>
+
+              {deleteError && (
+                <div className="rounded-xl px-3 py-2 mb-3 text-[12px] text-center"
+                  style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.5)', color: '#FCA5A5' }}>
+                  ⚠️ {deleteError}
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={closeDeleteClassModal}
+                  disabled={deleting}
+                  className="py-3 rounded-xl text-[13px] font-bold transition disabled:opacity-30"
+                  style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#ccc' }}>
+                  취소
+                </button>
+                <button onClick={handleDeleteClass}
+                  disabled={deleting}
+                  className="py-3 rounded-xl text-[13px] font-black transition disabled:opacity-50"
+                  style={{
+                    background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)',
+                    color: 'white',
+                    boxShadow: '0 4px 12px rgba(239,68,68,0.4)',
+                  }}>
+                  {deleting ? '처리 중...' : '🗑 학급 삭제'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       <style jsx>{`
         .dash-signal-1 { animation: dashSignalRight 5s linear infinite; }
