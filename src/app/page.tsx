@@ -663,6 +663,37 @@ export default function Home() {
     }
   }, [flushPendingSaves]);
 
+  // ⭐⭐⭐ NEW (13번): 탭 단위 다음/이전 이동 ⭐⭐⭐
+  // 주제 → Q1 → Q2 → Q3 → 결론 → 다음 카드 (주제부터 다시)
+  const goNext = useCallback(() => {
+    const currentTabIdx = TABS.indexOf(currentTab);
+    if (currentTabIdx < TABS.length - 1) {
+      // 마지막 탭이 아니면 → 다음 탭으로
+      setCurrentTab(TABS[currentTabIdx + 1]);
+      setSwipeOffset(0);
+    } else {
+      // 결론 탭 → 다음 카드로 (주제 탭부터 시작)
+      if (currentCardIdx < TOPICS.length - 1) {
+        goToCard(currentCardIdx + 1);
+      }
+    }
+  }, [currentTab, currentCardIdx, goToCard]);
+
+  // 결론 → Q3 → Q2 → Q1 → 주제 → 이전 카드 (주제부터)
+  const goPrev = useCallback(() => {
+    const currentTabIdx = TABS.indexOf(currentTab);
+    if (currentTabIdx > 0) {
+      // 주제 탭이 아니면 → 이전 탭으로
+      setCurrentTab(TABS[currentTabIdx - 1]);
+      setSwipeOffset(0);
+    } else {
+      // 주제 탭 → 이전 카드로 (주제 탭부터 시작)
+      if (currentCardIdx > 0) {
+        goToCard(currentCardIdx - 1);
+      }
+    }
+  }, [currentTab, currentCardIdx, goToCard]);
+
   const handleSaveResponse = async (cardId: string, text: string) => {
     setResponses(prev => ({ ...prev, [cardId]: { texts: { '0': text }, images: {} } }));
     if (session && teamId) {
@@ -790,8 +821,9 @@ export default function Home() {
   const onTouchMove = (e: React.TouchEvent) => { if (touchStart !== null) setSwipeOffset(e.touches[0].clientX - touchStart); };
   const onTouchEnd = () => {
     if (Math.abs(swipeOffset) > 80) {
-      if (swipeOffset < 0 && currentCardIdx < TOPICS.length - 1) goToCard(currentCardIdx + 1);
-      if (swipeOffset > 0 && currentCardIdx > 0) goToCard(currentCardIdx - 1);
+      // ⭐ NEW (13번): 탭 단위로 스와이프 이동
+      if (swipeOffset < 0) goNext();
+      if (swipeOffset > 0) goPrev();
     }
     setSwipeOffset(0); setTouchStart(null);
   };
@@ -799,12 +831,13 @@ export default function Home() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (screen !== 'game') return;
-      if (e.key === 'ArrowRight') goToCard(currentCardIdx + 1);
-      if (e.key === 'ArrowLeft') goToCard(currentCardIdx - 1);
+      // ⭐ NEW (13번): 키보드 ←→도 탭 단위 이동
+      if (e.key === 'ArrowRight') goNext();
+      if (e.key === 'ArrowLeft') goPrev();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [currentCardIdx, goToCard, screen]);
+  }, [goNext, goPrev, screen]);
 
   const exitGame = () => {
     // ⭐ NEW: sessionStorage 사용 + 옛 localStorage 흔적도 제거 (안전망)
@@ -1615,19 +1648,25 @@ export default function Home() {
       </div>
 
       <div className="flex gap-3 items-center mt-3 md:mt-4 relative z-10">
-        <button onClick={() => goToCard(currentCardIdx - 1)} disabled={currentCardIdx === 0}
+        {/* ⭐ NEW (13번): 탭 단위 이전 이동 (주제 탭 + 첫 카드일 때만 비활성) */}
+        <button onClick={goPrev}
+          disabled={currentCardIdx === 0 && currentTab === '주제'}
           className="w-10 h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center text-base md:text-lg transition-all disabled:opacity-20 hover:scale-110"
           style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>‹</button>
         <div className="text-center min-w-[140px] md:min-w-[160px]">
           <div className="text-[12px] md:text-[13px] font-bold text-white">{topic.title}</div>
-          <div className="text-[10px] text-gray-600 font-mono mt-0.5">카드 {currentCardIdx + 1}/16 · {'★'.repeat(topic.difficulty)}{'☆'.repeat(5-topic.difficulty)}</div>
+          <div className="text-[10px] text-gray-600 font-mono mt-0.5">
+            카드 {currentCardIdx + 1}/16 · <span style={{ color: color }}>{currentTab}</span>
+          </div>
         </div>
-        <button onClick={() => goToCard(currentCardIdx + 1)} disabled={currentCardIdx === TOPICS.length - 1}
+        {/* ⭐ NEW (13번): 탭 단위 다음 이동 (결론 탭 + 마지막 카드일 때만 비활성) */}
+        <button onClick={goNext}
+          disabled={currentCardIdx === TOPICS.length - 1 && currentTab === '결론'}
           className="w-10 h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center text-base md:text-lg font-bold transition-all disabled:opacity-20 hover:scale-110"
           style={{
-            background: currentCardIdx === TOPICS.length - 1 ? 'rgba(255,255,255,0.06)' : color,
+            background: (currentCardIdx === TOPICS.length - 1 && currentTab === '결론') ? 'rgba(255,255,255,0.06)' : color,
             color: '#fff',
-            boxShadow: currentCardIdx === TOPICS.length - 1 ? 'none' : `0 6px 20px -5px ${color}88`,
+            boxShadow: (currentCardIdx === TOPICS.length - 1 && currentTab === '결론') ? 'none' : `0 6px 20px -5px ${color}88`,
           }}>›</button>
       </div>
 
