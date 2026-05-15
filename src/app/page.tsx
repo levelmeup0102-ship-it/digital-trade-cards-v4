@@ -1073,6 +1073,28 @@ export default function Home() {
         </div>
 
         <style jsx>{`
+          /* ⭐⭐⭐ NEW: 타이머 경고 깜빡임 (4번 작업) ⭐⭐⭐ */
+          .timer-pulse-warn {
+            animation: timerPulseWarn 2s ease-in-out infinite;
+          }
+          @keyframes timerPulseWarn {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.04); }
+          }
+          .timer-pulse-urgent {
+            animation: timerPulseUrgent 0.8s ease-in-out infinite;
+          }
+          @keyframes timerPulseUrgent {
+            0%, 100% {
+              transform: scale(1);
+              box-shadow: 0 0 12px rgba(239,68,68,0.4);
+            }
+            50% {
+              transform: scale(1.08);
+              box-shadow: 0 0 24px rgba(239,68,68,0.8), 0 0 36px rgba(239,68,68,0.4);
+            }
+          }
+
           .signal-pulse-ring {
             opacity: 0;
             transform: translate(-50%, -50%) scale(0);
@@ -1542,10 +1564,31 @@ export default function Home() {
 
         <div className="flex items-center gap-2 mb-2">
           <div className="flex-1" />
-          <div className="flex items-center gap-1.5 rounded-lg px-2 py-1" style={{ background: 'rgba(255,255,255,0.06)' }}>
-            <span className={`text-[12px] font-mono font-bold ${timer <= 60 ? 'text-red-400' : 'text-white'}`}>{fmt(timer)}</span>
+          {/* ⭐⭐⭐ NEW: 시간 시각화 강화 — 5분 미만 노랑, 1분 미만 빨강 + 깜빡임 */}
+          <div className={`flex items-center gap-2 rounded-lg px-3 py-1.5 transition-all ${
+            timer <= 60 ? 'timer-pulse-urgent' : timer <= 300 ? 'timer-pulse-warn' : ''
+          }`}
+            style={{
+              background: timer <= 60 ? 'rgba(239,68,68,0.18)' : timer <= 300 ? 'rgba(255,199,44,0.15)' : 'rgba(255,255,255,0.06)',
+              border: timer <= 60 ? '1.5px solid rgba(239,68,68,0.6)' : timer <= 300 ? '1.5px solid rgba(255,199,44,0.5)' : '1px solid rgba(255,255,255,0.1)',
+              boxShadow: timer <= 60 ? '0 0 12px rgba(239,68,68,0.4)' : timer <= 300 ? '0 0 8px rgba(255,199,44,0.3)' : 'none',
+            }}>
+            <span className="text-[10px]" style={{
+              color: timer <= 60 ? '#FCA5A5' : timer <= 300 ? '#FDE68A' : '#888'
+            }}>
+              {timer <= 60 ? '⚠️' : timer <= 300 ? '⏰' : '⏱'}
+            </span>
+            <span className={`text-[14px] md:text-[15px] font-mono font-black tabular-nums`}
+              style={{
+                color: timer <= 60 ? '#FCA5A5' : timer <= 300 ? '#FDE68A' : '#fff',
+                textShadow: timer <= 60 ? '0 0 8px rgba(239,68,68,0.6)' : timer <= 300 ? '0 0 6px rgba(255,199,44,0.4)' : 'none',
+                minWidth: '52px',
+                textAlign: 'center',
+              }}>
+              {fmt(timer)}
+            </span>
             <button onClick={() => setTimerActive(!timerActive)}
-              className={`text-[10px] px-1.5 py-0.5 rounded ${timerActive ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
+              className={`text-[10px] px-1.5 py-0.5 rounded transition ${timerActive ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
               {timerActive ? '⏸' : '▶'}
             </button>
           </div>
