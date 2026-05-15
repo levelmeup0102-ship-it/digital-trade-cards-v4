@@ -936,24 +936,31 @@ function TeamInsightSidebar({
 
       <div
         onClick={e => e.stopPropagation()}
-        className="absolute bottom-0 left-0 right-0 sidebar-slideup"
+        className="absolute inset-0 sidebar-slideup flex flex-col"
         style={{
           background: 'linear-gradient(180deg, #0A1228 0%, #0F1B3D 100%)',
-          borderTop: `1px solid ${S.purple}40`,
-          borderRadius: '16px 16px 0 0',
           padding: '14px 16px 24px',
-          maxHeight: '70vh',
           overflowY: 'auto',
           boxShadow: '0 -8px 32px rgba(0,0,0,0.5)',
         }}>
-        <div className="w-10 h-1 rounded-full mx-auto mb-4" style={{ background: 'rgba(255,255,255,0.2)' }} />
-
-        <div className="flex items-center gap-2 mb-4">
-          <div className="font-mono text-[11px] font-bold tracking-widest" style={{ color: S.cyan }}>팀원 인사이트</div>
-          <div className="font-mono text-[12px] font-bold" style={{ color: S.cyan }}>
+        {/* 헤더 (풀스크린 모달 — 핸들바 제거, 닫기 버튼 강조) */}
+        <div className="flex items-center gap-3 mb-4 pt-2">
+          <div className="font-mono text-[12px] font-bold tracking-widest" style={{ color: S.cyan }}>팀원 인사이트</div>
+          <div className="font-mono text-[13px] font-bold" style={{ color: S.cyan }}>
             {completedCount} / {nonLeaders.length}
           </div>
-          <button onClick={onClose} className="ml-auto text-gray-400 text-lg leading-none">×</button>
+          <button
+            onClick={onClose}
+            className="ml-auto w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-110"
+            style={{
+              background: 'rgba(255,255,255,0.08)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              color: '#ccc',
+              fontSize: '18px',
+              lineHeight: 1,
+            }}>
+            ×
+          </button>
         </div>
 
         <div className="space-y-2">
