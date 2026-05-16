@@ -781,46 +781,79 @@ export default function RankingPage() {
             </div>
           </div>
 
-          {/* 회로선 (좌측에서 로고로) */}
-          <svg className="w-full" viewBox="0 0 1200 180" preserveAspectRatio="none"
-            style={{ height: '180px' }}>
-            <defs>
-              <linearGradient id="logoGradCyanPurple" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor={S.cyan} />
-                <stop offset="100%" stopColor={S.purple} />
-              </linearGradient>
-            </defs>
+          {/* ⭐⭐⭐ 회로선 (화면 양끝까지 확장) ⭐⭐⭐ */}
+          {/* 화면 너비를 가득 채우기 위해 부모의 max-w 제한 밖으로 빼냄 (negative margin) */}
+          <div className="relative" style={{
+            marginLeft: 'calc(50% - 50vw)',
+            marginRight: 'calc(50% - 50vw)',
+            width: '100vw',
+          }}>
+            <svg className="w-full" viewBox="0 0 2000 180" preserveAspectRatio="none"
+              style={{ height: '180px' }}>
+              <defs>
+                <linearGradient id="logoGradCyanPurple" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor={S.cyan} />
+                  <stop offset="100%" stopColor={S.purple} />
+                </linearGradient>
+              </defs>
 
-            {/* 좌측 회로선 */}
-            <g stroke={S.cyan} strokeWidth="1" fill="none" opacity="0.35">
-              <path d="M 0,40 L 150,40 L 180,70 L 350,70" />
-              <path d="M 0,140 L 100,140 L 130,120 L 280,120" />
-              <circle cx="180" cy="70" r="3" fill={S.cyan} />
-              <circle cx="130" cy="120" r="2.5" fill={S.purple} />
-            </g>
+              {/* ─── 좌측 회로선 (긴 거리 + 노드 3개 + 분기) ─── */}
+              <g stroke={S.cyan} strokeWidth="1" fill="none" opacity="0.4">
+                {/* 상단 회로선 */}
+                <path d="M 0,40 L 150,40 L 180,70 L 380,70 L 410,55 L 600,55 L 630,70 L 750,70" />
+                {/* 하단 회로선 */}
+                <path d="M 0,140 L 100,140 L 130,120 L 280,120 L 310,140 L 480,140 L 510,120 L 680,120" />
+                {/* 수직 분기 */}
+                <line x1="180" y1="40" x2="180" y2="70" strokeWidth="0.8" opacity="0.5" />
+                <line x1="410" y1="40" x2="410" y2="55" strokeWidth="0.8" opacity="0.5" />
+                {/* 노드 점들 */}
+                <circle cx="180" cy="70" r="3" fill={S.cyan} />
+                <circle cx="410" cy="55" r="2.5" fill={S.cyan} />
+                <circle cx="630" cy="70" r="3" fill={S.purple} />
+                <circle cx="130" cy="120" r="2.5" fill={S.purple} />
+                <circle cx="310" cy="140" r="2.5" fill={S.cyan} />
+                <circle cx="510" cy="120" r="3" fill={S.purple} />
+                {/* 시작점 점멸 (좌측 끝) */}
+                <circle cx="10" cy="40" r="2" fill={S.cyan} opacity="0.7" />
+                <circle cx="10" cy="140" r="2" fill={S.cyan} opacity="0.7" />
+              </g>
 
-            {/* 우측 회로선 */}
-            <g stroke={S.purple} strokeWidth="1" fill="none" opacity="0.35">
-              <path d="M 850,70 L 1020,70 L 1050,40 L 1200,40" />
-              <path d="M 920,120 L 1070,120 L 1100,140 L 1200,140" />
-              <circle cx="1020" cy="70" r="3" fill={S.purple} />
-              <circle cx="1070" cy="120" r="2.5" fill={S.cyan} />
-            </g>
+              {/* ─── 우측 회로선 (긴 거리 + 노드 3개 + 분기) ─── */}
+              <g stroke={S.purple} strokeWidth="1" fill="none" opacity="0.4">
+                {/* 상단 회로선 */}
+                <path d="M 1250,70 L 1370,70 L 1400,55 L 1590,55 L 1620,70 L 1820,70 L 1850,40 L 2000,40" />
+                {/* 하단 회로선 */}
+                <path d="M 1320,120 L 1490,120 L 1520,140 L 1690,140 L 1720,120 L 1870,120 L 1900,140 L 2000,140" />
+                {/* 수직 분기 */}
+                <line x1="1590" y1="40" x2="1590" y2="55" strokeWidth="0.8" opacity="0.5" />
+                <line x1="1850" y1="40" x2="1850" y2="55" strokeWidth="0.8" opacity="0.5" />
+                {/* 노드 점들 */}
+                <circle cx="1370" cy="70" r="3" fill={S.purple} />
+                <circle cx="1590" cy="55" r="2.5" fill={S.purple} />
+                <circle cx="1820" cy="70" r="3" fill={S.cyan} />
+                <circle cx="1490" cy="120" r="2.5" fill={S.cyan} />
+                <circle cx="1720" cy="120" r="2.5" fill={S.purple} />
+                <circle cx="1900" cy="140" r="3" fill={S.cyan} />
+                {/* 끝점 점멸 (우측 끝) */}
+                <circle cx="1990" cy="40" r="2" fill={S.purple} opacity="0.7" />
+                <circle cx="1990" cy="140" r="2" fill={S.purple} opacity="0.7" />
+              </g>
 
-            {/* 거대 SIGNAL 로고 (윤곽선) */}
-            <text x="600" y="115" textAnchor="middle"
-              style={{
-                fill: 'none',
-                stroke: 'url(#logoGradCyanPurple)',
-                strokeWidth: '1.5',
-                fontFamily: "'Space Grotesk', sans-serif",
-                fontSize: '90px',
-                fontWeight: 900,
-                letterSpacing: '-3px',
-              }}>
-              SIGNAL
-            </text>
-          </svg>
+              {/* 거대 SIGNAL 로고 (윤곽선) - 가운데 */}
+              <text x="1000" y="115" textAnchor="middle"
+                style={{
+                  fill: 'none',
+                  stroke: 'url(#logoGradCyanPurple)',
+                  strokeWidth: '1.5',
+                  fontFamily: "'Space Grotesk', sans-serif",
+                  fontSize: '90px',
+                  fontWeight: 900,
+                  letterSpacing: '-3px',
+                }}>
+                SIGNAL
+              </text>
+            </svg>
+          </div>
 
           {/* 코너 마커 (4개) */}
           <div className="absolute top-0 left-0" style={{ width: '20px', height: '20px', borderTop: `1px solid ${S.cyan}88`, borderLeft: `1px solid ${S.cyan}88` }} />
