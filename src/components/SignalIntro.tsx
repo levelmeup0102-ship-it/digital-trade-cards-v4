@@ -212,13 +212,7 @@ export default function SignalIntro({ onComplete, durationMs = 5000 }: SignalInt
 
         {/* SIGNAL 메인 타이틀 */}
         <div className="relative py-2 px-5">
-          {/* 배경 글로우 */}
-          <div className="intro-title-bg-glow absolute inset-[-20px] pointer-events-none"
-            style={{
-              background: 'radial-gradient(ellipse at center, rgba(6,182,212,0.3) 0%, rgba(139,92,246,0.2) 30%, transparent 70%)',
-              filter: 'blur(20px)',
-              opacity: 0,
-            }} />
+          {/* 배경 글로우 (제거됨 — 로고 주변 퍼짐 없애기) */}
 
           {/* 블러 그림자 (등장 효과) */}
           <h1 className="intro-title-shadow absolute font-black m-0"
@@ -348,14 +342,6 @@ export default function SignalIntro({ onComplete, durationMs = 5000 }: SignalInt
         }
         @keyframes introShadowFade {
           to { opacity: 0.7; }
-        }
-
-        /* 타이틀 배경 글로우 */
-        .intro-title-bg-glow {
-          animation: introTitleBgGlow 1.5s ease 3.5s forwards;
-        }
-        @keyframes introTitleBgGlow {
-          to { opacity: 1; }
         }
 
         /* CONNECTAI 위쪽 */
