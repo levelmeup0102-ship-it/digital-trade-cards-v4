@@ -45,6 +45,23 @@ const FLOATING_CARDS = Array.from({ length: 10 }, (_, i) => ({
   rotate: [-15, 12, -8, 20, -22, 10, -18, 8, -25, 15][i],
 }));
 
+// ⭐⭐⭐ NEW: 양옆 큰 SIGNAL 카드 (좌5장 + 우5장 = 10장) ⭐⭐⭐
+// 시안에서 보여준 진짜 카드처럼 보이는 큰 배경 카드들
+const SIDE_CARDS = [
+  // ─── 좌측 5장 ───
+  { id: 'L1', side: 'left',  topPx: 150, offsetPx: 20,  width: 120, height: 160, rotate: -12, color: '#06B6D4', cardNum: '01', duration: 18, delay: 0 },
+  { id: 'L2', side: 'left',  topPx: 30,  offsetPx: 90,  width: 110, height: 145, rotate: 8,   color: '#8B5CF6', cardNum: '04', duration: 20, delay: 1.5 },
+  { id: 'L3', side: 'left',  topPx: 340, offsetPx: 40,  width: 125, height: 165, rotate: 15,  color: '#E7FE55', cardNum: '07', duration: 22, delay: 3 },
+  { id: 'L4', side: 'left',  topPx: 480, offsetPx: 140, width: 115, height: 150, rotate: -8,  color: '#FF6FB5', cardNum: '09', duration: 19, delay: 0.8 },
+  { id: 'L5', side: 'left',  topPx: 660, offsetPx: 20,  width: 100, height: 135, rotate: 20,  color: '#FF671F', cardNum: '13', duration: 21, delay: 2.2 },
+  // ─── 우측 5장 ───
+  { id: 'R1', side: 'right', topPx: 80,  offsetPx: 30,  width: 130, height: 170, rotate: 15,  color: '#8B5CF6', cardNum: '02', duration: 18, delay: 1 },
+  { id: 'R2', side: 'right', topPx: 250, offsetPx: 80,  width: 115, height: 155, rotate: -12, color: '#06B6D4', cardNum: '05', duration: 20, delay: 2.5 },
+  { id: 'R3', side: 'right', topPx: 420, offsetPx: 20,  width: 125, height: 160, rotate: 10,  color: '#E7FE55', cardNum: '11', duration: 22, delay: 0.5 },
+  { id: 'R4', side: 'right', topPx: 580, offsetPx: 100, width: 110, height: 145, rotate: -18, color: '#FF6FB5', cardNum: '14', duration: 19, delay: 3.2 },
+  { id: 'R5', side: 'right', topPx: 720, offsetPx: 30,  width: 95,  height: 130, rotate: 6,   color: '#FF671F', cardNum: '16', duration: 17, delay: 1.8 },
+];
+
 const PARTICLES = Array.from({ length: 50 }, (_, i) => ({
   id: i,
   left: Math.random() * 100,
@@ -256,6 +273,49 @@ export default function RankingPage() {
               transform: `rotate(${card.rotate}deg)`,
             }} />
         ))}
+      </div>
+
+      {/* ⭐⭐⭐ NEW: 양옆 큰 SIGNAL 카드 (좌5 + 우5) ⭐⭐⭐ */}
+      {/* 와이드 화면 (xl+)에서만 표시 - 1280px 이상 */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden hidden xl:block">
+        {SIDE_CARDS.map(card => {
+          const positionStyle = card.side === 'left'
+            ? { left: `${card.offsetPx}px` }
+            : { right: `${card.offsetPx}px` };
+
+          return (
+            <div key={card.id} className="absolute side-card-float"
+              style={{
+                top: `${card.topPx}px`,
+                ...positionStyle,
+                width: `${card.width}px`,
+                height: `${card.height}px`,
+                background: `linear-gradient(135deg, ${card.color}40 0%, ${card.color}25 100%)`,
+                border: `1px solid ${card.color}80`,
+                borderRadius: '14px',
+                boxShadow: `0 8px 24px ${card.color}30, 0 0 20px ${card.color}20`,
+                transform: `rotate(${card.rotate}deg)`,
+                animation: `sideCardFloat ${card.duration}s ease-in-out ${card.delay}s infinite`,
+                padding: '10px',
+              }}>
+              {/* 상단 라인 */}
+              <div className="w-full h-[2px] mb-2 rounded"
+                style={{ background: `${card.color}66` }} />
+              {/* 카드 번호 */}
+              <p className="text-center font-mono font-black mb-3"
+                style={{ color: card.color, fontSize: '11px', letterSpacing: '1px' }}>
+                {card.cardNum}
+              </p>
+              {/* 가짜 텍스트 라인 (스켈레톤) */}
+              <div className="space-y-1.5">
+                <div className="h-[2px] rounded" style={{ width: '80%', background: `${card.color}50` }} />
+                <div className="h-[2px] rounded" style={{ width: '60%', background: `${card.color}50` }} />
+                <div className="h-[2px] rounded mt-3" style={{ width: '70%', background: `${card.color}40` }} />
+                <div className="h-[2px] rounded" style={{ width: '50%', background: `${card.color}40` }} />
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* 빛 입자 (별) */}
@@ -695,6 +755,92 @@ export default function RankingPage() {
           </>
         )}
 
+        {/* ⭐⭐⭐ NEW: SIGNAL 워터마크 영역 (사이버틱 로고 + 회로선) ⭐⭐⭐ */}
+        <div className="relative mt-16 mb-10 select-none pointer-events-none hidden md:block">
+          {/* 상단 정보 라인 */}
+          <div className="flex items-center justify-between mb-6 px-8">
+            <div>
+              <p className="text-[10px] font-mono tracking-widest font-bold mb-1"
+                style={{ color: S.cyan }}>
+                ▸ SYSTEM ID
+              </p>
+              <p className="text-[10px] font-mono" style={{ color: '#666' }}>
+                SGN-2026-LIVE
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] font-mono tracking-widest font-bold mb-1"
+                style={{ color: S.purple }}>
+                STATUS ◂
+              </p>
+              <p className="text-[10px] font-mono flex items-center justify-end gap-1.5" style={{ color: '#666' }}>
+                CONNECTED
+                <span className="w-1.5 h-1.5 rounded-full inline-block"
+                  style={{ background: S.cyan, boxShadow: `0 0 6px ${S.cyan}` }} />
+              </p>
+            </div>
+          </div>
+
+          {/* 회로선 (좌측에서 로고로) */}
+          <svg className="w-full" viewBox="0 0 1200 180" preserveAspectRatio="none"
+            style={{ height: '180px' }}>
+            <defs>
+              <linearGradient id="logoGradCyanPurple" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor={S.cyan} />
+                <stop offset="100%" stopColor={S.purple} />
+              </linearGradient>
+            </defs>
+
+            {/* 좌측 회로선 */}
+            <g stroke={S.cyan} strokeWidth="1" fill="none" opacity="0.35">
+              <path d="M 0,40 L 150,40 L 180,70 L 350,70" />
+              <path d="M 0,140 L 100,140 L 130,120 L 280,120" />
+              <circle cx="180" cy="70" r="3" fill={S.cyan} />
+              <circle cx="130" cy="120" r="2.5" fill={S.purple} />
+            </g>
+
+            {/* 우측 회로선 */}
+            <g stroke={S.purple} strokeWidth="1" fill="none" opacity="0.35">
+              <path d="M 850,70 L 1020,70 L 1050,40 L 1200,40" />
+              <path d="M 920,120 L 1070,120 L 1100,140 L 1200,140" />
+              <circle cx="1020" cy="70" r="3" fill={S.purple} />
+              <circle cx="1070" cy="120" r="2.5" fill={S.cyan} />
+            </g>
+
+            {/* 거대 SIGNAL 로고 (윤곽선) */}
+            <text x="600" y="115" textAnchor="middle"
+              style={{
+                fill: 'none',
+                stroke: 'url(#logoGradCyanPurple)',
+                strokeWidth: '1.5',
+                fontFamily: "'Space Grotesk', sans-serif",
+                fontSize: '90px',
+                fontWeight: 900,
+                letterSpacing: '-3px',
+              }}>
+              SIGNAL
+            </text>
+          </svg>
+
+          {/* 코너 마커 (4개) */}
+          <div className="absolute top-0 left-0" style={{ width: '20px', height: '20px', borderTop: `1px solid ${S.cyan}88`, borderLeft: `1px solid ${S.cyan}88` }} />
+          <div className="absolute top-0 right-0" style={{ width: '20px', height: '20px', borderTop: `1px solid ${S.purple}88`, borderRight: `1px solid ${S.purple}88` }} />
+          <div className="absolute bottom-0 left-0" style={{ width: '20px', height: '20px', borderBottom: `1px solid ${S.purple}88`, borderLeft: `1px solid ${S.purple}88` }} />
+          <div className="absolute bottom-0 right-0" style={{ width: '20px', height: '20px', borderBottom: `1px solid ${S.cyan}88`, borderRight: `1px solid ${S.cyan}88` }} />
+
+          {/* 하단 데이터 라인 */}
+          <div className="mt-2 mx-auto"
+            style={{
+              width: '70%',
+              height: '1px',
+              background: `linear-gradient(90deg, transparent 0%, ${S.cyan}88 50%, transparent 100%)`,
+            }} />
+          <p className="text-center text-[10px] font-mono tracking-[6px] font-bold mt-3"
+            style={{ color: S.cyan, textShadow: `0 0 8px ${S.cyan}55` }}>
+            ─── CONNECTAI · LIVE DATA STREAM ───
+          </p>
+        </div>
+
         {/* 푸터 */}
         <div className="text-center mt-12 mb-6">
           <div className="flex items-center justify-center gap-2 mb-2">
@@ -804,6 +950,22 @@ export default function RankingPage() {
           25% { transform: translateY(-30px) translateX(15px); opacity: 0.5; }
           50% { transform: translateY(-15px) translateX(-20px); opacity: 0.4; }
           75% { transform: translateY(-25px) translateX(10px); opacity: 0.5; }
+        }
+
+        /* ⭐⭐⭐ NEW: 양옆 큰 SIGNAL 카드 (천천히 움직임) ⭐⭐⭐ */
+        @keyframes sideCardFloat {
+          0%, 100% {
+            translate: 0 0;
+          }
+          25% {
+            translate: -8px -12px;
+          }
+          50% {
+            translate: 4px -6px;
+          }
+          75% {
+            translate: -4px -10px;
+          }
         }
 
         /* 빛 입자 (별) */
