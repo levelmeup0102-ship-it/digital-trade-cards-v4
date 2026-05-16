@@ -35,24 +35,24 @@ type CompletionToast = {
   cardName: string;
 };
 
-const FLOATING_CARDS = Array.from({ length: 6 }, (_, i) => ({
+const FLOATING_CARDS = Array.from({ length: 10 }, (_, i) => ({
   id: i,
-  left: [10, 85, 25, 75, 5, 90][i],
-  top: [20, 30, 65, 75, 50, 15][i],
-  size: [40, 50, 35, 45, 50, 38][i],
-  duration: [16, 18, 14, 20, 17, 15][i],
-  delay: [0, 2, 1, 3, 0.5, 2.5][i],
-  rotate: [-15, 12, -8, 20, -22, 10][i],
+  left: [10, 85, 25, 75, 5, 90, 50, 15, 70, 40][i],
+  top: [20, 30, 65, 75, 50, 15, 85, 5, 95, 60][i],
+  size: [40, 50, 35, 45, 50, 38, 42, 36, 48, 40][i],
+  duration: [16, 18, 14, 20, 17, 15, 19, 13, 16, 18][i],
+  delay: [0, 2, 1, 3, 0.5, 2.5, 1.5, 3.5, 0.8, 2.2][i],
+  rotate: [-15, 12, -8, 20, -22, 10, -18, 8, -25, 15][i],
 }));
 
-const PARTICLES = Array.from({ length: 25 }, (_, i) => ({
+const PARTICLES = Array.from({ length: 50 }, (_, i) => ({
   id: i,
   left: Math.random() * 100,
   top: Math.random() * 100,
-  size: 1 + Math.random() * 2,
+  size: 1 + Math.random() * 2.5,
   duration: 3 + Math.random() * 4,
   delay: Math.random() * 5,
-  color: i % 3 === 0 ? S.cyan : i % 3 === 1 ? S.blue : S.purple,
+  color: i % 5 === 0 ? S.cyan : i % 5 === 1 ? S.blue : i % 5 === 2 ? S.purple : i % 5 === 3 ? S.green : '#fff',
 }));
 
 // ⭐ NEW: 폭죽 입자 (1위 변경 시)
@@ -82,6 +82,30 @@ export default function RankingPage() {
 
   // ⭐⭐⭐ NEW: 카드 진행 격자 펼침 상태 (한 번에 1개만 열림)
   const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
+
+  // ⭐⭐⭐ NEW: 전체화면 모드 ⭐⭐⭐
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (e) {
+      console.error('전체화면 전환 실패:', e);
+    }
+  };
+
+  // 브라우저 풀스크린 변화 감지 (ESC 키로 빠져나갈 때도 대응)
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   useEffect(() => {
     teamsRef.current = teams;
@@ -250,6 +274,44 @@ export default function RankingPage() {
         ))}
       </div>
 
+      {/* ⭐⭐⭐ NEW: 사이드 빛 줄기 (좌우 가로지르는 신호) ⭐⭐⭐ */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute h-[2px] rank-beam rank-beam-cyan"
+          style={{ top: '12%', left: '0', width: '180px' }} />
+        <div className="absolute h-[2px] rank-beam rank-beam-purple"
+          style={{ top: '38%', right: '0', width: '200px' }} />
+        <div className="absolute h-[2px] rank-beam rank-beam-green"
+          style={{ top: '68%', left: '0', width: '140px' }} />
+        <div className="absolute h-[2px] rank-beam rank-beam-cyan"
+          style={{ top: '88%', right: '0', width: '160px' }} />
+      </div>
+
+      {/* ⭐⭐⭐ NEW: 네 모서리 코너 장식 (사이버펑크 프레임) ⭐⭐⭐ */}
+      <div className="fixed top-4 left-4 w-14 h-14 pointer-events-none z-[5]"
+        style={{
+          borderTop: `2px solid ${S.cyan}`,
+          borderLeft: `2px solid ${S.cyan}`,
+          boxShadow: `inset 2px 2px 8px ${S.cyan}33`,
+        }} />
+      <div className="fixed top-4 right-4 w-14 h-14 pointer-events-none z-[5]"
+        style={{
+          borderTop: `2px solid ${S.purple}`,
+          borderRight: `2px solid ${S.purple}`,
+          boxShadow: `inset -2px 2px 8px ${S.purple}33`,
+        }} />
+      <div className="fixed bottom-4 left-4 w-14 h-14 pointer-events-none z-[5]"
+        style={{
+          borderBottom: `2px solid ${S.purple}`,
+          borderLeft: `2px solid ${S.purple}`,
+          boxShadow: `inset 2px -2px 8px ${S.purple}33`,
+        }} />
+      <div className="fixed bottom-4 right-4 w-14 h-14 pointer-events-none z-[5]"
+        style={{
+          borderBottom: `2px solid ${S.cyan}`,
+          borderRight: `2px solid ${S.cyan}`,
+          boxShadow: `inset -2px -2px 8px ${S.cyan}33`,
+        }} />
+
       {/* 상단 빛 줄기 */}
       <div className="fixed top-0 left-1/2 -translate-x-1/2 pointer-events-none"
         style={{
@@ -319,19 +381,39 @@ export default function RankingPage() {
 
         {/* 헤더 */}
         <div className="flex items-center justify-between mb-6">
-          <button onClick={() => router.push(`/teacher/class/${classId}`)}
-            className="flex items-center gap-2 text-gray-400 hover:text-white transition text-sm font-bold">
-            <span>←</span>
-            <span>수업 상세로</span>
-          </button>
+          {/* ⭐ NEW: 풀스크린 시 숨김 */}
+          {!isFullscreen ? (
+            <button onClick={() => router.push(`/teacher/class/${classId}`)}
+              className="flex items-center gap-2 text-gray-400 hover:text-white transition text-sm font-bold">
+              <span>←</span>
+              <span>수업 상세로</span>
+            </button>
+          ) : (
+            <div />
+          )}
 
-          <div className="flex items-center gap-4">
-            <div className="text-[15px] font-mono text-white font-bold">{currentTime}</div>
+          <div className="flex items-center gap-3">
+            <div className="text-[15px] font-mono text-white font-bold tabular-nums">{currentTime}</div>
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full"
               style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.5)' }}>
               <div className="w-2.5 h-2.5 rounded-full live-pulse" style={{ background: '#EF4444' }} />
               <span className="text-[12px] font-bold font-mono" style={{ color: '#EF4444' }}>LIVE</span>
             </div>
+            {/* ⭐⭐⭐ NEW: 전체화면 토글 버튼 ⭐⭐⭐ */}
+            <button
+              onClick={toggleFullscreen}
+              title={isFullscreen ? '전체화면 해제 (ESC)' : '전체화면 (몰입 모드)'}
+              className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-110"
+              style={{
+                background: isFullscreen ? `${S.cyan}25` : 'rgba(255,255,255,0.08)',
+                border: `1px solid ${isFullscreen ? S.cyan + '88' : 'rgba(255,255,255,0.15)'}`,
+                color: isFullscreen ? S.cyan : '#ccc',
+                fontSize: '15px',
+                lineHeight: 1,
+                boxShadow: isFullscreen ? `0 0 12px ${S.cyan}55` : 'none',
+              }}>
+              {isFullscreen ? '⊠' : '⛶'}
+            </button>
           </div>
         </div>
 
@@ -444,9 +526,9 @@ export default function RankingPage() {
         ) : (
           <>
             {/* ⭐⭐⭐ 시상대 (1, 2, 3등) ⭐⭐⭐ */}
-            <div className="podium-container mb-8">
+            <div className="podium-container mb-8 max-w-5xl mx-auto">
               {/* 데스크탑: 2-1-3 가로 배치 / 모바일: 1-2-3 세로 */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-3 md:items-end">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5 md:items-end">
 
                 {/* 2등 (왼쪽, 데스크탑) */}
                 {secondPlace && (
@@ -730,6 +812,38 @@ export default function RankingPage() {
           25% { transform: translateY(-30px) translateX(15px); opacity: 1; }
           50% { transform: translateY(-50px) translateX(-10px); opacity: 0.6; }
           75% { transform: translateY(-30px) translateX(20px); opacity: 1; }
+        }
+
+        /* ⭐⭐⭐ NEW: 사이드 빛 줄기 (가로지르는 신호) ⭐⭐⭐ */
+        .rank-beam {
+          opacity: 0;
+        }
+        .rank-beam-cyan {
+          background: linear-gradient(90deg, transparent, #06B6D4, transparent);
+          box-shadow: 0 0 12px #06B6D4, 0 0 24px rgba(6,182,212,0.4);
+          animation: rankBeamRight 6s linear infinite;
+        }
+        .rank-beam-purple {
+          background: linear-gradient(90deg, transparent, #8B5CF6, transparent);
+          box-shadow: 0 0 12px #8B5CF6, 0 0 24px rgba(139,92,246,0.4);
+          animation: rankBeamLeft 7s linear infinite 1s;
+        }
+        .rank-beam-green {
+          background: linear-gradient(90deg, transparent, #E7FE55, transparent);
+          box-shadow: 0 0 12px #E7FE55, 0 0 24px rgba(231,254,85,0.4);
+          animation: rankBeamRight 5s linear infinite 2s;
+        }
+        @keyframes rankBeamRight {
+          0% { transform: translateX(-200px); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { transform: translateX(100vw); opacity: 0; }
+        }
+        @keyframes rankBeamLeft {
+          0% { transform: translateX(200px); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { transform: translateX(-100vw); opacity: 0; }
         }
 
         /* 오로라 카드 */
