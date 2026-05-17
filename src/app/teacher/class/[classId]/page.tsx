@@ -82,7 +82,7 @@ export default function ClassDetail() {
   const [deleteTeamError, setDeleteTeamError] = useState('');
 
   // ⭐⭐⭐ NEW: 팀 이름 인라인 편집 ⭐⭐⭐
-  const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
+  const [editingNameTeamId, setEditingNameTeamId] = useState<string | null>(null);
   const [editTeamNameInput, setEditTeamNameInput] = useState('');
   const [editTeamNameSaving, setEditTeamNameSaving] = useState(false);
   const [editTeamNameError, setEditTeamNameError] = useState('');
@@ -305,20 +305,20 @@ export default function ClassDetail() {
   // ⭐⭐⭐ NEW: 팀 이름 편집 핸들러 ⭐⭐⭐
   const startEditTeamName = (e: React.MouseEvent, team: Team) => {
     e.stopPropagation();
-    setEditingTeamId(team.id);
+    setEditingNameTeamId(team.id);
     setEditTeamNameInput(team.name);
     setEditTeamNameError('');
   };
 
   const cancelEditTeamName = () => {
-    setEditingTeamId(null);
+    setEditingNameTeamId(null);
     setEditTeamNameInput('');
     setEditTeamNameError('');
   };
 
   const handleSaveEditTeamName = async () => {
-    if (!editingTeamId || editTeamNameSaving) return;
-    const team = teams.find(t => t.id === editingTeamId);
+    if (!editingNameTeamId || editTeamNameSaving) return;
+    const team = teams.find(t => t.id === editingNameTeamId);
     if (!team) return;
 
     const trimmed = editTeamNameInput.trim();
@@ -329,15 +329,15 @@ export default function ClassDetail() {
     setEditTeamNameSaving(true);
     setEditTeamNameError('');
     try {
-      const result = await updateTeamName(editingTeamId, trimmed);
+      const result = await updateTeamName(editingNameTeamId, trimmed);
       if (!result.success) {
         setEditTeamNameError(result.error || '실패');
         setEditTeamNameSaving(false);
         return;
       }
       // 로컬 state 갱신
-      setTeams(prev => prev.map(t => t.id === editingTeamId ? { ...t, name: trimmed } : t));
-      setEditingTeamId(null);
+      setTeams(prev => prev.map(t => t.id === editingNameTeamId ? { ...t, name: trimmed } : t));
+      setEditingNameTeamId(null);
       setEditTeamNameInput('');
       setEditTeamNameSaving(false);
     } catch (e: any) {
@@ -778,7 +778,7 @@ export default function ClassDetail() {
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <div className="flex-1 min-w-0">
                         {/* ⭐⭐⭐ NEW: 팀명 인라인 편집 ⭐⭐⭐ */}
-                        {editingTeamId === team.id ? (
+                        {editingNameTeamId === team.id ? (
                           <div className="flex items-center gap-1.5">
                             <input
                               value={editTeamNameInput}
@@ -829,7 +829,7 @@ export default function ClassDetail() {
                             </button>
                           </div>
                         )}
-                        {editingTeamId === team.id && editTeamNameError ? (
+                        {editingNameTeamId === team.id && editTeamNameError ? (
                           <p className="text-[10px] mt-1" style={{ color: '#FCA5A5' }}>⚠️ {editTeamNameError}</p>
                         ) : (
                           <p className="text-[11px] mt-0.5" style={{ color: S.cyan }}>
@@ -838,7 +838,7 @@ export default function ClassDetail() {
                         )}
                       </div>
                       {/* ⭐⭐⭐ NEW: 팀 삭제 버튼 ⭐⭐⭐ */}
-                      {editingTeamId !== team.id && (
+                      {editingNameTeamId !== team.id && (
                         <button
                           onClick={(e) => openDeleteTeamModal(e, team)}
                           title={`${team.name} 삭제`}
