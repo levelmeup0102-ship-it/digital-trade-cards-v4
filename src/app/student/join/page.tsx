@@ -1726,20 +1726,91 @@ function StudentJoinInner() {
                   )}
                 </>
               ) : (
-                <div className="rounded-2xl p-4 mb-3 text-center"
+                <div className="rounded-2xl p-5 mb-3 text-center relative overflow-hidden"
                   style={{
-                    background: isMeLeader ? `${S.green}10` : `${S.cyan}08`,
-                    border: `1px solid ${isMeLeader ? S.green + '40' : S.cyan + '33'}`,
+                    background: isMeLeader
+                      ? `linear-gradient(135deg, ${S.green}10 0%, ${S.green}05 100%)`
+                      : `linear-gradient(135deg, ${S.cyan}12 0%, ${S.purple}10 100%)`,
+                    border: `1.5px solid ${isMeLeader ? S.green + '50' : S.cyan + '50'}`,
+                    boxShadow: isMeLeader
+                      ? `0 0 24px ${S.green}22, inset 0 0 20px ${S.green}08`
+                      : `0 0 24px ${S.cyan}22, inset 0 0 20px ${S.cyan}08`,
                   }}>
-                  <p className="text-[12px] font-bold mb-1"
-                    style={{ color: isMeLeader ? S.green : S.cyan }}>
+                  {/* 코너 마커 */}
+                  <div className="absolute top-2 left-2 w-3 h-3"
+                    style={{ borderTop: `1.5px solid ${isMeLeader ? S.green : S.cyan}`, borderLeft: `1.5px solid ${isMeLeader ? S.green : S.cyan}` }} />
+                  <div className="absolute top-2 right-2 w-3 h-3"
+                    style={{ borderTop: `1.5px solid ${isMeLeader ? S.green : S.purple}`, borderRight: `1.5px solid ${isMeLeader ? S.green : S.purple}` }} />
+                  <div className="absolute bottom-2 left-2 w-3 h-3"
+                    style={{ borderBottom: `1.5px solid ${isMeLeader ? S.green : S.purple}`, borderLeft: `1.5px solid ${isMeLeader ? S.green : S.purple}` }} />
+                  <div className="absolute bottom-2 right-2 w-3 h-3"
+                    style={{ borderBottom: `1.5px solid ${isMeLeader ? S.green : S.cyan}`, borderRight: `1.5px solid ${isMeLeader ? S.green : S.cyan}` }} />
+
+                  {/* ⭐ 듀얼 링 스피너 (팀원일 때만 - 팀장은 곧 이동하니까) ⭐ */}
+                  {!isMeLeader && (
+                    <div className="relative mx-auto mb-3" style={{ width: '64px', height: '64px' }}>
+                      {/* 외부 링 (시안, 시계방향) */}
+                      <div className="absolute inset-0 rounded-full dual-ring-outer"
+                        style={{
+                          border: `2px solid transparent`,
+                          borderTopColor: S.cyan,
+                          borderRightColor: S.cyan,
+                          boxShadow: `0 0 12px ${S.cyan}88, inset 0 0 8px ${S.cyan}33`,
+                        }} />
+                      {/* 내부 링 (보라, 반시계방향) */}
+                      <div className="absolute rounded-full dual-ring-inner"
+                        style={{
+                          top: '12px', left: '12px',
+                          right: '12px', bottom: '12px',
+                          border: `2px solid transparent`,
+                          borderTopColor: S.purple,
+                          borderLeftColor: S.purple,
+                          boxShadow: `0 0 10px ${S.purple}88`,
+                        }} />
+                      {/* 중심 점 (펄스) */}
+                      <div className="absolute rounded-full center-pulse"
+                        style={{
+                          top: '50%', left: '50%',
+                          width: '8px', height: '8px',
+                          background: S.cyan,
+                          transform: 'translate(-50%, -50%)',
+                          boxShadow: `0 0 12px ${S.cyan}`,
+                        }} />
+                    </div>
+                  )}
+
+                  {/* 상단 라벨 (사이버틱) */}
+                  {!isMeLeader && (
+                    <p className="text-[9px] font-mono tracking-[3px] font-bold mb-2"
+                      style={{ color: S.cyan, textShadow: `0 0 6px ${S.cyan}88` }}>
+                      ◆ TEAM_LEADER_SETUP_ACTIVE
+                    </p>
+                  )}
+
+                  <p className="text-[13px] font-bold mb-1.5"
+                    style={{ color: isMeLeader ? S.green : 'white' }}>
                     {isMeLeader ? '✅ 당신이 팀장입니다!' : `👑 ${existingLeader?.name}님이 팀장이에요`}
                   </p>
-                  <p className="text-[11px]" style={{ color: '#aaa' }}>
+                  <p className="text-[12px] leading-relaxed" style={{ color: isMeLeader ? '#ccc' : '#bbb' }}>
                     {isMeLeader
                       ? '잠시 후 자동으로 게임 설정 화면으로 이동합니다'
-                      : '팀장이 산업군과 직무를 정하는 동안 잠시만 기다려주세요'}
+                      : '팀장이 산업군과 직무를 정하는 동안'}
+                    {!isMeLeader && (
+                      <>
+                        <br/>
+                        <span style={{ color: '#888' }}>잠시만 기다려주세요</span>
+                      </>
+                    )}
                   </p>
+
+                  {/* 진행 상태 점멸 (팀원만) */}
+                  {!isMeLeader && (
+                    <div className="flex items-center justify-center gap-1.5 mt-3">
+                      <span className="w-1.5 h-1.5 rounded-full dot-blink dot-1" style={{ background: S.cyan }} />
+                      <span className="w-1.5 h-1.5 rounded-full dot-blink dot-2" style={{ background: S.purple }} />
+                      <span className="w-1.5 h-1.5 rounded-full dot-blink dot-3" style={{ background: S.cyan }} />
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -2095,6 +2166,38 @@ function StudentJoinInner() {
       )}
 
       <style jsx>{`
+        /* ⭐⭐⭐ NEW: 듀얼 링 스피너 (waiting 화면) ⭐⭐⭐ */
+        .dual-ring-outer {
+          animation: dualRingSpinCW 1.4s linear infinite;
+        }
+        .dual-ring-inner {
+          animation: dualRingSpinCCW 1s linear infinite;
+        }
+        @keyframes dualRingSpinCW {
+          to { transform: rotate(360deg); }
+        }
+        @keyframes dualRingSpinCCW {
+          to { transform: rotate(-360deg); }
+        }
+        .center-pulse {
+          animation: centerDotPulse 1.2s ease-in-out infinite;
+        }
+        @keyframes centerDotPulse {
+          0%, 100% { opacity: 0.4; transform: translate(-50%, -50%) scale(0.8); }
+          50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+        }
+        .dot-blink {
+          animation: dotBlink 1.5s ease-in-out infinite;
+          opacity: 0.3;
+        }
+        .dot-blink.dot-1 { animation-delay: 0s; }
+        .dot-blink.dot-2 { animation-delay: 0.3s; }
+        .dot-blink.dot-3 { animation-delay: 0.6s; }
+        @keyframes dotBlink {
+          0%, 100% { opacity: 0.3; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.4); }
+        }
+
         @keyframes cardShuffle {
           0% { transform: translateY(0) rotate(-15deg) translateX(-60px); opacity: 0.7; }
           25% { transform: translateY(-20px) rotate(-5deg) translateX(-30px); opacity: 1; }
