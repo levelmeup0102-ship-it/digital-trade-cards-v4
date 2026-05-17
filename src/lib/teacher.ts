@@ -608,6 +608,36 @@ export async function deleteMember(
  * - CASCADE로 team_members, member_insights, personal_scores, card_responses,
  *   card_progress, sub_card_locks, team_reports 등 모두 자동 삭제됨
  */
+/**
+ * ⭐⭐⭐ NEW: 팀 이름 변경 ⭐⭐⭐
+ * - 팀장 또는 관리자가 호출
+ * - 1~15자 검증, 빈 문자열 차단
+ * - Realtime으로 모든 팀원에게 자동 반영
+ */
+export async function updateTeamName(
+  teamId: string,
+  newName: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const trimmed = newName.trim();
+    if (trimmed.length === 0) {
+      return { success: false, error: '팀 이름을 입력해주세요.' };
+    }
+    if (trimmed.length > 15) {
+      return { success: false, error: '팀 이름은 15자 이하로 입력해주세요.' };
+    }
+
+    const { error } = await supabase
+      .from('teams')
+      .update({ name: trimmed })
+      .eq('id', teamId);
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message || '팀 이름 변경 중 오류가 발생했어요.' };
+  }
+}
+
 export async function deleteTeam(
   teamId: string,
 ): Promise<{ success: boolean; error?: string }> {
