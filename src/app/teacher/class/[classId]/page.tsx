@@ -13,6 +13,7 @@ import {
   replaceLeader,
   deleteTeam,
   hasTeamReport,
+  updateTeamName,
 } from '@/lib/teacher';
 import type { Teacher, Class, Team, TeamMember } from '@/lib/teacher';
 import { supabase } from '@/lib/supabase';
@@ -79,6 +80,12 @@ export default function ClassDetail() {
   const [deleteTeamHasReport, setDeleteTeamHasReport] = useState(false);
   const [deletingTeam, setDeletingTeam] = useState(false);
   const [deleteTeamError, setDeleteTeamError] = useState('');
+
+  // ⭐⭐⭐ NEW: 팀 이름 인라인 편집 ⭐⭐⭐
+  const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
+  const [editTeamNameInput, setEditTeamNameInput] = useState('');
+  const [editTeamNameSaving, setEditTeamNameSaving] = useState(false);
+  const [editTeamNameError, setEditTeamNameError] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -292,6 +299,50 @@ export default function ClassDetail() {
     } catch (e: any) {
       setReplaceError(e.message || '교체 중 오류가 발생했어요.');
       setReplacing(false);
+    }
+  };
+
+  // ⭐⭐⭐ NEW: 팀 이름 편집 핸들러 ⭐⭐⭐
+  const startEditTeamName = (e: React.MouseEvent, team: Team) => {
+    e.stopPropagation();
+    setEditingTeamId(team.id);
+    setEditTeamNameInput(team.name);
+    setEditTeamNameError('');
+  };
+
+  const cancelEditTeamName = () => {
+    setEditingTeamId(null);
+    setEditTeamNameInput('');
+    setEditTeamNameError('');
+  };
+
+  const handleSaveEditTeamName = async () => {
+    if (!editingTeamId || editTeamNameSaving) return;
+    const team = teams.find(t => t.id === editingTeamId);
+    if (!team) return;
+
+    const trimmed = editTeamNameInput.trim();
+    if (trimmed === team.name) { cancelEditTeamName(); return; }
+    if (trimmed.length === 0) { setEditTeamNameError('이름을 입력하세요'); return; }
+    if (trimmed.length > 15) { setEditTeamNameError('15자 이하'); return; }
+
+    setEditTeamNameSaving(true);
+    setEditTeamNameError('');
+    try {
+      const result = await updateTeamName(editingTeamId, trimmed);
+      if (!result.success) {
+        setEditTeamNameError(result.error || '실패');
+        setEditTeamNameSaving(false);
+        return;
+      }
+      // 로컬 state 갱신
+      setTeams(prev => prev.map(t => t.id === editingTeamId ? { ...t, name: trimmed } : t));
+      setEditingTeamId(null);
+      setEditTeamNameInput('');
+      setEditTeamNameSaving(false);
+    } catch (e: any) {
+      setEditTeamNameError(e.message || '오류');
+      setEditTeamNameSaving(false);
     }
   };
 
@@ -724,28 +775,85 @@ export default function ClassDetail() {
                 {/* 팀 헤더 */}
                 <div className="p-4">
                   <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <div>
-                        <h3 className="text-base font-bold text-white">{team.name}</h3>
-                        <p className="text-[11px] mt-0.5" style={{ color: S.cyan }}>
-                          완료 {team.completed_count || 0}/16장
-                        </p>
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <div className="flex-1 min-w-0">
+                        {/* ⭐⭐⭐ NEW: 팀명 인라인 편집 ⭐⭐⭐ */}
+                        {editingTeamId === team.id ? (
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              value={editTeamNameInput}
+                              onChange={e => { setEditTeamNameInput(e.target.value); setEditTeamNameError(''); }}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') { e.preventDefault(); handleSaveEditTeamName(); }
+                                if (e.key === 'Escape') { e.preventDefault(); cancelEditTeamName(); }
+                              }}
+                              onClick={e => e.stopPropagation()}
+                              maxLength={15}
+                              autoFocus
+                              className="bg-transparent text-base font-bold text-white outline-none flex-1 min-w-0"
+                              style={{
+                                borderBottom: `1.5px solid ${editTeamNameError ? '#EF4444' : S.cyan}`,
+                                padding: '2px 4px',
+                              }} />
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleSaveEditTeamName(); }}
+                              disabled={editTeamNameSaving}
+                              className="px-2 py-0.5 rounded text-[11px] font-bold transition disabled:opacity-50"
+                              style={{ background: S.cyan, color: S.navy, boxShadow: `0 0 8px ${S.cyan}55` }}>
+                              {editTeamNameSaving ? '⏳' : '✓'}
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); cancelEditTeamName(); }}
+                              disabled={editTeamNameSaving}
+                              className="px-2 py-0.5 rounded text-[11px] font-bold transition disabled:opacity-50"
+                              style={{ background: 'rgba(255,255,255,0.08)', color: '#ccc' }}>
+                              ✕
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-base font-bold text-white truncate">{team.name}</h3>
+                            <button
+                              onClick={(e) => startEditTeamName(e, team)}
+                              title="팀 이름 편집"
+                              className="inline-flex items-center justify-center w-5 h-5 rounded transition-all hover:scale-110 flex-shrink-0"
+                              style={{
+                                background: 'rgba(6,182,212,0.12)',
+                                border: '1px solid rgba(6,182,212,0.3)',
+                                color: S.cyan,
+                                fontSize: '10px',
+                                lineHeight: 1,
+                                cursor: 'pointer',
+                              }}>
+                              ✏
+                            </button>
+                          </div>
+                        )}
+                        {editingTeamId === team.id && editTeamNameError ? (
+                          <p className="text-[10px] mt-1" style={{ color: '#FCA5A5' }}>⚠️ {editTeamNameError}</p>
+                        ) : (
+                          <p className="text-[11px] mt-0.5" style={{ color: S.cyan }}>
+                            완료 {team.completed_count || 0}/16장
+                          </p>
+                        )}
                       </div>
                       {/* ⭐⭐⭐ NEW: 팀 삭제 버튼 ⭐⭐⭐ */}
-                      <button
-                        onClick={(e) => openDeleteTeamModal(e, team)}
-                        title={`${team.name} 삭제`}
-                        className="inline-flex items-center justify-center w-6 h-6 rounded-full transition-all hover:scale-110"
-                        style={{
-                          background: 'rgba(239,68,68,0.12)',
-                          border: '1px solid rgba(239,68,68,0.35)',
-                          color: '#FCA5A5',
-                          fontSize: '11px',
-                          lineHeight: 1,
-                          cursor: 'pointer',
-                        }}>
-                        🗑
-                      </button>
+                      {editingTeamId !== team.id && (
+                        <button
+                          onClick={(e) => openDeleteTeamModal(e, team)}
+                          title={`${team.name} 삭제`}
+                          className="inline-flex items-center justify-center w-6 h-6 rounded-full transition-all hover:scale-110 flex-shrink-0"
+                          style={{
+                            background: 'rgba(239,68,68,0.12)',
+                            border: '1px solid rgba(239,68,68,0.35)',
+                            color: '#FCA5A5',
+                            fontSize: '11px',
+                            lineHeight: 1,
+                            cursor: 'pointer',
+                          }}>
+                          🗑
+                        </button>
+                      )}
                     </div>
                     {/* 팀 코드 */}
                     <button onClick={() => copyCode(team.join_code)}
