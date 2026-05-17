@@ -9,6 +9,7 @@ import {
   subscribeToClassGameStart, getClass,
   joinTeamWithName, claimLeader,
   resignLeader, transferLeader,
+  updateTeamName,
 } from '@/lib/teacher';
 import { supabase } from '@/lib/supabase';
 import type { Team, TeamMember, Class } from '@/lib/teacher';
@@ -184,6 +185,12 @@ function StudentJoinInner() {
   const [item, setItem] = useState('');
   const [customItem, setCustomItem] = useState('');
   const [level, setLevel] = useState('standard');
+
+  // ⭐⭐⭐ NEW: 팀 이름 변경 ⭐⭐⭐
+  const [teamNameInput, setTeamNameInput] = useState('');
+  const [teamNameSaving, setTeamNameSaving] = useState(false);
+  const [teamNameError, setTeamNameError] = useState('');
+  const [teamNameSavedFlash, setTeamNameSavedFlash] = useState(false);
 
   const [roleAssignments, setRoleAssignments] = useState<Record<string, RoleCode>>({});
 
@@ -381,6 +388,48 @@ function StudentJoinInner() {
       setRoleAssignments({});
     }
   }, [members, step, selectedMember]);
+
+  // ⭐⭐⭐ NEW: 팀명 input 초기화 (leader-setup 진입 시) ⭐⭐⭐
+  useEffect(() => {
+    if (step === 'leader-setup' && team) {
+      setTeamNameInput(team.name);
+      setTeamNameError('');
+    }
+  }, [step, team]);
+
+  // ⭐⭐⭐ NEW: 팀 이름 저장 핸들러 ⭐⭐⭐
+  const handleSaveTeamName = async () => {
+    if (!team || teamNameSaving) return;
+    const trimmed = teamNameInput.trim();
+    if (trimmed === team.name) return; // 변경 없음
+    if (trimmed.length === 0) {
+      setTeamNameError('팀 이름을 입력해주세요.');
+      return;
+    }
+    if (trimmed.length > 15) {
+      setTeamNameError('15자 이하로 입력해주세요.');
+      return;
+    }
+
+    setTeamNameSaving(true);
+    setTeamNameError('');
+    try {
+      const result = await updateTeamName(team.id, trimmed);
+      if (!result.success) {
+        setTeamNameError(result.error || '저장에 실패했어요.');
+        setTeamNameSaving(false);
+        return;
+      }
+      // 로컬 state 갱신
+      setTeam({ ...team, name: trimmed });
+      setTeamNameSaving(false);
+      setTeamNameSavedFlash(true);
+      setTimeout(() => setTeamNameSavedFlash(false), 1500);
+    } catch (e: any) {
+      setTeamNameError(e.message || '저장 중 오류가 발생했어요.');
+      setTeamNameSaving(false);
+    }
+  };
 
   const handleCodeSubmit = async () => {
     const trimmedCode = joinCode.trim().toUpperCase();
@@ -1175,6 +1224,64 @@ function StudentJoinInner() {
               <p className="text-[10px] font-mono tracking-widest mb-1" style={{ color: S.green }}>👑 팀장 설정</p>
               <h2 className="text-lg font-black text-white mb-1">팀 기본 설정</h2>
               <p className="text-[12px] text-white" style={{ opacity: 0.75 }}>팀장만 설정할 수 있어요. 팀원들에게도 적용됩니다.</p>
+            </div>
+
+            {/* ⭐⭐⭐ NEW: 팀 이름 입력 (옵션) ⭐⭐⭐ */}
+            <div className="mb-5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black flex-shrink-0"
+                    style={{
+                      background: S.cyan,
+                      color: S.navy,
+                      boxShadow: `0 0 10px ${S.cyan}88`,
+                    }}>
+                    ✏
+                  </div>
+                  <p className="text-sm font-bold text-white">팀 이름 정하기</p>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded"
+                    style={{ background: 'rgba(255,255,255,0.08)', color: '#888' }}>
+                    선택
+                  </span>
+                </div>
+                <p className="text-[10px] text-white" style={{ opacity: 0.6 }}>최대 15자</p>
+              </div>
+
+              <div className="relative rounded-xl overflow-hidden"
+                style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: `1.5px solid ${teamNameSavedFlash ? S.green : S.cyan}40`,
+                  boxShadow: teamNameSavedFlash ? `0 0 16px ${S.green}55` : 'none',
+                  transition: 'all 0.3s',
+                }}>
+                <input
+                  value={teamNameInput}
+                  onChange={e => { setTeamNameInput(e.target.value); setTeamNameError(''); }}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleSaveTeamName(); } }}
+                  maxLength={15}
+                  placeholder="예) K-뷰티 정복팀, 트렌드 메이커"
+                  className="w-full bg-transparent px-4 py-3 text-[14px] text-white font-bold outline-none placeholder-gray-600" />
+                <button
+                  onClick={handleSaveTeamName}
+                  disabled={teamNameSaving || teamNameInput.trim() === team?.name || teamNameInput.trim().length === 0}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg text-[11px] font-black transition disabled:opacity-30 disabled:cursor-not-allowed"
+                  style={{
+                    background: teamNameSavedFlash ? S.green : S.cyan,
+                    color: S.navy,
+                    boxShadow: `0 0 12px ${teamNameSavedFlash ? S.green : S.cyan}55`,
+                  }}>
+                  {teamNameSaving ? '⏳' : teamNameSavedFlash ? '✓ 저장됨' : '저장'}
+                </button>
+              </div>
+
+              {teamNameError && (
+                <p className="text-[11px] mt-2 text-center" style={{ color: '#FCA5A5' }}>
+                  ⚠️ {teamNameError}
+                </p>
+              )}
+              <p className="text-[10px] mt-2" style={{ color: '#888' }}>
+                💡 {`'`}{team?.name}{`'`} 이름이 마음에 들면 그대로 둬도 OK
+              </p>
             </div>
 
             {/* ⭐ ① 산업군 선택 */}
