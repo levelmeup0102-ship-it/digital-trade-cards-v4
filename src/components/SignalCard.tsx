@@ -334,7 +334,7 @@ export default function SignalCard({
               <p className="text-[13px] text-white font-bold leading-relaxed">{sub.question}</p>
             </div>
 
-            <p className="text-[10px] text-gray-500 mb-4 italic">
+            <p className="text-[10px] mb-4 italic" style={{ color: '#ccc' }}>
               → 이 답변은 최종 <span className="font-bold" style={{ color }}>{`'${sub.resultUsage}'`}</span>에 사용됩니다
             </p>
 
@@ -830,14 +830,14 @@ function LeaderQView({
           }}
         />
         <div className="flex justify-between mt-1">
-          <span className="text-[10px] text-gray-600">{localResponse.length}자 / 최소 {minChars}자</span>
+          <span className="text-[10px]" style={{ color: '#ccc' }}>{localResponse.length}자 / 최소 {minChars}자</span>
           {localResponse.length >= minChars && <span className="text-[10px]" style={{ color: S.green }}>✓ 충족</span>}
         </div>
       </div>
 
       <div className="mb-4">
         <div className="flex items-center justify-between mb-1.5">
-          <p className="text-[10px] font-bold font-mono tracking-widest text-gray-500">중간 결론</p>
+          <p className="text-[10px] font-bold font-mono tracking-widest" style={{ color: '#ccc' }}>중간 결론</p>
           {!isCurrentSubCompleted && (
             <button
               type="button"
@@ -858,7 +858,7 @@ function LeaderQView({
             </button>
           )}
         </div>
-        <p className="text-[10px] text-gray-600 mb-2">→ 빈칸을 채워서 한 문장으로 정리하세요</p>
+        <p className="text-[10px] mb-2" style={{ color: '#ccc' }}>→ 빈칸을 채워서 한 문장으로 정리하세요</p>
         <div className="rounded-xl p-3 transition-all"
           style={{
             background: isInterimFilled ? `${color}12` : `${color}06`,
