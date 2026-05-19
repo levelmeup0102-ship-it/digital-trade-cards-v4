@@ -308,7 +308,9 @@ export default function Home() {
   const celebrationTriggeredRef = useRef(false);
 
   const [timer, setTimer] = useState(1200);
-  const [timerActive, setTimerActive] = useState(false);
+  // ⭐⭐⭐ NEW: DB 시각 기반 동기화 (모든 팀원이 같은 시간) ⭐⭐⭐
+  // game_started_at(서버 시각)을 기준으로 매초 (LEVELS.timer - 경과시간) 계산
+  const [gameStartedAt, setGameStartedAt] = useState<string | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const interimSaveTimers = useRef<Record<string, NodeJS.Timeout>>({});
@@ -392,7 +394,7 @@ export default function Home() {
               await ensureFirstSubCardUnlocked(v2.teamId);
             }
 
-            const [resps, prog, members, insights, locks, interims, leaderConcs] = await Promise.all([
+            const [resps, prog, members, insights, locks, interims, leaderConcs, teamRow] = await Promise.all([
               loadCardResponses(v2.teamId),
               loadCardProgress(v2.teamId),
               getTeamMembers(v2.teamId),
@@ -400,6 +402,8 @@ export default function Home() {
               loadSubCardLocks(v2.teamId),
               loadInterimConclusionsDB(v2.teamId),
               loadLeaderConclusionsDB(v2.teamId),
+              // ⭐ NEW: 팀 시작 시각 가져오기 (동기화 기준)
+              supabase.from('teams').select('game_started_at').eq('id', v2.teamId).maybeSingle(),
             ]);
             setResponses(resps);
             setCompletedCards(prog.completedCards);
@@ -409,6 +413,9 @@ export default function Home() {
             setInterimConclusions(interims);
             setLeaderConclusions(leaderConcs);
             setTimer(LEVELS[v2Level]?.timer || 1200);
+            // ⭐ NEW: 게임 시작 시각 설정 (DB 시각 기반 동기화용)
+            const startedAt = teamRow?.data?.game_started_at;
+            if (startedAt) setGameStartedAt(startedAt);
             setScreen('game');
             setSessionLoading(false);
             return;
@@ -624,21 +631,32 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [topic.id, screen, teamId]);
 
+  // ⭐⭐⭐ NEW: DB 시각 기반 타이머 (모든 팀원 동기화) ⭐⭐⭐
+  // game_started_at(서버 시각)을 기준으로 매초 (LEVELS.timer - 경과시간)을 계산
+  // 일시정지 X, 새로고침해도 같은 시간, 모든 학생이 같은 타이머
   useEffect(() => {
-    if (timerActive && timer > 0) {
-      timerRef.current = setInterval(() => setTimer(t => t - 1), 1000);
-      return () => { if (timerRef.current) clearInterval(timerRef.current); };
-    }
-    if (timer <= 0 && timerRef.current) clearInterval(timerRef.current);
-  }, [timerActive, timer]);
+    if (screen !== 'game' || !gameStartedAt) return;
 
-  // ⭐⭐⭐ NEW: 게임 진입 시 타이머 자동 시작 ⭐⭐⭐
-  // screen === 'game'이 되면 자동으로 타이머 활성화 (수동 ▶ 버튼 누를 필요 X)
-  useEffect(() => {
-    if (screen === 'game' && timer > 0) {
-      setTimerActive(true);
-    }
-  }, [screen]);
+    const totalSeconds = LEVELS[level]?.timer || 1200;
+    const startMs = new Date(gameStartedAt).getTime();
+
+    const updateTimer = () => {
+      const elapsedSec = Math.floor((Date.now() - startMs) / 1000);
+      const remaining = Math.max(0, totalSeconds - elapsedSec);
+      setTimer(remaining);
+    };
+
+    // 즉시 한 번 갱신 후 1초마다
+    updateTimer();
+    timerRef.current = setInterval(updateTimer, 1000);
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [screen, gameStartedAt, level]);
 
   const flushPendingSaves = useCallback(() => {
     if (!teamId) return;
@@ -854,7 +872,6 @@ export default function Home() {
     localStorage.removeItem('dtc_session_token');
     localStorage.removeItem('dtc_session_token_v2');
     if (timerRef.current) clearInterval(timerRef.current);
-    setTimerActive(false);
     router.push('/student/join');
   };
 
@@ -1587,10 +1604,6 @@ export default function Home() {
               }}>
               {fmt(timer)}
             </span>
-            <button onClick={() => setTimerActive(!timerActive)}
-              className={`text-[10px] px-1.5 py-0.5 rounded transition ${timerActive ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
-              {timerActive ? '⏸' : '▶'}
-            </button>
           </div>
         </div>
 
