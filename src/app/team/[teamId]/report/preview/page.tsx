@@ -200,8 +200,10 @@ export default function TeamReportPreviewPage() {
           continue;
         }
 
-        // ⭐ v5: 원래 html2canvas 옵션 유지 (windowWidth/Height 그대로!)
-        // 추가한 건 ignoreElements만 (0x0 요소 자동 스킵)
+        // ⭐⭐⭐ v6: viewport 1200px 강제 (md: 2단 레이아웃 활성화) ⭐⭐⭐
+        // 핵심: html2canvas는 element의 scrollWidth로 viewport를 잡는데,
+        // 화면이 좁으면 (모바일 등) md: 브레이크포인트 안 먹어서 1단으로 캡처됨.
+        // 해결: 캡처용 viewport를 1200px로 명시적으로 강제 → md: 작동 → 2단 펼침면
         let canvas: HTMLCanvasElement;
         try {
           canvas = await html2canvas(element, {
@@ -209,14 +211,28 @@ export default function TeamReportPreviewPage() {
             backgroundColor: '#050505',
             useCORS: true,
             logging: false,
-            windowWidth: element.scrollWidth,
-            windowHeight: element.scrollHeight,
-            // ⭐ v5 신규: 0x0 요소만 자동 스킵 (createPattern 에러 방지)
+            // ⭐ v6: viewport를 1200px로 강제 (md: 768px+ 통과)
+            windowWidth: 1200,
+            windowHeight: 800,
+            width: 1200,
+            // ⭐ v6: cloned DOM에서 책 element 너비만 1200px로 설정
+            // (전체 페이지가 아닌 책 element만, 다른 스타일은 건드리지 X)
+            onclone: (clonedDoc) => {
+              const target = clonedDoc.getElementById('book-page-content');
+              if (target) {
+                target.style.width = '1200px';
+                target.style.maxWidth = '1200px';
+                target.style.minWidth = '1200px';
+                // 한글 단어 깨짐 방지 (캔버스 변환 시 띄어쓰기 이상 처리 방지)
+                target.style.wordBreak = 'keep-all';
+                target.style.wordSpacing = 'normal';
+              }
+            },
+            // ⭐ v5에서 유지: 0x0 요소만 자동 스킵
             ignoreElements: (el) => {
               try {
                 const r = (el as HTMLElement).getBoundingClientRect?.();
                 if (!r) return false;
-                // 정확히 0x0인 요소만 제외 (작은 요소는 통과)
                 return r.width === 0 && r.height === 0;
               } catch {
                 return false;
