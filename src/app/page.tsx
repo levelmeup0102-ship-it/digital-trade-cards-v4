@@ -429,7 +429,9 @@ export default function Home() {
     })();
   }, []);
 
-  // ⭐⭐⭐ v3: 게임 시작 시 보고서 존재 여부 확인 (재진입 보호) ⭐⭐⭐
+  // ⭐⭐⭐ v3 (FIXED): 게임 시작 시 보고서 존재 여부 확인 + sessionStorage 기반 가드 ⭐⭐⭐
+  // 이전: 보고서가 이미 있으면 → 무조건 모달 안 띄움 (놓친 팀원이 못 봄)
+  // 변경: 보고서 있어도 sessionStorage에 "본 적 있음" 표시가 없으면 → 모달 띄움 (놓친 팀원 구제)
   useEffect(() => {
     if (!teamId || screen !== 'game') return;
     if (reportExistedAtMountRef.current !== null) return; // 이미 체크함
@@ -438,13 +440,42 @@ export default function Home() {
       try {
         const { data } = await supabase
           .from('team_reports')
-          .select('id')
+          .select('id, raw_data')
           .eq('team_id', teamId)
           .maybeSingle();
-        // 이미 보고서가 있으면 = 이미 끝난 게임 = 모달 안 띄움
+
         reportExistedAtMountRef.current = !!data;
+
         if (data) {
-          celebrationTriggeredRef.current = true; // 모달 봉인
+          // ⭐ NEW: sessionStorage 기반 가드 — 이 팀의 보고서 모달을 본 적 있나?
+          const seenKey = `dtc_report_celebrated_v1:${teamId}`;
+          const alreadySeen = typeof window !== 'undefined' && sessionStorage.getItem(seenKey) === '1';
+
+          if (alreadySeen) {
+            // 이미 모달 본 적 있음 → 봉인
+            celebrationTriggeredRef.current = true;
+          } else {
+            // ⭐ 안 본 사람 → 모달 띄움 (놓친 팀원 구제)
+            try {
+              const raw = data.raw_data as any;
+              setCelebrationStats({
+                totalAnswers: raw?.totalAnswers || 48,
+                memberCount: raw?.team?.members?.length || teamMembers.length,
+              });
+            } catch (e) {
+              setCelebrationStats({
+                totalAnswers: 48,
+                memberCount: teamMembers.length,
+              });
+            }
+            // 1.2초 후 모달 띄움 (게임 화면 안정화 대기)
+            setTimeout(() => {
+              if (!celebrationTriggeredRef.current) {
+                celebrationTriggeredRef.current = true;
+                setShowCelebration(true);
+              }
+            }, 1200);
+          }
         }
       } catch (e) {
         reportExistedAtMountRef.current = false;
@@ -540,7 +571,8 @@ export default function Home() {
     };
   }, [screen, teamId]);
 
-  // ⭐⭐⭐ v3 추가: team_reports 생성 감지 → 팀원도 같은 모달 + 보고서 이동 ⭐⭐⭐
+  // ⭐⭐⭐ v3 (FIXED): team_reports INSERT 감지 → 팀원 모달 트리거 ⭐⭐⭐
+  // 핵심: reportExistedAtMountRef 가드 제거 (sessionStorage가 더 정확)
   useEffect(() => {
     if (screen !== 'game' || !teamId) return;
 
@@ -550,10 +582,16 @@ export default function Home() {
         { event: 'INSERT', schema: 'public', table: 'team_reports', filter: `team_id=eq.${teamId}` },
         async () => {
           // 보고서가 새로 생성됨!
-          // 가드: 이미 모달 봉인됐으면 안 띄움
+          // 가드 1: 이미 모달 봉인됐으면 안 띄움
           if (celebrationTriggeredRef.current) return;
-          // 가드: 게임 시작 시점에 이미 있던 보고서면 안 띄움
-          if (reportExistedAtMountRef.current === true) return;
+
+          // ⭐ NEW: 가드 2 — sessionStorage 기반 (이 팀의 모달 본 적 있나?)
+          const seenKey = `dtc_report_celebrated_v1:${teamId}`;
+          const alreadySeen = typeof window !== 'undefined' && sessionStorage.getItem(seenKey) === '1';
+          if (alreadySeen) {
+            celebrationTriggeredRef.current = true;
+            return;
+          }
 
           celebrationTriggeredRef.current = true;
 
@@ -577,8 +615,8 @@ export default function Home() {
             });
           }
 
-          // 팀장은 이미 setShowCelebration(true)가 곧 호출될 거라 중복 가드
-          // 팀원만 띄워주면 됨 — 그치만 안전하게 isLeader 체크 + showCelebration이 false일 때만
+          // 팀장은 이미 handleComplete에서 setShowCelebration 호출 예정
+          // 팀원만 띄움
           if (!isLeader) {
             setTimeout(() => setShowCelebration(true), 500);
           }
@@ -883,11 +921,19 @@ export default function Home() {
   // ⭐⭐⭐ Step 3: 모달 액션 핸들러 ⭐⭐⭐
   const handleViewReport = () => {
     if (!teamId) return;
+    // ⭐ NEW: sessionStorage에 "이 팀의 보고서 모달 본 적 있음" 표시
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(`dtc_report_celebrated_v1:${teamId}`, '1');
+    }
     setShowCelebration(false);
     router.push(`/team/${teamId}/report`);
   };
 
   const handleCloseCelebration = () => {
+    // ⭐ NEW: sessionStorage에 "이 팀의 보고서 모달 본 적 있음" 표시
+    if (typeof window !== 'undefined' && teamId) {
+      sessionStorage.setItem(`dtc_report_celebrated_v1:${teamId}`, '1');
+    }
     setShowCelebration(false);
   };
 
