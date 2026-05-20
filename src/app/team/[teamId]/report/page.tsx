@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { TOPICS, CARD_COLORS } from '@/data/cardData';
@@ -116,13 +116,21 @@ export default function TeamReportPage() {
   // ⭐ v2: sessionStorage 비어있을 때 멤버 선택 모달
   const [showMemberSelect, setShowMemberSelect] = useState(false);
 
+  // ⭐⭐⭐ NEW: DB 기반 채점 진행 상태 추적 ⭐⭐⭐
+  // 페이지 이동/새로고침/돌아옴 시에도 정확히 진행 상태 표시
   const [aiScoringInProgress, setAiScoringInProgress] = useState(false);
+  const [scoringStartedAt, setScoringStartedAt] = useState<string | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
 
   const [polished, setPolished] = useState<PolishedData | null>(null);
   const [polishedAt, setPolishedAt] = useState<string | null>(null);
+  // ⭐⭐⭐ NEW: 다듬기 진행 상태도 DB 추적 ⭐⭐⭐
   const [polishingInProgress, setPolishingInProgress] = useState(false);
+  const [polishingStartedAt, setPolishingStartedAt] = useState<string | null>(null);
   const [polishError, setPolishError] = useState<string | null>(null);
+
+  // ⭐⭐⭐ NEW: Realtime 구독 cleanup용 ⭐⭐⭐
+  const channelRef = useRef<any>(null);
 
   useEffect(() => {
     if (!teamId) return;
@@ -143,12 +151,60 @@ export default function TeamReportPage() {
     })();
   }, [teamId]);
 
+  // ⭐⭐⭐ NEW: team_reports Realtime 구독 (채점/다듬기 완료 자동 감지) ⭐⭐⭐
+  useEffect(() => {
+    if (!teamId) return;
+
+    const channel = supabase
+      .channel(`team-report-progress-${teamId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'team_reports',
+          filter: `team_id=eq.${teamId}`,
+        },
+        async (payload) => {
+          const newData = payload.new as any;
+          console.log('[Realtime] team_reports UPDATE 감지:', newData);
+
+          // DB 진행 상태 그대로 반영
+          setAiScoringInProgress(newData.scoring_in_progress === true);
+          setScoringStartedAt(newData.scoring_started_at || null);
+          setPolishingInProgress(newData.polishing_in_progress === true);
+          setPolishingStartedAt(newData.polishing_started_at || null);
+
+          // 채점 완료 감지 (in_progress=false + scored_at 새로 생김)
+          if (newData.scoring_in_progress === false && newData.scored_at && report) {
+            console.log('[Realtime] 채점 완료! 데이터 재로드');
+            await loadAllData(report);
+          }
+
+          // 다듬기 완료 감지
+          if (newData.polishing_in_progress === false && newData.ai_polished && report) {
+            console.log('[Realtime] 다듬기 완료! 데이터 재로드');
+            await loadAllData(report);
+          }
+        }
+      )
+      .subscribe();
+
+    channelRef.current = channel;
+
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
+    };
+  }, [teamId, report]);
+
   async function loadAllData(reportData: TeamReportData) {
     try {
-      // 팀 점수 로드
+      // 팀 점수 로드 + 진행 상태 컬럼도 함께
       const { data: dbReport } = await supabase
         .from('team_reports')
-        .select('team_score_920, a_score, b_score, c_score, e_score, card_scores, area_breakdown, scored_at, ai_polished, ai_polished_at')
+        .select('team_score_920, a_score, b_score, c_score, e_score, card_scores, area_breakdown, scored_at, ai_polished, ai_polished_at, scoring_in_progress, scoring_started_at, polishing_in_progress, polishing_started_at')
         .eq('team_id', teamId)
         .single();
 
@@ -163,6 +219,14 @@ export default function TeamReportPage() {
           areaBreakdown: dbReport.area_breakdown,
           scoredAt: dbReport.scored_at,
         });
+      }
+
+      // ⭐⭐⭐ NEW: DB에서 진행 상태 로드 (페이지 진입 시) ⭐⭐⭐
+      if (dbReport) {
+        setAiScoringInProgress(dbReport.scoring_in_progress === true);
+        setScoringStartedAt(dbReport.scoring_started_at || null);
+        setPolishingInProgress(dbReport.polishing_in_progress === true);
+        setPolishingStartedAt(dbReport.polishing_started_at || null);
       }
 
       // 다듬기 결과
@@ -229,7 +293,7 @@ export default function TeamReportPage() {
     setShowMemberSelect(false);
   };
 
-  // ⭐ AI 채점 — 팀 920 + 개인 80 자동 연쇄
+  // ⭐ AI 채점 — DB 진행 상태 추적 추가
   async function handleAiScoring() {
     if (!isLeader) {
       alert('팀장만 채점할 수 있어요!');
@@ -241,20 +305,41 @@ export default function TeamReportPage() {
       return;
     }
 
+    if (aiScoringInProgress) {
+      alert('이미 채점이 진행 중이에요!');
+      return;
+    }
+
     const ok = confirm(
       '🎯 AI 채점을 시작합니다.\n\n' +
       '• 1,000점 만점 채점 (팀 920 + 개인 80)\n' +
       '• 약 3~5분 소요됩니다\n' +
       '• 한 번만 실행할 수 있어요\n' +
-      '• 신중히 진행해주세요\n\n' +
+      '• 채점 중에도 종합 보고서는 자유롭게 볼 수 있어요\n\n' +
       '계속하시겠어요?'
     );
     if (!ok) return;
 
+    // ⭐⭐⭐ NEW: DB에 진행 상태 표시 (페이지 이동해도 유지) ⭐⭐⭐
+    const startedAt = new Date().toISOString();
     setAiScoringInProgress(true);
+    setScoringStartedAt(startedAt);
     setAiError(null);
 
     try {
+      // DB에 채점 시작 표시
+      const { error: updateError } = await supabase
+        .from('team_reports')
+        .update({
+          scoring_in_progress: true,
+          scoring_started_at: startedAt,
+        })
+        .eq('team_id', teamId);
+
+      if (updateError) {
+        console.error('DB 진행 상태 업데이트 실패:', updateError);
+      }
+
       console.log('[채점] 팀 점수 채점 시작...');
       const teamRes = await fetch('/api/score-report', {
         method: 'POST',
@@ -282,19 +367,32 @@ export default function TeamReportPage() {
 
       console.log('[채점] 모든 채점 완료. 데이터 다시 로드...');
 
+      // ⭐ DB에 채점 완료 표시
+      await supabase
+        .from('team_reports')
+        .update({ scoring_in_progress: false })
+        .eq('team_id', teamId);
+
       if (report) await loadAllData(report);
 
       alert('🎉 채점 완료! 결과를 확인하세요.');
     } catch (e: any) {
       console.error('AI 채점 에러:', e);
       setAiError(e?.message || '채점 중 오류가 발생했습니다');
+
+      // ⭐ DB 에러 시에도 진행 상태 초기화
+      await supabase
+        .from('team_reports')
+        .update({ scoring_in_progress: false })
+        .eq('team_id', teamId);
+
       alert('❌ 채점 실패: ' + (e?.message || '알 수 없는 오류'));
     } finally {
       setAiScoringInProgress(false);
     }
   }
 
-  // ⭐ AI 다듬기
+  // ⭐ AI 다듬기 — DB 진행 상태 추적 추가
   async function handlePolishing() {
     if (!isLeader) {
       alert('팀장만 다듬기를 실행할 수 있어요!');
@@ -306,19 +404,36 @@ export default function TeamReportPage() {
       return;
     }
 
+    if (polishingInProgress) {
+      alert('이미 다듬기가 진행 중이에요!');
+      return;
+    }
+
     const ok = confirm(
       '📝 AI 보고서 다듬기를 시작합니다.\n\n' +
       '• 약 2~3분 소요됩니다\n' +
       '• 학생 답변을 책 분량으로 변환합니다\n' +
-      '• 한 번만 실행 가능해요\n\n' +
+      '• 한 번만 실행 가능해요\n' +
+      '• 다듬기 중에도 종합 보고서는 자유롭게 볼 수 있어요\n\n' +
       '계속하시겠어요?'
     );
     if (!ok) return;
 
+    const startedAt = new Date().toISOString();
     setPolishingInProgress(true);
+    setPolishingStartedAt(startedAt);
     setPolishError(null);
 
     try {
+      // ⭐ DB에 다듬기 시작 표시
+      await supabase
+        .from('team_reports')
+        .update({
+          polishing_in_progress: true,
+          polishing_started_at: startedAt,
+        })
+        .eq('team_id', teamId);
+
       const res = await fetch('/api/polish-report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -334,10 +449,23 @@ export default function TeamReportPage() {
       setPolished(result.polished);
       setPolishedAt(new Date().toISOString());
 
+      // ⭐ DB에 다듬기 완료 표시
+      await supabase
+        .from('team_reports')
+        .update({ polishing_in_progress: false })
+        .eq('team_id', teamId);
+
       alert('🎉 다듬기 완료!\n미리보기에서 책 분량의 보고서를 확인하세요.');
     } catch (e: any) {
       console.error('AI 다듬기 에러:', e);
       setPolishError(e?.message || '다듬기 중 오류');
+
+      // ⭐ 에러 시에도 진행 상태 초기화
+      await supabase
+        .from('team_reports')
+        .update({ polishing_in_progress: false })
+        .eq('team_id', teamId);
+
       alert('❌ 다듬기 실패: ' + (e?.message || '알 수 없는 오류'));
     } finally {
       setPolishingInProgress(false);
@@ -351,6 +479,15 @@ export default function TeamReportPage() {
       else next.add(cardId);
       return next;
     });
+  };
+
+  // ⭐ NEW: 경과 시간 계산 (mm:ss 형식)
+  const formatElapsed = (startedAt: string | null): string => {
+    if (!startedAt) return '';
+    const elapsed = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
+    const mm = Math.floor(elapsed / 60);
+    const ss = elapsed % 60;
+    return `${mm}:${String(ss).padStart(2, '0')}`;
   };
 
   if (loading) {
@@ -451,6 +588,7 @@ export default function TeamReportPage() {
           personalScores={personalScores}
           isLeader={isLeader}
           inProgress={aiScoringInProgress}
+          startedAt={scoringStartedAt}
           aiError={aiError}
           onScoring={handleAiScoring}
         />
@@ -464,12 +602,13 @@ export default function TeamReportPage() {
           polishedAt={polishedAt}
           isLeader={isLeader}
           inProgress={polishingInProgress}
+          startedAt={polishingStartedAt}
           polishError={polishError}
           onPolishing={handlePolishing}
         />
 
         {/* ⭐ v2: 미리보기 버튼 라벨 — 다듬기 전/후 동적 변경 */}
-        <div className="grid grid-cols-2 gap-2.5 mb-8">
+        <div className="grid grid-cols-2 gap-2.5 mb-3">
           <button
             onClick={() => router.push(`/team/${teamId}/report/preview`)}
             className="py-3 font-bold rounded-xl transition-all hover:scale-[1.02]"
@@ -508,6 +647,33 @@ export default function TeamReportPage() {
             </button>
           )}
         </div>
+
+        {/* ⭐⭐⭐ NEW: 채점/다듬기 진행 중 안내 (보고서 버튼 옆) ⭐⭐⭐ */}
+        {(aiScoringInProgress || polishingInProgress) && (
+          <div className="rounded-lg px-3 py-2 mb-8 flex items-center justify-center gap-2"
+            style={{
+              background: 'rgba(139, 92, 246, 0.08)',
+              border: '0.5px solid rgba(139, 92, 246, 0.3)',
+            }}>
+            <div className="w-3 h-3 rounded-full inline-progress-dot"
+              style={{
+                border: `1.5px solid ${S.purple}33`,
+                borderTopColor: S.purple,
+              }} />
+            <p className="text-[11px] font-mono" style={{ color: S.purple }}>
+              {aiScoringInProgress && polishingInProgress
+                ? '🤖 채점 + 다듬기 백그라운드 진행 중'
+                : aiScoringInProgress
+                  ? '🤖 채점은 백그라운드에서 진행 중이에요'
+                  : '📝 다듬기는 백그라운드에서 진행 중이에요'}
+            </p>
+            <style jsx>{`
+              .inline-progress-dot { animation: spin 0.8s linear infinite; }
+              @keyframes spin { to { transform: rotate(360deg); } }
+            `}</style>
+          </div>
+        )}
+        {!(aiScoringInProgress || polishingInProgress) && <div className="mb-8" />}
 
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-3">
@@ -743,18 +909,34 @@ function MemberSelectModal({
 }
 
 // ═══════════════════════════════════════════════════════
-// AI 채점 섹션 (1,000점)
+// AI 채점 섹션 (1,000점) - startedAt 받음
 // ═══════════════════════════════════════════════════════
 function ScoringSection({
-  teamScoring, personalScores, isLeader, inProgress, aiError, onScoring,
+  teamScoring, personalScores, isLeader, inProgress, startedAt, aiError, onScoring,
 }: {
   teamScoring: TeamScoring | null;
   personalScores: PersonalScore[];
   isLeader: boolean;
   inProgress: boolean;
+  startedAt: string | null;
   aiError: string | null;
   onScoring: () => void;
 }) {
+  // ⭐ NEW: 1초마다 경과시간 갱신
+  const [elapsed, setElapsed] = useState<string>('');
+  useEffect(() => {
+    if (!inProgress || !startedAt) return;
+    const update = () => {
+      const secs = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
+      const mm = Math.floor(secs / 60);
+      const ss = secs % 60;
+      setElapsed(`${mm}:${String(ss).padStart(2, '0')}`);
+    };
+    update();
+    const i = setInterval(update, 1000);
+    return () => clearInterval(i);
+  }, [inProgress, startedAt]);
+
   if (inProgress) {
     return (
       <div className="rounded-xl p-5 mb-4 text-center"
@@ -769,6 +951,15 @@ function ScoringSection({
           1,000점 만점 채점 진행 중<br />
           (팀 점수 920 + 개인 점수 80)<br />
           약 3~5분 소요됩니다.
+        </p>
+        {elapsed && (
+          <p className="text-[11px] font-mono mt-2.5 px-3 py-1 rounded-full inline-block"
+            style={{ background: `${S.purple}15`, color: S.purple, border: `0.5px solid ${S.purple}40` }}>
+            ⏱ 경과 {elapsed}
+          </p>
+        )}
+        <p className="text-[10px] mt-3" style={{ color: S.cyan }}>
+          💡 채점 중에도 종합 보고서는 자유롭게 볼 수 있어요
         </p>
         <style jsx>{`
           .scoring-spinner { animation: spin 0.8s linear infinite; }
@@ -1112,18 +1303,34 @@ function FeedbackSection({ breakdown }: { breakdown: AreaBreakdown }) {
 }
 
 // ═══════════════════════════════════════════════════════
-// AI 다듬기 섹션
+// AI 다듬기 섹션 - startedAt 받음
 // ═══════════════════════════════════════════════════════
 function PolishingSection({
-  polished, polishedAt, isLeader, inProgress, polishError, onPolishing,
+  polished, polishedAt, isLeader, inProgress, startedAt, polishError, onPolishing,
 }: {
   polished: PolishedData | null;
   polishedAt: string | null;
   isLeader: boolean;
   inProgress: boolean;
+  startedAt: string | null;
   polishError: string | null;
   onPolishing: () => void;
 }) {
+  // ⭐ NEW: 1초마다 경과시간 갱신
+  const [elapsed, setElapsed] = useState<string>('');
+  useEffect(() => {
+    if (!inProgress || !startedAt) return;
+    const update = () => {
+      const secs = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
+      const mm = Math.floor(secs / 60);
+      const ss = secs % 60;
+      setElapsed(`${mm}:${String(ss).padStart(2, '0')}`);
+    };
+    update();
+    const i = setInterval(update, 1000);
+    return () => clearInterval(i);
+  }, [inProgress, startedAt]);
+
   if (inProgress) {
     return (
       <div className="rounded-xl p-5 mb-4 text-center"
@@ -1137,6 +1344,15 @@ function PolishingSection({
         <p className="text-[11px] text-gray-500 leading-relaxed">
           16개 카드를 책 분량으로 변환 중<br />
           약 2~3분 소요됩니다.
+        </p>
+        {elapsed && (
+          <p className="text-[11px] font-mono mt-2.5 px-3 py-1 rounded-full inline-block"
+            style={{ background: `${S.pink}15`, color: S.pink, border: `0.5px solid ${S.pink}40` }}>
+            ⏱ 경과 {elapsed}
+          </p>
+        )}
+        <p className="text-[10px] mt-3" style={{ color: S.cyan }}>
+          💡 다듬기 중에도 종합 보고서는 자유롭게 볼 수 있어요
         </p>
         <style jsx>{`
           .polish-spinner { animation: spin 0.8s linear infinite; }
