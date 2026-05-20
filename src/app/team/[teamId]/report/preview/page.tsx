@@ -126,16 +126,88 @@ export default function TeamReportPreviewPage() {
     // 페이지 렌더링 + 폰트 로딩 시간 확보 후 자동 시작
     const timer = setTimeout(() => {
       handlePdfDownload(true); // skipConfirm=true (확인 모달 건너뛰기)
-    }, 1500);
+    }, 2500); // ⭐ 1500 → 2500ms로 증가 (폰트/이미지 로딩 안정성)
 
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, report, searchParams]);
 
-  // ⭐ v2: PDF 다운로드 함수
+  // ⭐⭐⭐ NEW v4: 안전한 요소 캡처 (0x0 canvas 에러 방지) ⭐⭐⭐
+  // 원인: createPattern은 canvas의 width/height가 0이면 실패
+  // 대응: 캡처 전 element 크기 검증 + 강제 layout 갱신 + 더 안전한 html2canvas 옵션
+  async function safeCaptureElement(
+    element: HTMLElement,
+    retries = 3,
+  ): Promise<HTMLCanvasElement> {
+    const html2canvas = (await import('html2canvas')).default;
+
+    // ⭐ 캡처 직전: element가 실제로 화면에 그려졌는지 확인
+    // requestAnimationFrame 두 번으로 다음 paint 완료까지 대기
+    await new Promise<void>(resolve => {
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    });
+
+    // ⭐ 강제 layout 갱신 (offsetHeight 읽기)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const _ = element.offsetHeight;
+
+    // ⭐ element 크기 검증
+    const rect = element.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) {
+      if (retries > 0) {
+        console.warn(`[PDF] element 크기 0, 재시도 (남은: ${retries})`);
+        await new Promise(r => setTimeout(r, 400));
+        return safeCaptureElement(element, retries - 1);
+      }
+      throw new Error('보고서 영역이 화면에 표시되지 않아 PDF를 만들 수 없어요.');
+    }
+
+    // ⭐ 더 안전한 html2canvas 옵션
+    return html2canvas(element, {
+      scale: 2,
+      backgroundColor: '#050505',
+      useCORS: true,
+      allowTaint: false,
+      logging: false,
+      // ⭐ 명시적 크기 (windowWidth/Height 대신 width/height로 명확히)
+      width: Math.ceil(rect.width),
+      height: Math.ceil(rect.height),
+      // ⭐ foreignObject 비활성화 (일부 브라우저에서 0x0 캔버스 유발)
+      foreignObjectRendering: false,
+      // ⭐ 0x0 요소 무시 (createPattern 에러 방지)
+      ignoreElements: (el) => {
+        try {
+          const r = (el as HTMLElement).getBoundingClientRect?.();
+          if (!r) return false;
+          // 0x0 크기 요소는 캡처 제외
+          if (r.width === 0 || r.height === 0) return true;
+          return false;
+        } catch {
+          return false;
+        }
+      },
+      // ⭐ onclone: cloned document에서 transition/animation 제거 (안정화)
+      onclone: (clonedDoc) => {
+        const clonedEl = clonedDoc.getElementById('book-page-content');
+        if (clonedEl) {
+          // opacity transition 제거
+          (clonedEl as HTMLElement).style.opacity = '1';
+          (clonedEl as HTMLElement).style.transition = 'none';
+        }
+        // 모든 element의 animation/transition 중지
+        const allElements = clonedDoc.querySelectorAll('*');
+        allElements.forEach((el) => {
+          (el as HTMLElement).style.animation = 'none';
+          (el as HTMLElement).style.transition = 'none';
+        });
+      },
+    });
+  }
+
+  // ⭐ v2: PDF 다운로드 함수 — v4에서 안전 캡처 사용
   async function handlePdfDownload(skipConfirm = false) {
     if (isPdfGenerating || !report) return;
-    
+
     if (!skipConfirm) {
       const ok = confirm(
         '📄 PDF 다운로드를 시작합니다.\n\n' +
@@ -150,14 +222,19 @@ export default function TeamReportPreviewPage() {
     setIsPdfGenerating(true);
     setPdfProgress(0);
 
+    // ⭐ NEW v4: PDF 모드 시작 시 transitioning 강제 OFF (opacity 0 방지)
+    setTransitioning(false);
+
     try {
       const { jsPDF } = await import('jspdf');
-      const html2canvas = (await import('html2canvas')).default;
 
       // 폰트 완전 로딩 대기
       if ((document as any).fonts?.ready) {
         await (document as any).fonts.ready;
       }
+
+      // ⭐ NEW v4: 첫 렌더 안정화 추가 대기
+      await new Promise(r => setTimeout(r, 500));
 
       // A4 가로 (책 펼침면 형식)
       const pdf = new jsPDF({
@@ -174,20 +251,30 @@ export default function TeamReportPreviewPage() {
         setPageIndex(i);
         setTransitioning(false); // PDF 모드에서는 transitioning 끄기
 
-        // React 렌더링 + 이미지 로딩 대기
-        await new Promise(r => setTimeout(r, 600));
+        // React 렌더링 + 이미지 로딩 대기 (v4: 600 → 900ms)
+        await new Promise(r => setTimeout(r, 900));
 
         const element = document.getElementById('book-page-content');
-        if (!element) continue;
+        if (!element) {
+          console.warn(`[PDF] 페이지 ${i + 1}: element를 찾을 수 없음, 스킵`);
+          continue;
+        }
 
-        const canvas = await html2canvas(element, {
-          scale: 2, // 고해상도
-          backgroundColor: '#050505',
-          useCORS: true,
-          logging: false,
-          windowWidth: element.scrollWidth,
-          windowHeight: element.scrollHeight,
-        });
+        // ⭐ v4: 안전 캡처 함수 사용
+        let canvas: HTMLCanvasElement;
+        try {
+          canvas = await safeCaptureElement(element);
+        } catch (capErr: any) {
+          console.error(`[PDF] 페이지 ${i + 1} 캡처 실패:`, capErr);
+          // 한 페이지가 실패해도 나머지는 계속 진행
+          continue;
+        }
+
+        // ⭐ v4: canvas 자체 크기 검증
+        if (canvas.width === 0 || canvas.height === 0) {
+          console.warn(`[PDF] 페이지 ${i + 1}: canvas 크기 0, 스킵`);
+          continue;
+        }
 
         const imgData = canvas.toDataURL('image/png');
 
@@ -397,8 +484,9 @@ export default function TeamReportPreviewPage() {
               background: `linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01))`,
               border: `0.5px solid rgba(255, 215, 0, 0.2)`,
               boxShadow: `0 0 60px rgba(255, 215, 0, 0.08), 0 8px 32px rgba(0,0,0,0.5)`,
+              // ⭐ v4: PDF 생성 중에는 opacity 강제 1 (transitioning 무시)
               opacity: (transitioning && !isPdfGenerating) ? 0 : 1,
-              transition: 'opacity 0.2s ease-out',
+              transition: isPdfGenerating ? 'none' : 'opacity 0.2s ease-out',
             }}>
             <PageContent pageIndex={pageIndex} report={report} polished={polished} />
           </div>
