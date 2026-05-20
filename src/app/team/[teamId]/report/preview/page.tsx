@@ -34,7 +34,6 @@ const STAGES = [
 
 const TOTAL_PAGES = 18;
 
-// ⭐ PDF용 한글 폰트 스택
 const PDF_FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", "Noto Sans KR", sans-serif';
 
 interface PolishedCard {
@@ -133,7 +132,7 @@ export default function TeamReportPreviewPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, report, searchParams]);
 
-  // ⭐⭐⭐ v10: html-to-image로 교체 — 한글/Tailwind/그라데이션 완벽 지원 ⭐⭐⭐
+  // ⭐⭐⭐ v11: 속도 최적화 - 대기 시간 단축, pixelRatio 조정 ⭐⭐⭐
   async function handlePdfDownload(skipConfirm = false) {
     if (isPdfGenerating || !report) return;
 
@@ -141,7 +140,7 @@ export default function TeamReportPreviewPage() {
       const ok = confirm(
         '📄 PDF 다운로드를 시작합니다.\n\n' +
         '• 18페이지 책을 PDF로 변환합니다\n' +
-        '• 약 30초~1분 소요됩니다\n' +
+        '• 약 20~30초 소요됩니다\n' +
         '• 진행 중 화면이 자동으로 넘어갑니다\n\n' +
         '계속하시겠어요?'
       );
@@ -157,21 +156,13 @@ export default function TeamReportPreviewPage() {
       const { jsPDF } = await import('jspdf');
       const { toPng } = await import('html-to-image');
 
-      // 폰트 로딩 대기
+      // 폰트 로딩 대기 (한번만)
       if ((document as any).fonts?.ready) {
         await (document as any).fonts.ready;
       }
 
-      // 한글 폰트 글리프 강제 로딩
-      try {
-        await (document as any).fonts?.load('14px sans-serif', '한글폰트로딩테스트');
-        await (document as any).fonts?.load('bold 18px sans-serif', '한글');
-      } catch (e) {
-        // 무시
-      }
-
-      // 첫 렌더 안정화
-      await new Promise(r => setTimeout(r, 800));
+      // 첫 렌더 안정화 (단축: 800 → 400ms)
+      await new Promise(r => setTimeout(r, 400));
 
       const pdf = new jsPDF({
         orientation: 'landscape',
@@ -186,12 +177,12 @@ export default function TeamReportPreviewPage() {
         setPageIndex(i);
         setTransitioning(false);
 
-        // React 렌더링 + forceDesktop 모드 반영 대기
-        await new Promise(r => setTimeout(r, 1200));
+        // 페이지 렌더 대기 (단축: 1200 → 500ms)
+        await new Promise(r => setTimeout(r, 500));
 
-        // 다음 paint 완료까지 대기
+        // 다음 paint 완료까지 대기 (1번만 - 2번에서 1번으로)
         await new Promise<void>(resolve => {
-          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+          requestAnimationFrame(() => resolve());
         });
 
         const element = document.getElementById('book-page-content');
@@ -200,32 +191,29 @@ export default function TeamReportPreviewPage() {
           continue;
         }
 
-        // element 크기 검증
-        let rect = element.getBoundingClientRect();
-        let retries = 3;
-        while ((rect.width === 0 || rect.height === 0) && retries > 0) {
-          console.warn(`[PDF] 페이지 ${i + 1}: 크기 0, 재시도 (남은: ${retries})`);
-          await new Promise(r => setTimeout(r, 400));
-          rect = element.getBoundingClientRect();
-          retries--;
-        }
+        // 크기 검증 (간소화)
+        const rect = element.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) {
-          console.error(`[PDF] 페이지 ${i + 1}: 크기 0 지속, 스킵`);
-          continue;
+          // 한번만 재시도
+          await new Promise(r => setTimeout(r, 300));
+          const rect2 = element.getBoundingClientRect();
+          if (rect2.width === 0 || rect2.height === 0) {
+            console.error(`[PDF] 페이지 ${i + 1}: 크기 0, 스킵`);
+            continue;
+          }
         }
 
-        // ⭐ html-to-image로 캡처
+        // ⭐ html-to-image 캡처 (pixelRatio 2 → 1.5로 속도 ↑)
         let imgData: string;
         try {
           imgData = await toPng(element, {
-            pixelRatio: 2,
+            pixelRatio: 1.5, // ⭐ 속도 우선 (화질 거의 동일)
             backgroundColor: '#050505',
-            cacheBust: true,
+            cacheBust: false, // ⭐ 캐시 활용 (속도 ↑)
             style: {
               fontFamily: PDF_FONT_STACK,
             },
             filter: (node) => {
-              // 0x0 요소 제외
               if (node instanceof HTMLElement) {
                 const r = node.getBoundingClientRect?.();
                 if (r && r.width === 0 && r.height === 0) return false;
@@ -238,12 +226,12 @@ export default function TeamReportPreviewPage() {
           continue;
         }
 
-        // 이미지 크기 측정
+        // 이미지 크기 측정 (타임아웃 단축: 5초 → 3초)
         const tmpImg = new window.Image();
         tmpImg.src = imgData;
         try {
           await new Promise<void>((resolve, reject) => {
-            const timeout = setTimeout(() => reject(new Error('이미지 로드 타임아웃')), 5000);
+            const timeout = setTimeout(() => reject(new Error('이미지 로드 타임아웃')), 3000);
             tmpImg.onload = () => { clearTimeout(timeout); resolve(); };
             tmpImg.onerror = () => { clearTimeout(timeout); reject(new Error('이미지 로드 실패')); };
           });
