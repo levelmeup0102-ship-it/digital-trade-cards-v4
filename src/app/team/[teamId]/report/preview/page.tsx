@@ -65,6 +65,12 @@ export default function TeamReportPreviewPage() {
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
   const [pdfProgress, setPdfProgress] = useState(0);
 
+  // ⭐⭐⭐ v8 옵션 A: PDF 캡처 중 강제 데스크탑 모드 (Tailwind md: 우회) ⭐⭐⭐
+  // 핵심: html2canvas가 md: 브레이크포인트를 못 잡아서 1단으로 렌더되는 문제 해결
+  // 방법: PDF 캡처 중에는 모든 자식 컴포넌트에 forceDesktop=true 전달 →
+  //       md: 클래스 대신 inline 스타일로 데스크탑 레이아웃 강제
+  const [pdfForceDesktop, setPdfForceDesktop] = useState(false);
+
   const autoPdfTriggeredRef = useRef(false);
 
   useEffect(() => {
@@ -146,6 +152,7 @@ export default function TeamReportPreviewPage() {
     setIsPdfGenerating(true);
     setPdfProgress(0);
     setTransitioning(false); // PDF 모드 시작 시 transitioning OFF
+    setPdfForceDesktop(true); // ⭐ v8: 강제 데스크탑 모드 ON
 
     try {
       const { jsPDF } = await import('jspdf');
@@ -172,8 +179,8 @@ export default function TeamReportPreviewPage() {
         setPageIndex(i);
         setTransitioning(false);
 
-        // React 렌더링 + 폰트 안정화 (v5: 600 → 900ms)
-        await new Promise(r => setTimeout(r, 900));
+        // React 렌더링 + 폰트 안정화 + forceDesktop 모드 반영 대기 (v8: 900 → 1200ms)
+        await new Promise(r => setTimeout(r, 1200));
 
         // ⭐ v5: 다음 paint 완료까지 대기 (createPattern 0x0 에러 방지)
         await new Promise<void>(resolve => {
@@ -200,41 +207,7 @@ export default function TeamReportPreviewPage() {
           continue;
         }
 
-        // ⭐⭐⭐ v7: element 자체를 캡처 전에 1200px로 강제 변경 ⭐⭐⭐
-        // 핵심: windowWidth 옵션이 안 먹는 한계 → 진짜 DOM의 element 너비를 직접 변경
-        // (md: 브레이크포인트 통과 → 2단 펼침면 활성화)
-        // 캡처 후엔 원복해서 사용자 화면엔 영향 X
-        const parentEl = element.parentElement;
-        const originalElementStyle = {
-          width: element.style.width,
-          maxWidth: element.style.maxWidth,
-          minWidth: element.style.minWidth,
-        };
-        const originalParentStyle = parentEl ? {
-          width: parentEl.style.width,
-          maxWidth: parentEl.style.maxWidth,
-          minWidth: parentEl.style.minWidth,
-        } : null;
-
-        // 강제 1200px 적용
-        element.style.width = '1200px';
-        element.style.maxWidth = '1200px';
-        element.style.minWidth = '1200px';
-        if (parentEl) {
-          parentEl.style.width = '1200px';
-          parentEl.style.maxWidth = '1200px';
-          parentEl.style.minWidth = '1200px';
-        }
-
-        // 강제 reflow + 다음 paint 대기 (변경된 레이아웃 안정화)
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const _forceLayout = element.offsetHeight;
-        await new Promise<void>(resolve => {
-          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-        });
-        await new Promise(r => setTimeout(r, 300));
-
-        // ⭐ v7: html2canvas 옵션 (windowWidth는 그대로 두되 실제 element가 이미 1200px)
+        // ⭐⭐⭐ v8: html2canvas — forceDesktop이 컴포넌트 레벨에서 처리하므로 옵션 최소 ⭐⭐⭐
         let canvas: HTMLCanvasElement;
         try {
           canvas = await html2canvas(element, {
@@ -242,8 +215,8 @@ export default function TeamReportPreviewPage() {
             backgroundColor: '#050505',
             useCORS: true,
             logging: false,
-            windowWidth: 1200,
-            windowHeight: 800,
+            windowWidth: element.scrollWidth,
+            windowHeight: element.scrollHeight,
             // ⭐ v5에서 유지: 0x0 요소만 자동 스킵
             ignoreElements: (el) => {
               try {
@@ -257,26 +230,7 @@ export default function TeamReportPreviewPage() {
           });
         } catch (capErr: any) {
           console.error(`[PDF] 페이지 ${i + 1} 캡처 실패:`, capErr);
-          // 실패해도 원복은 해야 함
-          element.style.width = originalElementStyle.width;
-          element.style.maxWidth = originalElementStyle.maxWidth;
-          element.style.minWidth = originalElementStyle.minWidth;
-          if (parentEl && originalParentStyle) {
-            parentEl.style.width = originalParentStyle.width;
-            parentEl.style.maxWidth = originalParentStyle.maxWidth;
-            parentEl.style.minWidth = originalParentStyle.minWidth;
-          }
           continue;
-        }
-
-        // ⭐ v7: 캡처 끝났으니 element 너비 원복 (사용자 화면 영향 X)
-        element.style.width = originalElementStyle.width;
-        element.style.maxWidth = originalElementStyle.maxWidth;
-        element.style.minWidth = originalElementStyle.minWidth;
-        if (parentEl && originalParentStyle) {
-          parentEl.style.width = originalParentStyle.width;
-          parentEl.style.maxWidth = originalParentStyle.maxWidth;
-          parentEl.style.minWidth = originalParentStyle.minWidth;
         }
 
         if (canvas.width === 0 || canvas.height === 0) {
@@ -317,6 +271,7 @@ export default function TeamReportPreviewPage() {
     } finally {
       setIsPdfGenerating(false);
       setPdfProgress(0);
+      setPdfForceDesktop(false); // ⭐ v8: 강제 데스크탑 모드 OFF
     }
   }
 
@@ -488,7 +443,7 @@ export default function TeamReportPreviewPage() {
               opacity: (transitioning && !isPdfGenerating) ? 0 : 1,
               transition: isPdfGenerating ? 'none' : 'opacity 0.2s ease-out',
             }}>
-            <PageContent pageIndex={pageIndex} report={report} polished={polished} />
+            <PageContent pageIndex={pageIndex} report={report} polished={polished} forceDesktop={pdfForceDesktop} />
           </div>
         </div>
 
@@ -572,42 +527,55 @@ export default function TeamReportPreviewPage() {
 }
 
 function PageContent({
-  pageIndex, report, polished,
+  pageIndex, report, polished, forceDesktop = false,
 }: {
   pageIndex: number;
   report: TeamReportData;
   polished: PolishedData | null;
+  forceDesktop?: boolean;
 }) {
-  if (pageIndex === 0) return <CoverPage report={report} polished={polished} />;
-  if (pageIndex === TOTAL_PAGES - 1) return <ConclusionPage report={report} polished={polished} />;
+  if (pageIndex === 0) return <CoverPage report={report} polished={polished} forceDesktop={forceDesktop} />;
+  if (pageIndex === TOTAL_PAGES - 1) return <ConclusionPage report={report} polished={polished} forceDesktop={forceDesktop} />;
   const card = report.cards[pageIndex - 1];
   if (!card) return null;
   const polishedCard = polished?.cards?.[card.cardId] || null;
-  return <CardSpread card={card} pageIndex={pageIndex} polishedCard={polishedCard} />;
+  return <CardSpread card={card} pageIndex={pageIndex} polishedCard={polishedCard} forceDesktop={forceDesktop} />;
 }
 
-function CoverPage({ report, polished }: { report: TeamReportData; polished: PolishedData | null; }) {
+function CoverPage({ report, polished, forceDesktop = false }: { report: TeamReportData; polished: PolishedData | null; forceDesktop?: boolean; }) {
   const { team } = report;
   const leader = team.members.find(m => m.isLeader);
+
+  // ⭐ v8: forceDesktop 모드 - md: 클래스 대신 inline 스타일로 데스크탑 레이아웃 강제
+  const gridStyle = forceDesktop
+    ? { display: 'grid', gridTemplateColumns: '1fr 1fr', position: 'relative' as const }
+    : undefined;
+  const leftColStyle = forceDesktop
+    ? { padding: '48px', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', textAlign: 'center' as const, borderRight: '1px solid rgba(255, 215, 0, 0.15)' }
+    : { borderColor: 'rgba(255, 215, 0, 0.15)' };
+  const rightColStyle = forceDesktop
+    ? { padding: '48px', display: 'flex', flexDirection: 'column' as const, justifyContent: 'center' }
+    : undefined;
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 relative">
+    <div className={forceDesktop ? "relative" : "grid grid-cols-1 md:grid-cols-2 relative"} style={gridStyle}>
       <CornerDecoration position="tl" color={S.gold} />
       <CornerDecoration position="tr" color={S.gold} />
       <CornerDecoration position="bl" color={S.gold} />
       <CornerDecoration position="br" color={S.gold} />
-      <div className="p-6 md:p-12 flex flex-col items-center justify-center text-center md:border-r"
-        style={{ borderColor: 'rgba(255, 215, 0, 0.15)' }}>
+      <div className={forceDesktop ? "" : "p-6 md:p-12 flex flex-col items-center justify-center text-center md:border-r"}
+        style={leftColStyle}>
         <div className="inline-flex items-center gap-2 mb-3 md:mb-4">
           <div className="w-1 h-1 rounded-full" style={{ background: S.gold, boxShadow: `0 0 6px ${S.gold}` }} />
           <span className="font-mono font-bold tracking-[5px] md:tracking-[6px]"
-            style={{ fontSize: '9px', color: S.gold, textShadow: `0 0 8px ${S.gold}66` }}>
+            style={{ fontSize: '9px', color: S.gold, textShadow: `0 0 8px ${S.gold}66`, letterSpacing: forceDesktop ? '6px' : undefined }}>
             CONNECTAI
           </span>
           <div className="w-1 h-1 rounded-full" style={{ background: S.gold, boxShadow: `0 0 6px ${S.gold}` }} />
         </div>
         <h1 className="font-black text-white mb-4 tracking-tight"
           style={{
-            fontSize: 'clamp(40px, 8vw, 56px)',
+            fontSize: forceDesktop ? '56px' : 'clamp(40px, 8vw, 56px)',
             lineHeight: 1.15,
             textShadow: `0 0 24px ${S.gold}55, 0 0 48px ${S.green}33`,
             letterSpacing: '-1px',
@@ -615,27 +583,26 @@ function CoverPage({ report, polished }: { report: TeamReportData; polished: Pol
           SIGNAL
         </h1>
         <div className="flex items-center gap-2 mb-4">
-          <div className="h-[1px] w-6 md:w-8" style={{ background: `linear-gradient(to right, transparent, ${S.gold})` }} />
+          <div className="h-[1px]" style={{ width: forceDesktop ? '32px' : undefined, background: `linear-gradient(to right, transparent, ${S.gold})` }} />
           <p className="font-mono font-bold tracking-[2px]"
             style={{ fontSize: '10px', color: S.aqua, textShadow: `0 0 6px ${S.aqua}66` }}>
             DIGITAL TRADE CARDS
           </p>
-          <div className="h-[1px] w-6 md:w-8" style={{ background: `linear-gradient(to left, transparent, ${S.gold})` }} />
+          <div className="h-[1px]" style={{ width: forceDesktop ? '32px' : undefined, background: `linear-gradient(to left, transparent, ${S.gold})` }} />
         </div>
-        <p className="text-[10px] md:text-[11px] text-gray-500 font-mono tracking-wider">
+        <p className="text-[10px] md:text-[11px] text-gray-500 font-mono tracking-wider" style={{ fontSize: forceDesktop ? '11px' : undefined }}>
           TEAM REPORT · 2026
         </p>
       </div>
-      <MobileSeparator color={S.gold} />
-      <div className="p-6 md:p-12 flex flex-col justify-center">
-        <p className="font-mono font-bold tracking-[3px] mb-2 md:mb-3"
-          style={{ fontSize: '10px', color: S.gold }}>
+      {!forceDesktop && <MobileSeparator color={S.gold} />}
+      <div className={forceDesktop ? "" : "p-6 md:p-12 flex flex-col justify-center"} style={rightColStyle}>
+        <p className="font-mono font-bold tracking-[3px] mb-2 md:mb-3" style={{ fontSize: '10px', color: S.gold }}>
           ★ TEAM PROFILE ★
         </p>
-        <h2 className="text-xl md:text-3xl font-bold text-white mb-2 leading-tight">
+        <h2 className="text-xl md:text-3xl font-bold text-white mb-2 leading-tight" style={{ fontSize: forceDesktop ? '30px' : undefined }}>
           {team.teamName}
         </h2>
-        <p className="text-[13px] md:text-[14px] mb-4 md:mb-6" style={{ color: S.aqua }}>
+        <p className="text-[13px] md:text-[14px] mb-4 md:mb-6" style={{ color: S.aqua, fontSize: forceDesktop ? '14px' : undefined }}>
           {team.item}
         </p>
         <div className="space-y-2 mb-4 md:mb-6">
@@ -680,25 +647,36 @@ function CoverPage({ report, polished }: { report: TeamReportData; polished: Pol
   );
 }
 
-function CardSpread({ card, pageIndex, polishedCard }: { card: ReportCard; pageIndex: number; polishedCard: PolishedCard | null; }) {
-  if (polishedCard) return <PolishedCardSpread card={card} pageIndex={pageIndex} polishedCard={polishedCard} />;
-  return <RawCardSpread card={card} pageIndex={pageIndex} />;
+function CardSpread({ card, pageIndex, polishedCard, forceDesktop = false }: { card: ReportCard; pageIndex: number; polishedCard: PolishedCard | null; forceDesktop?: boolean; }) {
+  if (polishedCard) return <PolishedCardSpread card={card} pageIndex={pageIndex} polishedCard={polishedCard} forceDesktop={forceDesktop} />;
+  return <RawCardSpread card={card} pageIndex={pageIndex} forceDesktop={forceDesktop} />;
 }
 
-function PolishedCardSpread({ card, pageIndex, polishedCard }: { card: ReportCard; pageIndex: number; polishedCard: PolishedCard; }) {
+function PolishedCardSpread({ card, pageIndex, polishedCard, forceDesktop = false }: { card: ReportCard; pageIndex: number; polishedCard: PolishedCard; forceDesktop?: boolean; }) {
   const cardColor = CARD_COLORS[card.cardId]?.bg || S.cyan;
   const topic = TOPICS.find(t => t.id === card.cardId);
   const categoryInfo = topic ? CATEGORY_STYLES[topic.category] : null;
   const difficulty = topic?.difficulty || 0;
   const participants = Array.from(new Set(card.memberInsights?.map(mi => mi.memberName) || []));
 
+  // ⭐ v8: forceDesktop 모드 - inline 스타일로 데스크탑 레이아웃 강제
+  const gridStyle = forceDesktop
+    ? { display: 'grid', gridTemplateColumns: '1fr 1fr', position: 'relative' as const }
+    : undefined;
+  const leftColStyle = forceDesktop
+    ? { padding: '28px', position: 'relative' as const, borderRight: `1px solid rgba(255, 215, 0, 0.15)` }
+    : { borderColor: 'rgba(255, 215, 0, 0.15)' };
+  const rightColStyle = forceDesktop
+    ? { padding: '28px', position: 'relative' as const }
+    : undefined;
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 relative">
+    <div className={forceDesktop ? "relative" : "grid grid-cols-1 md:grid-cols-2 relative"} style={gridStyle}>
       <CornerDecoration position="tl" color={`${cardColor}99`} />
       <CornerDecoration position="tr" color={`${cardColor}99`} />
       <CornerDecoration position="bl" color={`${cardColor}99`} />
       <CornerDecoration position="br" color={`${cardColor}99`} />
-      <div className="p-5 md:p-7 relative md:border-r" style={{ borderColor: 'rgba(255, 215, 0, 0.15)' }}>
+      <div className={forceDesktop ? "" : "p-5 md:p-7 relative md:border-r"} style={leftColStyle}>
         <div className="flex items-start justify-between mb-3 gap-2">
           <div className="flex items-center gap-2 md:gap-2.5 min-w-0">
             <CardSignature cardId={card.cardId} color={cardColor} />
@@ -751,20 +729,19 @@ function PolishedCardSpread({ card, pageIndex, polishedCard }: { card: ReportCar
             </div>
           </div>
         )}
-        <div className="absolute bottom-3 left-7 font-mono hidden md:block"
-          style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px' }}>
+        <div className={forceDesktop ? "absolute font-mono" : "absolute bottom-3 left-7 font-mono hidden md:block"}
+          style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px', bottom: forceDesktop ? '12px' : undefined, left: forceDesktop ? '28px' : undefined }}>
           PAGE {String(pageIndex + 1).padStart(2, '0')} · LEFT
         </div>
       </div>
-      <MobileSeparator color={cardColor} label="STRATEGY ↓" />
-      <div className="p-5 md:p-7 relative">
-        <div className="absolute top-4 right-7 font-mono text-gray-600 hidden md:block"
-          style={{ fontSize: '9px', letterSpacing: '1.5px' }}>
+      {!forceDesktop && <MobileSeparator color={cardColor} label="STRATEGY ↓" />}
+      <div className={forceDesktop ? "" : "p-5 md:p-7 relative"} style={rightColStyle}>
+        <div className={forceDesktop ? "absolute font-mono text-gray-600" : "absolute top-4 right-7 font-mono text-gray-600 hidden md:block"}
+          style={{ fontSize: '9px', letterSpacing: '1.5px', top: forceDesktop ? '16px' : undefined, right: forceDesktop ? '28px' : undefined }}>
           CONTINUED →
         </div>
         {polishedCard.strategy && (
-          <div className="mb-5 md:mt-6"
-            style={{ background: `linear-gradient(135deg, ${cardColor}15, ${cardColor}05)`, border: `0.5px solid ${cardColor}50`, borderRadius: '12px', padding: '14px' }}>
+          <div className="mb-5" style={{ background: `linear-gradient(135deg, ${cardColor}15, ${cardColor}05)`, border: `0.5px solid ${cardColor}50`, borderRadius: '12px', padding: '14px', marginTop: forceDesktop ? '24px' : undefined }}>
             <div className="flex items-center gap-1.5 mb-2">
               <span style={{ fontSize: '11px' }}>⚡</span>
               <p className="font-mono font-bold tracking-widest"
@@ -830,17 +807,16 @@ function PolishedCardSpread({ card, pageIndex, polishedCard }: { card: ReportCar
             </div>
           </div>
         )}
-        <div className="mt-4 md:mt-0 md:absolute md:bottom-3 md:right-7 font-mono text-center md:text-left"
-          style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px' }}>
-          PAGE {String(pageIndex + 1).padStart(2, '0')}
-          <span className="hidden md:inline"> · RIGHT</span>
+        <div className={forceDesktop ? "absolute font-mono" : "mt-4 md:mt-0 md:absolute md:bottom-3 md:right-7 font-mono text-center md:text-left"}
+          style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px', bottom: forceDesktop ? '12px' : undefined, right: forceDesktop ? '28px' : undefined }}>
+          PAGE {String(pageIndex + 1).padStart(2, '0')}{forceDesktop ? ' · RIGHT' : <span className="hidden md:inline"> · RIGHT</span>}
         </div>
       </div>
     </div>
   );
 }
 
-function RawCardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: number }) {
+function RawCardSpread({ card, pageIndex, forceDesktop = false }: { card: ReportCard; pageIndex: number; forceDesktop?: boolean; }) {
   const cardColor = CARD_COLORS[card.cardId]?.bg || S.cyan;
   const topic = TOPICS.find(t => t.id === card.cardId);
   const categoryInfo = topic ? CATEGORY_STYLES[topic.category] : null;
@@ -849,13 +825,24 @@ function RawCardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: numbe
   const leftQuestions = card.questions.slice(0, 2);
   const rightQuestion = card.questions[2];
 
+  // ⭐ v8: forceDesktop 모드
+  const gridStyle = forceDesktop
+    ? { display: 'grid', gridTemplateColumns: '1fr 1fr', position: 'relative' as const }
+    : undefined;
+  const leftColStyle = forceDesktop
+    ? { padding: '28px', position: 'relative' as const, borderRight: `1px solid rgba(255, 215, 0, 0.15)` }
+    : { borderColor: 'rgba(255, 215, 0, 0.15)' };
+  const rightColStyle = forceDesktop
+    ? { padding: '28px', position: 'relative' as const }
+    : undefined;
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 relative">
+    <div className={forceDesktop ? "relative" : "grid grid-cols-1 md:grid-cols-2 relative"} style={gridStyle}>
       <CornerDecoration position="tl" color={`${cardColor}99`} />
       <CornerDecoration position="tr" color={`${cardColor}99`} />
       <CornerDecoration position="bl" color={`${cardColor}99`} />
       <CornerDecoration position="br" color={`${cardColor}99`} />
-      <div className="p-5 md:p-7 relative md:border-r" style={{ borderColor: 'rgba(255, 215, 0, 0.15)' }}>
+      <div className={forceDesktop ? "" : "p-5 md:p-7 relative md:border-r"} style={leftColStyle}>
         <div className="flex items-start justify-between mb-3 gap-2">
           <div className="flex items-center gap-2 md:gap-2.5 min-w-0">
             <CardSignature cardId={card.cardId} color={cardColor} />
@@ -897,18 +884,18 @@ function RawCardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: numbe
             </div>
           ))}
         </div>
-        <div className="absolute bottom-3 left-7 font-mono hidden md:block"
-          style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px' }}>
+        <div className={forceDesktop ? "absolute font-mono" : "absolute bottom-3 left-7 font-mono hidden md:block"}
+          style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px', bottom: forceDesktop ? '12px' : undefined, left: forceDesktop ? '28px' : undefined }}>
           PAGE {String(pageIndex + 1).padStart(2, '0')} · LEFT
         </div>
       </div>
-      <MobileSeparator color={cardColor} label="CONTINUED ↓" />
-      <div className="p-5 md:p-7 relative">
-        <div className="absolute top-4 right-7 font-mono text-gray-600 hidden md:block"
-          style={{ fontSize: '9px', letterSpacing: '1.5px' }}>
+      {!forceDesktop && <MobileSeparator color={cardColor} label="CONTINUED ↓" />}
+      <div className={forceDesktop ? "" : "p-5 md:p-7 relative"} style={rightColStyle}>
+        <div className={forceDesktop ? "absolute font-mono text-gray-600" : "absolute top-4 right-7 font-mono text-gray-600 hidden md:block"}
+          style={{ fontSize: '9px', letterSpacing: '1.5px', top: forceDesktop ? '16px' : undefined, right: forceDesktop ? '28px' : undefined }}>
           CONTINUED →
         </div>
-        <div className="mb-5 md:mt-9">
+        <div className="mb-5" style={{ marginTop: forceDesktop ? '36px' : undefined }}>
           {rightQuestion && <QuestionBlock qNum={3} q={rightQuestion} cardColor={cardColor} />}
         </div>
         <div className="mb-5 flex items-center gap-2">
@@ -950,30 +937,41 @@ function RawCardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: numbe
             </div>
           </div>
         )}
-        <div className="mt-4 md:mt-0 md:absolute md:bottom-3 md:right-7 font-mono text-center md:text-left"
-          style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px' }}>
-          PAGE {String(pageIndex + 1).padStart(2, '0')}
-          <span className="hidden md:inline"> · RIGHT</span>
+        <div className={forceDesktop ? "absolute font-mono" : "mt-4 md:mt-0 md:absolute md:bottom-3 md:right-7 font-mono text-center md:text-left"}
+          style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px', bottom: forceDesktop ? '12px' : undefined, right: forceDesktop ? '28px' : undefined }}>
+          PAGE {String(pageIndex + 1).padStart(2, '0')}{forceDesktop ? ' · RIGHT' : <span className="hidden md:inline"> · RIGHT</span>}
         </div>
       </div>
     </div>
   );
 }
 
-function ConclusionPage({ report, polished }: { report: TeamReportData; polished: PolishedData | null; }) {
+function ConclusionPage({ report, polished, forceDesktop = false }: { report: TeamReportData; polished: PolishedData | null; forceDesktop?: boolean; }) {
   const { team, cards, totalAnswers } = report;
   const filledStrategies = cards.filter(c => c.oneSentenceStrategy).length;
+
+  // ⭐ v8: forceDesktop 모드
+  const gridStyle = forceDesktop
+    ? { display: 'grid', gridTemplateColumns: '1fr 1fr', position: 'relative' as const }
+    : undefined;
+  const leftColStyle = forceDesktop
+    ? { padding: '40px', borderRight: `1px solid rgba(255, 215, 0, 0.15)` }
+    : { borderColor: 'rgba(255, 215, 0, 0.15)' };
+  const rightColStyle = forceDesktop
+    ? { padding: '40px', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', textAlign: 'center' as const }
+    : undefined;
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 relative">
+    <div className={forceDesktop ? "relative" : "grid grid-cols-1 md:grid-cols-2 relative"} style={gridStyle}>
       <CornerDecoration position="tl" color={S.gold} />
       <CornerDecoration position="tr" color={S.gold} />
       <CornerDecoration position="bl" color={S.gold} />
       <CornerDecoration position="br" color={S.gold} />
-      <div className="p-6 md:p-10 md:border-r" style={{ borderColor: 'rgba(255, 215, 0, 0.15)' }}>
+      <div className={forceDesktop ? "" : "p-6 md:p-10 md:border-r"} style={leftColStyle}>
         <p className="font-mono font-bold tracking-[3px] mb-3" style={{ fontSize: '10px', color: S.gold }}>
           ★ FINAL SUMMARY ★
         </p>
-        <h2 className="text-xl md:text-2xl font-bold text-white mb-2 leading-tight">전략 완성</h2>
+        <h2 className="text-xl md:text-2xl font-bold text-white mb-2 leading-tight" style={{ fontSize: forceDesktop ? '24px' : undefined }}>전략 완성</h2>
         <p className="text-[12px] text-gray-500 mb-5 md:mb-6">
           16개 카드를 통해 디지털 무역 전략을 완성했습니다.
         </p>
@@ -995,8 +993,8 @@ function ConclusionPage({ report, polished }: { report: TeamReportData; polished
           </div>
         )}
       </div>
-      <MobileSeparator color={S.gold} />
-      <div className="p-6 md:p-10 flex flex-col items-center justify-center text-center">
+      {!forceDesktop && <MobileSeparator color={S.gold} />}
+      <div className={forceDesktop ? "" : "p-6 md:p-10 flex flex-col items-center justify-center text-center"} style={rightColStyle}>
         <div className="mb-4 md:mb-6">
           <div className="inline-block relative">
             <div className="absolute pointer-events-none"
