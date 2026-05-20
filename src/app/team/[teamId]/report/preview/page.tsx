@@ -200,10 +200,41 @@ export default function TeamReportPreviewPage() {
           continue;
         }
 
-        // ⭐⭐⭐ v6: viewport 1200px 강제 (md: 2단 레이아웃 활성화) ⭐⭐⭐
-        // 핵심: html2canvas는 element의 scrollWidth로 viewport를 잡는데,
-        // 화면이 좁으면 (모바일 등) md: 브레이크포인트 안 먹어서 1단으로 캡처됨.
-        // 해결: 캡처용 viewport를 1200px로 명시적으로 강제 → md: 작동 → 2단 펼침면
+        // ⭐⭐⭐ v7: element 자체를 캡처 전에 1200px로 강제 변경 ⭐⭐⭐
+        // 핵심: windowWidth 옵션이 안 먹는 한계 → 진짜 DOM의 element 너비를 직접 변경
+        // (md: 브레이크포인트 통과 → 2단 펼침면 활성화)
+        // 캡처 후엔 원복해서 사용자 화면엔 영향 X
+        const parentEl = element.parentElement;
+        const originalElementStyle = {
+          width: element.style.width,
+          maxWidth: element.style.maxWidth,
+          minWidth: element.style.minWidth,
+        };
+        const originalParentStyle = parentEl ? {
+          width: parentEl.style.width,
+          maxWidth: parentEl.style.maxWidth,
+          minWidth: parentEl.style.minWidth,
+        } : null;
+
+        // 강제 1200px 적용
+        element.style.width = '1200px';
+        element.style.maxWidth = '1200px';
+        element.style.minWidth = '1200px';
+        if (parentEl) {
+          parentEl.style.width = '1200px';
+          parentEl.style.maxWidth = '1200px';
+          parentEl.style.minWidth = '1200px';
+        }
+
+        // 강제 reflow + 다음 paint 대기 (변경된 레이아웃 안정화)
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const _forceLayout = element.offsetHeight;
+        await new Promise<void>(resolve => {
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        });
+        await new Promise(r => setTimeout(r, 300));
+
+        // ⭐ v7: html2canvas 옵션 (windowWidth는 그대로 두되 실제 element가 이미 1200px)
         let canvas: HTMLCanvasElement;
         try {
           canvas = await html2canvas(element, {
@@ -211,23 +242,8 @@ export default function TeamReportPreviewPage() {
             backgroundColor: '#050505',
             useCORS: true,
             logging: false,
-            // ⭐ v6: viewport를 1200px로 강제 (md: 768px+ 통과)
             windowWidth: 1200,
             windowHeight: 800,
-            width: 1200,
-            // ⭐ v6: cloned DOM에서 책 element 너비만 1200px로 설정
-            // (전체 페이지가 아닌 책 element만, 다른 스타일은 건드리지 X)
-            onclone: (clonedDoc) => {
-              const target = clonedDoc.getElementById('book-page-content');
-              if (target) {
-                target.style.width = '1200px';
-                target.style.maxWidth = '1200px';
-                target.style.minWidth = '1200px';
-                // 한글 단어 깨짐 방지 (캔버스 변환 시 띄어쓰기 이상 처리 방지)
-                target.style.wordBreak = 'keep-all';
-                target.style.wordSpacing = 'normal';
-              }
-            },
             // ⭐ v5에서 유지: 0x0 요소만 자동 스킵
             ignoreElements: (el) => {
               try {
@@ -241,7 +257,26 @@ export default function TeamReportPreviewPage() {
           });
         } catch (capErr: any) {
           console.error(`[PDF] 페이지 ${i + 1} 캡처 실패:`, capErr);
+          // 실패해도 원복은 해야 함
+          element.style.width = originalElementStyle.width;
+          element.style.maxWidth = originalElementStyle.maxWidth;
+          element.style.minWidth = originalElementStyle.minWidth;
+          if (parentEl && originalParentStyle) {
+            parentEl.style.width = originalParentStyle.width;
+            parentEl.style.maxWidth = originalParentStyle.maxWidth;
+            parentEl.style.minWidth = originalParentStyle.minWidth;
+          }
           continue;
+        }
+
+        // ⭐ v7: 캡처 끝났으니 element 너비 원복 (사용자 화면 영향 X)
+        element.style.width = originalElementStyle.width;
+        element.style.maxWidth = originalElementStyle.maxWidth;
+        element.style.minWidth = originalElementStyle.minWidth;
+        if (parentEl && originalParentStyle) {
+          parentEl.style.width = originalParentStyle.width;
+          parentEl.style.maxWidth = originalParentStyle.maxWidth;
+          parentEl.style.minWidth = originalParentStyle.minWidth;
         }
 
         if (canvas.width === 0 || canvas.height === 0) {
