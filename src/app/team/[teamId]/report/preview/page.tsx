@@ -62,11 +62,9 @@ export default function TeamReportPreviewPage() {
   const [pageIndex, setPageIndex] = useState(0);
   const [transitioning, setTransitioning] = useState(false);
 
-  // ⭐ v2: PDF 다운로드 상태
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
   const [pdfProgress, setPdfProgress] = useState(0);
 
-  // ⭐ v3: autoPdf URL 파라미터 자동 트리거 (한 번만)
   const autoPdfTriggeredRef = useRef(false);
 
   useEffect(() => {
@@ -92,7 +90,7 @@ export default function TeamReportPreviewPage() {
               setPolished(parsed);
             }
           } catch (e) {
-            console.warn('다듬은 데이터 파싱 실패 - 학생 답변으로 표시', e);
+            console.warn('다듬은 데이터 파싱 실패', e);
           }
         }
 
@@ -116,95 +114,21 @@ export default function TeamReportPreviewPage() {
     }, 200);
   }, [pageIndex]);
 
-  // ⭐ v3: URL에 ?autoPdf=1이 있으면 데이터 로드 후 자동으로 PDF 다운로드 트리거
   useEffect(() => {
     if (loading || !report) return;
     if (autoPdfTriggeredRef.current) return;
     if (searchParams?.get('autoPdf') !== '1') return;
 
     autoPdfTriggeredRef.current = true;
-    // 페이지 렌더링 + 폰트 로딩 시간 확보 후 자동 시작
     const timer = setTimeout(() => {
-      handlePdfDownload(true); // skipConfirm=true (확인 모달 건너뛰기)
-    }, 2500); // ⭐ 1500 → 2500ms로 증가 (폰트/이미지 로딩 안정성)
+      handlePdfDownload(true);
+    }, 2500);
 
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, report, searchParams]);
 
-  // ⭐⭐⭐ NEW v4: 안전한 요소 캡처 (0x0 canvas 에러 방지) ⭐⭐⭐
-  // 원인: createPattern은 canvas의 width/height가 0이면 실패
-  // 대응: 캡처 전 element 크기 검증 + 강제 layout 갱신 + 더 안전한 html2canvas 옵션
-  async function safeCaptureElement(
-    element: HTMLElement,
-    retries = 3,
-  ): Promise<HTMLCanvasElement> {
-    const html2canvas = (await import('html2canvas')).default;
-
-    // ⭐ 캡처 직전: element가 실제로 화면에 그려졌는지 확인
-    // requestAnimationFrame 두 번으로 다음 paint 완료까지 대기
-    await new Promise<void>(resolve => {
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
-    });
-
-    // ⭐ 강제 layout 갱신 (offsetHeight 읽기)
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const _ = element.offsetHeight;
-
-    // ⭐ element 크기 검증
-    const rect = element.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) {
-      if (retries > 0) {
-        console.warn(`[PDF] element 크기 0, 재시도 (남은: ${retries})`);
-        await new Promise(r => setTimeout(r, 400));
-        return safeCaptureElement(element, retries - 1);
-      }
-      throw new Error('보고서 영역이 화면에 표시되지 않아 PDF를 만들 수 없어요.');
-    }
-
-    // ⭐ 더 안전한 html2canvas 옵션
-    return html2canvas(element, {
-      scale: 2,
-      backgroundColor: '#050505',
-      useCORS: true,
-      allowTaint: false,
-      logging: false,
-      // ⭐ 명시적 크기 (windowWidth/Height 대신 width/height로 명확히)
-      width: Math.ceil(rect.width),
-      height: Math.ceil(rect.height),
-      // ⭐ foreignObject 비활성화 (일부 브라우저에서 0x0 캔버스 유발)
-      foreignObjectRendering: false,
-      // ⭐ 0x0 요소 무시 (createPattern 에러 방지)
-      ignoreElements: (el) => {
-        try {
-          const r = (el as HTMLElement).getBoundingClientRect?.();
-          if (!r) return false;
-          // 0x0 크기 요소는 캡처 제외
-          if (r.width === 0 || r.height === 0) return true;
-          return false;
-        } catch {
-          return false;
-        }
-      },
-      // ⭐ onclone: cloned document에서 transition/animation 제거 (안정화)
-      onclone: (clonedDoc) => {
-        const clonedEl = clonedDoc.getElementById('book-page-content');
-        if (clonedEl) {
-          // opacity transition 제거
-          (clonedEl as HTMLElement).style.opacity = '1';
-          (clonedEl as HTMLElement).style.transition = 'none';
-        }
-        // 모든 element의 animation/transition 중지
-        const allElements = clonedDoc.querySelectorAll('*');
-        allElements.forEach((el) => {
-          (el as HTMLElement).style.animation = 'none';
-          (el as HTMLElement).style.transition = 'none';
-        });
-      },
-    });
-  }
-
-  // ⭐ v2: PDF 다운로드 함수 — v4에서 안전 캡처 사용
+  // ⭐⭐⭐ v5: PDF 다운로드 — 원래 옵션 유지 + 0x0 가드만 최소 추가 ⭐⭐⭐
   async function handlePdfDownload(skipConfirm = false) {
     if (isPdfGenerating || !report) return;
 
@@ -221,74 +145,104 @@ export default function TeamReportPreviewPage() {
 
     setIsPdfGenerating(true);
     setPdfProgress(0);
-
-    // ⭐ NEW v4: PDF 모드 시작 시 transitioning 강제 OFF (opacity 0 방지)
-    setTransitioning(false);
+    setTransitioning(false); // PDF 모드 시작 시 transitioning OFF
 
     try {
       const { jsPDF } = await import('jspdf');
+      const html2canvas = (await import('html2canvas')).default;
 
-      // 폰트 완전 로딩 대기
+      // 폰트 로딩 대기
       if ((document as any).fonts?.ready) {
         await (document as any).fonts.ready;
       }
 
-      // ⭐ NEW v4: 첫 렌더 안정화 추가 대기
+      // 첫 렌더 안정화
       await new Promise(r => setTimeout(r, 500));
 
-      // A4 가로 (책 펼침면 형식)
       const pdf = new jsPDF({
         orientation: 'landscape',
         unit: 'mm',
         format: 'a4',
       });
 
-      const pdfWidth = pdf.internal.pageSize.getWidth();   // 297mm
-      const pdfHeight = pdf.internal.pageSize.getHeight(); // 210mm
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
 
       for (let i = 0; i < TOTAL_PAGES; i++) {
-        // 페이지 이동
         setPageIndex(i);
-        setTransitioning(false); // PDF 모드에서는 transitioning 끄기
+        setTransitioning(false);
 
-        // React 렌더링 + 이미지 로딩 대기 (v4: 600 → 900ms)
+        // React 렌더링 + 폰트 안정화 (v5: 600 → 900ms)
         await new Promise(r => setTimeout(r, 900));
+
+        // ⭐ v5: 다음 paint 완료까지 대기 (createPattern 0x0 에러 방지)
+        await new Promise<void>(resolve => {
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+        });
 
         const element = document.getElementById('book-page-content');
         if (!element) {
-          console.warn(`[PDF] 페이지 ${i + 1}: element를 찾을 수 없음, 스킵`);
+          console.warn(`[PDF] 페이지 ${i + 1}: element 없음`);
           continue;
         }
 
-        // ⭐ v4: 안전 캡처 함수 사용
+        // ⭐ v5: element 크기 검증 (0x0이면 재시도)
+        let rect = element.getBoundingClientRect();
+        let retries = 3;
+        while ((rect.width === 0 || rect.height === 0) && retries > 0) {
+          console.warn(`[PDF] 페이지 ${i + 1}: 크기 0, 재시도 (남은: ${retries})`);
+          await new Promise(r => setTimeout(r, 400));
+          rect = element.getBoundingClientRect();
+          retries--;
+        }
+        if (rect.width === 0 || rect.height === 0) {
+          console.error(`[PDF] 페이지 ${i + 1}: 크기 0 지속, 스킵`);
+          continue;
+        }
+
+        // ⭐ v5: 원래 html2canvas 옵션 유지 (windowWidth/Height 그대로!)
+        // 추가한 건 ignoreElements만 (0x0 요소 자동 스킵)
         let canvas: HTMLCanvasElement;
         try {
-          canvas = await safeCaptureElement(element);
+          canvas = await html2canvas(element, {
+            scale: 2,
+            backgroundColor: '#050505',
+            useCORS: true,
+            logging: false,
+            windowWidth: element.scrollWidth,
+            windowHeight: element.scrollHeight,
+            // ⭐ v5 신규: 0x0 요소만 자동 스킵 (createPattern 에러 방지)
+            ignoreElements: (el) => {
+              try {
+                const r = (el as HTMLElement).getBoundingClientRect?.();
+                if (!r) return false;
+                // 정확히 0x0인 요소만 제외 (작은 요소는 통과)
+                return r.width === 0 && r.height === 0;
+              } catch {
+                return false;
+              }
+            },
+          });
         } catch (capErr: any) {
           console.error(`[PDF] 페이지 ${i + 1} 캡처 실패:`, capErr);
-          // 한 페이지가 실패해도 나머지는 계속 진행
           continue;
         }
 
-        // ⭐ v4: canvas 자체 크기 검증
         if (canvas.width === 0 || canvas.height === 0) {
-          console.warn(`[PDF] 페이지 ${i + 1}: canvas 크기 0, 스킵`);
+          console.warn(`[PDF] 페이지 ${i + 1}: canvas 0x0, 스킵`);
           continue;
         }
 
         const imgData = canvas.toDataURL('image/png');
 
-        // 이미지를 PDF 페이지에 fit (비율 유지)
         const canvasRatio = canvas.width / canvas.height;
         const pdfRatio = pdfWidth / pdfHeight;
 
         let renderWidth, renderHeight;
         if (canvasRatio > pdfRatio) {
-          // 가로가 더 넓음 → 가로 기준
           renderWidth = pdfWidth - 10;
           renderHeight = renderWidth / canvasRatio;
         } else {
-          // 세로가 더 김 → 세로 기준
           renderHeight = pdfHeight - 10;
           renderWidth = renderHeight * canvasRatio;
         }
@@ -317,7 +271,7 @@ export default function TeamReportPreviewPage() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (isPdfGenerating) return; // PDF 생성 중에는 키보드 무시
+      if (isPdfGenerating) return;
       if (e.key === 'ArrowRight') goToPage(pageIndex + 1);
       else if (e.key === 'ArrowLeft') goToPage(pageIndex - 1);
       else if (e.key === 'Escape') router.push(`/team/${teamId}/report`);
@@ -388,7 +342,6 @@ export default function TeamReportPreviewPage() {
           zIndex: 0,
         }} />
 
-      {/* ⭐ v2: PDF 생성 진행 모달 */}
       {isPdfGenerating && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
           style={{ background: 'rgba(0, 0, 0, 0.92)', backdropFilter: 'blur(8px)' }}>
@@ -427,7 +380,6 @@ export default function TeamReportPreviewPage() {
 
       <div className="relative z-10 max-w-5xl mx-auto w-full flex-1 flex flex-col">
 
-        {/* 헤더 */}
         <div className="flex items-center justify-between mb-3 md:mb-5 px-1 md:px-0 gap-2">
           <button onClick={() => router.push(`/team/${teamId}/report`)}
             className="text-[11px] md:text-[12px] text-gray-500 hover:text-gray-300 transition flex-shrink-0">
@@ -454,7 +406,6 @@ export default function TeamReportPreviewPage() {
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
-            {/* ⭐ v2: PDF 다운로드 버튼 */}
             <button
               onClick={() => handlePdfDownload()}
               disabled={isPdfGenerating}
@@ -477,14 +428,12 @@ export default function TeamReportPreviewPage() {
           </div>
         </div>
 
-        {/* 책 콘텐츠 */}
         <div className="flex-1 flex items-center justify-center mb-3 md:mb-4">
           <div id="book-page-content" className="w-full rounded-xl md:rounded-2xl overflow-hidden relative"
             style={{
               background: `linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01))`,
               border: `0.5px solid rgba(255, 215, 0, 0.2)`,
               boxShadow: `0 0 60px rgba(255, 215, 0, 0.08), 0 8px 32px rgba(0,0,0,0.5)`,
-              // ⭐ v4: PDF 생성 중에는 opacity 강제 1 (transitioning 무시)
               opacity: (transitioning && !isPdfGenerating) ? 0 : 1,
               transition: isPdfGenerating ? 'none' : 'opacity 0.2s ease-out',
             }}>
@@ -492,7 +441,6 @@ export default function TeamReportPreviewPage() {
           </div>
         </div>
 
-        {/* 컨트롤 */}
         <div className="flex items-center justify-center gap-3 mb-2 md:mb-3">
           <button onClick={() => goToPage(pageIndex - 1)}
             disabled={pageIndex === 0 || isPdfGenerating}
@@ -587,25 +535,15 @@ function PageContent({
   return <CardSpread card={card} pageIndex={pageIndex} polishedCard={polishedCard} />;
 }
 
-// ═══════════════════════════════════════════════════════
-// 표지
-// ═══════════════════════════════════════════════════════
-function CoverPage({
-  report, polished,
-}: {
-  report: TeamReportData;
-  polished: PolishedData | null;
-}) {
+function CoverPage({ report, polished }: { report: TeamReportData; polished: PolishedData | null; }) {
   const { team } = report;
   const leader = team.members.find(m => m.isLeader);
-
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 relative">
       <CornerDecoration position="tl" color={S.gold} />
       <CornerDecoration position="tr" color={S.gold} />
       <CornerDecoration position="bl" color={S.gold} />
       <CornerDecoration position="br" color={S.gold} />
-
       <div className="p-6 md:p-12 flex flex-col items-center justify-center text-center md:border-r"
         style={{ borderColor: 'rgba(255, 215, 0, 0.15)' }}>
         <div className="inline-flex items-center gap-2 mb-3 md:mb-4">
@@ -616,7 +554,6 @@ function CoverPage({
           </span>
           <div className="w-1 h-1 rounded-full" style={{ background: S.gold, boxShadow: `0 0 6px ${S.gold}` }} />
         </div>
-
         <h1 className="font-black text-white mb-4 tracking-tight"
           style={{
             fontSize: 'clamp(40px, 8vw, 56px)',
@@ -626,7 +563,6 @@ function CoverPage({
           }}>
           SIGNAL
         </h1>
-
         <div className="flex items-center gap-2 mb-4">
           <div className="h-[1px] w-6 md:w-8" style={{ background: `linear-gradient(to right, transparent, ${S.gold})` }} />
           <p className="font-mono font-bold tracking-[2px]"
@@ -635,40 +571,30 @@ function CoverPage({
           </p>
           <div className="h-[1px] w-6 md:w-8" style={{ background: `linear-gradient(to left, transparent, ${S.gold})` }} />
         </div>
-
         <p className="text-[10px] md:text-[11px] text-gray-500 font-mono tracking-wider">
           TEAM REPORT · 2026
         </p>
       </div>
-
       <MobileSeparator color={S.gold} />
-
       <div className="p-6 md:p-12 flex flex-col justify-center">
         <p className="font-mono font-bold tracking-[3px] mb-2 md:mb-3"
           style={{ fontSize: '10px', color: S.gold }}>
           ★ TEAM PROFILE ★
         </p>
-
         <h2 className="text-xl md:text-3xl font-bold text-white mb-2 leading-tight">
           {team.teamName}
         </h2>
-
         <p className="text-[13px] md:text-[14px] mb-4 md:mb-6" style={{ color: S.aqua }}>
           {team.item}
         </p>
-
         <div className="space-y-2 mb-4 md:mb-6">
           <Row label="LEVEL" value={team.level} color={S.green} />
           <Row label="LEADER" value={leader?.name || '미지정'} color={S.gold} />
           <Row label="MEMBERS" value={`${team.members.length}명`} color={S.aqua} />
         </div>
-
         {polished?.executiveSummary && (
           <div className="rounded-lg p-3 mb-3"
-            style={{
-              background: `${S.pink}08`,
-              border: `0.5px solid ${S.pink}30`,
-            }}>
+            style={{ background: `${S.pink}08`, border: `0.5px solid ${S.pink}30` }}>
             <div className="flex items-center gap-1.5 mb-1.5">
               <span style={{ fontSize: '10px' }}>📝</span>
               <p className="font-mono font-bold tracking-widest"
@@ -681,7 +607,6 @@ function CoverPage({
             </p>
           </div>
         )}
-
         <div className="pt-3 md:pt-4 border-t" style={{ borderColor: 'rgba(255, 215, 0, 0.1)' }}>
           <p className="font-mono text-gray-600 mb-2"
             style={{ fontSize: '9px', letterSpacing: '2px' }}>
@@ -704,37 +629,17 @@ function CoverPage({
   );
 }
 
-// ═══════════════════════════════════════════════════════
-// 카드 펼침면
-// ═══════════════════════════════════════════════════════
-function CardSpread({
-  card, pageIndex, polishedCard,
-}: {
-  card: ReportCard;
-  pageIndex: number;
-  polishedCard: PolishedCard | null;
-}) {
-  if (polishedCard) {
-    return <PolishedCardSpread card={card} pageIndex={pageIndex} polishedCard={polishedCard} />;
-  }
+function CardSpread({ card, pageIndex, polishedCard }: { card: ReportCard; pageIndex: number; polishedCard: PolishedCard | null; }) {
+  if (polishedCard) return <PolishedCardSpread card={card} pageIndex={pageIndex} polishedCard={polishedCard} />;
   return <RawCardSpread card={card} pageIndex={pageIndex} />;
 }
 
-function PolishedCardSpread({
-  card, pageIndex, polishedCard,
-}: {
-  card: ReportCard;
-  pageIndex: number;
-  polishedCard: PolishedCard;
-}) {
+function PolishedCardSpread({ card, pageIndex, polishedCard }: { card: ReportCard; pageIndex: number; polishedCard: PolishedCard; }) {
   const cardColor = CARD_COLORS[card.cardId]?.bg || S.cyan;
   const topic = TOPICS.find(t => t.id === card.cardId);
   const categoryInfo = topic ? CATEGORY_STYLES[topic.category] : null;
   const difficulty = topic?.difficulty || 0;
-
-  const participants = Array.from(
-    new Set(card.memberInsights?.map(mi => mi.memberName) || [])
-  );
+  const participants = Array.from(new Set(card.memberInsights?.map(mi => mi.memberName) || []));
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 relative">
@@ -742,10 +647,7 @@ function PolishedCardSpread({
       <CornerDecoration position="tr" color={`${cardColor}99`} />
       <CornerDecoration position="bl" color={`${cardColor}99`} />
       <CornerDecoration position="br" color={`${cardColor}99`} />
-
-      <div className="p-5 md:p-7 relative md:border-r"
-        style={{ borderColor: 'rgba(255, 215, 0, 0.15)' }}>
-
+      <div className="p-5 md:p-7 relative md:border-r" style={{ borderColor: 'rgba(255, 215, 0, 0.15)' }}>
         <div className="flex items-start justify-between mb-3 gap-2">
           <div className="flex items-center gap-2 md:gap-2.5 min-w-0">
             <CardSignature cardId={card.cardId} color={cardColor} />
@@ -757,50 +659,35 @@ function PolishedCardSpread({
               {categoryInfo && (
                 <div className="mt-1">
                   <span className="inline-block px-2 py-0.5 rounded-full font-bold"
-                    style={{
-                      fontSize: '9px',
-                      background: `${categoryInfo.color}15`,
-                      color: categoryInfo.color,
-                      border: `0.5px solid ${categoryInfo.color}40`,
-                    }}>
+                    style={{ fontSize: '9px', background: `${categoryInfo.color}15`, color: categoryInfo.color, border: `0.5px solid ${categoryInfo.color}40` }}>
                     {categoryInfo.label}
                   </span>
                 </div>
               )}
             </div>
           </div>
-
           <DifficultyStars level={difficulty} color={S.gold} />
         </div>
-
         <div className="mb-4 md:mb-5">
-          <h2 className="font-bold text-white mb-1"
-            style={{ fontSize: '18px', lineHeight: 1.25 }}>
+          <h2 className="font-bold text-white mb-1" style={{ fontSize: '18px', lineHeight: 1.25 }}>
             {polishedCard.titleKo || card.titleKo}
           </h2>
           <p className="text-[11px] italic" style={{ color: 'rgba(193, 232, 235, 0.6)' }}>
             {card.titleEn}
           </p>
         </div>
-
         {polishedCard.intro && (
           <div className="mb-4 rounded-lg p-3"
-            style={{
-              background: `${cardColor}10`,
-              border: `0.5px solid ${cardColor}30`,
-              borderLeft: `2.5px solid ${cardColor}`,
-            }}>
+            style={{ background: `${cardColor}10`, border: `0.5px solid ${cardColor}30`, borderLeft: `2.5px solid ${cardColor}` }}>
             <p className="font-mono font-bold tracking-widest mb-1.5"
               style={{ fontSize: '8px', color: cardColor, letterSpacing: '2px' }}>
               ◆ INTRO
             </p>
-            <p className="leading-relaxed"
-              style={{ fontSize: '12.5px', color: 'rgba(255, 255, 255, 0.92)' }}>
+            <p className="leading-relaxed" style={{ fontSize: '12.5px', color: 'rgba(255, 255, 255, 0.92)' }}>
               {polishedCard.intro}
             </p>
           </div>
         )}
-
         {polishedCard.narrative && (
           <div>
             <p className="font-mono font-bold tracking-widest mb-2"
@@ -808,38 +695,25 @@ function PolishedCardSpread({
               ◆ NARRATIVE
             </p>
             <div className="leading-relaxed whitespace-pre-wrap"
-              style={{
-                fontSize: '12.5px',
-                color: 'rgba(255, 255, 255, 0.85)',
-                lineHeight: 1.75,
-              }}>
+              style={{ fontSize: '12.5px', color: 'rgba(255, 255, 255, 0.85)', lineHeight: 1.75 }}>
               {polishedCard.narrative}
             </div>
           </div>
         )}
-
         <div className="absolute bottom-3 left-7 font-mono hidden md:block"
           style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px' }}>
           PAGE {String(pageIndex + 1).padStart(2, '0')} · LEFT
         </div>
       </div>
-
       <MobileSeparator color={cardColor} label="STRATEGY ↓" />
-
       <div className="p-5 md:p-7 relative">
         <div className="absolute top-4 right-7 font-mono text-gray-600 hidden md:block"
           style={{ fontSize: '9px', letterSpacing: '1.5px' }}>
           CONTINUED →
         </div>
-
         {polishedCard.strategy && (
           <div className="mb-5 md:mt-6"
-            style={{
-              background: `linear-gradient(135deg, ${cardColor}15, ${cardColor}05)`,
-              border: `0.5px solid ${cardColor}50`,
-              borderRadius: '12px',
-              padding: '14px',
-            }}>
+            style={{ background: `linear-gradient(135deg, ${cardColor}15, ${cardColor}05)`, border: `0.5px solid ${cardColor}50`, borderRadius: '12px', padding: '14px' }}>
             <div className="flex items-center gap-1.5 mb-2">
               <span style={{ fontSize: '11px' }}>⚡</span>
               <p className="font-mono font-bold tracking-widest"
@@ -848,105 +722,63 @@ function PolishedCardSpread({
               </p>
             </div>
             <p className="leading-relaxed whitespace-pre-wrap"
-              style={{
-                fontSize: '12.5px',
-                color: 'rgba(255, 255, 255, 0.92)',
-                lineHeight: 1.7,
-              }}>
+              style={{ fontSize: '12.5px', color: 'rgba(255, 255, 255, 0.92)', lineHeight: 1.7 }}>
               {polishedCard.strategy}
             </p>
           </div>
         )}
-
         <div className="mb-4 flex items-center gap-2">
-          <div className="flex-1 h-[1px]"
-            style={{ background: `linear-gradient(to right, transparent, ${S.gold}40, transparent)` }} />
-          <span className="font-mono font-bold"
-            style={{ fontSize: '8px', color: S.gold, letterSpacing: '2px' }}>
-            ★
-          </span>
-          <div className="flex-1 h-[1px]"
-            style={{ background: `linear-gradient(to left, transparent, ${S.gold}40, transparent)` }} />
+          <div className="flex-1 h-[1px]" style={{ background: `linear-gradient(to right, transparent, ${S.gold}40, transparent)` }} />
+          <span className="font-mono font-bold" style={{ fontSize: '8px', color: S.gold, letterSpacing: '2px' }}>★</span>
+          <div className="flex-1 h-[1px]" style={{ background: `linear-gradient(to left, transparent, ${S.gold}40, transparent)` }} />
         </div>
-
         {card.oneSentenceStrategy && (
           <div className="rounded-xl p-4 mb-4 relative overflow-hidden"
-            style={{
-              background: `linear-gradient(135deg, rgba(255, 215, 0, 0.06), rgba(231, 254, 85, 0.04))`,
-              border: `0.5px solid rgba(255, 215, 0, 0.3)`,
-            }}>
+            style={{ background: `linear-gradient(135deg, rgba(255, 215, 0, 0.06), rgba(231, 254, 85, 0.04))`, border: `0.5px solid rgba(255, 215, 0, 0.3)` }}>
             <div className="absolute top-0 left-0 right-0 h-[1px]"
               style={{ background: `linear-gradient(to right, transparent, ${S.gold}99, transparent)` }} />
-
             <div className="flex items-center gap-2 mb-2">
               <span style={{ fontSize: '12px' }}>★</span>
-              <span className="font-mono font-bold"
-                style={{ fontSize: '9px', letterSpacing: '2px', color: S.gold }}>
+              <span className="font-mono font-bold" style={{ fontSize: '9px', letterSpacing: '2px', color: S.gold }}>
                 ONE SENTENCE STRATEGY
               </span>
             </div>
-            <p className="text-white leading-relaxed font-medium"
-              style={{ fontSize: '13px' }}>
+            <p className="text-white leading-relaxed font-medium" style={{ fontSize: '13px' }}>
               {card.oneSentenceStrategy}
             </p>
           </div>
         )}
-
         {polishedCard.bridge && (
-          <div className="rounded-lg p-3"
-            style={{
-              background: 'rgba(255, 255, 255, 0.03)',
-              border: `0.5px dashed ${cardColor}50`,
-            }}>
+          <div className="rounded-lg p-3" style={{ background: 'rgba(255, 255, 255, 0.03)', border: `0.5px dashed ${cardColor}50` }}>
             <div className="flex items-center gap-1.5 mb-1">
               <span style={{ fontSize: '10px', color: cardColor }}>→</span>
-              <p className="font-mono font-bold tracking-widest"
-                style={{ fontSize: '8px', color: cardColor, letterSpacing: '2px' }}>
+              <p className="font-mono font-bold tracking-widest" style={{ fontSize: '8px', color: cardColor, letterSpacing: '2px' }}>
                 BRIDGE TO NEXT
               </p>
             </div>
-            <p className="leading-relaxed italic"
-              style={{
-                fontSize: '11.5px',
-                color: 'rgba(255, 255, 255, 0.7)',
-              }}>
+            <p className="leading-relaxed italic" style={{ fontSize: '11.5px', color: 'rgba(255, 255, 255, 0.7)' }}>
               {polishedCard.bridge}
             </p>
           </div>
         )}
-
         {participants.length > 0 && (
-          <div className="mt-4 md:mt-5 pt-3"
-            style={{ borderTop: `0.5px dashed rgba(255, 255, 255, 0.08)` }}>
+          <div className="mt-4 md:mt-5 pt-3" style={{ borderTop: `0.5px dashed rgba(255, 255, 255, 0.08)` }}>
             <div className="flex items-center gap-2 mb-1.5">
-              <div className="w-1 h-1 rounded-full"
-                style={{ background: S.aqua, boxShadow: `0 0 4px ${S.aqua}` }} />
-              <span className="font-mono"
-                style={{
-                  fontSize: '8px',
-                  color: 'rgba(193, 232, 235, 0.7)',
-                  letterSpacing: '2px',
-                }}>
+              <div className="w-1 h-1 rounded-full" style={{ background: S.aqua, boxShadow: `0 0 4px ${S.aqua}` }} />
+              <span className="font-mono" style={{ fontSize: '8px', color: 'rgba(193, 232, 235, 0.7)', letterSpacing: '2px' }}>
                 CONTRIBUTORS
               </span>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {participants.map((name, i) => (
-                <span key={i}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full"
-                  style={{
-                    fontSize: '10px',
-                    background: 'rgba(193, 232, 235, 0.06)',
-                    border: '0.5px solid rgba(193, 232, 235, 0.2)',
-                    color: 'rgba(255, 255, 255, 0.85)',
-                  }}>
+                <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full"
+                  style={{ fontSize: '10px', background: 'rgba(193, 232, 235, 0.06)', border: '0.5px solid rgba(193, 232, 235, 0.2)', color: 'rgba(255, 255, 255, 0.85)' }}>
                   · {name}
                 </span>
               ))}
             </div>
           </div>
         )}
-
         <div className="mt-4 md:mt-0 md:absolute md:bottom-3 md:right-7 font-mono text-center md:text-left"
           style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px' }}>
           PAGE {String(pageIndex + 1).padStart(2, '0')}
@@ -962,11 +794,7 @@ function RawCardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: numbe
   const topic = TOPICS.find(t => t.id === card.cardId);
   const categoryInfo = topic ? CATEGORY_STYLES[topic.category] : null;
   const difficulty = topic?.difficulty || 0;
-
-  const participants = Array.from(
-    new Set(card.memberInsights?.map(mi => mi.memberName) || [])
-  );
-
+  const participants = Array.from(new Set(card.memberInsights?.map(mi => mi.memberName) || []));
   const leftQuestions = card.questions.slice(0, 2);
   const rightQuestion = card.questions[2];
 
@@ -976,27 +804,18 @@ function RawCardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: numbe
       <CornerDecoration position="tr" color={`${cardColor}99`} />
       <CornerDecoration position="bl" color={`${cardColor}99`} />
       <CornerDecoration position="br" color={`${cardColor}99`} />
-
-      <div className="p-5 md:p-7 relative md:border-r"
-        style={{ borderColor: 'rgba(255, 215, 0, 0.15)' }}>
-
+      <div className="p-5 md:p-7 relative md:border-r" style={{ borderColor: 'rgba(255, 215, 0, 0.15)' }}>
         <div className="flex items-start justify-between mb-3 gap-2">
           <div className="flex items-center gap-2 md:gap-2.5 min-w-0">
             <CardSignature cardId={card.cardId} color={cardColor} />
             <div className="min-w-0">
-              <span className="font-mono text-gray-500 tracking-wider"
-                style={{ fontSize: '9px', letterSpacing: '1.5px' }}>
+              <span className="font-mono text-gray-500 tracking-wider" style={{ fontSize: '9px', letterSpacing: '1.5px' }}>
                 CARD {card.cardId}
               </span>
               {categoryInfo && (
                 <div className="mt-1">
                   <span className="inline-block px-2 py-0.5 rounded-full font-bold"
-                    style={{
-                      fontSize: '9px',
-                      background: `${categoryInfo.color}15`,
-                      color: categoryInfo.color,
-                      border: `0.5px solid ${categoryInfo.color}40`,
-                    }}>
+                    style={{ fontSize: '9px', background: `${categoryInfo.color}15`, color: categoryInfo.color, border: `0.5px solid ${categoryInfo.color}40` }}>
                     {categoryInfo.label}
                   </span>
                 </div>
@@ -1005,121 +824,81 @@ function RawCardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: numbe
           </div>
           <DifficultyStars level={difficulty} color={S.gold} />
         </div>
-
         <div className="mb-4 md:mb-5">
-          <h2 className="font-bold text-white mb-1"
-            style={{ fontSize: '18px', lineHeight: 1.25 }}>
+          <h2 className="font-bold text-white mb-1" style={{ fontSize: '18px', lineHeight: 1.25 }}>
             {card.titleKo}
           </h2>
           <p className="text-[11px] italic" style={{ color: 'rgba(193, 232, 235, 0.6)' }}>
             {card.titleEn}
           </p>
         </div>
-
         <div className="space-y-3">
           {leftQuestions.map((q, idx) => (
             <div key={q.id}>
               <QuestionBlock qNum={idx + 1} q={q} cardColor={cardColor} />
               {idx < leftQuestions.length - 1 && (
                 <div className="my-3 flex items-center gap-2">
-                  <div className="flex-1 h-[1px]"
-                    style={{ background: `linear-gradient(to right, transparent, ${cardColor}33, transparent)` }} />
-                  <div className="w-1 h-1 rounded-full"
-                    style={{ background: `${cardColor}66` }} />
-                  <div className="flex-1 h-[1px]"
-                    style={{ background: `linear-gradient(to left, transparent, ${cardColor}33, transparent)` }} />
+                  <div className="flex-1 h-[1px]" style={{ background: `linear-gradient(to right, transparent, ${cardColor}33, transparent)` }} />
+                  <div className="w-1 h-1 rounded-full" style={{ background: `${cardColor}66` }} />
+                  <div className="flex-1 h-[1px]" style={{ background: `linear-gradient(to left, transparent, ${cardColor}33, transparent)` }} />
                 </div>
               )}
             </div>
           ))}
         </div>
-
         <div className="absolute bottom-3 left-7 font-mono hidden md:block"
           style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px' }}>
           PAGE {String(pageIndex + 1).padStart(2, '0')} · LEFT
         </div>
       </div>
-
       <MobileSeparator color={cardColor} label="CONTINUED ↓" />
-
       <div className="p-5 md:p-7 relative">
         <div className="absolute top-4 right-7 font-mono text-gray-600 hidden md:block"
           style={{ fontSize: '9px', letterSpacing: '1.5px' }}>
           CONTINUED →
         </div>
-
         <div className="mb-5 md:mt-9">
-          {rightQuestion && (
-            <QuestionBlock qNum={3} q={rightQuestion} cardColor={cardColor} />
-          )}
+          {rightQuestion && <QuestionBlock qNum={3} q={rightQuestion} cardColor={cardColor} />}
         </div>
-
         <div className="mb-5 flex items-center gap-2">
-          <div className="flex-1 h-[1px]"
-            style={{ background: `linear-gradient(to right, transparent, ${S.gold}40, transparent)` }} />
-          <span className="font-mono font-bold"
-            style={{ fontSize: '8px', color: S.gold, letterSpacing: '2px' }}>
-            ★
-          </span>
-          <div className="flex-1 h-[1px]"
-            style={{ background: `linear-gradient(to left, transparent, ${S.gold}40, transparent)` }} />
+          <div className="flex-1 h-[1px]" style={{ background: `linear-gradient(to right, transparent, ${S.gold}40, transparent)` }} />
+          <span className="font-mono font-bold" style={{ fontSize: '8px', color: S.gold, letterSpacing: '2px' }}>★</span>
+          <div className="flex-1 h-[1px]" style={{ background: `linear-gradient(to left, transparent, ${S.gold}40, transparent)` }} />
         </div>
-
         {card.oneSentenceStrategy && (
           <div className="rounded-xl p-4 relative overflow-hidden"
-            style={{
-              background: `linear-gradient(135deg, rgba(255, 215, 0, 0.06), rgba(231, 254, 85, 0.04))`,
-              border: `0.5px solid rgba(255, 215, 0, 0.3)`,
-            }}>
+            style={{ background: `linear-gradient(135deg, rgba(255, 215, 0, 0.06), rgba(231, 254, 85, 0.04))`, border: `0.5px solid rgba(255, 215, 0, 0.3)` }}>
             <div className="absolute top-0 left-0 right-0 h-[1px]"
               style={{ background: `linear-gradient(to right, transparent, ${S.gold}99, transparent)` }} />
-
             <div className="flex items-center gap-2 mb-2">
               <span style={{ fontSize: '12px' }}>★</span>
-              <span className="font-mono font-bold"
-                style={{ fontSize: '9px', letterSpacing: '2px', color: S.gold }}>
+              <span className="font-mono font-bold" style={{ fontSize: '9px', letterSpacing: '2px', color: S.gold }}>
                 ONE SENTENCE STRATEGY
               </span>
             </div>
-            <p className="text-white leading-relaxed font-medium"
-              style={{ fontSize: '13px' }}>
+            <p className="text-white leading-relaxed font-medium" style={{ fontSize: '13px' }}>
               {card.oneSentenceStrategy}
             </p>
           </div>
         )}
-
         {participants.length > 0 && (
-          <div className="mt-4 md:mt-5 pt-3"
-            style={{ borderTop: `0.5px dashed rgba(255, 255, 255, 0.08)` }}>
+          <div className="mt-4 md:mt-5 pt-3" style={{ borderTop: `0.5px dashed rgba(255, 255, 255, 0.08)` }}>
             <div className="flex items-center gap-2 mb-1.5">
-              <div className="w-1 h-1 rounded-full"
-                style={{ background: S.aqua, boxShadow: `0 0 4px ${S.aqua}` }} />
-              <span className="font-mono"
-                style={{
-                  fontSize: '8px',
-                  color: 'rgba(193, 232, 235, 0.7)',
-                  letterSpacing: '2px',
-                }}>
+              <div className="w-1 h-1 rounded-full" style={{ background: S.aqua, boxShadow: `0 0 4px ${S.aqua}` }} />
+              <span className="font-mono" style={{ fontSize: '8px', color: 'rgba(193, 232, 235, 0.7)', letterSpacing: '2px' }}>
                 CONTRIBUTORS
               </span>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {participants.map((name, i) => (
-                <span key={i}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full"
-                  style={{
-                    fontSize: '10px',
-                    background: 'rgba(193, 232, 235, 0.06)',
-                    border: '0.5px solid rgba(193, 232, 235, 0.2)',
-                    color: 'rgba(255, 255, 255, 0.85)',
-                  }}>
+                <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full"
+                  style={{ fontSize: '10px', background: 'rgba(193, 232, 235, 0.06)', border: '0.5px solid rgba(193, 232, 235, 0.2)', color: 'rgba(255, 255, 255, 0.85)' }}>
                   · {name}
                 </span>
               ))}
             </div>
           </div>
         )}
-
         <div className="mt-4 md:mt-0 md:absolute md:bottom-3 md:right-7 font-mono text-center md:text-left"
           style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px' }}>
           PAGE {String(pageIndex + 1).padStart(2, '0')}
@@ -1130,105 +909,67 @@ function RawCardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: numbe
   );
 }
 
-// ═══════════════════════════════════════════════════════
-// 마무리 페이지
-// ═══════════════════════════════════════════════════════
-function ConclusionPage({
-  report, polished,
-}: {
-  report: TeamReportData;
-  polished: PolishedData | null;
-}) {
+function ConclusionPage({ report, polished }: { report: TeamReportData; polished: PolishedData | null; }) {
   const { team, cards, totalAnswers } = report;
   const filledStrategies = cards.filter(c => c.oneSentenceStrategy).length;
-
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 relative">
       <CornerDecoration position="tl" color={S.gold} />
       <CornerDecoration position="tr" color={S.gold} />
       <CornerDecoration position="bl" color={S.gold} />
       <CornerDecoration position="br" color={S.gold} />
-
-      <div className="p-6 md:p-10 md:border-r"
-        style={{ borderColor: 'rgba(255, 215, 0, 0.15)' }}>
-        <p className="font-mono font-bold tracking-[3px] mb-3"
-          style={{ fontSize: '10px', color: S.gold }}>
+      <div className="p-6 md:p-10 md:border-r" style={{ borderColor: 'rgba(255, 215, 0, 0.15)' }}>
+        <p className="font-mono font-bold tracking-[3px] mb-3" style={{ fontSize: '10px', color: S.gold }}>
           ★ FINAL SUMMARY ★
         </p>
-
-        <h2 className="text-xl md:text-2xl font-bold text-white mb-2 leading-tight">
-          전략 완성
-        </h2>
+        <h2 className="text-xl md:text-2xl font-bold text-white mb-2 leading-tight">전략 완성</h2>
         <p className="text-[12px] text-gray-500 mb-5 md:mb-6">
           16개 카드를 통해 디지털 무역 전략을 완성했습니다.
         </p>
-
         <div className="space-y-3 mb-5">
           <SummaryStat label="완성된 카드" value={`${filledStrategies} / 16`} color={S.green} />
           <SummaryStat label="작성한 답변" value={`${totalAnswers}개`} color={S.aqua} />
           <SummaryStat label="참여 팀원" value={`${team.members.length}명`} color={S.gold} />
         </div>
-
         {polished?.conclusion && (
           <div className="rounded-lg p-3"
-            style={{
-              background: `${S.pink}08`,
-              border: `0.5px solid ${S.pink}30`,
-              borderLeft: `2.5px solid ${S.pink}`,
-            }}>
+            style={{ background: `${S.pink}08`, border: `0.5px solid ${S.pink}30`, borderLeft: `2.5px solid ${S.pink}` }}>
             <div className="flex items-center gap-1.5 mb-1.5">
               <span style={{ fontSize: '10px' }}>📝</span>
-              <p className="font-mono font-bold tracking-widest"
-                style={{ fontSize: '8px', color: S.pink, letterSpacing: '1.5px' }}>
+              <p className="font-mono font-bold tracking-widest" style={{ fontSize: '8px', color: S.pink, letterSpacing: '1.5px' }}>
                 CONCLUSION
               </p>
             </div>
-            <p className="text-[11.5px] text-gray-300 leading-relaxed">
-              {polished.conclusion}
-            </p>
+            <p className="text-[11.5px] text-gray-300 leading-relaxed">{polished.conclusion}</p>
           </div>
         )}
       </div>
-
       <MobileSeparator color={S.gold} />
-
       <div className="p-6 md:p-10 flex flex-col items-center justify-center text-center">
         <div className="mb-4 md:mb-6">
           <div className="inline-block relative">
             <div className="absolute pointer-events-none"
-              style={{
-                inset: '-16px',
-                background: `radial-gradient(circle, rgba(255, 215, 0, 0.3), transparent 70%)`,
-                borderRadius: '50%',
-                filter: 'blur(8px)',
-              }} />
+              style={{ inset: '-16px', background: `radial-gradient(circle, rgba(255, 215, 0, 0.3), transparent 70%)`, borderRadius: '50%', filter: 'blur(8px)' }} />
             <svg width="48" height="48" viewBox="0 0 24 24" fill={S.gold} stroke={S.gold} strokeWidth="0.5"
               style={{ filter: `drop-shadow(0 0 8px rgba(255, 215, 0, 0.6))`, position: 'relative' }}>
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
             </svg>
           </div>
         </div>
-
         <p className="text-[14px] text-white mb-2 font-medium leading-relaxed">
           {team.teamName} 모두 수고하셨습니다.
         </p>
         <p className="text-[12px] text-gray-500 mb-6 md:mb-8 leading-relaxed">
-          이 전략을 실제 비즈니스에<br />
-          어떻게 적용할지 토론해보세요.
+          이 전략을 실제 비즈니스에<br />어떻게 적용할지 토론해보세요.
         </p>
-
-        <div className="pt-3 md:pt-4 border-t w-full"
-          style={{ borderColor: 'rgba(255, 215, 0, 0.1)' }}>
-          <p className="font-mono text-gray-600"
-            style={{ fontSize: '9px', letterSpacing: '2px', marginBottom: '2px' }}>
+        <div className="pt-3 md:pt-4 border-t w-full" style={{ borderColor: 'rgba(255, 215, 0, 0.1)' }}>
+          <p className="font-mono text-gray-600" style={{ fontSize: '9px', letterSpacing: '2px', marginBottom: '2px' }}>
             REPORT GENERATED
           </p>
-          <p className="font-mono text-gray-700"
-            style={{ fontSize: '10px', letterSpacing: '1.5px' }}>
+          <p className="font-mono text-gray-700" style={{ fontSize: '10px', letterSpacing: '1.5px' }}>
             {new Date(report.generatedAt).toLocaleDateString('ko-KR')}
           </p>
         </div>
-
         <p className="text-[10px] font-mono text-gray-700 mt-4 md:mt-6 tracking-widest">
           © 2026 SIGNAL · ConnectAI
         </p>
@@ -1237,66 +978,39 @@ function ConclusionPage({
   );
 }
 
-// ═══════════════════════════════════════════════════════
-// 서브 컴포넌트들
-// ═══════════════════════════════════════════════════════
-
 function MobileSeparator({ color, label = '' }: { color: string; label?: string }) {
   return (
     <div className="md:hidden flex items-center gap-2 px-5 py-2.5"
-      style={{
-        borderTop: `0.5px solid ${color}25`,
-        borderBottom: `0.5px solid ${color}25`,
-        background: `${color}06`,
-      }}>
-      <div className="flex-1 h-[1px]"
-        style={{ background: `linear-gradient(to right, transparent, ${color}30, transparent)` }} />
+      style={{ borderTop: `0.5px solid ${color}25`, borderBottom: `0.5px solid ${color}25`, background: `${color}06` }}>
+      <div className="flex-1 h-[1px]" style={{ background: `linear-gradient(to right, transparent, ${color}30, transparent)` }} />
       {label && (
-        <span className="font-mono font-bold"
-          style={{ fontSize: '8px', color: `${color}AA`, letterSpacing: '2px' }}>
-          {label}
-        </span>
+        <span className="font-mono font-bold" style={{ fontSize: '8px', color: `${color}AA`, letterSpacing: '2px' }}>{label}</span>
       )}
-      <div className="flex-1 h-[1px]"
-        style={{ background: `linear-gradient(to left, transparent, ${color}30, transparent)` }} />
+      <div className="flex-1 h-[1px]" style={{ background: `linear-gradient(to left, transparent, ${color}30, transparent)` }} />
     </div>
   );
 }
 
-function CornerDecoration({
-  position, color = '#FFD70060',
-}: {
-  position: 'tl' | 'tr' | 'bl' | 'br';
-  color?: string;
-}) {
+function CornerDecoration({ position, color = '#FFD70060' }: { position: 'tl' | 'tr' | 'bl' | 'br'; color?: string; }) {
   const isTop = position.startsWith('t');
   const isLeft = position.endsWith('l');
   const horizontalStyle: React.CSSProperties = {
     position: 'absolute',
     [isTop ? 'top' : 'bottom']: 0,
     [isLeft ? 'left' : 'right']: 0,
-    width: '10px',
-    height: '1.5px',
-    background: color,
-    boxShadow: `0 0 4px ${color}`,
+    width: '10px', height: '1.5px',
+    background: color, boxShadow: `0 0 4px ${color}`,
   };
   const verticalStyle: React.CSSProperties = {
     position: 'absolute',
     [isTop ? 'top' : 'bottom']: 0,
     [isLeft ? 'left' : 'right']: 0,
-    width: '1.5px',
-    height: '10px',
-    background: color,
-    boxShadow: `0 0 4px ${color}`,
+    width: '1.5px', height: '10px',
+    background: color, boxShadow: `0 0 4px ${color}`,
   };
   return (
     <div className="absolute pointer-events-none z-10"
-      style={{
-        [isTop ? 'top' : 'bottom']: '8px',
-        [isLeft ? 'left' : 'right']: '8px',
-        width: '14px',
-        height: '14px',
-      }}>
+      style={{ [isTop ? 'top' : 'bottom']: '8px', [isLeft ? 'left' : 'right']: '8px', width: '14px', height: '14px' }}>
       <div style={horizontalStyle} />
       <div style={verticalStyle} />
     </div>
@@ -1307,15 +1021,7 @@ function CardSignature({ cardId, color }: { cardId: string; color: string }) {
   const isLight = color === '#FFC72C' || color === '#E7FE55';
   return (
     <div className="rounded-lg flex items-center justify-center font-black flex-shrink-0"
-      style={{
-        width: '38px',
-        height: '38px',
-        background: color,
-        color: isLight ? '#111' : '#fff',
-        fontSize: '13px',
-        fontFamily: 'monospace',
-        boxShadow: `0 0 12px ${color}55, 0 4px 12px rgba(0,0,0,0.3)`,
-      }}>
+      style={{ width: '38px', height: '38px', background: color, color: isLight ? '#111' : '#fff', fontSize: '13px', fontFamily: 'monospace', boxShadow: `0 0 12px ${color}55, 0 4px 12px rgba(0,0,0,0.3)` }}>
       {cardId}
     </div>
   );
@@ -1325,13 +1031,7 @@ function DifficultyStars({ level, color }: { level: number; color: string }) {
   return (
     <div className="flex items-center gap-0.5 flex-shrink-0">
       {[1, 2, 3, 4, 5].map(i => (
-        <span key={i} style={{
-          fontSize: '10px',
-          color: i <= level ? color : 'rgba(255,255,255,0.15)',
-          textShadow: i <= level ? `0 0 4px ${color}66` : 'none',
-        }}>
-          ★
-        </span>
+        <span key={i} style={{ fontSize: '10px', color: i <= level ? color : 'rgba(255,255,255,0.15)', textShadow: i <= level ? `0 0 4px ${color}66` : 'none' }}>★</span>
       ))}
     </div>
   );
@@ -1344,82 +1044,44 @@ function StageIcon({ stage, color }: { stage: number; color: string }) {
       <path d="M20 20l-4-4" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
     </g>,
     <g key="insight">
-      <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.3.3.5.7.5 1.1V16a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-1c0-.4.2-.8.5-1.1A6 6 0 0 0 12 3z"
-        stroke={color} strokeWidth="1.6" fill="none" strokeLinejoin="round" />
+      <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.3.3.5.7.5 1.1V16a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-1c0-.4.2-.8.5-1.1A6 6 0 0 0 12 3z" stroke={color} strokeWidth="1.6" fill="none" strokeLinejoin="round" />
     </g>,
     <g key="decision">
-      <path d="M5 13l4 4L19 7" stroke={color} strokeWidth="2.2"
-        strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <path d="M5 13l4 4L19 7" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
     </g>,
   ];
-
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24"
-      style={{ filter: `drop-shadow(0 0 3px ${color}66)` }}>
+    <svg width="14" height="14" viewBox="0 0 24 24" style={{ filter: `drop-shadow(0 0 3px ${color}66)` }}>
       {icons[stage - 1]}
     </svg>
   );
 }
 
-function QuestionBlock({
-  qNum, q, cardColor
-}: {
-  qNum: number;
-  q: { id: string; title: string; answer: string; interimBlanks: string[] };
-  cardColor: string;
-}) {
+function QuestionBlock({ qNum, q, cardColor }: { qNum: number; q: { id: string; title: string; answer: string; interimBlanks: string[] }; cardColor: string; }) {
   const stage = STAGES[qNum - 1];
   const interimText = q.interimBlanks?.filter(b => b).join(' · ') || '';
-
   return (
     <div>
       <div className="flex items-center gap-2 mb-2 flex-wrap">
         <span className="font-mono font-bold rounded inline-flex items-center gap-1"
-          style={{
-            fontSize: '9px',
-            padding: '2px 6px',
-            background: `${stage.color}22`,
-            color: stage.color,
-            letterSpacing: '1px',
-            border: `0.5px solid ${stage.color}40`,
-          }}>
+          style={{ fontSize: '9px', padding: '2px 6px', background: `${stage.color}22`, color: stage.color, letterSpacing: '1px', border: `0.5px solid ${stage.color}40` }}>
           <StageIcon stage={qNum} color={stage.color} />
           STAGE {qNum}
         </span>
-        <span className="font-mono"
-          style={{
-            fontSize: '9px',
-            color: stage.color,
-            opacity: 0.7,
-            letterSpacing: '1px',
-          }}>
+        <span className="font-mono" style={{ fontSize: '9px', color: stage.color, opacity: 0.7, letterSpacing: '1px' }}>
           {stage.label}
         </span>
       </div>
-
       {q.answer ? (
-        <p className="leading-relaxed mb-2"
-          style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.85)' }}>
+        <p className="leading-relaxed mb-2" style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.85)' }}>
           {q.answer.length > 100 ? q.answer.slice(0, 100) + '...' : q.answer}
         </p>
       ) : (
-        <p className="text-gray-700 italic"
-          style={{ fontSize: '11px' }}>
-          미작성
-        </p>
+        <p className="text-gray-700 italic" style={{ fontSize: '11px' }}>미작성</p>
       )}
-
       {interimText && (
         <p className="rounded-r-md"
-          style={{
-            fontSize: '11px',
-            color: stage.color,
-            opacity: 0.95,
-            padding: '6px 10px',
-            background: `linear-gradient(to right, ${stage.color}1A, ${stage.color}05)`,
-            borderLeft: `2px solid ${stage.color}`,
-            margin: 0,
-          }}>
+          style={{ fontSize: '11px', color: stage.color, opacity: 0.95, padding: '6px 10px', background: `linear-gradient(to right, ${stage.color}1A, ${stage.color}05)`, borderLeft: `2px solid ${stage.color}`, margin: 0 }}>
           → {interimText}
         </p>
       )}
@@ -1430,14 +1092,7 @@ function QuestionBlock({
 function Row({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <div className="flex items-center gap-3 py-1.5">
-      <span className="font-mono font-bold"
-        style={{
-          fontSize: '9px',
-          letterSpacing: '2px',
-          color: color,
-          width: '70px',
-          flexShrink: 0,
-        }}>
+      <span className="font-mono font-bold" style={{ fontSize: '9px', letterSpacing: '2px', color: color, width: '70px', flexShrink: 0 }}>
         {label}
       </span>
       <span className="text-[13px] text-white">{value}</span>
@@ -1448,10 +1103,7 @@ function Row({ label, value, color }: { label: string; value: string; color: str
 function SummaryStat({ label, value, color }: { label: string; value: string; color: string }) {
   return (
     <div className="rounded-xl p-3 flex items-center justify-between"
-      style={{
-        background: `${color}08`,
-        border: `0.5px solid ${color}30`,
-      }}>
+      style={{ background: `${color}08`, border: `0.5px solid ${color}30` }}>
       <div>
         <p className="font-mono font-bold tracking-widest mb-0.5"
           style={{ fontSize: '9px', color: color, letterSpacing: '1.5px' }}>
@@ -1459,12 +1111,7 @@ function SummaryStat({ label, value, color }: { label: string; value: string; co
         </p>
         <p className="text-[11px] text-gray-300">{label}</p>
       </div>
-      <p className="font-bold"
-        style={{
-          fontSize: '20px',
-          color: color,
-          textShadow: `0 0 12px ${color}80`,
-        }}>
+      <p className="font-bold" style={{ fontSize: '20px', color: color, textShadow: `0 0 12px ${color}80` }}>
         {value}
       </p>
     </div>
