@@ -34,6 +34,9 @@ const STAGES = [
 
 const TOTAL_PAGES = 18;
 
+// ⭐ PDF용 한글 폰트 스택
+const PDF_FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", "Noto Sans KR", sans-serif';
+
 interface PolishedCard {
   cardId: string;
   titleKo: string;
@@ -65,10 +68,6 @@ export default function TeamReportPreviewPage() {
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
   const [pdfProgress, setPdfProgress] = useState(0);
 
-  // ⭐⭐⭐ v8 옵션 A: PDF 캡처 중 강제 데스크탑 모드 (Tailwind md: 우회) ⭐⭐⭐
-  // 핵심: html2canvas가 md: 브레이크포인트를 못 잡아서 1단으로 렌더되는 문제 해결
-  // 방법: PDF 캡처 중에는 모든 자식 컴포넌트에 forceDesktop=true 전달 →
-  //       md: 클래스 대신 inline 스타일로 데스크탑 레이아웃 강제
   const [pdfForceDesktop, setPdfForceDesktop] = useState(false);
 
   const autoPdfTriggeredRef = useRef(false);
@@ -134,7 +133,7 @@ export default function TeamReportPreviewPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, report, searchParams]);
 
-  // ⭐⭐⭐ v5: PDF 다운로드 — 원래 옵션 유지 + 0x0 가드만 최소 추가 ⭐⭐⭐
+  // ⭐⭐⭐ v10: html-to-image로 교체 — 한글/Tailwind/그라데이션 완벽 지원 ⭐⭐⭐
   async function handlePdfDownload(skipConfirm = false) {
     if (isPdfGenerating || !report) return;
 
@@ -151,20 +150,28 @@ export default function TeamReportPreviewPage() {
 
     setIsPdfGenerating(true);
     setPdfProgress(0);
-    setTransitioning(false); // PDF 모드 시작 시 transitioning OFF
-    setPdfForceDesktop(true); // ⭐ v8: 강제 데스크탑 모드 ON
+    setTransitioning(false);
+    setPdfForceDesktop(true);
 
     try {
       const { jsPDF } = await import('jspdf');
-      const html2canvas = (await import('html2canvas')).default;
+      const { toPng } = await import('html-to-image');
 
       // 폰트 로딩 대기
       if ((document as any).fonts?.ready) {
         await (document as any).fonts.ready;
       }
 
+      // 한글 폰트 글리프 강제 로딩
+      try {
+        await (document as any).fonts?.load('14px sans-serif', '한글폰트로딩테스트');
+        await (document as any).fonts?.load('bold 18px sans-serif', '한글');
+      } catch (e) {
+        // 무시
+      }
+
       // 첫 렌더 안정화
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise(r => setTimeout(r, 800));
 
       const pdf = new jsPDF({
         orientation: 'landscape',
@@ -179,10 +186,10 @@ export default function TeamReportPreviewPage() {
         setPageIndex(i);
         setTransitioning(false);
 
-        // React 렌더링 + 폰트 안정화 + forceDesktop 모드 반영 대기 (v8: 900 → 1200ms)
+        // React 렌더링 + forceDesktop 모드 반영 대기
         await new Promise(r => setTimeout(r, 1200));
 
-        // ⭐ v5: 다음 paint 완료까지 대기 (createPattern 0x0 에러 방지)
+        // 다음 paint 완료까지 대기
         await new Promise<void>(resolve => {
           requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
         });
@@ -193,7 +200,7 @@ export default function TeamReportPreviewPage() {
           continue;
         }
 
-        // ⭐ v5: element 크기 검증 (0x0이면 재시도)
+        // element 크기 검증
         let rect = element.getBoundingClientRect();
         let retries = 3;
         while ((rect.width === 0 || rect.height === 0) && retries > 0) {
@@ -207,25 +214,23 @@ export default function TeamReportPreviewPage() {
           continue;
         }
 
-        // ⭐⭐⭐ v8: html2canvas — forceDesktop이 컴포넌트 레벨에서 처리하므로 옵션 최소 ⭐⭐⭐
-        let canvas: HTMLCanvasElement;
+        // ⭐ html-to-image로 캡처
+        let imgData: string;
         try {
-          canvas = await html2canvas(element, {
-            scale: 2,
+          imgData = await toPng(element, {
+            pixelRatio: 2,
             backgroundColor: '#050505',
-            useCORS: true,
-            logging: false,
-            windowWidth: element.scrollWidth,
-            windowHeight: element.scrollHeight,
-            // ⭐ v5에서 유지: 0x0 요소만 자동 스킵
-            ignoreElements: (el) => {
-              try {
-                const r = (el as HTMLElement).getBoundingClientRect?.();
-                if (!r) return false;
-                return r.width === 0 && r.height === 0;
-              } catch {
-                return false;
+            cacheBust: true,
+            style: {
+              fontFamily: PDF_FONT_STACK,
+            },
+            filter: (node) => {
+              // 0x0 요소 제외
+              if (node instanceof HTMLElement) {
+                const r = node.getBoundingClientRect?.();
+                if (r && r.width === 0 && r.height === 0) return false;
               }
+              return true;
             },
           });
         } catch (capErr: any) {
@@ -233,14 +238,29 @@ export default function TeamReportPreviewPage() {
           continue;
         }
 
-        if (canvas.width === 0 || canvas.height === 0) {
-          console.warn(`[PDF] 페이지 ${i + 1}: canvas 0x0, 스킵`);
+        // 이미지 크기 측정
+        const tmpImg = new window.Image();
+        tmpImg.src = imgData;
+        try {
+          await new Promise<void>((resolve, reject) => {
+            const timeout = setTimeout(() => reject(new Error('이미지 로드 타임아웃')), 5000);
+            tmpImg.onload = () => { clearTimeout(timeout); resolve(); };
+            tmpImg.onerror = () => { clearTimeout(timeout); reject(new Error('이미지 로드 실패')); };
+          });
+        } catch (e) {
+          console.error(`[PDF] 페이지 ${i + 1} 이미지 로드 실패:`, e);
           continue;
         }
 
-        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = tmpImg.naturalWidth;
+        const imgHeight = tmpImg.naturalHeight;
 
-        const canvasRatio = canvas.width / canvas.height;
+        if (imgWidth === 0 || imgHeight === 0) {
+          console.warn(`[PDF] 페이지 ${i + 1}: 이미지 0x0, 스킵`);
+          continue;
+        }
+
+        const canvasRatio = imgWidth / imgHeight;
         const pdfRatio = pdfWidth / pdfHeight;
 
         let renderWidth, renderHeight;
@@ -271,7 +291,7 @@ export default function TeamReportPreviewPage() {
     } finally {
       setIsPdfGenerating(false);
       setPdfProgress(0);
-      setPdfForceDesktop(false); // ⭐ v8: 강제 데스크탑 모드 OFF
+      setPdfForceDesktop(false);
     }
   }
 
@@ -546,7 +566,6 @@ function CoverPage({ report, polished, forceDesktop = false }: { report: TeamRep
   const { team } = report;
   const leader = team.members.find(m => m.isLeader);
 
-  // ⭐ v8: forceDesktop 모드 - md: 클래스 대신 inline 스타일로 데스크탑 레이아웃 강제
   const gridStyle = forceDesktop
     ? { display: 'grid', gridTemplateColumns: '1fr 1fr', position: 'relative' as const }
     : undefined;
@@ -659,8 +678,6 @@ function PolishedCardSpread({ card, pageIndex, polishedCard, forceDesktop = fals
   const difficulty = topic?.difficulty || 0;
   const participants = Array.from(new Set(card.memberInsights?.map(mi => mi.memberName) || []));
 
-  // ⭐ v8: forceDesktop 모드 - inline 스타일로 데스크탑 레이아웃 강제
-  // v9: padding 28 → 36으로 증가 (텍스트 박스 밖 나가는 문제 해결)
   const gridStyle = forceDesktop
     ? { display: 'grid', gridTemplateColumns: '1fr 1fr', position: 'relative' as const }
     : undefined;
@@ -826,7 +843,6 @@ function RawCardSpread({ card, pageIndex, forceDesktop = false }: { card: Report
   const leftQuestions = card.questions.slice(0, 2);
   const rightQuestion = card.questions[2];
 
-  // ⭐ v9: forceDesktop 모드 - padding 36px, minHeight
   const gridStyle = forceDesktop
     ? { display: 'grid', gridTemplateColumns: '1fr 1fr', position: 'relative' as const }
     : undefined;
@@ -951,7 +967,6 @@ function ConclusionPage({ report, polished, forceDesktop = false }: { report: Te
   const { team, cards, totalAnswers } = report;
   const filledStrategies = cards.filter(c => c.oneSentenceStrategy).length;
 
-  // ⭐ v8: forceDesktop 모드
   const gridStyle = forceDesktop
     ? { display: 'grid', gridTemplateColumns: '1fr 1fr', position: 'relative' as const }
     : undefined;
