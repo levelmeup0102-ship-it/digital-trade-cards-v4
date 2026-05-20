@@ -33,7 +33,6 @@ const STAGES = [
 ];
 
 const TOTAL_PAGES = 18;
-
 const PDF_FONT_STACK = '-apple-system, BlinkMacSystemFont, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", "맑은 고딕", "Noto Sans KR", sans-serif';
 
 interface PolishedCard {
@@ -63,12 +62,9 @@ export default function TeamReportPreviewPage() {
   const [polished, setPolished] = useState<PolishedData | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
   const [transitioning, setTransitioning] = useState(false);
-
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
   const [pdfProgress, setPdfProgress] = useState(0);
-
   const [pdfForceDesktop, setPdfForceDesktop] = useState(false);
-
   const autoPdfTriggeredRef = useRef(false);
 
   useEffect(() => {
@@ -97,7 +93,6 @@ export default function TeamReportPreviewPage() {
             console.warn('다듬은 데이터 파싱 실패', e);
           }
         }
-
         setLoading(false);
       } catch (e: any) {
         console.error('미리보기 로드 실패', e);
@@ -122,31 +117,20 @@ export default function TeamReportPreviewPage() {
     if (loading || !report) return;
     if (autoPdfTriggeredRef.current) return;
     if (searchParams?.get('autoPdf') !== '1') return;
-
     autoPdfTriggeredRef.current = true;
-    const timer = setTimeout(() => {
-      handlePdfDownload(true);
-    }, 2500);
-
+    const timer = setTimeout(() => { handlePdfDownload(true); }, 2500);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, report, searchParams]);
 
-  // ⭐⭐⭐ v11: 속도 최적화 - 대기 시간 단축, pixelRatio 조정 ⭐⭐⭐
+  // ⭐⭐⭐ v12: 극한 속도 최적화 (12~15초 목표) ⭐⭐⭐
+  // 변경: 페이지 대기 500→100ms, 첫 렌더 대기 제거, pixelRatio 1.5→1.2, PNG→JPEG
   async function handlePdfDownload(skipConfirm = false) {
     if (isPdfGenerating || !report) return;
-
     if (!skipConfirm) {
-      const ok = confirm(
-        '📄 PDF 다운로드를 시작합니다.\n\n' +
-        '• 18페이지 책을 PDF로 변환합니다\n' +
-        '• 약 20~30초 소요됩니다\n' +
-        '• 진행 중 화면이 자동으로 넘어갑니다\n\n' +
-        '계속하시겠어요?'
-      );
+      const ok = confirm('📄 PDF 다운로드를 시작합니다.\n\n• 18페이지 책을 PDF로 변환합니다\n• 약 12~15초 소요됩니다\n• 진행 중 화면이 자동으로 넘어갑니다\n\n계속하시겠어요?');
       if (!ok) return;
     }
-
     setIsPdfGenerating(true);
     setPdfProgress(0);
     setTransitioning(false);
@@ -154,22 +138,20 @@ export default function TeamReportPreviewPage() {
 
     try {
       const { jsPDF } = await import('jspdf');
-      const { toPng } = await import('html-to-image');
+      const { toJpeg } = await import('html-to-image'); // ⭐ PNG → JPEG (속도 ↑, 크기 ↓)
 
-      // 폰트 로딩 대기 (한번만)
+      // 폰트 로드 대기 (한번만, 짧게)
       if ((document as any).fonts?.ready) {
-        await (document as any).fonts.ready;
+        await Promise.race([
+          (document as any).fonts.ready,
+          new Promise(r => setTimeout(r, 200)) // 최대 200ms만
+        ]);
       }
 
-      // 첫 렌더 안정화 (단축: 800 → 400ms)
-      await new Promise(r => setTimeout(r, 400));
+      // ⭐ 첫 렌더 대기 제거 (forceDesktop이 React state라 즉시 반영됨)
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
 
-      const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4',
-      });
-
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
 
@@ -177,42 +159,30 @@ export default function TeamReportPreviewPage() {
         setPageIndex(i);
         setTransitioning(false);
 
-        // 페이지 렌더 대기 (단축: 1200 → 500ms)
-        await new Promise(r => setTimeout(r, 500));
-
-        // 다음 paint 완료까지 대기 (1번만 - 2번에서 1번으로)
-        await new Promise<void>(resolve => {
-          requestAnimationFrame(() => resolve());
-        });
+        // ⭐ 페이지 렌더 대기 100ms (500ms에서 단축)
+        await new Promise(r => setTimeout(r, 100));
+        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
 
         const element = document.getElementById('book-page-content');
-        if (!element) {
-          console.warn(`[PDF] 페이지 ${i + 1}: element 없음`);
-          continue;
-        }
+        if (!element) continue;
 
-        // 크기 검증 (간소화)
         const rect = element.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) {
-          // 한번만 재시도
-          await new Promise(r => setTimeout(r, 300));
+          // 0x0이면 한번만 짧게 재시도
+          await new Promise(r => setTimeout(r, 150));
           const rect2 = element.getBoundingClientRect();
-          if (rect2.width === 0 || rect2.height === 0) {
-            console.error(`[PDF] 페이지 ${i + 1}: 크기 0, 스킵`);
-            continue;
-          }
+          if (rect2.width === 0 || rect2.height === 0) continue;
         }
 
-        // ⭐ html-to-image 캡처 (pixelRatio 2 → 1.5로 속도 ↑)
+        // ⭐ JPEG 캡처 (PNG보다 2~3배 빠름)
         let imgData: string;
         try {
-          imgData = await toPng(element, {
-            pixelRatio: 1.5, // ⭐ 속도 우선 (화질 거의 동일)
+          imgData = await toJpeg(element, {
+            pixelRatio: 1.2,         // 1.5 → 1.2 (속도 ↑, 화질 OK)
+            quality: 0.85,           // JPEG 품질 85%
             backgroundColor: '#050505',
-            cacheBust: false, // ⭐ 캐시 활용 (속도 ↑)
-            style: {
-              fontFamily: PDF_FONT_STACK,
-            },
+            cacheBust: false,
+            style: { fontFamily: PDF_FONT_STACK },
             filter: (node) => {
               if (node instanceof HTMLElement) {
                 const r = node.getBoundingClientRect?.();
@@ -226,31 +196,24 @@ export default function TeamReportPreviewPage() {
           continue;
         }
 
-        // 이미지 크기 측정 (타임아웃 단축: 5초 → 3초)
+        // ⭐ 이미지 로드 대기 (타임아웃 1.5초로 단축)
         const tmpImg = new window.Image();
         tmpImg.src = imgData;
         try {
           await new Promise<void>((resolve, reject) => {
-            const timeout = setTimeout(() => reject(new Error('이미지 로드 타임아웃')), 3000);
+            if (tmpImg.complete && tmpImg.naturalWidth > 0) { resolve(); return; }
+            const timeout = setTimeout(() => reject(new Error('타임아웃')), 1500);
             tmpImg.onload = () => { clearTimeout(timeout); resolve(); };
-            tmpImg.onerror = () => { clearTimeout(timeout); reject(new Error('이미지 로드 실패')); };
+            tmpImg.onerror = () => { clearTimeout(timeout); reject(new Error('로드 실패')); };
           });
-        } catch (e) {
-          console.error(`[PDF] 페이지 ${i + 1} 이미지 로드 실패:`, e);
-          continue;
-        }
+        } catch (e) { continue; }
 
         const imgWidth = tmpImg.naturalWidth;
         const imgHeight = tmpImg.naturalHeight;
-
-        if (imgWidth === 0 || imgHeight === 0) {
-          console.warn(`[PDF] 페이지 ${i + 1}: 이미지 0x0, 스킵`);
-          continue;
-        }
+        if (imgWidth === 0 || imgHeight === 0) continue;
 
         const canvasRatio = imgWidth / imgHeight;
         const pdfRatio = pdfWidth / pdfHeight;
-
         let renderWidth, renderHeight;
         if (canvasRatio > pdfRatio) {
           renderWidth = pdfWidth - 10;
@@ -259,13 +222,12 @@ export default function TeamReportPreviewPage() {
           renderHeight = pdfHeight - 10;
           renderWidth = renderHeight * canvasRatio;
         }
-
         const x = (pdfWidth - renderWidth) / 2;
         const y = (pdfHeight - renderHeight) / 2;
 
         if (i > 0) pdf.addPage();
-        pdf.addImage(imgData, 'PNG', x, y, renderWidth, renderHeight, undefined, 'FAST');
-
+        // ⭐ JPEG + FAST 압축
+        pdf.addImage(imgData, 'JPEG', x, y, renderWidth, renderHeight, undefined, 'FAST');
         setPdfProgress(Math.round(((i + 1) / TOTAL_PAGES) * 100));
       }
 
@@ -345,14 +307,9 @@ export default function TeamReportPreviewPage() {
   return (
     <div className="min-h-screen p-2 md:p-6 relative overflow-hidden flex flex-col"
       onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-
       <div className="fixed inset-0 pointer-events-none"
         style={{
-          background: `
-            radial-gradient(ellipse at 50% 50%, rgba(255, 215, 0, 0.06) 0%, transparent 60%),
-            radial-gradient(circle at 20% 30%, ${S.cyan}14 0%, transparent 50%),
-            radial-gradient(circle at 80% 70%, ${S.purple}14 0%, transparent 50%)
-          `,
+          background: `radial-gradient(ellipse at 50% 50%, rgba(255, 215, 0, 0.06) 0%, transparent 60%), radial-gradient(circle at 20% 30%, ${S.cyan}14 0%, transparent 50%), radial-gradient(circle at 80% 70%, ${S.purple}14 0%, transparent 50%)`,
           zIndex: 0,
         }} />
 
@@ -372,8 +329,7 @@ export default function TeamReportPreviewPage() {
               {pageIndex + 1} / {TOTAL_PAGES} 페이지 처리 중<br />
               잠시만 기다려주세요...
             </p>
-            <div className="h-2 rounded-full overflow-hidden"
-              style={{ background: 'rgba(255,255,255,0.05)' }}>
+            <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
               <div className="h-full rounded-full transition-all duration-300"
                 style={{
                   width: `${pdfProgress}%`,
@@ -381,9 +337,7 @@ export default function TeamReportPreviewPage() {
                   boxShadow: `0 0 8px ${S.gold}80`,
                 }} />
             </div>
-            <p className="text-[10px] font-mono text-gray-500 mt-3 tracking-wider">
-              {pdfProgress}%
-            </p>
+            <p className="text-[10px] font-mono text-gray-500 mt-3 tracking-wider">{pdfProgress}%</p>
           </div>
           <style jsx>{`
             .pdf-spinner { animation: spin 0.8s linear infinite; }
@@ -393,13 +347,11 @@ export default function TeamReportPreviewPage() {
       )}
 
       <div className="relative z-10 max-w-5xl mx-auto w-full flex-1 flex flex-col">
-
         <div className="flex items-center justify-between mb-3 md:mb-5 px-1 md:px-0 gap-2">
           <button onClick={() => router.push(`/team/${teamId}/report`)}
             className="text-[11px] md:text-[12px] text-gray-500 hover:text-gray-300 transition flex-shrink-0">
             ← 보고서로
           </button>
-
           <div className="flex items-center gap-1.5 md:gap-2 flex-1 justify-center min-w-0">
             <span className="font-mono font-bold tracking-[1.5px] md:tracking-[3px] truncate"
               style={{ fontSize: '9px', color: S.gold, textShadow: `0 0 8px ${S.gold}66` }}>
@@ -418,23 +370,17 @@ export default function TeamReportPreviewPage() {
               </span>
             )}
           </div>
-
           <div className="flex items-center gap-2 flex-shrink-0">
-            <button
-              onClick={() => handlePdfDownload()}
-              disabled={isPdfGenerating}
+            <button onClick={() => handlePdfDownload()} disabled={isPdfGenerating}
               className="rounded-lg flex items-center gap-1 transition-all hover:scale-105 disabled:opacity-50"
               style={{
-                fontSize: '10px',
-                padding: '5px 10px',
+                fontSize: '10px', padding: '5px 10px',
                 background: `linear-gradient(135deg, ${S.gold}, ${S.green})`,
-                color: S.navy,
-                fontWeight: 700,
+                color: S.navy, fontWeight: 700,
                 boxShadow: `0 0 12px ${S.gold}40`,
               }}>
               ⬇ PDF
             </button>
-
             <span className="font-mono tracking-wider text-gray-500 hidden md:inline"
               style={{ fontSize: '10px', letterSpacing: '1.5px' }}>
               {String(pageIndex + 1).padStart(2, '0')} / {TOTAL_PAGES}
@@ -456,33 +402,25 @@ export default function TeamReportPreviewPage() {
         </div>
 
         <div className="flex items-center justify-center gap-3 mb-2 md:mb-3">
-          <button onClick={() => goToPage(pageIndex - 1)}
-            disabled={pageIndex === 0 || isPdfGenerating}
+          <button onClick={() => goToPage(pageIndex - 1)} disabled={pageIndex === 0 || isPdfGenerating}
             className="rounded-full flex items-center justify-center transition-all disabled:opacity-20 hover:scale-110"
             style={{
               width: '40px', height: '40px',
               background: 'rgba(255,255,255,0.04)',
               border: '0.5px solid rgba(255,255,255,0.1)',
-              color: 'rgba(255,255,255,0.6)',
-              fontSize: '18px',
-            }}>
-            ‹
-          </button>
-
+              color: 'rgba(255,255,255,0.6)', fontSize: '18px',
+            }}>‹</button>
           <div className="flex items-center gap-1.5">
             <span className="font-mono font-bold"
               style={{ fontSize: '11px', color: S.gold, letterSpacing: '1.5px' }}>
               {String(pageIndex + 1).padStart(2, '0')}
             </span>
             <span className="text-gray-700">/</span>
-            <span className="font-mono text-gray-500"
-              style={{ fontSize: '11px', letterSpacing: '1.5px' }}>
+            <span className="font-mono text-gray-500" style={{ fontSize: '11px', letterSpacing: '1.5px' }}>
               {TOTAL_PAGES}
             </span>
           </div>
-
-          <button onClick={() => goToPage(pageIndex + 1)}
-            disabled={pageIndex === TOTAL_PAGES - 1 || isPdfGenerating}
+          <button onClick={() => goToPage(pageIndex + 1)} disabled={pageIndex === TOTAL_PAGES - 1 || isPdfGenerating}
             className="rounded-full flex items-center justify-center transition-all disabled:opacity-20 hover:scale-110"
             style={{
               width: '40px', height: '40px',
@@ -491,12 +429,9 @@ export default function TeamReportPreviewPage() {
                 : `linear-gradient(135deg, ${S.gold} 0%, ${S.green} 100%)`,
               border: pageIndex === TOTAL_PAGES - 1 ? '0.5px solid rgba(255,255,255,0.1)' : 'none',
               color: pageIndex === TOTAL_PAGES - 1 ? 'rgba(255,255,255,0.6)' : S.navy,
-              fontSize: '18px',
-              fontWeight: 700,
+              fontSize: '18px', fontWeight: 700,
               boxShadow: pageIndex === TOTAL_PAGES - 1 ? 'none' : `0 0 16px rgba(255, 215, 0, 0.4)`,
-            }}>
-            ›
-          </button>
+            }}>›</button>
         </div>
 
         <div className="flex gap-[3px] md:gap-1 justify-center flex-wrap max-w-[280px] md:max-w-md mx-auto mb-2 md:mb-3">
@@ -505,22 +440,15 @@ export default function TeamReportPreviewPage() {
             const isCover = i === 0;
             const isOutro = i === TOTAL_PAGES - 1;
             return (
-              <button key={i}
-                onClick={() => goToPage(i)}
-                disabled={isPdfGenerating}
+              <button key={i} onClick={() => goToPage(i)} disabled={isPdfGenerating}
                 aria-label={`페이지 ${i + 1}`}
                 className="rounded-full transition-all hover:scale-150 w-[5px] h-[5px] md:w-[6px] md:h-[6px]"
                 style={{
-                  background: isCurrent
-                    ? S.gold
-                    : isCover || isOutro
-                      ? 'rgba(255, 215, 0, 0.3)'
-                      : 'rgba(255, 255, 255, 0.1)',
+                  background: isCurrent ? S.gold : isCover || isOutro ? 'rgba(255, 215, 0, 0.3)' : 'rgba(255, 255, 255, 0.1)',
                   boxShadow: isCurrent ? `0 0 6px ${S.gold}` : 'none',
                   transform: isCurrent ? 'scale(1.3)' : 'scale(1)',
                   cursor: isPdfGenerating ? 'not-allowed' : 'pointer',
-                  border: 'none',
-                  padding: 0,
+                  border: 'none', padding: 0,
                 }} />
             );
           })}
@@ -534,13 +462,8 @@ export default function TeamReportPreviewPage() {
   );
 }
 
-function PageContent({
-  pageIndex, report, polished, forceDesktop = false,
-}: {
-  pageIndex: number;
-  report: TeamReportData;
-  polished: PolishedData | null;
-  forceDesktop?: boolean;
+function PageContent({ pageIndex, report, polished, forceDesktop = false }: {
+  pageIndex: number; report: TeamReportData; polished: PolishedData | null; forceDesktop?: boolean;
 }) {
   if (pageIndex === 0) return <CoverPage report={report} polished={polished} forceDesktop={forceDesktop} />;
   if (pageIndex === TOTAL_PAGES - 1) return <ConclusionPage report={report} polished={polished} forceDesktop={forceDesktop} />;
@@ -553,10 +476,7 @@ function PageContent({
 function CoverPage({ report, polished, forceDesktop = false }: { report: TeamReportData; polished: PolishedData | null; forceDesktop?: boolean; }) {
   const { team } = report;
   const leader = team.members.find(m => m.isLeader);
-
-  const gridStyle = forceDesktop
-    ? { display: 'grid', gridTemplateColumns: '1fr 1fr', position: 'relative' as const }
-    : undefined;
+  const gridStyle = forceDesktop ? { display: 'grid', gridTemplateColumns: '1fr 1fr', position: 'relative' as const } : undefined;
   const leftColStyle = forceDesktop
     ? { padding: '48px', display: 'flex', flexDirection: 'column' as const, alignItems: 'center', justifyContent: 'center', textAlign: 'center' as const, borderRight: '1px solid rgba(255, 215, 0, 0.15)' }
     : { borderColor: 'rgba(255, 215, 0, 0.15)' };
@@ -570,8 +490,7 @@ function CoverPage({ report, polished, forceDesktop = false }: { report: TeamRep
       <CornerDecoration position="tr" color={S.gold} />
       <CornerDecoration position="bl" color={S.gold} />
       <CornerDecoration position="br" color={S.gold} />
-      <div className={forceDesktop ? "" : "p-6 md:p-12 flex flex-col items-center justify-center text-center md:border-r"}
-        style={leftColStyle}>
+      <div className={forceDesktop ? "" : "p-6 md:p-12 flex flex-col items-center justify-center text-center md:border-r"} style={leftColStyle}>
         <div className="inline-flex items-center gap-2 mb-3 md:mb-4">
           <div className="w-1 h-1 rounded-full" style={{ background: S.gold, boxShadow: `0 0 6px ${S.gold}` }} />
           <span className="font-mono font-bold tracking-[5px] md:tracking-[6px]"
@@ -586,9 +505,7 @@ function CoverPage({ report, polished, forceDesktop = false }: { report: TeamRep
             lineHeight: 1.15,
             textShadow: `0 0 24px ${S.gold}55, 0 0 48px ${S.green}33`,
             letterSpacing: '-1px',
-          }}>
-          SIGNAL
-        </h1>
+          }}>SIGNAL</h1>
         <div className="flex items-center gap-2 mb-4">
           <div className="h-[1px]" style={{ width: forceDesktop ? '32px' : undefined, background: `linear-gradient(to right, transparent, ${S.gold})` }} />
           <p className="font-mono font-bold tracking-[2px]"
@@ -618,8 +535,7 @@ function CoverPage({ report, polished, forceDesktop = false }: { report: TeamRep
           <Row label="MEMBERS" value={`${team.members.length}명`} color={S.aqua} />
         </div>
         {polished?.executiveSummary && (
-          <div className="rounded-lg p-3 mb-3"
-            style={{ background: `${S.pink}08`, border: `0.5px solid ${S.pink}30` }}>
+          <div className="rounded-lg p-3 mb-3" style={{ background: `${S.pink}08`, border: `0.5px solid ${S.pink}30` }}>
             <div className="flex items-center gap-1.5 mb-1.5">
               <span style={{ fontSize: '10px' }}>📝</span>
               <p className="font-mono font-bold tracking-widest"
@@ -627,14 +543,11 @@ function CoverPage({ report, polished, forceDesktop = false }: { report: TeamRep
                 EXECUTIVE SUMMARY
               </p>
             </div>
-            <p className="text-[12px] text-gray-300 leading-relaxed">
-              {polished.executiveSummary}
-            </p>
+            <p className="text-[12px] text-gray-300 leading-relaxed">{polished.executiveSummary}</p>
           </div>
         )}
         <div className="pt-3 md:pt-4 border-t" style={{ borderColor: 'rgba(255, 215, 0, 0.1)' }}>
-          <p className="font-mono text-gray-600 mb-2"
-            style={{ fontSize: '9px', letterSpacing: '2px' }}>
+          <p className="font-mono text-gray-600 mb-2" style={{ fontSize: '9px', letterSpacing: '2px' }}>
             TEAM ROSTER
           </p>
           <div className="space-y-1">
@@ -664,11 +577,8 @@ function PolishedCardSpread({ card, pageIndex, polishedCard, forceDesktop = fals
   const topic = TOPICS.find(t => t.id === card.cardId);
   const categoryInfo = topic ? CATEGORY_STYLES[topic.category] : null;
   const difficulty = topic?.difficulty || 0;
-  const participants = Array.from(new Set(card.memberInsights?.map(mi => mi.memberName) || []));
 
-  const gridStyle = forceDesktop
-    ? { display: 'grid', gridTemplateColumns: '1fr 1fr', position: 'relative' as const }
-    : undefined;
+  const gridStyle = forceDesktop ? { display: 'grid', gridTemplateColumns: '1fr 1fr', position: 'relative' as const } : undefined;
   const leftColStyle = forceDesktop
     ? { padding: '36px', position: 'relative' as const, borderRight: `1px solid rgba(255, 215, 0, 0.15)`, minHeight: '600px' }
     : { borderColor: 'rgba(255, 215, 0, 0.15)' };
@@ -707,9 +617,7 @@ function PolishedCardSpread({ card, pageIndex, polishedCard, forceDesktop = fals
           <h2 className="font-bold text-white mb-1" style={{ fontSize: '18px', lineHeight: 1.25 }}>
             {polishedCard.titleKo || card.titleKo}
           </h2>
-          <p className="text-[11px] italic" style={{ color: 'rgba(193, 232, 235, 0.6)' }}>
-            {card.titleEn}
-          </p>
+          <p className="text-[11px] italic" style={{ color: 'rgba(193, 232, 235, 0.6)' }}>{card.titleEn}</p>
         </div>
         {polishedCard.intro && (
           <div className="mb-4 rounded-lg p-3"
@@ -740,19 +648,25 @@ function PolishedCardSpread({ card, pageIndex, polishedCard, forceDesktop = fals
           PAGE {String(pageIndex + 1).padStart(2, '0')} · LEFT
         </div>
       </div>
-      {!forceDesktop && <MobileSeparator color={cardColor} label="STRATEGY ↓" />}
+      {!forceDesktop && <MobileSeparator color={cardColor} label="FEEDBACK ↓" />}
       <div className={forceDesktop ? "" : "p-5 md:p-7 relative"} style={rightColStyle}>
         <div className={forceDesktop ? "absolute font-mono" : "absolute top-4 right-7 font-mono text-gray-600 hidden md:block"}
           style={{ fontSize: '9px', letterSpacing: '1.5px', color: 'rgba(255,255,255,0.3)', top: forceDesktop ? '16px' : undefined, right: forceDesktop ? '36px' : undefined }}>
           CONTINUED →
         </div>
         {polishedCard.strategy && (
-          <div className="mb-5" style={{ background: `linear-gradient(135deg, ${cardColor}15, ${cardColor}05)`, border: `0.5px solid ${cardColor}50`, borderRadius: '12px', padding: '16px', marginTop: forceDesktop ? '32px' : undefined }}>
+          <div className="mb-5"
+            style={{
+              background: `linear-gradient(135deg, ${cardColor}15, ${cardColor}05)`,
+              border: `0.5px solid ${cardColor}50`,
+              borderRadius: '12px', padding: '16px',
+              marginTop: forceDesktop ? '32px' : undefined,
+            }}>
             <div className="flex items-center gap-1.5 mb-2">
-              <span style={{ fontSize: '11px' }}>⚡</span>
+              <span style={{ fontSize: '11px' }}>🎯</span>
               <p className="font-mono font-bold tracking-widest"
                 style={{ fontSize: '8px', color: cardColor, letterSpacing: '2px' }}>
-                STRATEGY
+                AI COACH FEEDBACK
               </p>
             </div>
             <p className="leading-relaxed whitespace-pre-wrap"
@@ -795,24 +709,6 @@ function PolishedCardSpread({ card, pageIndex, polishedCard, forceDesktop = fals
             </p>
           </div>
         )}
-        {participants.length > 0 && (
-          <div className="mt-4 md:mt-5 pt-3" style={{ borderTop: `0.5px dashed rgba(255, 255, 255, 0.08)`, marginBottom: forceDesktop ? '24px' : undefined }}>
-            <div className="flex items-center gap-2 mb-1.5">
-              <div className="w-1 h-1 rounded-full" style={{ background: S.aqua, boxShadow: `0 0 4px ${S.aqua}` }} />
-              <span className="font-mono" style={{ fontSize: '8px', color: 'rgba(193, 232, 235, 0.7)', letterSpacing: '2px' }}>
-                CONTRIBUTORS
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {participants.map((name, i) => (
-                <span key={i} className="inline-flex items-center gap-1 rounded-full"
-                  style={{ fontSize: '10px', background: 'rgba(193, 232, 235, 0.06)', border: '0.5px solid rgba(193, 232, 235, 0.2)', color: 'rgba(255, 255, 255, 0.85)', padding: '2px 10px' }}>
-                  · {name}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
         <div className={forceDesktop ? "absolute font-mono" : "mt-4 md:mt-0 md:absolute md:bottom-3 md:right-7 font-mono text-center md:text-left"}
           style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)', letterSpacing: '2px', bottom: forceDesktop ? '12px' : undefined, right: forceDesktop ? '36px' : undefined }}>
           PAGE {String(pageIndex + 1).padStart(2, '0')}{forceDesktop ? ' · RIGHT' : <span className="hidden md:inline"> · RIGHT</span>}
@@ -827,13 +723,10 @@ function RawCardSpread({ card, pageIndex, forceDesktop = false }: { card: Report
   const topic = TOPICS.find(t => t.id === card.cardId);
   const categoryInfo = topic ? CATEGORY_STYLES[topic.category] : null;
   const difficulty = topic?.difficulty || 0;
-  const participants = Array.from(new Set(card.memberInsights?.map(mi => mi.memberName) || []));
   const leftQuestions = card.questions.slice(0, 2);
   const rightQuestion = card.questions[2];
 
-  const gridStyle = forceDesktop
-    ? { display: 'grid', gridTemplateColumns: '1fr 1fr', position: 'relative' as const }
-    : undefined;
+  const gridStyle = forceDesktop ? { display: 'grid', gridTemplateColumns: '1fr 1fr', position: 'relative' as const } : undefined;
   const leftColStyle = forceDesktop
     ? { padding: '36px', position: 'relative' as const, borderRight: `1px solid rgba(255, 215, 0, 0.15)`, minHeight: '600px' }
     : { borderColor: 'rgba(255, 215, 0, 0.15)' };
@@ -868,12 +761,8 @@ function RawCardSpread({ card, pageIndex, forceDesktop = false }: { card: Report
           <DifficultyStars level={difficulty} color={S.gold} />
         </div>
         <div className="mb-4 md:mb-5">
-          <h2 className="font-bold text-white mb-1" style={{ fontSize: '18px', lineHeight: 1.25 }}>
-            {card.titleKo}
-          </h2>
-          <p className="text-[11px] italic" style={{ color: 'rgba(193, 232, 235, 0.6)' }}>
-            {card.titleEn}
-          </p>
+          <h2 className="font-bold text-white mb-1" style={{ fontSize: '18px', lineHeight: 1.25 }}>{card.titleKo}</h2>
+          <p className="text-[11px] italic" style={{ color: 'rgba(193, 232, 235, 0.6)' }}>{card.titleEn}</p>
         </div>
         <div className="space-y-3">
           {leftQuestions.map((q, idx) => (
@@ -924,24 +813,6 @@ function RawCardSpread({ card, pageIndex, forceDesktop = false }: { card: Report
             </p>
           </div>
         )}
-        {participants.length > 0 && (
-          <div className="mt-4 md:mt-5 pt-3" style={{ borderTop: `0.5px dashed rgba(255, 255, 255, 0.08)`, marginBottom: forceDesktop ? '24px' : undefined }}>
-            <div className="flex items-center gap-2 mb-1.5">
-              <div className="w-1 h-1 rounded-full" style={{ background: S.aqua, boxShadow: `0 0 4px ${S.aqua}` }} />
-              <span className="font-mono" style={{ fontSize: '8px', color: 'rgba(193, 232, 235, 0.7)', letterSpacing: '2px' }}>
-                CONTRIBUTORS
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {participants.map((name, i) => (
-                <span key={i} className="inline-flex items-center gap-1 rounded-full"
-                  style={{ fontSize: '10px', background: 'rgba(193, 232, 235, 0.06)', border: '0.5px solid rgba(193, 232, 235, 0.2)', color: 'rgba(255, 255, 255, 0.85)', padding: '2px 10px' }}>
-                  · {name}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
         <div className={forceDesktop ? "absolute font-mono" : "mt-4 md:mt-0 md:absolute md:bottom-3 md:right-7 font-mono text-center md:text-left"}
           style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)', letterSpacing: '2px', bottom: forceDesktop ? '12px' : undefined, right: forceDesktop ? '36px' : undefined }}>
           PAGE {String(pageIndex + 1).padStart(2, '0')}{forceDesktop ? ' · RIGHT' : <span className="hidden md:inline"> · RIGHT</span>}
@@ -954,10 +825,7 @@ function RawCardSpread({ card, pageIndex, forceDesktop = false }: { card: Report
 function ConclusionPage({ report, polished, forceDesktop = false }: { report: TeamReportData; polished: PolishedData | null; forceDesktop?: boolean; }) {
   const { team, cards, totalAnswers } = report;
   const filledStrategies = cards.filter(c => c.oneSentenceStrategy).length;
-
-  const gridStyle = forceDesktop
-    ? { display: 'grid', gridTemplateColumns: '1fr 1fr', position: 'relative' as const }
-    : undefined;
+  const gridStyle = forceDesktop ? { display: 'grid', gridTemplateColumns: '1fr 1fr', position: 'relative' as const } : undefined;
   const leftColStyle = forceDesktop
     ? { padding: '40px', borderRight: `1px solid rgba(255, 215, 0, 0.15)` }
     : { borderColor: 'rgba(255, 215, 0, 0.15)' };
@@ -975,7 +843,9 @@ function ConclusionPage({ report, polished, forceDesktop = false }: { report: Te
         <p className="font-mono font-bold tracking-[3px] mb-3" style={{ fontSize: '10px', color: S.gold }}>
           ★ FINAL SUMMARY ★
         </p>
-        <h2 className="text-xl md:text-2xl font-bold text-white mb-2 leading-tight" style={{ fontSize: forceDesktop ? '24px' : undefined }}>전략 완성</h2>
+        <h2 className="text-xl md:text-2xl font-bold text-white mb-2 leading-tight" style={{ fontSize: forceDesktop ? '24px' : undefined }}>
+          전략 완성
+        </h2>
         <p className="text-[12px] text-gray-500 mb-5 md:mb-6">
           16개 카드를 통해 디지털 무역 전략을 완성했습니다.
         </p>
