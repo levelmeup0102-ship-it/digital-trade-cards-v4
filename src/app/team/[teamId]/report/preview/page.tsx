@@ -660,14 +660,15 @@ function PolishedCardSpread({ card, pageIndex, polishedCard, forceDesktop = fals
   const participants = Array.from(new Set(card.memberInsights?.map(mi => mi.memberName) || []));
 
   // ⭐ v8: forceDesktop 모드 - inline 스타일로 데스크탑 레이아웃 강제
+  // v9: padding 28 → 36으로 증가 (텍스트 박스 밖 나가는 문제 해결)
   const gridStyle = forceDesktop
     ? { display: 'grid', gridTemplateColumns: '1fr 1fr', position: 'relative' as const }
     : undefined;
   const leftColStyle = forceDesktop
-    ? { padding: '28px', position: 'relative' as const, borderRight: `1px solid rgba(255, 215, 0, 0.15)` }
+    ? { padding: '36px', position: 'relative' as const, borderRight: `1px solid rgba(255, 215, 0, 0.15)`, minHeight: '600px' }
     : { borderColor: 'rgba(255, 215, 0, 0.15)' };
   const rightColStyle = forceDesktop
-    ? { padding: '28px', position: 'relative' as const }
+    ? { padding: '36px', position: 'relative' as const, minHeight: '600px' }
     : undefined;
 
   return (
@@ -681,14 +682,14 @@ function PolishedCardSpread({ card, pageIndex, polishedCard, forceDesktop = fals
           <div className="flex items-center gap-2 md:gap-2.5 min-w-0">
             <CardSignature cardId={card.cardId} color={cardColor} />
             <div className="min-w-0">
-              <span className="font-mono text-gray-500 tracking-wider"
-                style={{ fontSize: '9px', letterSpacing: '1.5px' }}>
+              <span className="font-mono tracking-wider"
+                style={{ fontSize: '9px', letterSpacing: '1.5px', color: 'rgba(255,255,255,0.5)' }}>
                 CARD {card.cardId}
               </span>
               {categoryInfo && (
                 <div className="mt-1">
                   <span className="inline-block px-2 py-0.5 rounded-full font-bold"
-                    style={{ fontSize: '9px', background: `${categoryInfo.color}15`, color: categoryInfo.color, border: `0.5px solid ${categoryInfo.color}40` }}>
+                    style={{ fontSize: '9px', background: `${categoryInfo.color}22`, color: categoryInfo.color, border: `0.5px solid ${categoryInfo.color}60` }}>
                     {categoryInfo.label}
                   </span>
                 </div>
@@ -712,7 +713,7 @@ function PolishedCardSpread({ card, pageIndex, polishedCard, forceDesktop = fals
               style={{ fontSize: '8px', color: cardColor, letterSpacing: '2px' }}>
               ◆ INTRO
             </p>
-            <p className="leading-relaxed" style={{ fontSize: '12.5px', color: 'rgba(255, 255, 255, 0.92)' }}>
+            <p className="leading-relaxed" style={{ fontSize: '12.5px', color: 'rgba(255, 255, 255, 0.92)', wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
               {polishedCard.intro}
             </p>
           </div>
@@ -724,24 +725,24 @@ function PolishedCardSpread({ card, pageIndex, polishedCard, forceDesktop = fals
               ◆ NARRATIVE
             </p>
             <div className="leading-relaxed whitespace-pre-wrap"
-              style={{ fontSize: '12.5px', color: 'rgba(255, 255, 255, 0.85)', lineHeight: 1.75 }}>
+              style={{ fontSize: '12.5px', color: 'rgba(255, 255, 255, 0.85)', lineHeight: 1.75, wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
               {polishedCard.narrative}
             </div>
           </div>
         )}
         <div className={forceDesktop ? "absolute font-mono" : "absolute bottom-3 left-7 font-mono hidden md:block"}
-          style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px', bottom: forceDesktop ? '12px' : undefined, left: forceDesktop ? '28px' : undefined }}>
+          style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)', letterSpacing: '2px', bottom: forceDesktop ? '12px' : undefined, left: forceDesktop ? '36px' : undefined }}>
           PAGE {String(pageIndex + 1).padStart(2, '0')} · LEFT
         </div>
       </div>
       {!forceDesktop && <MobileSeparator color={cardColor} label="STRATEGY ↓" />}
       <div className={forceDesktop ? "" : "p-5 md:p-7 relative"} style={rightColStyle}>
-        <div className={forceDesktop ? "absolute font-mono text-gray-600" : "absolute top-4 right-7 font-mono text-gray-600 hidden md:block"}
-          style={{ fontSize: '9px', letterSpacing: '1.5px', top: forceDesktop ? '16px' : undefined, right: forceDesktop ? '28px' : undefined }}>
+        <div className={forceDesktop ? "absolute font-mono" : "absolute top-4 right-7 font-mono text-gray-600 hidden md:block"}
+          style={{ fontSize: '9px', letterSpacing: '1.5px', color: 'rgba(255,255,255,0.3)', top: forceDesktop ? '16px' : undefined, right: forceDesktop ? '36px' : undefined }}>
           CONTINUED →
         </div>
         {polishedCard.strategy && (
-          <div className="mb-5" style={{ background: `linear-gradient(135deg, ${cardColor}15, ${cardColor}05)`, border: `0.5px solid ${cardColor}50`, borderRadius: '12px', padding: '14px', marginTop: forceDesktop ? '24px' : undefined }}>
+          <div className="mb-5" style={{ background: `linear-gradient(135deg, ${cardColor}15, ${cardColor}05)`, border: `0.5px solid ${cardColor}50`, borderRadius: '12px', padding: '16px', marginTop: forceDesktop ? '32px' : undefined }}>
             <div className="flex items-center gap-1.5 mb-2">
               <span style={{ fontSize: '11px' }}>⚡</span>
               <p className="font-mono font-bold tracking-widest"
@@ -750,7 +751,7 @@ function PolishedCardSpread({ card, pageIndex, polishedCard, forceDesktop = fals
               </p>
             </div>
             <p className="leading-relaxed whitespace-pre-wrap"
-              style={{ fontSize: '12.5px', color: 'rgba(255, 255, 255, 0.92)', lineHeight: 1.7 }}>
+              style={{ fontSize: '12.5px', color: 'rgba(255, 255, 255, 0.92)', lineHeight: 1.7, wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
               {polishedCard.strategy}
             </p>
           </div>
@@ -761,8 +762,8 @@ function PolishedCardSpread({ card, pageIndex, polishedCard, forceDesktop = fals
           <div className="flex-1 h-[1px]" style={{ background: `linear-gradient(to left, transparent, ${S.gold}40, transparent)` }} />
         </div>
         {card.oneSentenceStrategy && (
-          <div className="rounded-xl p-4 mb-4 relative overflow-hidden"
-            style={{ background: `linear-gradient(135deg, rgba(255, 215, 0, 0.06), rgba(231, 254, 85, 0.04))`, border: `0.5px solid rgba(255, 215, 0, 0.3)` }}>
+          <div className="rounded-xl mb-4 relative overflow-hidden"
+            style={{ background: `linear-gradient(135deg, rgba(255, 215, 0, 0.06), rgba(231, 254, 85, 0.04))`, border: `0.5px solid rgba(255, 215, 0, 0.3)`, padding: '16px' }}>
             <div className="absolute top-0 left-0 right-0 h-[1px]"
               style={{ background: `linear-gradient(to right, transparent, ${S.gold}99, transparent)` }} />
             <div className="flex items-center gap-2 mb-2">
@@ -771,7 +772,7 @@ function PolishedCardSpread({ card, pageIndex, polishedCard, forceDesktop = fals
                 ONE SENTENCE STRATEGY
               </span>
             </div>
-            <p className="text-white leading-relaxed font-medium" style={{ fontSize: '13px' }}>
+            <p className="leading-relaxed font-medium" style={{ fontSize: '13px', color: '#ffffff', wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
               {card.oneSentenceStrategy}
             </p>
           </div>
@@ -784,13 +785,13 @@ function PolishedCardSpread({ card, pageIndex, polishedCard, forceDesktop = fals
                 BRIDGE TO NEXT
               </p>
             </div>
-            <p className="leading-relaxed italic" style={{ fontSize: '11.5px', color: 'rgba(255, 255, 255, 0.7)' }}>
+            <p className="leading-relaxed italic" style={{ fontSize: '11.5px', color: 'rgba(255, 255, 255, 0.7)', wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
               {polishedCard.bridge}
             </p>
           </div>
         )}
         {participants.length > 0 && (
-          <div className="mt-4 md:mt-5 pt-3" style={{ borderTop: `0.5px dashed rgba(255, 255, 255, 0.08)` }}>
+          <div className="mt-4 md:mt-5 pt-3" style={{ borderTop: `0.5px dashed rgba(255, 255, 255, 0.08)`, marginBottom: forceDesktop ? '24px' : undefined }}>
             <div className="flex items-center gap-2 mb-1.5">
               <div className="w-1 h-1 rounded-full" style={{ background: S.aqua, boxShadow: `0 0 4px ${S.aqua}` }} />
               <span className="font-mono" style={{ fontSize: '8px', color: 'rgba(193, 232, 235, 0.7)', letterSpacing: '2px' }}>
@@ -799,8 +800,8 @@ function PolishedCardSpread({ card, pageIndex, polishedCard, forceDesktop = fals
             </div>
             <div className="flex flex-wrap gap-1.5">
               {participants.map((name, i) => (
-                <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full"
-                  style={{ fontSize: '10px', background: 'rgba(193, 232, 235, 0.06)', border: '0.5px solid rgba(193, 232, 235, 0.2)', color: 'rgba(255, 255, 255, 0.85)' }}>
+                <span key={i} className="inline-flex items-center gap-1 rounded-full"
+                  style={{ fontSize: '10px', background: 'rgba(193, 232, 235, 0.06)', border: '0.5px solid rgba(193, 232, 235, 0.2)', color: 'rgba(255, 255, 255, 0.85)', padding: '2px 10px' }}>
                   · {name}
                 </span>
               ))}
@@ -808,7 +809,7 @@ function PolishedCardSpread({ card, pageIndex, polishedCard, forceDesktop = fals
           </div>
         )}
         <div className={forceDesktop ? "absolute font-mono" : "mt-4 md:mt-0 md:absolute md:bottom-3 md:right-7 font-mono text-center md:text-left"}
-          style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px', bottom: forceDesktop ? '12px' : undefined, right: forceDesktop ? '28px' : undefined }}>
+          style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)', letterSpacing: '2px', bottom: forceDesktop ? '12px' : undefined, right: forceDesktop ? '36px' : undefined }}>
           PAGE {String(pageIndex + 1).padStart(2, '0')}{forceDesktop ? ' · RIGHT' : <span className="hidden md:inline"> · RIGHT</span>}
         </div>
       </div>
@@ -825,15 +826,15 @@ function RawCardSpread({ card, pageIndex, forceDesktop = false }: { card: Report
   const leftQuestions = card.questions.slice(0, 2);
   const rightQuestion = card.questions[2];
 
-  // ⭐ v8: forceDesktop 모드
+  // ⭐ v9: forceDesktop 모드 - padding 36px, minHeight
   const gridStyle = forceDesktop
     ? { display: 'grid', gridTemplateColumns: '1fr 1fr', position: 'relative' as const }
     : undefined;
   const leftColStyle = forceDesktop
-    ? { padding: '28px', position: 'relative' as const, borderRight: `1px solid rgba(255, 215, 0, 0.15)` }
+    ? { padding: '36px', position: 'relative' as const, borderRight: `1px solid rgba(255, 215, 0, 0.15)`, minHeight: '600px' }
     : { borderColor: 'rgba(255, 215, 0, 0.15)' };
   const rightColStyle = forceDesktop
-    ? { padding: '28px', position: 'relative' as const }
+    ? { padding: '36px', position: 'relative' as const, minHeight: '600px' }
     : undefined;
 
   return (
@@ -847,13 +848,13 @@ function RawCardSpread({ card, pageIndex, forceDesktop = false }: { card: Report
           <div className="flex items-center gap-2 md:gap-2.5 min-w-0">
             <CardSignature cardId={card.cardId} color={cardColor} />
             <div className="min-w-0">
-              <span className="font-mono text-gray-500 tracking-wider" style={{ fontSize: '9px', letterSpacing: '1.5px' }}>
+              <span className="font-mono tracking-wider" style={{ fontSize: '9px', letterSpacing: '1.5px', color: 'rgba(255,255,255,0.5)' }}>
                 CARD {card.cardId}
               </span>
               {categoryInfo && (
                 <div className="mt-1">
                   <span className="inline-block px-2 py-0.5 rounded-full font-bold"
-                    style={{ fontSize: '9px', background: `${categoryInfo.color}15`, color: categoryInfo.color, border: `0.5px solid ${categoryInfo.color}40` }}>
+                    style={{ fontSize: '9px', background: `${categoryInfo.color}22`, color: categoryInfo.color, border: `0.5px solid ${categoryInfo.color}60` }}>
                     {categoryInfo.label}
                   </span>
                 </div>
@@ -885,14 +886,14 @@ function RawCardSpread({ card, pageIndex, forceDesktop = false }: { card: Report
           ))}
         </div>
         <div className={forceDesktop ? "absolute font-mono" : "absolute bottom-3 left-7 font-mono hidden md:block"}
-          style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px', bottom: forceDesktop ? '12px' : undefined, left: forceDesktop ? '28px' : undefined }}>
+          style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)', letterSpacing: '2px', bottom: forceDesktop ? '12px' : undefined, left: forceDesktop ? '36px' : undefined }}>
           PAGE {String(pageIndex + 1).padStart(2, '0')} · LEFT
         </div>
       </div>
       {!forceDesktop && <MobileSeparator color={cardColor} label="CONTINUED ↓" />}
       <div className={forceDesktop ? "" : "p-5 md:p-7 relative"} style={rightColStyle}>
-        <div className={forceDesktop ? "absolute font-mono text-gray-600" : "absolute top-4 right-7 font-mono text-gray-600 hidden md:block"}
-          style={{ fontSize: '9px', letterSpacing: '1.5px', top: forceDesktop ? '16px' : undefined, right: forceDesktop ? '28px' : undefined }}>
+        <div className={forceDesktop ? "absolute font-mono" : "absolute top-4 right-7 font-mono text-gray-600 hidden md:block"}
+          style={{ fontSize: '9px', letterSpacing: '1.5px', color: 'rgba(255,255,255,0.3)', top: forceDesktop ? '16px' : undefined, right: forceDesktop ? '36px' : undefined }}>
           CONTINUED →
         </div>
         <div className="mb-5" style={{ marginTop: forceDesktop ? '36px' : undefined }}>
@@ -904,8 +905,8 @@ function RawCardSpread({ card, pageIndex, forceDesktop = false }: { card: Report
           <div className="flex-1 h-[1px]" style={{ background: `linear-gradient(to left, transparent, ${S.gold}40, transparent)` }} />
         </div>
         {card.oneSentenceStrategy && (
-          <div className="rounded-xl p-4 relative overflow-hidden"
-            style={{ background: `linear-gradient(135deg, rgba(255, 215, 0, 0.06), rgba(231, 254, 85, 0.04))`, border: `0.5px solid rgba(255, 215, 0, 0.3)` }}>
+          <div className="rounded-xl relative overflow-hidden"
+            style={{ background: `linear-gradient(135deg, rgba(255, 215, 0, 0.06), rgba(231, 254, 85, 0.04))`, border: `0.5px solid rgba(255, 215, 0, 0.3)`, padding: '16px' }}>
             <div className="absolute top-0 left-0 right-0 h-[1px]"
               style={{ background: `linear-gradient(to right, transparent, ${S.gold}99, transparent)` }} />
             <div className="flex items-center gap-2 mb-2">
@@ -914,13 +915,13 @@ function RawCardSpread({ card, pageIndex, forceDesktop = false }: { card: Report
                 ONE SENTENCE STRATEGY
               </span>
             </div>
-            <p className="text-white leading-relaxed font-medium" style={{ fontSize: '13px' }}>
+            <p className="leading-relaxed font-medium" style={{ fontSize: '13px', color: '#ffffff', wordBreak: 'keep-all', overflowWrap: 'anywhere' }}>
               {card.oneSentenceStrategy}
             </p>
           </div>
         )}
         {participants.length > 0 && (
-          <div className="mt-4 md:mt-5 pt-3" style={{ borderTop: `0.5px dashed rgba(255, 255, 255, 0.08)` }}>
+          <div className="mt-4 md:mt-5 pt-3" style={{ borderTop: `0.5px dashed rgba(255, 255, 255, 0.08)`, marginBottom: forceDesktop ? '24px' : undefined }}>
             <div className="flex items-center gap-2 mb-1.5">
               <div className="w-1 h-1 rounded-full" style={{ background: S.aqua, boxShadow: `0 0 4px ${S.aqua}` }} />
               <span className="font-mono" style={{ fontSize: '8px', color: 'rgba(193, 232, 235, 0.7)', letterSpacing: '2px' }}>
@@ -929,8 +930,8 @@ function RawCardSpread({ card, pageIndex, forceDesktop = false }: { card: Report
             </div>
             <div className="flex flex-wrap gap-1.5">
               {participants.map((name, i) => (
-                <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full"
-                  style={{ fontSize: '10px', background: 'rgba(193, 232, 235, 0.06)', border: '0.5px solid rgba(193, 232, 235, 0.2)', color: 'rgba(255, 255, 255, 0.85)' }}>
+                <span key={i} className="inline-flex items-center gap-1 rounded-full"
+                  style={{ fontSize: '10px', background: 'rgba(193, 232, 235, 0.06)', border: '0.5px solid rgba(193, 232, 235, 0.2)', color: 'rgba(255, 255, 255, 0.85)', padding: '2px 10px' }}>
                   · {name}
                 </span>
               ))}
@@ -938,7 +939,7 @@ function RawCardSpread({ card, pageIndex, forceDesktop = false }: { card: Report
           </div>
         )}
         <div className={forceDesktop ? "absolute font-mono" : "mt-4 md:mt-0 md:absolute md:bottom-3 md:right-7 font-mono text-center md:text-left"}
-          style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px', bottom: forceDesktop ? '12px' : undefined, right: forceDesktop ? '28px' : undefined }}>
+          style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)', letterSpacing: '2px', bottom: forceDesktop ? '12px' : undefined, right: forceDesktop ? '36px' : undefined }}>
           PAGE {String(pageIndex + 1).padStart(2, '0')}{forceDesktop ? ' · RIGHT' : <span className="hidden md:inline"> · RIGHT</span>}
         </div>
       </div>
