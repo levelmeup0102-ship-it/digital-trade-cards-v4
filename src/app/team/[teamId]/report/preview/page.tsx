@@ -546,8 +546,8 @@ function PolishedCardSpread({ card, pageIndex, polishedCard }: { card: ReportCar
               </span>
               {categoryInfo && (
                 <div className="mt-1">
-                  <span className="inline-block px-2 py-0.5 rounded-full font-bold"
-                    style={{ fontSize: '9px', background: `${categoryInfo.color}15`, color: categoryInfo.color, border: `0.5px solid ${categoryInfo.color}40` }}>
+                  <span className="inline-block rounded-full font-bold"
+                    style={{ fontSize: '9px', padding: '3px 8px 2px 8px', background: `${categoryInfo.color}15`, color: categoryInfo.color, border: `0.5px solid ${categoryInfo.color}40`, lineHeight: 1 }}>
                     {categoryInfo.label}
                   </span>
                 </div>
@@ -667,8 +667,8 @@ function RawCardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: numbe
               </span>
               {categoryInfo && (
                 <div className="mt-1">
-                  <span className="inline-block px-2 py-0.5 rounded-full font-bold"
-                    style={{ fontSize: '9px', background: `${categoryInfo.color}15`, color: categoryInfo.color, border: `0.5px solid ${categoryInfo.color}40` }}>
+                  <span className="inline-block rounded-full font-bold"
+                    style={{ fontSize: '9px', padding: '3px 8px 2px 8px', background: `${categoryInfo.color}15`, color: categoryInfo.color, border: `0.5px solid ${categoryInfo.color}40`, lineHeight: 1 }}>
                     {categoryInfo.label}
                   </span>
                 </div>
@@ -958,11 +958,11 @@ function QuestionBlock({ qNum, q, cardColor }: { qNum: number; q: { id: string; 
     <div>
       <div className="flex items-center gap-2 mb-2 flex-wrap">
         <span className="font-mono font-bold rounded inline-flex items-center gap-1"
-          style={{ fontSize: '9px', padding: '2px 6px', background: `${stage.color}22`, color: stage.color, letterSpacing: '1px', border: `0.5px solid ${stage.color}40` }}>
+          style={{ fontSize: '9px', padding: '3px 6px 1px 6px', background: `${stage.color}22`, color: stage.color, letterSpacing: '1px', border: `0.5px solid ${stage.color}40`, lineHeight: 1 }}>
           <StageIcon stage={qNum} color={stage.color} />
           STAGE {qNum}
         </span>
-        <span className="font-mono" style={{ fontSize: '9px', color: stage.color, opacity: 0.7, letterSpacing: '1px' }}>
+        <span className="font-mono" style={{ fontSize: '9px', color: stage.color, opacity: 0.7, letterSpacing: '1px', lineHeight: 1 }}>
           {stage.label}
         </span>
       </div>
@@ -975,7 +975,7 @@ function QuestionBlock({ qNum, q, cardColor }: { qNum: number; q: { id: string; 
       )}
       {interimText && (
         <p className="rounded-r-md"
-          style={{ fontSize: '11px', color: stage.color, opacity: 0.95, padding: '6px 10px', background: `linear-gradient(to right, ${stage.color}1A, ${stage.color}05)`, borderLeft: `2px solid ${stage.color}`, margin: 0 }}>
+          style={{ fontSize: '11px', color: stage.color, opacity: 0.95, padding: '8px 10px 6px 10px', background: `linear-gradient(to right, ${stage.color}1A, ${stage.color}05)`, borderLeft: `2px solid ${stage.color}`, margin: 0, lineHeight: 1.4 }}>
           → {interimText}
         </p>
       )}
