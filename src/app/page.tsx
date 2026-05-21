@@ -1426,16 +1426,18 @@ export default function Home() {
           {`>`} 관리자 로그인
         </button>
 
-        <button onClick={() => setScreen('guide')}
-          className="relative w-full py-3 md:py-3.5 rounded-2xl text-[13px] md:text-[14px] font-bold transition-all hover:scale-[1.01]"
+        {/* ⭐ CHANGED: 퍼실리테이터 가이드 → 소개서 보기 (intro.html로 직접 이동) */}
+        <a href="/intro.html"
+          className="relative block w-full py-3 md:py-3.5 rounded-2xl text-[13px] md:text-[14px] font-bold transition-all hover:scale-[1.01] text-center no-underline"
           style={{
             background: 'rgba(139, 92, 246, 0.08)',
             border: `1px solid #8B5CF666`,
             color: '#8B5CF6',
             textShadow: '0 0 8px #8B5CF666',
+            textDecoration: 'none',
           }}>
-          {`>`} 퍼실리테이터 가이드
-        </button>
+          {`>`} 📖 소개서 보기
+        </a>
 
         <p className="text-gray-700 text-[10px] mt-6 md:mt-8 font-mono">© 2026 SIGNAL — ConnectAI</p>
       </div>
@@ -1499,7 +1501,8 @@ export default function Home() {
     </div>
   );
 
-  // ─── GUIDE 화면 ───
+  // ─── GUIDE 화면 (이제 사용 안 함 - 소개서 보기 버튼이 intro.html로 직접 이동) ───
+  // 안전을 위해 코드는 유지함. 호출되지 않으므로 아무 영향 없음.
   if (screen === 'guide') return (
     <div className="min-h-screen px-3 md:px-4 py-4 md:py-6 overflow-auto">
       <div className="max-w-2xl mx-auto">
