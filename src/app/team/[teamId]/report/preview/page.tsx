@@ -563,12 +563,15 @@ function PolishedCardSpread({ card, pageIndex, polishedCard }: { card: ReportCar
           <p className="text-[11px] italic" style={{ color: 'rgba(193, 232, 235, 0.6)' }}>{card.titleEn}</p>
         </div>
         {polishedCard.intro && (
-          <div className="mb-4 rounded-lg p-3"
-            style={{ background: `${cardColor}10`, border: `0.5px solid ${cardColor}30`, borderLeft: `2.5px solid ${cardColor}` }}>
-            <p className="font-mono font-bold tracking-widest mb-1.5" style={{ fontSize: '8px', color: cardColor, letterSpacing: '2px' }}>
-              ◆ INTRO
-            </p>
-            <p className="leading-relaxed" style={{ fontSize: '12.5px', color: 'rgba(255, 255, 255, 0.92)' }}>{polishedCard.intro}</p>
+          <div className="mb-4 rounded-lg overflow-hidden relative"
+            style={{ background: `${cardColor}10`, border: `0.5px solid ${cardColor}30` }}>
+            <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '3px', background: cardColor }} />
+            <div className="p-3 pl-4">
+              <p className="font-mono font-bold tracking-widest mb-1.5" style={{ fontSize: '8px', color: cardColor, letterSpacing: '2px' }}>
+                ◆ INTRO
+              </p>
+              <p className="leading-relaxed" style={{ fontSize: '12.5px', color: 'rgba(255, 255, 255, 0.92)' }}>{polishedCard.intro}</p>
+            </div>
           </div>
         )}
         {polishedCard.narrative && (
@@ -756,12 +759,15 @@ function ConclusionPage({ report, polished }: { report: TeamReportData; polished
           <SummaryStat label="참여 팀원" value={`${team.members.length}명`} color={S.gold} />
         </div>
         {polished?.conclusion && (
-          <div className="rounded-lg p-3" style={{ background: `${S.pink}08`, border: `0.5px solid ${S.pink}30`, borderLeft: `2.5px solid ${S.pink}` }}>
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <span style={{ fontSize: '10px' }}>📝</span>
-              <p className="font-mono font-bold tracking-widest" style={{ fontSize: '8px', color: S.pink, letterSpacing: '1.5px' }}>CONCLUSION</p>
+          <div className="rounded-lg overflow-hidden relative" style={{ background: `${S.pink}08`, border: `0.5px solid ${S.pink}30` }}>
+            <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '3px', background: S.pink }} />
+            <div className="p-3 pl-4">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <span style={{ fontSize: '10px' }}>📝</span>
+                <p className="font-mono font-bold tracking-widest" style={{ fontSize: '8px', color: S.pink, letterSpacing: '1.5px' }}>CONCLUSION</p>
+              </div>
+              <p className="text-[11.5px] text-gray-300 leading-relaxed">{polished.conclusion}</p>
             </div>
-            <p className="text-[11.5px] text-gray-300 leading-relaxed">{polished.conclusion}</p>
           </div>
         )}
       </div>
@@ -855,55 +861,67 @@ function FeedbackBoxes({ strategy }: { strategy: string }) {
     <div className="space-y-2.5">
       {/* 강점 박스 */}
       {strengthText && (
-        <div className="rounded-lg p-3"
-          style={{ background: COLORS.strength.bg, border: `0.5px solid ${COLORS.strength.border}`, borderLeft: `3px solid ${COLORS.strength.main}` }}>
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <span style={{ fontSize: '11px' }}>💚</span>
-            <p className="font-mono font-bold tracking-wider"
-              style={{ fontSize: '9px', color: COLORS.strength.main, letterSpacing: '1.5px' }}>
-              STRENGTH · 강점
+        <div className="rounded-lg overflow-hidden relative"
+          style={{ background: COLORS.strength.bg, border: `0.5px solid ${COLORS.strength.border}` }}>
+          {/* 왼쪽 색깔 띠 (진짜 div로 그림) */}
+          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '3px', background: COLORS.strength.main }} />
+          <div className="p-3 pl-4">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span style={{ fontSize: '11px' }}>💚</span>
+              <p className="font-mono font-bold tracking-wider"
+                style={{ fontSize: '9px', color: COLORS.strength.main, letterSpacing: '1.5px' }}>
+                STRENGTH · 강점
+              </p>
+            </div>
+            <p className="leading-relaxed"
+              style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.92)', lineHeight: 1.65, wordBreak: 'keep-all' }}>
+              {strengthText}
             </p>
           </div>
-          <p className="leading-relaxed"
-            style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.92)', lineHeight: 1.65, wordBreak: 'keep-all' }}>
-            {strengthText}
-          </p>
         </div>
       )}
 
       {/* 보완점 박스 */}
       {weaknessText && (
-        <div className="rounded-lg p-3"
-          style={{ background: COLORS.weakness.bg, border: `0.5px solid ${COLORS.weakness.border}`, borderLeft: `3px solid ${COLORS.weakness.main}` }}>
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <span style={{ fontSize: '11px' }}>⚠️</span>
-            <p className="font-mono font-bold tracking-wider"
-              style={{ fontSize: '9px', color: COLORS.weakness.main, letterSpacing: '1.5px' }}>
-              WEAKNESS · 보완점
+        <div className="rounded-lg overflow-hidden relative"
+          style={{ background: COLORS.weakness.bg, border: `0.5px solid ${COLORS.weakness.border}` }}>
+          {/* 왼쪽 색깔 띠 (진짜 div로 그림) */}
+          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '3px', background: COLORS.weakness.main }} />
+          <div className="p-3 pl-4">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span style={{ fontSize: '11px' }}>⚠️</span>
+              <p className="font-mono font-bold tracking-wider"
+                style={{ fontSize: '9px', color: COLORS.weakness.main, letterSpacing: '1.5px' }}>
+                WEAKNESS · 보완점
+              </p>
+            </div>
+            <p className="leading-relaxed"
+              style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.92)', lineHeight: 1.65, wordBreak: 'keep-all' }}>
+              {weaknessText}
             </p>
           </div>
-          <p className="leading-relaxed"
-            style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.92)', lineHeight: 1.65, wordBreak: 'keep-all' }}>
-            {weaknessText}
-          </p>
         </div>
       )}
 
       {/* 제안 박스 */}
       {suggestionText && (
-        <div className="rounded-lg p-3"
-          style={{ background: COLORS.suggestion.bg, border: `0.5px solid ${COLORS.suggestion.border}`, borderLeft: `3px solid ${COLORS.suggestion.main}` }}>
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <span style={{ fontSize: '11px' }}>💡</span>
-            <p className="font-mono font-bold tracking-wider"
-              style={{ fontSize: '9px', color: COLORS.suggestion.main, letterSpacing: '1.5px' }}>
-              SUGGESTION · 제안
+        <div className="rounded-lg overflow-hidden relative"
+          style={{ background: COLORS.suggestion.bg, border: `0.5px solid ${COLORS.suggestion.border}` }}>
+          {/* 왼쪽 색깔 띠 (진짜 div로 그림) */}
+          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '3px', background: COLORS.suggestion.main }} />
+          <div className="p-3 pl-4">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span style={{ fontSize: '11px' }}>💡</span>
+              <p className="font-mono font-bold tracking-wider"
+                style={{ fontSize: '9px', color: COLORS.suggestion.main, letterSpacing: '1.5px' }}>
+                SUGGESTION · 제안
+              </p>
+            </div>
+            <p className="leading-relaxed"
+              style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.92)', lineHeight: 1.65, wordBreak: 'keep-all' }}>
+              {suggestionText}
             </p>
           </div>
-          <p className="leading-relaxed"
-            style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.92)', lineHeight: 1.65, wordBreak: 'keep-all' }}>
-            {suggestionText}
-          </p>
         </div>
       )}
     </div>
