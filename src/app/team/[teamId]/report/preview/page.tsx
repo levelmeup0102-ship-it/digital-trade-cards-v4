@@ -546,8 +546,8 @@ function PolishedCardSpread({ card, pageIndex, polishedCard }: { card: ReportCar
               </span>
               {categoryInfo && (
                 <div className="mt-1">
-                  <span className="inline-block rounded-full font-bold"
-                    style={{ fontSize: '9px', padding: '3px 8px 2px 8px', background: `${categoryInfo.color}15`, color: categoryInfo.color, border: `0.5px solid ${categoryInfo.color}40`, lineHeight: 1 }}>
+                  <span className="rounded-full font-bold"
+                    style={{ fontSize: '9px', padding: '4px 9px 3px 9px', background: `${categoryInfo.color}15`, color: categoryInfo.color, border: `0.5px solid ${categoryInfo.color}40`, lineHeight: 1, display: 'inline-block', verticalAlign: 'middle' }}>
                     {categoryInfo.label}
                   </span>
                 </div>
@@ -667,8 +667,8 @@ function RawCardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: numbe
               </span>
               {categoryInfo && (
                 <div className="mt-1">
-                  <span className="inline-block rounded-full font-bold"
-                    style={{ fontSize: '9px', padding: '3px 8px 2px 8px', background: `${categoryInfo.color}15`, color: categoryInfo.color, border: `0.5px solid ${categoryInfo.color}40`, lineHeight: 1 }}>
+                  <span className="rounded-full font-bold"
+                    style={{ fontSize: '9px', padding: '4px 9px 3px 9px', background: `${categoryInfo.color}15`, color: categoryInfo.color, border: `0.5px solid ${categoryInfo.color}40`, lineHeight: 1, display: 'inline-block', verticalAlign: 'middle' }}>
                     {categoryInfo.label}
                   </span>
                 </div>
@@ -957,12 +957,12 @@ function QuestionBlock({ qNum, q, cardColor }: { qNum: number; q: { id: string; 
   return (
     <div>
       <div className="flex items-center gap-2 mb-2 flex-wrap">
-        <span className="font-mono font-bold rounded inline-flex items-center gap-1"
-          style={{ fontSize: '9px', padding: '3px 6px 1px 6px', background: `${stage.color}22`, color: stage.color, letterSpacing: '1px', border: `0.5px solid ${stage.color}40`, lineHeight: 1 }}>
-          <StageIcon stage={qNum} color={stage.color} />
-          STAGE {qNum}
+        <span className="font-mono font-bold rounded"
+          style={{ fontSize: '9px', padding: '4px 7px 3px 7px', background: `${stage.color}22`, color: stage.color, letterSpacing: '1px', border: `0.5px solid ${stage.color}40`, lineHeight: 1, display: 'inline-flex', alignItems: 'center', gap: '4px', verticalAlign: 'middle' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', lineHeight: 0 }}><StageIcon stage={qNum} color={stage.color} /></span>
+          <span style={{ display: 'inline-block', lineHeight: 1, position: 'relative', top: '-1px' }}>STAGE {qNum}</span>
         </span>
-        <span className="font-mono" style={{ fontSize: '9px', color: stage.color, opacity: 0.7, letterSpacing: '1px', lineHeight: 1 }}>
+        <span className="font-mono" style={{ fontSize: '9px', color: stage.color, opacity: 0.7, letterSpacing: '1px', lineHeight: 1, display: 'inline-block', position: 'relative', top: '-1px' }}>
           {stage.label}
         </span>
       </div>
