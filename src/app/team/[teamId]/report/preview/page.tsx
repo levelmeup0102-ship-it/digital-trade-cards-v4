@@ -593,22 +593,16 @@ function PolishedCardSpread({ card, pageIndex, polishedCard }: { card: ReportCar
           CONTINUED →
         </div>
         {polishedCard.strategy && (
-          <div className="mb-5 md:mt-6"
-            style={{
-              background: `linear-gradient(135deg, ${cardColor}15, ${cardColor}05)`,
-              border: `0.5px solid ${cardColor}50`,
-              borderRadius: '12px',
-              padding: '14px',
-            }}>
-            <div className="flex items-center gap-1.5 mb-2">
+          <div className="mb-5 md:mt-6">
+            {/* AI COACH FEEDBACK 헤더 */}
+            <div className="flex items-center gap-1.5 mb-3">
               <span style={{ fontSize: '11px' }}>🎯</span>
               <p className="font-mono font-bold tracking-widest" style={{ fontSize: '8px', color: cardColor, letterSpacing: '2px' }}>
                 AI COACH FEEDBACK
               </p>
             </div>
-            <p className="leading-relaxed whitespace-pre-wrap" style={{ fontSize: '12.5px', color: 'rgba(255, 255, 255, 0.92)', lineHeight: 1.7 }}>
-              {polishedCard.strategy}
-            </p>
+            {/* 3개 박스로 분리 */}
+            <FeedbackBoxes strategy={polishedCard.strategy} />
           </div>
         )}
         <div className="mb-4 flex items-center gap-2">
@@ -791,6 +785,127 @@ function MobileSeparator({ color, label = '' }: { color: string; label?: string 
     <div className="md:hidden flex items-center gap-2 px-5 py-2.5"
       style={{ borderTop: `0.5px solid ${color}25`, borderBottom: `0.5px solid ${color}25`, background: `${color}06` }}>
       {label && <span className="font-mono font-bold" style={{ fontSize: '8px', color: `${color}AA`, letterSpacing: '2px' }}>{label}</span>}
+    </div>
+  );
+}
+
+// ⭐ NEW: AI 코치 피드백을 강점/보완점/제안 3박스로 분리
+function FeedbackBoxes({ strategy }: { strategy: string }) {
+  // 색상
+  const COLORS = {
+    strength: { main: '#78BE20', bg: 'rgba(120, 190, 32, 0.08)', border: 'rgba(120, 190, 32, 0.4)' },
+    weakness: { main: '#FFA500', bg: 'rgba(255, 165, 0, 0.08)', border: 'rgba(255, 165, 0, 0.4)' },
+    suggestion: { main: '#06B6D4', bg: 'rgba(6, 182, 212, 0.08)', border: 'rgba(6, 182, 212, 0.4)' },
+  };
+
+  // 텍스트 파싱 (【강점】, 【보완점】, 【제안】 키워드로 분리)
+  const parseSection = (text: string, label: string): string => {
+    // 다양한 변형 키워드 지원
+    const patterns: Record<string, RegExp[]> = {
+      strength: [/【강점】/, /\[강점\]/, /강점:/, /✅\s*강점/],
+      weakness: [/【보완점】/, /\[보완점\]/, /보완점:/, /【약점】/, /약점:/, /⚠️?\s*보완점/],
+      suggestion: [/【제안】/, /\[제안\]/, /제안:/, /【개선 제안】/, /💡\s*제안/],
+    };
+
+    // 모든 섹션 시작 위치 찾기
+    const allMarkers: { type: string; pos: number; len: number }[] = [];
+    Object.entries(patterns).forEach(([type, regexes]) => {
+      for (const regex of regexes) {
+        const match = text.match(regex);
+        if (match && match.index !== undefined) {
+          allMarkers.push({ type, pos: match.index, len: match[0].length });
+          break;
+        }
+      }
+    });
+
+    // 위치 순으로 정렬
+    allMarkers.sort((a, b) => a.pos - b.pos);
+
+    // 해당 라벨의 마커 찾기
+    const targetIdx = allMarkers.findIndex(m => m.type === label);
+    if (targetIdx === -1) return '';
+
+    const target = allMarkers[targetIdx];
+    const next = allMarkers[targetIdx + 1];
+    const start = target.pos + target.len;
+    const end = next ? next.pos : text.length;
+
+    return text.slice(start, end).trim();
+  };
+
+  const strengthText = parseSection(strategy, 'strength');
+  const weaknessText = parseSection(strategy, 'weakness');
+  const suggestionText = parseSection(strategy, 'suggestion');
+
+  // 파싱이 실패했으면 그냥 전체 텍스트로 표시
+  if (!strengthText && !weaknessText && !suggestionText) {
+    return (
+      <div className="rounded-lg p-3"
+        style={{ background: 'rgba(255, 255, 255, 0.03)', border: '0.5px solid rgba(255, 255, 255, 0.1)' }}>
+        <p className="leading-relaxed whitespace-pre-wrap"
+          style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.92)', lineHeight: 1.7 }}>
+          {strategy}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2.5">
+      {/* 강점 박스 */}
+      {strengthText && (
+        <div className="rounded-lg p-3"
+          style={{ background: COLORS.strength.bg, border: `0.5px solid ${COLORS.strength.border}`, borderLeft: `3px solid ${COLORS.strength.main}` }}>
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <span style={{ fontSize: '11px' }}>💚</span>
+            <p className="font-mono font-bold tracking-wider"
+              style={{ fontSize: '9px', color: COLORS.strength.main, letterSpacing: '1.5px' }}>
+              STRENGTH · 강점
+            </p>
+          </div>
+          <p className="leading-relaxed"
+            style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.92)', lineHeight: 1.65, wordBreak: 'keep-all' }}>
+            {strengthText}
+          </p>
+        </div>
+      )}
+
+      {/* 보완점 박스 */}
+      {weaknessText && (
+        <div className="rounded-lg p-3"
+          style={{ background: COLORS.weakness.bg, border: `0.5px solid ${COLORS.weakness.border}`, borderLeft: `3px solid ${COLORS.weakness.main}` }}>
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <span style={{ fontSize: '11px' }}>⚠️</span>
+            <p className="font-mono font-bold tracking-wider"
+              style={{ fontSize: '9px', color: COLORS.weakness.main, letterSpacing: '1.5px' }}>
+              WEAKNESS · 보완점
+            </p>
+          </div>
+          <p className="leading-relaxed"
+            style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.92)', lineHeight: 1.65, wordBreak: 'keep-all' }}>
+            {weaknessText}
+          </p>
+        </div>
+      )}
+
+      {/* 제안 박스 */}
+      {suggestionText && (
+        <div className="rounded-lg p-3"
+          style={{ background: COLORS.suggestion.bg, border: `0.5px solid ${COLORS.suggestion.border}`, borderLeft: `3px solid ${COLORS.suggestion.main}` }}>
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <span style={{ fontSize: '11px' }}>💡</span>
+            <p className="font-mono font-bold tracking-wider"
+              style={{ fontSize: '9px', color: COLORS.suggestion.main, letterSpacing: '1.5px' }}>
+              SUGGESTION · 제안
+            </p>
+          </div>
+          <p className="leading-relaxed"
+            style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.92)', lineHeight: 1.65, wordBreak: 'keep-all' }}>
+            {suggestionText}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
