@@ -113,23 +113,18 @@ export default function TeamReportPage() {
   const [personalScores, setPersonalScores] = useState<PersonalScore[]>([]);
   const [isLeader, setIsLeader] = useState(false);
 
-  // ⭐ v2: sessionStorage 비어있을 때 멤버 선택 모달
   const [showMemberSelect, setShowMemberSelect] = useState(false);
 
-  // ⭐⭐⭐ NEW: DB 기반 채점 진행 상태 추적 ⭐⭐⭐
-  // 페이지 이동/새로고침/돌아옴 시에도 정확히 진행 상태 표시
   const [aiScoringInProgress, setAiScoringInProgress] = useState(false);
   const [scoringStartedAt, setScoringStartedAt] = useState<string | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
 
   const [polished, setPolished] = useState<PolishedData | null>(null);
   const [polishedAt, setPolishedAt] = useState<string | null>(null);
-  // ⭐⭐⭐ NEW: 다듬기 진행 상태도 DB 추적 ⭐⭐⭐
   const [polishingInProgress, setPolishingInProgress] = useState(false);
   const [polishingStartedAt, setPolishingStartedAt] = useState<string | null>(null);
   const [polishError, setPolishError] = useState<string | null>(null);
 
-  // ⭐⭐⭐ NEW: Realtime 구독 cleanup용 ⭐⭐⭐
   const channelRef = useRef<any>(null);
 
   useEffect(() => {
@@ -151,7 +146,6 @@ export default function TeamReportPage() {
     })();
   }, [teamId]);
 
-  // ⭐⭐⭐ NEW: team_reports Realtime 구독 (채점/다듬기 완료 자동 감지) ⭐⭐⭐
   useEffect(() => {
     if (!teamId) return;
 
@@ -169,19 +163,16 @@ export default function TeamReportPage() {
           const newData = payload.new as any;
           console.log('[Realtime] team_reports UPDATE 감지:', newData);
 
-          // DB 진행 상태 그대로 반영
           setAiScoringInProgress(newData.scoring_in_progress === true);
           setScoringStartedAt(newData.scoring_started_at || null);
           setPolishingInProgress(newData.polishing_in_progress === true);
           setPolishingStartedAt(newData.polishing_started_at || null);
 
-          // 채점 완료 감지 (in_progress=false + scored_at 새로 생김)
           if (newData.scoring_in_progress === false && newData.scored_at && report) {
             console.log('[Realtime] 채점 완료! 데이터 재로드');
             await loadAllData(report);
           }
 
-          // 다듬기 완료 감지
           if (newData.polishing_in_progress === false && newData.ai_polished && report) {
             console.log('[Realtime] 다듬기 완료! 데이터 재로드');
             await loadAllData(report);
@@ -201,7 +192,6 @@ export default function TeamReportPage() {
 
   async function loadAllData(reportData: TeamReportData) {
     try {
-      // 팀 점수 로드 + 진행 상태 컬럼도 함께
       const { data: dbReport } = await supabase
         .from('team_reports')
         .select('team_score_920, a_score, b_score, c_score, e_score, card_scores, area_breakdown, scored_at, ai_polished, ai_polished_at, scoring_in_progress, scoring_started_at, polishing_in_progress, polishing_started_at')
@@ -221,7 +211,6 @@ export default function TeamReportPage() {
         });
       }
 
-      // ⭐⭐⭐ NEW: DB에서 진행 상태 로드 (페이지 진입 시) ⭐⭐⭐
       if (dbReport) {
         setAiScoringInProgress(dbReport.scoring_in_progress === true);
         setScoringStartedAt(dbReport.scoring_started_at || null);
@@ -229,7 +218,6 @@ export default function TeamReportPage() {
         setPolishingStartedAt(dbReport.polishing_started_at || null);
       }
 
-      // 다듬기 결과
       if (dbReport?.ai_polished) {
         try {
           const parsed = JSON.parse(dbReport.ai_polished);
@@ -240,7 +228,6 @@ export default function TeamReportPage() {
         }
       }
 
-      // 개인 점수 로드
       const { data: personals } = await supabase
         .from('personal_scores')
         .select(`
@@ -265,7 +252,6 @@ export default function TeamReportPage() {
         })));
       }
 
-      // ⭐ v2: 팀장 여부 결정 — sessionStorage 비어있으면 멤버 선택 모달 표시
       const myMemberId = typeof window !== 'undefined' ? sessionStorage.getItem('memberId') : null;
       if (myMemberId && reportData.team.members) {
         const me = reportData.team.members.find((m: any) => m.id === myMemberId);
@@ -284,7 +270,6 @@ export default function TeamReportPage() {
     }
   }
 
-  // ⭐ v2: 멤버 선택 모달에서 자기 자신 선택 시
   const handleMemberSelect = (memberId: string, leader: boolean) => {
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('memberId', memberId);
@@ -293,7 +278,6 @@ export default function TeamReportPage() {
     setShowMemberSelect(false);
   };
 
-  // ⭐ AI 채점 — DB 진행 상태 추적 추가
   async function handleAiScoring() {
     if (!isLeader) {
       alert('팀장만 채점할 수 있어요!');
@@ -320,14 +304,12 @@ export default function TeamReportPage() {
     );
     if (!ok) return;
 
-    // ⭐⭐⭐ NEW: DB에 진행 상태 표시 (페이지 이동해도 유지) ⭐⭐⭐
     const startedAt = new Date().toISOString();
     setAiScoringInProgress(true);
     setScoringStartedAt(startedAt);
     setAiError(null);
 
     try {
-      // DB에 채점 시작 표시
       const { error: updateError } = await supabase
         .from('team_reports')
         .update({
@@ -367,7 +349,6 @@ export default function TeamReportPage() {
 
       console.log('[채점] 모든 채점 완료. 데이터 다시 로드...');
 
-      // ⭐ DB에 채점 완료 표시
       await supabase
         .from('team_reports')
         .update({ scoring_in_progress: false })
@@ -380,7 +361,6 @@ export default function TeamReportPage() {
       console.error('AI 채점 에러:', e);
       setAiError(e?.message || '채점 중 오류가 발생했습니다');
 
-      // ⭐ DB 에러 시에도 진행 상태 초기화
       await supabase
         .from('team_reports')
         .update({ scoring_in_progress: false })
@@ -392,7 +372,6 @@ export default function TeamReportPage() {
     }
   }
 
-  // ⭐ AI 다듬기 — DB 진행 상태 추적 추가
   async function handlePolishing() {
     if (!isLeader) {
       alert('팀장만 다듬기를 실행할 수 있어요!');
@@ -425,7 +404,6 @@ export default function TeamReportPage() {
     setPolishError(null);
 
     try {
-      // ⭐ DB에 다듬기 시작 표시
       await supabase
         .from('team_reports')
         .update({
@@ -449,7 +427,6 @@ export default function TeamReportPage() {
       setPolished(result.polished);
       setPolishedAt(new Date().toISOString());
 
-      // ⭐ DB에 다듬기 완료 표시
       await supabase
         .from('team_reports')
         .update({ polishing_in_progress: false })
@@ -460,7 +437,6 @@ export default function TeamReportPage() {
       console.error('AI 다듬기 에러:', e);
       setPolishError(e?.message || '다듬기 중 오류');
 
-      // ⭐ 에러 시에도 진행 상태 초기화
       await supabase
         .from('team_reports')
         .update({ polishing_in_progress: false })
@@ -481,7 +457,6 @@ export default function TeamReportPage() {
     });
   };
 
-  // ⭐ NEW: 경과 시간 계산 (mm:ss 형식)
   const formatElapsed = (startedAt: string | null): string => {
     if (!startedAt) return '';
     const elapsed = Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000);
@@ -539,7 +514,6 @@ export default function TeamReportPage() {
           zIndex: 0,
         }} />
 
-      {/* ⭐ v2: 멤버 선택 모달 */}
       {showMemberSelect && (
         <MemberSelectModal
           members={team.members as any}
@@ -607,7 +581,6 @@ export default function TeamReportPage() {
           onPolishing={handlePolishing}
         />
 
-        {/* ⭐ v2: 미리보기 버튼 라벨 — 다듬기 전/후 동적 변경 */}
         <div className="grid grid-cols-2 gap-2.5 mb-3">
           <button
             onClick={() => router.push(`/team/${teamId}/report/preview`)}
@@ -648,7 +621,6 @@ export default function TeamReportPage() {
           )}
         </div>
 
-        {/* ⭐⭐⭐ NEW: 채점/다듬기 진행 중 안내 (보고서 버튼 옆) ⭐⭐⭐ */}
         {(aiScoringInProgress || polishingInProgress) && (
           <div className="rounded-lg px-3 py-2 mb-8 flex items-center justify-center gap-2"
             style={{
@@ -824,7 +796,7 @@ export default function TeamReportPage() {
 }
 
 // ═══════════════════════════════════════════════════════
-// ⭐ v2: 멤버 선택 모달 — sessionStorage 비어있을 때
+// 멤버 선택 모달
 // ═══════════════════════════════════════════════════════
 function MemberSelectModal({
   members,
@@ -909,7 +881,7 @@ function MemberSelectModal({
 }
 
 // ═══════════════════════════════════════════════════════
-// AI 채점 섹션 (1,000점) - startedAt 받음
+// AI 채점 섹션
 // ═══════════════════════════════════════════════════════
 function ScoringSection({
   teamScoring, personalScores, isLeader, inProgress, startedAt, aiError, onScoring,
@@ -922,7 +894,6 @@ function ScoringSection({
   aiError: string | null;
   onScoring: () => void;
 }) {
-  // ⭐ NEW: 1초마다 경과시간 갱신
   const [elapsed, setElapsed] = useState<string>('');
   useEffect(() => {
     if (!inProgress || !startedAt) return;
@@ -1077,22 +1048,94 @@ function ScoringSection({
     );
   }
 
+  // ⭐⭐⭐ NEW: 우주적인 분위기 박스 (대기 중 상태) ⭐⭐⭐
   return (
-    <div className="rounded-xl p-3 mb-4 flex items-start gap-2.5"
+    <div className="rounded-xl mb-4 relative overflow-hidden"
       style={{
-        background: 'rgba(255, 255, 255, 0.02)',
-        border: '0.5px solid rgba(255, 255, 255, 0.05)',
+        background: `
+          radial-gradient(ellipse at top right, rgba(255,215,0,0.08), transparent 60%),
+          radial-gradient(ellipse at bottom left, rgba(139,92,246,0.06), transparent 60%),
+          rgba(255,255,255,0.02)
+        `,
+        border: `0.5px solid ${S.gold}30`,
+        padding: '24px',
       }}>
-      <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ background: '#888' }} />
-      <div>
-        <p className="text-[10px] font-mono font-bold tracking-widest mb-1 text-gray-500">
-          AI SCORING
-        </p>
-        <p className="text-[12px] text-gray-500 leading-relaxed">
-          AI 채점이 아직 시작되지 않았어요.<br />
-          팀장이 채점을 시작하면 결과가 표시됩니다.
-        </p>
+      {/* 반짝이는 별들 */}
+      <div className="ai-star ai-star-1" style={{ position: 'absolute', top: '15%', right: '12%', width: '3px', height: '3px', borderRadius: '50%', background: S.gold, boxShadow: `0 0 6px ${S.gold}` }} />
+      <div className="ai-star ai-star-2" style={{ position: 'absolute', top: '60%', right: '8%', width: '2px', height: '2px', borderRadius: '50%', background: '#fff' }} />
+      <div className="ai-star ai-star-3" style={{ position: 'absolute', top: '30%', left: '5%', width: '2px', height: '2px', borderRadius: '50%', background: S.aqua, boxShadow: `0 0 4px ${S.aqua}` }} />
+      <div className="ai-star ai-star-4" style={{ position: 'absolute', top: '80%', left: '25%', width: '3px', height: '3px', borderRadius: '50%', background: S.gold, boxShadow: `0 0 6px ${S.gold}` }} />
+      <div className="ai-star ai-star-5" style={{ position: 'absolute', top: '20%', left: '50%', width: '2px', height: '2px', borderRadius: '50%', background: '#fff' }} />
+      <div className="ai-star ai-star-6" style={{ position: 'absolute', top: '45%', right: '30%', width: '2px', height: '2px', borderRadius: '50%', background: S.pink, boxShadow: `0 0 4px ${S.pink}` }} />
+      <div className="ai-star ai-star-7" style={{ position: 'absolute', top: '70%', left: '60%', width: '3px', height: '3px', borderRadius: '50%', background: S.purple, boxShadow: `0 0 6px ${S.purple}` }} />
+
+      {/* 메인 콘텐츠 */}
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <div className="flex items-center gap-2.5 mb-4">
+          <div className="ai-pulse-dot" style={{ width: '8px', height: '8px', borderRadius: '50%', background: S.gold, boxShadow: `0 0 12px ${S.gold}` }} />
+          <span className="font-mono font-bold tracking-[3px]"
+            style={{ fontSize: '10px', color: S.gold }}>
+            ★ AI SCORING · STANDBY ★
+          </span>
+          <div style={{ flex: 1, height: '0.5px', background: `linear-gradient(to right, ${S.gold}40, transparent)` }} />
+        </div>
+
+        <div className="flex items-center gap-4">
+          {/* 회전하는 원형 로딩 */}
+          <div className="ai-orbit-ring" style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '50%',
+            border: `2px solid ${S.gold}15`,
+            borderTopColor: S.gold,
+            borderRightColor: S.gold,
+            flexShrink: 0,
+          }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: '14px', color: 'white', margin: '0 0 4px 0', fontWeight: 700 }}>
+              AI가 분석을 기다리는 중<span className="ai-wave-dot" style={{ animationDelay: '0s' }}>.</span><span className="ai-wave-dot" style={{ animationDelay: '0.2s' }}>.</span><span className="ai-wave-dot" style={{ animationDelay: '0.4s' }}>.</span>
+            </p>
+            <p style={{ fontSize: '11.5px', color: 'rgba(255,255,255,0.55)', margin: 0, lineHeight: 1.6 }}>
+              팀장이 채점 버튼을 누르면 16개 카드를 분석해드릴게요
+            </p>
+          </div>
+        </div>
       </div>
+
+      <style jsx>{`
+        @keyframes ai-pulse {
+          0%, 100% { opacity: 0.4; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.5); }
+        }
+        @keyframes ai-spin-slow {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes ai-wave {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
+        }
+        .ai-pulse-dot {
+          animation: ai-pulse 1.5s ease-in-out infinite;
+        }
+        .ai-star {
+          animation: ai-pulse 2s ease-in-out infinite;
+        }
+        .ai-star-1 { animation-delay: 0s; }
+        .ai-star-2 { animation-delay: 0.5s; }
+        .ai-star-3 { animation-delay: 1s; }
+        .ai-star-4 { animation-delay: 1.5s; }
+        .ai-star-5 { animation-delay: 0.8s; }
+        .ai-star-6 { animation-delay: 0.3s; }
+        .ai-star-7 { animation-delay: 1.2s; }
+        .ai-orbit-ring {
+          animation: ai-spin-slow 3s linear infinite;
+        }
+        .ai-wave-dot {
+          display: inline-block;
+          animation: ai-wave 1.5s ease-in-out infinite;
+        }
+      `}</style>
     </div>
   );
 }
@@ -1303,7 +1346,7 @@ function FeedbackSection({ breakdown }: { breakdown: AreaBreakdown }) {
 }
 
 // ═══════════════════════════════════════════════════════
-// AI 다듬기 섹션 - startedAt 받음
+// AI 다듬기 섹션
 // ═══════════════════════════════════════════════════════
 function PolishingSection({
   polished, polishedAt, isLeader, inProgress, startedAt, polishError, onPolishing,
@@ -1316,7 +1359,6 @@ function PolishingSection({
   polishError: string | null;
   onPolishing: () => void;
 }) {
-  // ⭐ NEW: 1초마다 경과시간 갱신
   const [elapsed, setElapsed] = useState<string>('');
   useEffect(() => {
     if (!inProgress || !startedAt) return;
