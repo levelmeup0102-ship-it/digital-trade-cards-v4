@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://connectai.academy'),
   title: 'SIGNAL · 디지털 무역 전략카드 | ConnectAI',
   description: '카드게임으로 쉽게 진출전략을 만들어 보세요.',
 
@@ -9,7 +10,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'SIGNAL · 디지털 무역 전략카드',
     description: '카드게임으로 쉽게 진출전략을 만들어 보세요. by ConnectAI',
-    url: 'https://digital-trade-cards-v4.up.railway.app',
+    url: 'https://connectai.academy',
     siteName: 'SIGNAL',
     images: [
       {
