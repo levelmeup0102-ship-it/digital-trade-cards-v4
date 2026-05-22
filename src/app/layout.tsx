@@ -14,9 +14,9 @@ export const metadata: Metadata = {
     siteName: 'SIGNAL',
     images: [
       {
-        url: '/connect-ai-logo.png',
+        url: '/signal-logo-wide.png',
         width: 1200,
-        height: 427,
+        height: 627,
         alt: 'SIGNAL · ConnectAI 디지털 무역 카드게임',
       },
     ],
@@ -29,13 +29,13 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'SIGNAL · 디지털 무역 전략카드',
     description: '카드게임으로 쉽게 진출전략을 만들어 보세요. by ConnectAI',
-    images: ['/connect-ai-logo.png'],
+    images: ['/signal-logo-wide.png'],
   },
 
-  // ⭐ NEW: 파비콘 (브라우저 탭에 보이는 아이콘)
+  // ⭐ NEW: 파비콘 (브라우저 탭에 보이는 아이콘) - 정사각형 버전 사용
   icons: {
-    icon: '/connect-ai-logo.png',
-    apple: '/connect-ai-logo.png',
+    icon: '/signal-logo-512.png',
+    apple: '/signal-logo-512.png',
   },
 };
 
