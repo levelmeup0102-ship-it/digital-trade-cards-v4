@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: 'SIGNAL · 디지털 무역 전략카드 | ConnectAI',
   description: '카드게임으로 쉽게 진출전략을 만들어 보세요.',
 
-  // ⭐ NEW: 카톡/페이스북/슬랙 등에 링크 공유 시 미리보기 카드 표시
+  // ⭐ 카톡/페이스북/슬랙 등에 링크 공유 시 미리보기 카드 표시
   openGraph: {
     title: 'SIGNAL · 디지털 무역 전략카드',
     description: '카드게임으로 쉽게 진출전략을 만들어 보세요. by ConnectAI',
@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     type: 'website',
   },
 
-  // ⭐ NEW: 트위터 카드 (트위터에서도 미리보기 표시)
+  // ⭐ 트위터 카드 (트위터에서도 미리보기 표시)
   twitter: {
     card: 'summary_large_image',
     title: 'SIGNAL · 디지털 무역 전략카드',
@@ -32,10 +32,10 @@ export const metadata: Metadata = {
     images: ['/signal-logo-wide.png'],
   },
 
-  // ⭐ NEW: 파비콘 (브라우저 탭에 보이는 아이콘) - 정사각형 버전 사용
+  // ⭐ NEW: 파비콘 (브라우저 탭에 보이는 아이콘) - 보라색 S 아이콘
   icons: {
-    icon: '/signal-logo-512.png',
-    apple: '/signal-logo-512.png',
+    icon: '/favicon.png',
+    apple: '/favicon.png',
   },
 };
 
