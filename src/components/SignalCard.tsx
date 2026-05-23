@@ -1397,7 +1397,7 @@ function MemberQView({
           -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
           -webkit-mask-composite: xor;
           mask-composite: exclude;
-          animation: roleOrbitFlow 4s linear infinite;
+          animation: roleOrbitFlow 8s linear infinite;
           pointer-events: none;
         }
         @keyframes roleOrbitFlow {
