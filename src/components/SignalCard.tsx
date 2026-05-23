@@ -943,7 +943,6 @@ function TeamInsightSidebar({
           overflowY: 'auto',
           boxShadow: '0 -8px 32px rgba(0,0,0,0.5)',
         }}>
-        {/* 헤더 (풀스크린 모달 — 핸들바 제거, 닫기 버튼 강조) */}
         <div className="flex items-center gap-3 mb-4 pt-2">
           <div className="font-mono text-[12px] font-bold tracking-widest" style={{ color: S.cyan }}>팀원 인사이트</div>
           <div className="font-mono text-[13px] font-bold" style={{ color: S.cyan }}>
@@ -1226,36 +1225,50 @@ function MemberQView({
 
   return (
     <>
-      {/* ⭐⭐⭐ NEW: 직무 띠 + 노란 바운스 버튼 (12번 핵심) */}
+      {/* ⭐⭐⭐ NEW: 직무 띠 + 노란 바운스 버튼 + 회전 빛줄기 테두리 */}
       {myRole && (
-        <div className="mb-3 rounded-xl p-2.5 flex items-center gap-2"
-          style={{ background: `${myRole.color}15`, border: `1px solid ${myRole.color}40` }}>
-          <div className="w-8 h-8 rounded-md flex items-center justify-center text-sm flex-shrink-0"
-            style={{ background: `${myRole.color}30`, border: `1px solid ${myRole.color}` }}>
-            {myRole.icon}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[9px] font-mono tracking-widest leading-tight" style={{ color: myRole.color }}>YOUR ROLE</p>
-            <p className="text-[12px] font-bold text-white leading-tight truncate">
-              {myRole.nameKr}
-            </p>
-          </div>
-          <button
-            onClick={() => setShowRoleModal(true)}
-            className="role-bounce-btn flex items-center gap-1 px-2.5 py-1.5 rounded-md flex-shrink-0"
+        <div
+          className="mb-3 role-orbit-wrapper"
+          style={{
+            position: 'relative',
+            borderRadius: '14px',
+            padding: '1.5px',
+            overflow: 'hidden',
+            ['--orbit-color' as any]: myRole.color,
+          }}>
+          <div className="role-orbit-line" />
+          <div className="rounded-xl p-2.5 flex items-center gap-2 relative"
             style={{
-              background: 'linear-gradient(135deg, #FFE680 0%, #FFD93D 100%)',
-              border: 'none',
-              color: S.navy,
-              fontSize: '11px',
-              fontWeight: 800,
-              cursor: 'pointer',
-              boxShadow: '0 0 12px rgba(255,217,61,0.5)',
-              whiteSpace: 'nowrap',
+              background: 'linear-gradient(135deg, rgba(20, 30, 50, 0.97), rgba(15, 23, 42, 0.98))',
+              zIndex: 1,
             }}>
-            <span>📋</span>
-            <span>내 직무 보기</span>
-          </button>
+            <div className="w-8 h-8 rounded-md flex items-center justify-center text-sm flex-shrink-0"
+              style={{ background: `${myRole.color}30`, border: `1px solid ${myRole.color}` }}>
+              {myRole.icon}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[9px] font-mono tracking-widest leading-tight" style={{ color: myRole.color }}>YOUR ROLE</p>
+              <p className="text-[12px] font-bold text-white leading-tight truncate">
+                {myRole.nameKr}
+              </p>
+            </div>
+            <button
+              onClick={() => setShowRoleModal(true)}
+              className="role-bounce-btn flex items-center gap-1 px-2.5 py-1.5 rounded-md flex-shrink-0"
+              style={{
+                background: 'linear-gradient(135deg, #FFE680 0%, #FFD93D 100%)',
+                border: 'none',
+                color: S.navy,
+                fontSize: '11px',
+                fontWeight: 800,
+                cursor: 'pointer',
+                boxShadow: '0 0 12px rgba(255,217,61,0.5)',
+                whiteSpace: 'nowrap',
+              }}>
+              <span>📋</span>
+              <span>내 직무 보기</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -1341,7 +1354,7 @@ function MemberQView({
         />
       )}
 
-      {/* ⭐ NEW: 노란 바운스 버튼 애니메이션 */}
+      {/* ⭐ NEW: 노란 바운스 버튼 + 회전 빛줄기 애니메이션 */}
       <style jsx>{`
         .role-bounce-btn {
           animation: roleBtnBounce 2.5s ease-in-out infinite;
@@ -1362,6 +1375,27 @@ function MemberQView({
             transform: translateY(-3px);
             box-shadow: 0 4px 20px rgba(255,217,61,0.75), 0 0 30px rgba(255,217,61,0.3);
           }
+        }
+
+        /* ⭐ NEW: YOUR ROLE 박스 외곽 빛줄기 회전 (옵션 A) */
+        .role-orbit-line {
+          position: absolute;
+          inset: -50%;
+          background: conic-gradient(
+            from 0deg,
+            transparent 0deg,
+            transparent 260deg,
+            var(--orbit-color, #06B6D4) 330deg,
+            #FFFFFF 358deg,
+            var(--orbit-color, #06B6D4) 362deg,
+            transparent 365deg
+          );
+          animation: roleOrbitSpin 6s linear infinite;
+          pointer-events: none;
+        }
+        @keyframes roleOrbitSpin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
       `}</style>
     </>
