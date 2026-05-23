@@ -1377,25 +1377,32 @@ function MemberQView({
           }
         }
 
-        /* ⭐ NEW: YOUR ROLE 박스 외곽 빛줄기 회전 (옵션 A) */
+        /* ⭐ NEW: YOUR ROLE 박스 외곽 빛줄기 흐름 효과 */
         .role-orbit-line {
           position: absolute;
-          inset: -50%;
-          background: conic-gradient(
-            from 0deg,
-            transparent 0deg,
-            transparent 260deg,
-            var(--orbit-color, #06B6D4) 330deg,
-            #FFFFFF 358deg,
-            var(--orbit-color, #06B6D4) 362deg,
-            transparent 365deg
+          inset: 0;
+          border-radius: 14px;
+          padding: 1.5px;
+          background: linear-gradient(
+            90deg,
+            transparent 0%,
+            transparent 35%,
+            var(--orbit-color, #06B6D4) 48%,
+            #FFFFFF 50%,
+            var(--orbit-color, #06B6D4) 52%,
+            transparent 65%,
+            transparent 100%
           );
-          animation: roleOrbitSpin 6s linear infinite;
+          background-size: 250% 100%;
+          -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+          -webkit-mask-composite: xor;
+          mask-composite: exclude;
+          animation: roleOrbitFlow 4s linear infinite;
           pointer-events: none;
         }
-        @keyframes roleOrbitSpin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
+        @keyframes roleOrbitFlow {
+          0% { background-position: 250% 50%; }
+          100% { background-position: -150% 50%; }
         }
       `}</style>
     </>
