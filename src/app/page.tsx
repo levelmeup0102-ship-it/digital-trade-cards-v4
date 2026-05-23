@@ -1418,7 +1418,9 @@ export default function Home() {
         <button onClick={() => handleStartClick('/teacher')}
           className="relative w-full py-3 md:py-3.5 font-bold rounded-2xl text-[13px] md:text-[14px] transition-all hover:scale-[1.01] mb-3 landing-btn-glow-cyan"
           style={{
-            background: 'rgba(6, 182, 212, 0.08)',
+            background: 'linear-gradient(135deg, rgba(8, 32, 42, 0.95), rgba(15, 23, 42, 0.95))',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
             border: `1px solid #06B6D466`,
             color: '#06B6D4',
             textShadow: '0 0 12px #06B6D4, 0 0 24px #06B6D488',
@@ -1431,7 +1433,9 @@ export default function Home() {
         <button onClick={() => handleStartClick('/intro.html')}
           className="relative w-full py-3 md:py-3.5 rounded-2xl text-[13px] md:text-[14px] font-bold transition-all hover:scale-[1.01] landing-btn-glow-purple"
           style={{
-            background: 'rgba(139, 92, 246, 0.08)',
+            background: 'linear-gradient(135deg, rgba(20, 12, 40, 0.95), rgba(15, 23, 42, 0.95))',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
             border: `1px solid #8B5CF666`,
             color: '#8B5CF6',
             textShadow: '0 0 12px #8B5CF6, 0 0 24px #8B5CF688',
