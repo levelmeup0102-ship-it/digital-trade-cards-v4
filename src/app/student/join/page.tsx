@@ -140,7 +140,6 @@ function InteractiveButton({
 function StudentJoinInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  // ⭐ NEW: URL 파라미터에서 팀 코드 읽기 (학급 페이지에서 팀 클릭 시 자동 전달)
   const codeFromUrl = searchParams.get('code');
 
   const [step, setStep] = useState<Step>('code');
@@ -148,10 +147,7 @@ function StudentJoinInner() {
   const [codeError, setCodeError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // ⭐ NEW: URL 자동 처리 중인지 (중복 호출 방지)
   const autoProcessedRef = useRef(false);
-
-  // ⭐ NEW: 직무 가이드 펼침 상태
   const [showRoleGuide, setShowRoleGuide] = useState(false);
 
   const [isMobile, setIsMobile] = useState(false);
@@ -182,11 +178,13 @@ function StudentJoinInner() {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
 
+  // ⭐⭐⭐ NEW: 본인 확인 재확인 팝업 ⭐⭐⭐
+  const [confirmIdentityMember, setConfirmIdentityMember] = useState<TeamMember | null>(null);
+
   const [item, setItem] = useState('');
   const [customItem, setCustomItem] = useState('');
   const [level, setLevel] = useState('standard');
 
-  // ⭐⭐⭐ NEW: 팀 이름 변경 ⭐⭐⭐
   const [teamNameInput, setTeamNameInput] = useState('');
   const [teamNameSaving, setTeamNameSaving] = useState(false);
   const [teamNameError, setTeamNameError] = useState('');
@@ -200,27 +198,21 @@ function StudentJoinInner() {
   const [recentJoiners, setRecentJoiners] = useState<TeamMember[]>([]);
   const previousMembersRef = useRef<Set<string>>(new Set());
 
-  // ⭐⭐⭐ NEW 8번: welcome 화면 3가지 상태 ⭐⭐⭐
-  // 'waiting'   - 다른 팀 대기 중 (관리자 신호 대기)
-  // 'rejoining' - 이미 게임 시작됨 → 재입장 가능
-  // (countdown 신호 받으면 step을 'countdown'으로 전환하여 기존 멋진 카운트다운 재활용)
   type WelcomeState = 'waiting' | 'rejoining';
   const [welcomeState, setWelcomeState] = useState<WelcomeState>('waiting');
   const [cls, setCls] = useState<Class | null>(null);
 
-  // ⭐⭐⭐ NEW Phase 4: 자유 이름 입력 + 팀장 자원 ⭐⭐⭐
-  const [nameInput, setNameInput] = useState('');         // confirm 단계 이름 입력 박스
-  const [nameError, setNameError] = useState('');         // 이름 검증 에러
-  const [joining, setJoining] = useState(false);          // 입장 처리 중 (중복 클릭 방지)
-  const [claimingLeader, setClaimingLeader] = useState(false); // 팀장 자원 처리 중
-  const [claimError, setClaimError] = useState('');       // 자원 실패 메시지
+  const [nameInput, setNameInput] = useState('');
+  const [nameError, setNameError] = useState('');
+  const [joining, setJoining] = useState(false);
+  const [claimingLeader, setClaimingLeader] = useState(false);
+  const [claimError, setClaimError] = useState('');
 
-  // ⭐⭐⭐ NEW Phase 4 (4번): 팀장 사퇴/양도 ⭐⭐⭐
-  const [showTransferModal, setShowTransferModal] = useState(false); // 양도 모달
-  const [resigning, setResigning] = useState(false);      // 사퇴 처리 중
-  const [transferring, setTransferring] = useState(false); // 양도 처리 중
-  const [leaderActionError, setLeaderActionError] = useState(''); // 사퇴/양도 에러
-  const [showResignConfirm, setShowResignConfirm] = useState(false); // 사퇴 확인 모달
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [resigning, setResigning] = useState(false);
+  const [transferring, setTransferring] = useState(false);
+  const [leaderActionError, setLeaderActionError] = useState('');
+  const [showResignConfirm, setShowResignConfirm] = useState(false);
 
   useEffect(() => {
     if (step !== 'waiting') return;
@@ -237,7 +229,6 @@ function StudentJoinInner() {
       setCountdown(prev => {
         if (prev <= 1) {
           clearInterval(interval);
-          // ⭐⭐⭐ NEW 8번: countdown 끝나면 welcome이 아닌 game(/)으로 직접 이동
           setTimeout(() => router.push('/'), 700);
           return 0;
         }
@@ -247,7 +238,6 @@ function StudentJoinInner() {
     return () => clearInterval(interval);
   }, [step, router]);
 
-  // ⭐⭐⭐ NEW 8번: welcome 화면 진입 시 학급 정보 로드 + Realtime 구독 ⭐⭐⭐
   useEffect(() => {
     if (step !== 'welcome' || !team) return;
     let unsubscribe: (() => void) | null = null;
@@ -256,39 +246,29 @@ function StudentJoinInner() {
 
     (async () => {
       try {
-        // ⭐⭐⭐ FIX: 구독을 FIRST 시작 (race condition 방지) ⭐⭐⭐
-        // 학급 정보 로드 사이에 관리자가 일괄 시작 누르면 UPDATE 놓침 → 구독을 먼저
         unsubscribe = subscribeToClassGameStart(team.class_id, (gameStartedAt) => {
           if (isCancelled) return;
-          // 관리자 일괄 시작 신호 받음 → 5초 카운트다운 시작
           setStep('countdown');
         });
 
-        // 1. 학급 정보 가져오기 (game_started_at 확인용)
         const classInfo = await getClass(team.class_id);
         if (isCancelled) return;
         if (!classInfo) return;
         setCls(classInfo);
 
-        // 2. 이미 게임이 시작됐는지 체크
         if (classInfo.game_started_at) {
-          // ⭐⭐⭐ FIX: 시간 차이로 race condition vs 재입장 구분 ⭐⭐⭐
           const startedAt = new Date(classInfo.game_started_at).getTime();
           const secsAgo = (Date.now() - startedAt) / 1000;
           if (secsAgo < 15) {
-            // 15초 이내: race condition - 카운트다운으로 즉시 진입
             setStep('countdown');
           } else {
-            // 15초 이상: 게임 도중 합류 - 재입장 박스
             setWelcomeState('rejoining');
           }
           return;
         }
 
-        // 3. 기본 대기 모드
         setWelcomeState('waiting');
 
-        // ⭐⭐⭐ FIX: 폴링 안전망 - Realtime 구독 실패해도 3초마다 직접 확인 ⭐⭐⭐
         pollInterval = setInterval(async () => {
           if (isCancelled) return;
           try {
@@ -297,7 +277,7 @@ function StudentJoinInner() {
               setStep('countdown');
             }
           } catch (e) {
-            // 무시 (다음 폴링 시도)
+            // 무시
           }
         }, 3000);
       } catch (e) {
@@ -359,10 +339,6 @@ function StudentJoinInner() {
     return () => unsubscribe();
   }, [step, team]);
 
-  // ⭐⭐⭐ NEW Phase 4 (4번): 팀장 변경 시 자동 이동 ⭐⭐⭐
-  // - 양도 받은 학생: waiting → leader-setup으로 자동 진입
-  // - 팀장 사퇴 후 본인: leader-setup → waiting으로 자동 후퇴
-  // - 다른 학생: 팀장이 사퇴/양도되면 명단만 자동 갱신 (이미 잘 됨)
   useEffect(() => {
     if (!selectedMember || members.length === 0) return;
     if (step !== 'waiting' && step !== 'leader-setup') return;
@@ -370,18 +346,13 @@ function StudentJoinInner() {
     const me = members.find(m => m.id === selectedMember.id);
     if (!me) return;
 
-    // 본인 is_leader 상태가 selectedMember와 다르면 갱신 + step 전환
     if (me.is_leader && step === 'waiting') {
-      // ⭐ 양도 받음: waiting → leader-setup
       setSelectedMember(me);
       setStep('leader-setup');
-      // 양도 받은 경우 산업군/수준 유지, 직무 배정만 새로 (이미 초기화됨)
       setRoleAssignments({});
     } else if (!me.is_leader && step === 'leader-setup') {
-      // ⭐ 팀장 강등 (사퇴 또는 다른 사람에게 양도): leader-setup → waiting
       setSelectedMember(me);
       setStep('waiting');
-      // 사퇴/양도 시 로컬 state 정리
       setItem('');
       setCustomItem('');
       setLevel('standard');
@@ -389,7 +360,6 @@ function StudentJoinInner() {
     }
   }, [members, step, selectedMember]);
 
-  // ⭐⭐⭐ NEW: 팀명 input 초기화 (leader-setup 진입 시) ⭐⭐⭐
   useEffect(() => {
     if (step === 'leader-setup' && team) {
       setTeamNameInput(team.name);
@@ -397,11 +367,10 @@ function StudentJoinInner() {
     }
   }, [step, team]);
 
-  // ⭐⭐⭐ NEW: 팀 이름 저장 핸들러 ⭐⭐⭐
   const handleSaveTeamName = async () => {
     if (!team || teamNameSaving) return;
     const trimmed = teamNameInput.trim();
-    if (trimmed === team.name) return; // 변경 없음
+    if (trimmed === team.name) return;
     if (trimmed.length === 0) {
       setTeamNameError('팀 이름을 입력해주세요.');
       return;
@@ -420,7 +389,6 @@ function StudentJoinInner() {
         setTeamNameSaving(false);
         return;
       }
-      // 로컬 state 갱신
       setTeam({ ...team, name: trimmed });
       setTeamNameSaving(false);
       setTeamNameSavedFlash(true);
@@ -435,8 +403,6 @@ function StudentJoinInner() {
     const trimmedCode = joinCode.trim().toUpperCase();
     if (trimmedCode.length < 4) { setCodeError('올바른 코드를 입력해주세요.'); return; }
 
-    // ⭐⭐⭐ NEW: 학급 코드(CL-) 자동 라우팅 ⭐⭐⭐
-    // 입력값이 CL-로 시작하면 학급 페이지로 이동 (QR 스캔과 동일한 흐름)
     if (trimmedCode.startsWith('CL-')) {
       router.push(`/student/class/${trimmedCode}`);
       return;
@@ -465,8 +431,6 @@ function StudentJoinInner() {
     } finally { setLoading(false); }
   };
 
-  // ⭐⭐⭐ NEW: URL 파라미터 자동 처리 (학급 페이지에서 팀 클릭 시)
-  // /student/join?code=DT-XX-XXXX 형태로 들어왔을 때 자동으로 팀 정보 조회 + 이름 선택 단계로 이동
   useEffect(() => {
     if (!codeFromUrl) return;
     if (autoProcessedRef.current) return;
@@ -483,7 +447,6 @@ function StudentJoinInner() {
         if (!result) {
           setCodeError('팀 코드를 찾을 수 없어요. 관리자에게 확인하세요.');
           setLoading(false);
-          // URL 코드 잘못된 경우 → 코드 입력 화면 유지 (수동 입력 가능)
           return;
         }
 
@@ -492,8 +455,6 @@ function StudentJoinInner() {
         if (result.team.item) setItem(result.team.item);
         if (result.team.level) setLevel(result.team.level);
 
-        // 게임 시작 여부 관계없이 바로 이름 선택 단계로
-        // (학급 페이지에서 이미 팀 골랐으니 confirm 단계 스킵)
         setStep('select');
       } catch (e) {
         setCodeError('오류가 발생했어요. 다시 시도해주세요.');
@@ -566,7 +527,6 @@ function StudentJoinInner() {
     }
   };
 
-  // ⭐⭐⭐ NEW Phase 4: confirm 단계에서 이름 입력 후 입장 처리 ⭐⭐⭐
   const handleConfirmAndJoin = async () => {
     if (!team || joining) return;
     setNameError('');
@@ -583,15 +543,12 @@ function StudentJoinInner() {
 
     setJoining(true);
     try {
-      // 새 멤버 생성 (중복 시 자동 번호)
       const newMember = await joinTeamWithName(team.id, trimmed);
       setSelectedMember(newMember);
 
-      // 최신 멤버 목록 다시 가져오기
       const latestMembers = await getTeamMembers(team.id);
       setMembers(latestMembers);
 
-      // 팀 대기실(waiting)로 이동
       setStep('waiting');
     } catch (e: any) {
       setNameError(e.message || '입장에 실패했어요.');
@@ -600,7 +557,6 @@ function StudentJoinInner() {
     }
   };
 
-  // ⭐⭐⭐ NEW Phase 4: 팀장 자원하기 ⭐⭐⭐
   const handleClaimLeader = async () => {
     if (!team || !selectedMember || claimingLeader) return;
     setClaimError('');
@@ -610,20 +566,17 @@ function StudentJoinInner() {
       const result = await claimLeader(team.id, selectedMember.id);
       if (!result.success) {
         setClaimError(result.error || '팀장 자원에 실패했어요.');
-        // 멤버 목록 새로고침 (이미 다른 학생이 팀장 된 상태 반영)
         const latestMembers = await getTeamMembers(team.id);
         setMembers(latestMembers);
         setClaimingLeader(false);
         return;
       }
 
-      // 성공: 본인 selectedMember 업데이트 + 멤버 목록 갱신
       const latestMembers = await getTeamMembers(team.id);
       setMembers(latestMembers);
       const updatedMe = latestMembers.find(m => m.id === selectedMember.id);
       if (updatedMe) setSelectedMember(updatedMe);
 
-      // leader-setup 단계로 이동 (산업군/직무 설정)
       setStep('leader-setup');
       setClaimingLeader(false);
     } catch (e: any) {
@@ -632,12 +585,11 @@ function StudentJoinInner() {
     }
   };
 
-  // ⭐⭐⭐ NEW Phase 4 (4번): 팀장 사퇴 ⭐⭐⭐
   const handleResign = async () => {
     if (!team || !selectedMember || resigning) return;
     setLeaderActionError('');
     setResigning(true);
-    setShowResignConfirm(false); // 확인 모달 닫기
+    setShowResignConfirm(false);
 
     try {
       const result = await resignLeader(team.id, selectedMember.id);
@@ -647,10 +599,6 @@ function StudentJoinInner() {
         return;
       }
 
-      // 성공: 로컬 state 정리
-      // - 본인 selectedMember 갱신 (is_leader=false)
-      // - leader-setup에서 입력했던 값 초기화
-      // - 자동 이동 useEffect가 step을 'waiting'으로 변경
       setItem('');
       setCustomItem('');
       setLevel('standard');
@@ -661,7 +609,6 @@ function StudentJoinInner() {
       const me = latestMembers.find(m => m.id === selectedMember.id);
       if (me) setSelectedMember(me);
 
-      // ⭐ team 데이터도 갱신 (item/level이 null로 비워짐)
       const { data: latestTeam } = await supabase
         .from('teams')
         .select('*')
@@ -677,7 +624,6 @@ function StudentJoinInner() {
     }
   };
 
-  // ⭐⭐⭐ NEW Phase 4 (4번): 팀장 양도 ⭐⭐⭐
   const handleTransfer = async (toMemberId: string) => {
     if (!team || !selectedMember || transferring) return;
     setLeaderActionError('');
@@ -691,9 +637,6 @@ function StudentJoinInner() {
         return;
       }
 
-      // 성공: 로컬 state 정리
-      // - 본인 selectedMember 갱신 (is_leader=false)
-      // - leader-setup에서 입력했던 직무 배정만 초기화 (item/level은 유지)
       setRoleAssignments({});
 
       const latestMembers = await getTeamMembers(team.id);
@@ -732,8 +675,6 @@ function StudentJoinInner() {
       roleCode: myRole,
     }));
 
-    // ⭐⭐⭐ NEW 8번: countdown 거치지 않고 welcome으로 바로 (대기 모드)
-    // welcome 화면에서 관리자 일괄 시작 신호 받으면 → countdown → game
     setStep('welcome');
     setLoading(false);
   };
@@ -766,7 +707,6 @@ function StudentJoinInner() {
       roleCode: myRole,
     }));
 
-    // ⭐⭐⭐ NEW 8번: countdown 거치지 않고 welcome으로 바로 (대기 모드)
     setStep('welcome');
   };
 
@@ -783,14 +723,11 @@ function StudentJoinInner() {
 
   const availableRoles = (Object.keys(ROLES) as RoleCode[]).filter(c => c !== 'ceo');
 
-  // ⭐⭐⭐ NEW: URL 코드 자동 처리 중에는 코드 입력 화면 깜빡임 방지 (로딩 화면 표시)
-  // URL에 code 파라미터가 있고, 아직 'code' 단계인 동안 = 자동 처리 중
   if (codeFromUrl && step === 'code') {
     return (
       <div className="min-h-screen flex items-center justify-center px-4"
         style={{ background: '#0A0A0A' }}>
         <div className="flex flex-col items-center gap-6">
-          {/* SIGNAL 로고 */}
           <div className="text-center">
             <p className="text-[10px] tracking-[5px] font-mono font-bold mb-1"
               style={{ color: S.green, textShadow: `0 0 8px ${S.green}AA` }}>
@@ -806,7 +743,6 @@ function StudentJoinInner() {
             </p>
           </div>
 
-          {/* 회전 스피너 */}
           <div className="relative" style={{ width: '48px', height: '48px' }}>
             <div className="absolute inset-0 rounded-full join-loader-ring"
               style={{
@@ -816,13 +752,11 @@ function StudentJoinInner() {
               }} />
           </div>
 
-          {/* 로딩 메시지 */}
           <p className="text-[13px] font-mono font-bold"
             style={{ color: S.green, textShadow: `0 0 6px ${S.green}66` }}>
             {`>`} 팀 정보 불러오는 중...
           </p>
 
-          {/* 에러 발생 시 표시 (혹시 모를 케이스) */}
           {codeError && (
             <div className="rounded-xl p-4 max-w-sm text-center"
               style={{
@@ -832,11 +766,9 @@ function StudentJoinInner() {
               <p className="text-[12px] text-red-400 mb-3">⚠ {codeError}</p>
               <button
                 onClick={() => {
-                  // URL 코드를 무효화하고 수동 입력 화면으로
                   autoProcessedRef.current = false;
                   setCodeError('');
                   setJoinCode('');
-                  // codeFromUrl을 null로 만들 수는 없지만, joinCode 초기화하면 사용자가 다시 입력 가능
                   router.replace('/student/join');
                 }}
                 className="w-full py-2.5 rounded-lg text-[12px] font-bold transition hover:scale-[1.02]"
@@ -1060,7 +992,6 @@ function StudentJoinInner() {
               <h2 className="text-lg font-black text-white mb-1">팀 확인 + 이름 입력</h2>
             </div>
 
-            {/* 팀 정보 */}
             <div className="rounded-2xl p-5 mb-4" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
               <div className="flex items-center justify-between mb-3">
                 <div>
@@ -1097,7 +1028,6 @@ function StudentJoinInner() {
               )}
             </div>
 
-            {/* ⭐⭐⭐ NEW Phase 4: 이름 입력 박스 ⭐⭐⭐ */}
             <div className="rounded-2xl p-5 mb-4" style={{ background: `${S.cyan}08`, border: `1px solid ${S.cyan}30` }}>
               <label className="block text-[11px] font-mono tracking-widest mb-2" style={{ color: S.cyan }}>
                 YOUR NAME · 본인 이름을 입력하세요
@@ -1127,7 +1057,6 @@ function StudentJoinInner() {
               </p>
             </div>
 
-            {/* 입장 버튼 */}
             <button onClick={handleConfirmAndJoin} disabled={joining || !nameInput.trim()}
               className="w-full py-4 font-black rounded-2xl text-[15px] transition mb-3 disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
@@ -1147,14 +1076,69 @@ function StudentJoinInner() {
           </div>
         )}
 
-        {/* ⚠️ DEPRECATED: 옛 select 단계 (명단 시스템) — 더 이상 사용 안 함 (Phase 4) */}
+        {/* ⭐⭐⭐ MODIFIED: select 단계 — 본인 확인 경고 추가 ⭐⭐⭐ */}
         {step === 'select' && (
           <div>
-            <div className="rounded-2xl p-5 mb-4" style={{ background: `${S.green}08`, border: `1px solid ${S.green}20` }}>
+            <div className="rounded-2xl p-5 mb-3" style={{ background: `${S.green}08`, border: `1px solid ${S.green}20` }}>
               <p className="text-[10px] font-mono tracking-widest mb-1" style={{ color: S.green }}>STEP 3 / 4</p>
               <h2 className="text-lg font-black text-white mb-1">본인 이름을 선택하세요</h2>
               <p className="text-[12px] text-white" style={{ opacity: 0.75 }}>명단에서 내 이름을 찾아 선택하세요</p>
             </div>
+
+            {/* ⭐⭐⭐ NEW: 강력한 본인 확인 경고 박스 ⭐⭐⭐ */}
+            <div className="rounded-2xl p-4 mb-4 relative overflow-hidden identity-warning-pulse"
+              style={{
+                background: 'linear-gradient(135deg, rgba(239,68,68,0.12) 0%, rgba(220,38,38,0.08) 100%)',
+                border: '2px solid rgba(239,68,68,0.5)',
+                boxShadow: '0 0 24px rgba(239,68,68,0.25), inset 0 0 16px rgba(239,68,68,0.08)',
+              }}>
+              {/* 코너 장식 */}
+              <div className="absolute top-2 left-2 w-3 h-3 pointer-events-none"
+                style={{ borderTop: '2px solid #EF4444', borderLeft: '2px solid #EF4444' }} />
+              <div className="absolute top-2 right-2 w-3 h-3 pointer-events-none"
+                style={{ borderTop: '2px solid #EF4444', borderRight: '2px solid #EF4444' }} />
+              <div className="absolute bottom-2 left-2 w-3 h-3 pointer-events-none"
+                style={{ borderBottom: '2px solid #EF4444', borderLeft: '2px solid #EF4444' }} />
+              <div className="absolute bottom-2 right-2 w-3 h-3 pointer-events-none"
+                style={{ borderBottom: '2px solid #EF4444', borderRight: '2px solid #EF4444' }} />
+
+              <div className="flex items-center gap-2 mb-2.5">
+                <span className="text-base identity-warning-icon">🚨</span>
+                <p className="text-[11px] font-mono tracking-[3px] font-black"
+                  style={{ color: '#FCA5A5', textShadow: '0 0 8px rgba(239,68,68,0.6)' }}>
+                  IDENTITY CHECK REQUIRED
+                </p>
+                <span className="text-base identity-warning-icon" style={{ animationDelay: '0.5s' }}>🚨</span>
+              </div>
+
+              <p className="text-[13px] font-black text-white mb-2 leading-snug">
+                ⚠️ 본인이 아니면 절대 누르지 마세요!
+              </p>
+
+              <ul className="space-y-1 text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                <li className="flex items-start gap-1.5">
+                  <span style={{ color: '#FCA5A5' }}>•</span>
+                  <span>친구 대신 입장하면 <span style={{ color: '#FCA5A5' }} className="font-bold">강제 퇴장</span> 됩니다</span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <span style={{ color: '#FCA5A5' }}>•</span>
+                  <span>관리자가 실시간으로 모든 활동을 보고 있어요</span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <span style={{ color: '#FCA5A5' }}>•</span>
+                  <span>잘못 누르면 친구의 학습 기록이 사라져요</span>
+                </li>
+              </ul>
+
+              <div className="mt-2.5 pt-2.5 border-t flex items-center justify-center gap-1.5"
+                style={{ borderColor: 'rgba(239,68,68,0.25)' }}>
+                <span className="text-[10px]">✅</span>
+                <p className="text-[10.5px] font-bold" style={{ color: '#86EFAC' }}>
+                  본인이 맞다면 이름을 선택하세요
+                </p>
+              </div>
+            </div>
+
             {members.length === 0 ? (
               <div className="rounded-2xl p-5 text-center mb-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <p className="text-white text-[13px]" style={{ opacity: 0.7 }}>아직 명단이 등록되지 않았어요</p>
@@ -1166,7 +1150,16 @@ function StudentJoinInner() {
                   <InteractiveButton key={m.id}
                     uniqueKey={`member-${m.id}`}
                     isSelected={selectedMember?.id === m.id}
-                    onClick={() => setSelectedMember(selectedMember?.id === m.id ? null : m)}
+                    onClick={() => {
+                      // ⭐⭐⭐ MODIFIED: 바로 선택하지 않고 재확인 팝업 띄우기 ⭐⭐⭐
+                      if (selectedMember?.id === m.id) {
+                        // 이미 선택된 거 다시 누르면 해제
+                        setSelectedMember(null);
+                      } else {
+                        // 처음 누르거나 다른 학생 누르면 확인 팝업
+                        setConfirmIdentityMember(m);
+                      }
+                    }}
                     color={S.green}
                     className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl text-left transition"
                     style={{
@@ -1226,7 +1219,6 @@ function StudentJoinInner() {
               <p className="text-[12px] text-white" style={{ opacity: 0.75 }}>팀장만 설정할 수 있어요. 팀원들에게도 적용됩니다.</p>
             </div>
 
-            {/* ⭐⭐⭐ NEW: 팀 이름 입력 (옵션) ⭐⭐⭐ */}
             <div className="mb-5">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -1284,7 +1276,6 @@ function StudentJoinInner() {
               </p>
             </div>
 
-            {/* ⭐ ① 산업군 선택 */}
             <div className="mb-5">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -1321,7 +1312,6 @@ function StudentJoinInner() {
               </div>
             </div>
 
-            {/* ⭐ ② 세부 아이템 입력 */}
             <div className="mb-5">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -1414,8 +1404,6 @@ function StudentJoinInner() {
               </div>
             )}
 
-            {/* ⭐ Step 3 — 팀원 직무 배정 (이전 Step 4) */}
-            {/* 수업 수준(난이도)는 학급에서 자동 적용되므로 학생 화면에서 제거됨 */}
             <div className="mb-6">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-black flex-shrink-0"
@@ -1432,7 +1420,6 @@ function StudentJoinInner() {
                 팀장은 자동으로 CEO입니다. 팀원들의 직무를 정해주세요.
               </p>
 
-              {/* 👑 CEO 카드 */}
               {members.filter(m => m.is_leader).map(m => (
                 <div key={m.id} className="rounded-xl p-3 mb-2 flex items-center gap-3"
                   style={{ background: `${S.green}10`, border: `1px solid ${S.green}40` }}>
@@ -1445,7 +1432,6 @@ function StudentJoinInner() {
                 </div>
               ))}
 
-              {/* ⭐⭐⭐ NEW: 직무 가이드 박스 (펼치기/접기) */}
               {members.filter(m => !m.is_leader).length > 0 && (
                 <div className="mb-3">
                   <button
@@ -1510,7 +1496,6 @@ function StudentJoinInner() {
                 </div>
               )}
 
-              {/* 팀원 직무 배정 드롭다운 */}
               {members.filter(m => !m.is_leader).map(m => (
                 <div key={m.id} className="rounded-xl p-3 mb-2"
                   style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -1541,7 +1526,6 @@ function StudentJoinInner() {
                       );
                     })}
                   </select>
-                  {/* ⭐ 직무 설명 — 회색에서 흰색으로 (가독성 개선) */}
                   {roleAssignments[m.id] && (
                     <p className="text-[11px] text-white mt-1.5 px-1 leading-relaxed"
                       style={{ opacity: 0.85 }}>
@@ -1578,13 +1562,11 @@ function StudentJoinInner() {
               시작하면 모든 팀원이 자동으로 게임 화면으로 이동합니다.
             </p>
 
-            {/* ⭐⭐⭐ NEW Phase 4 (4번): 팀장 사퇴/양도 영역 (하단 작게) ⭐⭐⭐ */}
             <div className="mt-6 pt-4 border-t" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
               <p className="text-[10px] font-mono text-center mb-2" style={{ color: '#666' }}>
                 팀장이 부담스러우신가요?
               </p>
               <div className="grid grid-cols-2 gap-2">
-                {/* 사퇴 버튼 */}
                 <button onClick={() => setShowResignConfirm(true)}
                   disabled={resigning || transferring || loading}
                   className="py-2.5 rounded-xl text-[12px] font-bold transition disabled:opacity-30"
@@ -1596,7 +1578,6 @@ function StudentJoinInner() {
                   {resigning ? '⏳ 사퇴 중...' : '👋 팀장 사퇴'}
                 </button>
 
-                {/* 양도 버튼 */}
                 <button onClick={() => setShowTransferModal(true)}
                   disabled={resigning || transferring || loading || members.filter(m => m.id !== selectedMember?.id).length === 0}
                   className="py-2.5 rounded-xl text-[12px] font-bold transition disabled:opacity-30"
@@ -1616,7 +1597,6 @@ function StudentJoinInner() {
               )}
             </div>
 
-            {/* 사퇴 확인 모달 */}
             {showResignConfirm && (
               <div className="fixed inset-0 z-[300] flex items-center justify-center p-4"
                 style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)' }}
@@ -1668,7 +1648,6 @@ function StudentJoinInner() {
               </div>
             )}
 
-            {/* 양도 모달 (팀원 선택) */}
             {showTransferModal && (
               <div className="fixed inset-0 z-[300] flex items-center justify-center p-4"
                 style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)' }}
@@ -1691,7 +1670,7 @@ function StudentJoinInner() {
 
                   <div className="space-y-2 mb-4 max-h-[300px] overflow-y-auto">
                     {members
-                      .filter(m => m.id !== selectedMember?.id) // 본인 제외
+                      .filter(m => m.id !== selectedMember?.id)
                       .map(m => (
                         <button key={m.id}
                           onClick={() => handleTransfer(m.id)}
@@ -1737,7 +1716,6 @@ function StudentJoinInner() {
 
           return (
             <div>
-              {/* 헤더 */}
               <div className="rounded-2xl p-5 mb-4" style={{ background: `${S.cyan}08`, border: `1px solid ${S.cyan}33` }}>
                 <p className="text-[10px] font-mono tracking-widest mb-1 font-bold"
                   style={{ color: S.cyan, textShadow: `0 0 6px ${S.cyan}AA` }}>
@@ -1753,7 +1731,6 @@ function StudentJoinInner() {
                 </p>
               </div>
 
-              {/* 팀원 명단 */}
               <div className="rounded-2xl p-4 mb-4"
                 style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <div className="flex items-center justify-between mb-3">
@@ -1803,7 +1780,6 @@ function StudentJoinInner() {
                 </div>
               </div>
 
-              {/* 팀장 자원 영역 */}
               {noLeaderYet ? (
                 <>
                   <button onClick={handleClaimLeader}
@@ -1843,7 +1819,6 @@ function StudentJoinInner() {
                       ? `0 0 24px ${S.green}22, inset 0 0 20px ${S.green}08`
                       : `0 0 24px ${S.cyan}22, inset 0 0 20px ${S.cyan}08`,
                   }}>
-                  {/* 코너 마커 */}
                   <div className="absolute top-2 left-2 w-3 h-3"
                     style={{ borderTop: `1.5px solid ${isMeLeader ? S.green : S.cyan}`, borderLeft: `1.5px solid ${isMeLeader ? S.green : S.cyan}` }} />
                   <div className="absolute top-2 right-2 w-3 h-3"
@@ -1853,10 +1828,8 @@ function StudentJoinInner() {
                   <div className="absolute bottom-2 right-2 w-3 h-3"
                     style={{ borderBottom: `1.5px solid ${isMeLeader ? S.green : S.cyan}`, borderRight: `1.5px solid ${isMeLeader ? S.green : S.cyan}` }} />
 
-                  {/* ⭐ 듀얼 링 스피너 (팀원일 때만 - 팀장은 곧 이동하니까) ⭐ */}
                   {!isMeLeader && (
                     <div className="relative mx-auto mb-3" style={{ width: '64px', height: '64px' }}>
-                      {/* 외부 링 (시안, 시계방향) */}
                       <div className="absolute inset-0 rounded-full dual-ring-outer"
                         style={{
                           border: `2px solid transparent`,
@@ -1864,7 +1837,6 @@ function StudentJoinInner() {
                           borderRightColor: S.cyan,
                           boxShadow: `0 0 12px ${S.cyan}88, inset 0 0 8px ${S.cyan}33`,
                         }} />
-                      {/* 내부 링 (보라, 반시계방향) */}
                       <div className="absolute rounded-full dual-ring-inner"
                         style={{
                           top: '12px', left: '12px',
@@ -1874,7 +1846,6 @@ function StudentJoinInner() {
                           borderLeftColor: S.purple,
                           boxShadow: `0 0 10px ${S.purple}88`,
                         }} />
-                      {/* 중심 점 (펄스) */}
                       <div className="absolute rounded-full center-pulse"
                         style={{
                           top: '50%', left: '50%',
@@ -1886,7 +1857,6 @@ function StudentJoinInner() {
                     </div>
                   )}
 
-                  {/* 상단 라벨 (사이버틱) */}
                   {!isMeLeader && (
                     <p className="text-[9px] font-mono tracking-[3px] font-bold mb-2"
                       style={{ color: S.cyan, textShadow: `0 0 6px ${S.cyan}88` }}>
@@ -1910,7 +1880,6 @@ function StudentJoinInner() {
                     )}
                   </p>
 
-                  {/* 진행 상태 점멸 (팀원만) */}
                   {!isMeLeader && (
                     <div className="flex items-center justify-center gap-1.5 mt-3">
                       <span className="w-1.5 h-1.5 rounded-full dot-blink dot-1" style={{ background: S.cyan }} />
@@ -2156,9 +2125,7 @@ function StudentJoinInner() {
                   )}
                 </div>
 
-                {/* ⭐⭐⭐ NEW 8번: welcome 화면 상태별 박스 ⭐⭐⭐ */}
                 {welcomeState === 'rejoining' ? (
-                  // 상태 3) 재입장: 이미 게임 시작됨 → [▶ 게임으로 돌아가기]
                   <div className="rounded-2xl p-4 md:p-5 md:max-w-md md:mx-auto"
                     style={{
                       background: `linear-gradient(135deg, ${S.green}15 0%, ${S.aqua}10 100%)`,
@@ -2188,7 +2155,6 @@ function StudentJoinInner() {
                     </button>
                   </div>
                 ) : (
-                  // 상태 1) 대기 중: 노란 펄스 + 안내 메시지 (관리자 신호 대기)
                   <div className="rounded-2xl p-4 md:p-5 md:max-w-md md:mx-auto"
                     style={{
                       background: 'rgba(234,179,8,0.06)',
@@ -2212,7 +2178,6 @@ function StudentJoinInner() {
                       관리자가 시작 신호 보내면 자동으로 시작됩니다
                     </p>
 
-                    {/* 사원증 / 미션을 다시 읽으라는 힌트 */}
                     <div className="mt-3 pt-3 border-t flex items-center justify-center gap-1.5"
                       style={{ borderColor: 'rgba(234,179,8,0.2)' }}>
                       <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>💡</span>
@@ -2272,8 +2237,166 @@ function StudentJoinInner() {
         </>
       )}
 
+      {/* ⭐⭐⭐ NEW: 본인 확인 재확인 팝업 ⭐⭐⭐ */}
+      {confirmIdentityMember && (
+        <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 identity-modal-bg"
+          style={{ background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(8px)' }}
+          onClick={() => setConfirmIdentityMember(null)}>
+          <div className="max-w-sm w-full rounded-2xl p-6 relative identity-modal-enter"
+            style={{
+              background: 'linear-gradient(135deg, rgba(30,15,15,0.98) 0%, rgba(50,15,20,0.95) 100%)',
+              border: '2px solid rgba(239,68,68,0.6)',
+              boxShadow: '0 30px 80px rgba(0,0,0,0.6), 0 0 60px rgba(239,68,68,0.4)',
+            }}
+            onClick={(e) => e.stopPropagation()}>
+
+            {/* 코너 장식 */}
+            <div className="absolute top-2 left-2 w-4 h-4 pointer-events-none"
+              style={{ borderTop: '2px solid #EF4444', borderLeft: '2px solid #EF4444' }} />
+            <div className="absolute top-2 right-2 w-4 h-4 pointer-events-none"
+              style={{ borderTop: '2px solid #EF4444', borderRight: '2px solid #EF4444' }} />
+            <div className="absolute bottom-2 left-2 w-4 h-4 pointer-events-none"
+              style={{ borderBottom: '2px solid #EF4444', borderLeft: '2px solid #EF4444' }} />
+            <div className="absolute bottom-2 right-2 w-4 h-4 pointer-events-none"
+              style={{ borderBottom: '2px solid #EF4444', borderRight: '2px solid #EF4444' }} />
+
+            {/* 헤더 */}
+            <div className="text-center mb-4">
+              <div className="inline-flex w-16 h-16 rounded-full items-center justify-center mb-3 identity-modal-icon"
+                style={{
+                  background: 'radial-gradient(circle, rgba(239,68,68,0.3) 0%, rgba(220,38,38,0.15) 100%)',
+                  border: '2px solid #EF4444',
+                  boxShadow: '0 0 28px rgba(239,68,68,0.7)',
+                }}>
+                <span className="text-3xl">🔐</span>
+              </div>
+              <p className="text-[10px] font-mono tracking-[4px] font-bold mb-2"
+                style={{ color: '#FCA5A5', textShadow: '0 0 8px rgba(239,68,68,0.7)' }}>
+                IDENTITY VERIFICATION
+              </p>
+              <h3 className="text-xl font-black text-white mb-2">
+                정말 본인이 맞나요?
+              </h3>
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl"
+                style={{
+                  background: 'rgba(239,68,68,0.12)',
+                  border: '1.5px solid rgba(239,68,68,0.4)',
+                }}>
+                <span className="text-xl">
+                  {confirmIdentityMember.is_leader ? '👑' : '👤'}
+                </span>
+                <span className="text-[16px] font-black text-white">
+                  {confirmIdentityMember.name}
+                </span>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded"
+                  style={{
+                    background: 'rgba(239,68,68,0.2)',
+                    color: '#FCA5A5',
+                  }}>
+                  학생
+                </span>
+              </div>
+            </div>
+
+            {/* 경고 메시지 */}
+            <div className="rounded-xl p-3 mb-4"
+              style={{
+                background: 'rgba(239,68,68,0.08)',
+                border: '1px solid rgba(239,68,68,0.3)',
+              }}>
+              <p className="text-[12px] font-bold text-center mb-2" style={{ color: '#FCA5A5' }}>
+                ⚠️ 본인이 아니면 [취소]를 누르세요
+              </p>
+              <ul className="space-y-1 text-[11px]" style={{ color: 'rgba(255,255,255,0.85)' }}>
+                <li className="flex items-start gap-1.5">
+                  <span style={{ color: '#FCA5A5' }}>•</span>
+                  <span>친구 사칭 시 <span style={{ color: '#FCA5A5' }} className="font-bold">강제 퇴장</span></span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <span style={{ color: '#FCA5A5' }}>•</span>
+                  <span>관리자가 모든 입장 기록을 봅니다</span>
+                </li>
+                <li className="flex items-start gap-1.5">
+                  <span style={{ color: '#FCA5A5' }}>•</span>
+                  <span>친구의 학습 권리를 침해하게 돼요</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* 버튼 */}
+            <div className="grid grid-cols-2 gap-2">
+              <button onClick={() => setConfirmIdentityMember(null)}
+                className="py-3 rounded-xl text-[13px] font-bold transition hover:scale-[1.02]"
+                style={{
+                  background: 'rgba(255,255,255,0.06)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  color: '#fff',
+                }}>
+                ✕ 취소 (본인 아님)
+              </button>
+              <button onClick={() => {
+                setSelectedMember(confirmIdentityMember);
+                setConfirmIdentityMember(null);
+              }}
+                className="py-3 rounded-xl text-[13px] font-black transition hover:scale-[1.02]"
+                style={{
+                  background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                  color: 'white',
+                  boxShadow: '0 6px 18px rgba(16,185,129,0.4)',
+                }}>
+                ✓ 본인이 맞아요
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style jsx>{`
-        /* ⭐⭐⭐ NEW: 듀얼 링 스피너 (waiting 화면) ⭐⭐⭐ */
+        /* ⭐⭐⭐ NEW: 본인 확인 경고 박스 펄스 ⭐⭐⭐ */
+        .identity-warning-pulse {
+          animation: identityWarningPulse 2.5s ease-in-out infinite;
+        }
+        @keyframes identityWarningPulse {
+          0%, 100% {
+            box-shadow: 0 0 24px rgba(239,68,68,0.25), inset 0 0 16px rgba(239,68,68,0.08);
+          }
+          50% {
+            box-shadow: 0 0 32px rgba(239,68,68,0.55), 0 0 60px rgba(239,68,68,0.25), inset 0 0 20px rgba(239,68,68,0.15);
+          }
+        }
+        .identity-warning-icon {
+          animation: identityWarningIconShake 1.5s ease-in-out infinite;
+          display: inline-block;
+        }
+        @keyframes identityWarningIconShake {
+          0%, 100% { transform: rotate(0deg) scale(1); }
+          25% { transform: rotate(-8deg) scale(1.1); }
+          75% { transform: rotate(8deg) scale(1.1); }
+        }
+
+        /* ⭐⭐⭐ NEW: 본인 확인 모달 진입 애니메이션 ⭐⭐⭐ */
+        .identity-modal-bg {
+          animation: identityModalBgFade 0.3s ease-out forwards;
+        }
+        @keyframes identityModalBgFade {
+          0% { opacity: 0; }
+          100% { opacity: 1; }
+        }
+        .identity-modal-enter {
+          animation: identityModalEnter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        @keyframes identityModalEnter {
+          0% { opacity: 0; transform: scale(0.85); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+        .identity-modal-icon {
+          animation: identityModalIconPulse 1.5s ease-in-out infinite;
+        }
+        @keyframes identityModalIconPulse {
+          0%, 100% { transform: scale(1); box-shadow: 0 0 28px rgba(239,68,68,0.7); }
+          50% { transform: scale(1.08); box-shadow: 0 0 40px rgba(239,68,68,1); }
+        }
+
         .dual-ring-outer {
           animation: dualRingSpinCW 1.4s linear infinite;
         }
@@ -2526,7 +2649,6 @@ function StudentJoinInner() {
           100% { opacity: 1; transform: translateY(0); }
         }
 
-        /* ⭐⭐⭐ NEW 8번: welcome 대기 상태 펄스 ⭐⭐⭐ */
         @keyframes waitingPulseDot {
           0%, 100% { opacity: 0.5; transform: scale(1); }
           50% { opacity: 1; transform: scale(1.35); }
@@ -2539,7 +2661,6 @@ function StudentJoinInner() {
   );
 }
 
-// ⭐⭐⭐ NEW: Suspense 래퍼 (useSearchParams는 Suspense boundary 필요)
 export default function StudentJoin() {
   return (
     <Suspense fallback={
