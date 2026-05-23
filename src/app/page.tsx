@@ -1416,28 +1416,29 @@ export default function Home() {
         </button>
 
         <button onClick={() => handleStartClick('/teacher')}
-          className="relative w-full py-3 md:py-3.5 font-bold rounded-2xl text-[13px] md:text-[14px] transition-all hover:scale-[1.01] mb-3"
+          className="relative w-full py-3 md:py-3.5 font-bold rounded-2xl text-[13px] md:text-[14px] transition-all hover:scale-[1.01] mb-3 landing-btn-glow-cyan"
           style={{
             background: 'rgba(6, 182, 212, 0.08)',
             border: `1px solid #06B6D466`,
             color: '#06B6D4',
-            textShadow: '0 0 8px #06B6D466',
+            textShadow: '0 0 12px #06B6D4, 0 0 24px #06B6D488',
+            boxShadow: '0 0 20px rgba(6, 182, 212, 0.15)',
           }}>
           {`>`} 관리자 로그인
         </button>
 
-        {/* ⭐ CHANGED: 퍼실리테이터 가이드 → 소개서 보기 (intro.html로 직접 이동) */}
-        <a href="/intro.html"
-          className="relative block w-full py-3 md:py-3.5 rounded-2xl text-[13px] md:text-[14px] font-bold transition-all hover:scale-[1.01] text-center no-underline"
+        {/* ⭐ CHANGED: 소개서 보기 - 빨려들어가는 효과 + 발광 효과 */}
+        <button onClick={() => handleStartClick('/intro.html')}
+          className="relative w-full py-3 md:py-3.5 rounded-2xl text-[13px] md:text-[14px] font-bold transition-all hover:scale-[1.01] landing-btn-glow-purple"
           style={{
             background: 'rgba(139, 92, 246, 0.08)',
             border: `1px solid #8B5CF666`,
             color: '#8B5CF6',
-            textShadow: '0 0 8px #8B5CF666',
-            textDecoration: 'none',
+            textShadow: '0 0 12px #8B5CF6, 0 0 24px #8B5CF688',
+            boxShadow: '0 0 20px rgba(139, 92, 246, 0.15)',
           }}>
-          {`>`} 📖 소개서 보기
-        </a>
+          {`>`} 소개서 보기
+        </button>
 
         <p className="text-gray-700 text-[10px] mt-6 md:mt-8 font-mono">© 2026 SIGNAL — ConnectAI</p>
       </div>
@@ -1496,6 +1497,16 @@ export default function Home() {
         @keyframes landingBtnNeonPulse {
           0%, 100% { box-shadow: 0 0 20px rgba(231, 254, 85, 0.4), 0 10px 30px -5px rgba(231, 254, 85, 0.5); }
           50% { box-shadow: 0 0 40px rgba(231, 254, 85, 0.7), 0 10px 40px -5px rgba(231, 254, 85, 0.8); }
+        }
+        .landing-btn-glow-cyan { animation: cyanGlowPulse 2.5s ease-in-out infinite; }
+        @keyframes cyanGlowPulse {
+          0%, 100% { box-shadow: 0 0 20px rgba(6, 182, 212, 0.15); }
+          50% { box-shadow: 0 0 30px rgba(6, 182, 212, 0.4), 0 0 50px rgba(6, 182, 212, 0.2); }
+        }
+        .landing-btn-glow-purple { animation: purpleGlowPulse 2.5s ease-in-out infinite 0.5s; }
+        @keyframes purpleGlowPulse {
+          0%, 100% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.15); }
+          50% { box-shadow: 0 0 30px rgba(139, 92, 246, 0.4), 0 0 50px rgba(139, 92, 246, 0.2); }
         }
       `}</style>
     </div>
