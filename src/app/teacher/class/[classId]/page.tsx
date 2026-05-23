@@ -30,7 +30,6 @@ const S = {
   gold: '#FFD700'
 };
 
-// ⭐ NEW: 난이도 매핑
 const LEVELS: Record<string, { label: string; emoji: string; color: string }> = {
   basic:    { label: '초급', emoji: '🌱', color: '#4ADE80' },
   standard: { label: '표준', emoji: '📘', color: '#4FB0C6' },
@@ -47,41 +46,33 @@ export default function ClassDetail() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // 명단 편집
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null);
   const [memberInputs, setMemberInputs] = useState<Record<string, string>>({});
   const [teamMembers, setTeamMembers] = useState<Record<string, TeamMember[]>>({});
   const [saving, setSaving] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
-  // ⭐ NEW: 학급 코드 복사 상태
   const [copiedClassCode, setCopiedClassCode] = useState(false);
-  // ⭐⭐⭐ NEW: 카드 진행 격자 펼침 상태
   const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null);
 
-  // ⭐⭐⭐ NEW 8번: 일괄 시작 상태
   const [showBulkStartModal, setShowBulkStartModal] = useState(false);
   const [bulkStarting, setBulkStarting] = useState(false);
   const [bulkStartError, setBulkStartError] = useState('');
 
-  // ⭐⭐⭐ NEW Phase 4 (18번): 관리자 강제 퇴장 ⭐⭐⭐
   const [deleteTargetMember, setDeleteTargetMember] = useState<TeamMember | null>(null);
   const [deleteTargetTeam, setDeleteTargetTeam] = useState<Team | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
-  // ⭐⭐⭐ NEW Phase 4 (20번): 관리자 팀장 교체 ⭐⭐⭐
   const [replaceTargetLeader, setReplaceTargetLeader] = useState<TeamMember | null>(null);
   const [replaceTargetTeam, setReplaceTargetTeam] = useState<Team | null>(null);
   const [replacing, setReplacing] = useState(false);
   const [replaceError, setReplaceError] = useState('');
 
-  // ⭐⭐⭐ NEW: 팀 삭제 ⭐⭐⭐
   const [deleteTargetTeamObj, setDeleteTargetTeamObj] = useState<Team | null>(null);
   const [deleteTeamHasReport, setDeleteTeamHasReport] = useState(false);
   const [deletingTeam, setDeletingTeam] = useState(false);
   const [deleteTeamError, setDeleteTeamError] = useState('');
 
-  // ⭐⭐⭐ NEW: 팀 이름 인라인 편집 ⭐⭐⭐
   const [editingNameTeamId, setEditingNameTeamId] = useState<string | null>(null);
   const [editTeamNameInput, setEditTeamNameInput] = useState('');
   const [editTeamNameSaving, setEditTeamNameSaving] = useState(false);
@@ -100,7 +91,6 @@ export default function ClassDetail() {
       setCls(clsData);
       setTeams(teamsData);
 
-      // 각 팀 명단 불러오기
       const membersMap: Record<string, TeamMember[]> = {};
       await Promise.all(teamsData.map(async team => {
         const members = await getTeamMembers(team.id);
@@ -115,17 +105,13 @@ export default function ClassDetail() {
     })();
   }, [classId, router]);
 
-  // ⭐⭐⭐ NEW: Realtime 구독 (카드 완료 + 학생 입장)
-  // 새로고침 없이 격자/인원 수 자동 갱신
   useEffect(() => {
     if (loading || teams.length === 0) return;
     const teamIds = teams.map(t => t.id);
 
-    // 갱신 함수: teams 전체 다시 조회 + 명단도 다시 조회
     const refreshAll = async () => {
       const freshTeams = await getTeamsByClass(classId);
       setTeams(freshTeams);
-      // 명단도 갱신 (학생 입장 시 명단에는 변화 없지만, 안전하게 다시 조회)
       const membersMap: Record<string, TeamMember[]> = {};
       await Promise.all(
         freshTeams.map(async team => {
@@ -136,17 +122,14 @@ export default function ClassDetail() {
       setTeamMembers(membersMap);
     };
 
-    // 1) card_progress 구독 (카드 완료 시 격자 갱신)
     const unsubscribeCards = subscribeToClassProgress(
       classId,
       teamIds,
       async () => {
-        // 카드 완료 → teams 다시 조회 (completed_card_ids 갱신용)
         await refreshAll();
       }
     );
 
-    // 2) team_members 구독 (학생 입장/퇴장 시 인원 수 갱신)
     const teamMembersChannel = supabase
       .channel(`class-${classId}-team-members`)
       .on(
@@ -159,7 +142,6 @@ export default function ClassDetail() {
         async (payload: any) => {
           const record = payload.new || payload.old;
           if (!record) return;
-          // 이 학급의 팀에 속한 멤버만 처리
           if (!teamIds.includes(record.team_id)) return;
           await refreshAll();
         }
@@ -172,7 +154,6 @@ export default function ClassDetail() {
     };
   }, [classId, loading, teams.length]);
 
-  // ⭐⭐⭐ NEW 8번: 일괄 시작 핸들러 ⭐⭐⭐
   const handleBulkStart = async () => {
     if (!cls || bulkStarting) return;
     setBulkStarting(true);
@@ -184,10 +165,8 @@ export default function ClassDetail() {
         setBulkStarting(false);
         return;
       }
-      // 성공 → 학급 정보 갱신 (game_started_at 받기)
       const updatedCls = await getClass(cls.id);
       if (updatedCls) setCls(updatedCls);
-      // 팀 정보도 갱신
       const updatedTeams = await getTeamsByClass(cls.id);
       setTeams(updatedTeams);
       setShowBulkStartModal(false);
@@ -198,7 +177,6 @@ export default function ClassDetail() {
     }
   };
 
-  // ⭐⭐⭐ NEW Phase 4 (18번): 학생 강제 퇴장 ⭐⭐⭐
   const openDeleteModal = (member: TeamMember, team: Team) => {
     setDeleteTargetMember(member);
     setDeleteTargetTeam(team);
@@ -225,7 +203,6 @@ export default function ClassDetail() {
         return;
       }
 
-      // 성공: 로컬 state에서도 즉시 제거 (Realtime이 따라잡기 전까지 UI 반응성)
       if (deleteTargetTeam) {
         setTeamMembers(prev => ({
           ...prev,
@@ -242,7 +219,6 @@ export default function ClassDetail() {
     }
   };
 
-  // ⭐⭐⭐ NEW Phase 4 (20번): 관리자 팀장 교체 ⭐⭐⭐
   const openReplaceModal = (leader: TeamMember, team: Team) => {
     setReplaceTargetLeader(leader);
     setReplaceTargetTeam(team);
@@ -273,11 +249,9 @@ export default function ClassDetail() {
         return;
       }
 
-      // 성공: 로컬 state 즉시 갱신 (Realtime이 따라잡기 전까지 UI 반응성)
       const updatedMembers = (teamMembers[replaceTargetTeam.id] || []).map(m => {
         if (m.id === replaceTargetLeader.id) return { ...m, is_leader: false };
         if (m.id === newLeaderId) return { ...m, is_leader: true };
-        // 게임 시작 전이면 role_code 초기화 (UI 즉시 반영)
         if (!result.gameInProgress) return { ...m, role_code: null };
         return m;
       });
@@ -286,7 +260,6 @@ export default function ClassDetail() {
         [replaceTargetTeam.id]: updatedMembers,
       }));
 
-      // 게임 시작 전이면 teams.item/level도 초기화 (UI 즉시 반영)
       if (!result.gameInProgress) {
         setTeams(prev => prev.map(t =>
           t.id === replaceTargetTeam.id ? { ...t, item: null as any, level: null as any } : t
@@ -302,7 +275,6 @@ export default function ClassDetail() {
     }
   };
 
-  // ⭐⭐⭐ NEW: 팀 이름 편집 핸들러 ⭐⭐⭐
   const startEditTeamName = (e: React.MouseEvent, team: Team) => {
     e.stopPropagation();
     setEditingNameTeamId(team.id);
@@ -335,7 +307,6 @@ export default function ClassDetail() {
         setEditTeamNameSaving(false);
         return;
       }
-      // 로컬 state 갱신
       setTeams(prev => prev.map(t => t.id === editingNameTeamId ? { ...t, name: trimmed } : t));
       setEditingNameTeamId(null);
       setEditTeamNameInput('');
@@ -346,7 +317,6 @@ export default function ClassDetail() {
     }
   };
 
-  // ⭐⭐⭐ NEW: 팀 삭제 핸들러 ⭐⭐⭐
   const openDeleteTeamModal = async (e: React.MouseEvent, team: Team) => {
     e.stopPropagation();
     setDeleteTargetTeamObj(team);
@@ -375,7 +345,6 @@ export default function ClassDetail() {
         setDeletingTeam(false);
         return;
       }
-      // 로컬 state에서 즉시 제거
       setTeams(prev => prev.filter(t => t.id !== deleteTargetTeamObj.id));
       setTeamMembers(prev => {
         const next = { ...prev };
@@ -392,6 +361,16 @@ export default function ClassDetail() {
   };
 
   const handleSaveMembers = async (teamId: string) => {
+    // ⭐⭐⭐ NEW: 게임 시작 후에는 명단 수정 차단 (안전망) ⭐⭐⭐
+    const targetTeam = teams.find(t => t.id === teamId);
+    const teamStarted = targetTeam?.game_started === true;
+    const classStarted = cls?.game_started_at != null;
+    if (teamStarted || classStarted) {
+      alert('⚠️ 게임이 이미 시작되어 명단을 수정할 수 없어요.\n\n새로운 학생을 추가하려면 게임이 끝난 후 시도해주세요.');
+      setEditingTeamId(null);
+      return;
+    }
+
     setSaving(true);
     const names = (memberInputs[teamId] || '').split('\n').map(n => n.trim()).filter(Boolean);
     const saved = await saveTeamMembers(teamId, names);
@@ -406,7 +385,6 @@ export default function ClassDetail() {
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
-  // ⭐ NEW: 학급 코드 복사
   const copyClassCode = () => {
     if (!cls?.join_code) return;
     navigator.clipboard.writeText(cls.join_code);
@@ -422,11 +400,12 @@ export default function ClassDetail() {
 
   const lvlInfo = cls?.level ? LEVELS[cls.level] : null;
   const hasJoinCode = !!cls?.join_code;
+  // ⭐⭐⭐ NEW: 학급 일괄 시작 여부 (명단 추가 가능 여부 판단용) ⭐⭐⭐
+  const classGameStarted = cls?.game_started_at != null;
 
   return (
     <div className="min-h-screen px-4 py-6 relative overflow-hidden" style={{ background: S.bg }}>
 
-      {/* 오로라 배경 */}
       <div className="fixed inset-0 pointer-events-none"
         style={{
           background: `
@@ -437,7 +416,6 @@ export default function ClassDetail() {
           zIndex: 0,
         }} />
 
-      {/* 빛 신호 */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
         <div className="absolute detail-signal-1"
           style={{
@@ -453,7 +431,6 @@ export default function ClassDetail() {
           }} />
       </div>
 
-      {/* 떠다니는 입자 */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
         {Array.from({ length: 10 }).map((_, i) => {
           const colors = [S.cyan, S.purple, S.blue];
@@ -478,14 +455,12 @@ export default function ClassDetail() {
 
       <div className="max-w-lg mx-auto relative z-10">
 
-        {/* 헤더 */}
         <div className="flex items-center gap-3 mb-6">
           <button onClick={() => router.push('/teacher/dashboard')}
             className="hover:text-gray-400 transition text-sm font-mono"
             style={{ color: S.cyan }}>{`<`} 대시보드</button>
         </div>
 
-        {/* 수업 정보 헤더 */}
         <div className="rounded-2xl p-5 mb-4"
           style={{
             background: `${S.cyan}08`,
@@ -499,7 +474,6 @@ export default function ClassDetail() {
           <h1 className="text-xl font-black text-white"
             style={{ textShadow: `0 0 12px ${S.cyan}55` }}>{cls?.name}</h1>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
-            {/* ⭐ NEW: 난이도 뱃지 */}
             {lvlInfo && (
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-md"
                 style={{
@@ -514,7 +488,6 @@ export default function ClassDetail() {
           </div>
         </div>
 
-        {/* ⭐⭐⭐ NEW: 학급 코드 + QR 박스 (학급 코드 있을 때만) */}
         {hasJoinCode && (
           <div className="rounded-2xl p-4 mb-4 relative overflow-hidden"
             style={{
@@ -534,7 +507,6 @@ export default function ClassDetail() {
               </p>
             </div>
 
-            {/* 학급 코드 (클릭 시 복사) */}
             <button onClick={copyClassCode}
               className="w-full mb-3 px-4 py-3 rounded-xl flex items-center justify-center gap-3 transition-all hover:scale-[1.01]"
               style={{
@@ -559,7 +531,6 @@ export default function ClassDetail() {
               </span>
             </button>
 
-            {/* QR 보기 버튼 (강조) */}
             <button onClick={() => router.push(`/teacher/class-qr/${classId}`)}
               className="qr-btn w-full py-3 rounded-xl font-black text-[14px] transition-all hover:scale-[1.02] flex items-center justify-center gap-2 relative overflow-hidden"
               style={{
@@ -578,7 +549,6 @@ export default function ClassDetail() {
           </div>
         )}
 
-        {/* 학생 접속 URL 안내 (학급 코드 없을 때만 기존 안내) */}
         {!hasJoinCode && (
           <div className="rounded-xl p-4 mb-6"
             style={{
@@ -598,7 +568,6 @@ export default function ClassDetail() {
           </div>
         )}
 
-        {/* ⭐⭐⭐ NEW 8번: 일괄 시작 버튼 ⭐⭐⭐ */}
         {(() => {
           const alreadyStarted = !!cls?.game_started_at;
           return (
@@ -661,7 +630,6 @@ export default function ClassDetail() {
           );
         })()}
 
-        {/* ⭐⭐⭐ 강렬한 랭킹 보기 버튼 ⭐⭐⭐ */}
         <button onClick={() => router.push(`/teacher/class/${classId}/ranking`)}
           className="ranking-btn w-full rounded-2xl overflow-hidden mb-6 transition-all hover:scale-[1.02] relative group"
           style={{
@@ -709,7 +677,6 @@ export default function ClassDetail() {
           </div>
         </button>
 
-        {/* ⭐⭐⭐ NEW Phase 4 (17번): PDF 보관함 버튼 ⭐⭐⭐ */}
         <button onClick={() => router.push(`/teacher/class/${classId}/reports`)}
           className="w-full rounded-2xl overflow-hidden mb-6 transition-all hover:scale-[1.02] relative group"
           style={{
@@ -751,7 +718,6 @@ export default function ClassDetail() {
           </div>
         </button>
 
-        {/* 팀 목록 (기존 — 명단 관리) */}
         <div className="mb-4">
           <p className="text-sm font-bold text-white">
             <span style={{ color: S.cyan }}>{`>`}</span> 팀 관리 ({teams.length}개)
@@ -759,10 +725,35 @@ export default function ClassDetail() {
           <p className="text-[11px] mt-0.5" style={{ color: '#666' }}>팀 코드 복사 · 학생 명단 등록</p>
         </div>
 
+        {/* ⭐⭐⭐ NEW: 게임 시작 후 명단 잠금 안내 ⭐⭐⭐ */}
+        {classGameStarted && (
+          <div className="rounded-xl p-3 mb-4"
+            style={{
+              background: 'rgba(234, 179, 8, 0.08)',
+              border: '1.5px solid rgba(234, 179, 8, 0.4)',
+              boxShadow: 'inset 0 0 12px rgba(234, 179, 8, 0.05)',
+            }}>
+            <div className="flex items-start gap-2">
+              <span className="text-base flex-shrink-0">🔒</span>
+              <div>
+                <p className="text-[12px] font-bold mb-1" style={{ color: '#FBBF24' }}>
+                  명단 추가/수정 잠금
+                </p>
+                <p className="text-[11px] leading-relaxed text-white" style={{ opacity: 0.8 }}>
+                  게임이 시작되어 새 학생을 명단에 추가할 수 없어요.<br/>
+                  기존 학생만 재접속이 가능합니다.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="space-y-4">
           {teams.map(team => {
             const members = teamMembers[team.id] || [];
             const isEditing = editingTeamId === team.id;
+            // ⭐⭐⭐ NEW: 이 팀이 게임 시작됐는지 ⭐⭐⭐
+            const teamGameStarted = team.game_started === true || classGameStarted;
 
             return (
               <div key={team.id} className="rounded-2xl overflow-hidden cyber-team-card"
@@ -772,12 +763,10 @@ export default function ClassDetail() {
                   boxShadow: `0 0 16px ${S.cyan}11`,
                 }}>
 
-                {/* 팀 헤더 */}
                 <div className="p-4">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <div className="flex-1 min-w-0">
-                        {/* ⭐⭐⭐ NEW: 팀명 인라인 편집 ⭐⭐⭐ */}
                         {editingNameTeamId === team.id ? (
                           <div className="flex items-center gap-1.5">
                             <input
@@ -837,7 +826,6 @@ export default function ClassDetail() {
                           </p>
                         )}
                       </div>
-                      {/* ⭐⭐⭐ NEW: 팀 삭제 버튼 ⭐⭐⭐ */}
                       {editingNameTeamId !== team.id && (
                         <button
                           onClick={(e) => openDeleteTeamModal(e, team)}
@@ -855,7 +843,6 @@ export default function ClassDetail() {
                         </button>
                       )}
                     </div>
-                    {/* 팀 코드 */}
                     <button onClick={() => copyCode(team.join_code)}
                       className="flex flex-col items-end gap-1">
                       <p className="text-[9px] font-mono" style={{ color: S.cyan }}>팀 코드</p>
@@ -872,7 +859,6 @@ export default function ClassDetail() {
                     </button>
                   </div>
 
-                  {/* 학생 명단 */}
                   {!isEditing ? (
                     <div>
                       {members.length === 0 ? (
@@ -891,7 +877,6 @@ export default function ClassDetail() {
                                   boxShadow: m.is_leader ? `0 0 8px ${S.cyan}33` : 'none',
                                 }}>
                                 <span>{m.is_leader ? '👑 ' : ''}{m.name}</span>
-                                {/* ⭐⭐⭐ NEW Phase 4 (20번): 팀장 교체 버튼 ⭐⭐⭐ */}
                                 {m.is_leader && otherMembersExist && (
                                   <button
                                     onClick={() => openReplaceModal(m, team)}
@@ -908,7 +893,6 @@ export default function ClassDetail() {
                                     ↗
                                   </button>
                                 )}
-                                {/* ⭐⭐⭐ NEW Phase 4 (18번): 학생 강제 퇴장 버튼 ⭐⭐⭐ */}
                                 <button
                                   onClick={() => openDeleteModal(m, team)}
                                   title={`${m.name} 강제 퇴장`}
@@ -928,21 +912,35 @@ export default function ClassDetail() {
                           })}
                         </div>
                       )}
-                      <button onClick={() => {
-                        setEditingTeamId(team.id);
-                        setMemberInputs(prev => ({
-                          ...prev,
-                          [team.id]: members.map(m => m.name).join('\n'),
-                        }));
-                      }}
-                        className="w-full py-2 rounded-xl text-[12px] font-bold transition"
-                        style={{
-                          background: 'rgba(0,0,0,0.3)',
-                          border: `1px solid ${S.cyan}33`,
-                          color: S.cyan,
-                        }}>
-                        {members.length === 0 ? '+ 학생 명단 입력' : '✏️ 명단 수정'}
-                      </button>
+                      {/* ⭐⭐⭐ NEW: 게임 시작 후 명단 추가/수정 버튼 비활성화 ⭐⭐⭐ */}
+                      {teamGameStarted ? (
+                        <div className="w-full py-2 rounded-xl text-[12px] font-bold text-center"
+                          style={{
+                            background: 'rgba(107,114,128,0.15)',
+                            border: '1px solid rgba(107,114,128,0.3)',
+                            color: '#888',
+                            cursor: 'not-allowed',
+                          }}
+                          title="게임 시작 후에는 명단을 수정할 수 없어요">
+                          🔒 게임 시작 — 명단 잠김
+                        </div>
+                      ) : (
+                        <button onClick={() => {
+                          setEditingTeamId(team.id);
+                          setMemberInputs(prev => ({
+                            ...prev,
+                            [team.id]: members.map(m => m.name).join('\n'),
+                          }));
+                        }}
+                          className="w-full py-2 rounded-xl text-[12px] font-bold transition"
+                          style={{
+                            background: 'rgba(0,0,0,0.3)',
+                            border: `1px solid ${S.cyan}33`,
+                            color: S.cyan,
+                          }}>
+                          {members.length === 0 ? '+ 학생 명단 입력' : '✏️ 명단 수정'}
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <div>
@@ -983,11 +981,9 @@ export default function ClassDetail() {
                   )}
                 </div>
 
-                {/* ⭐⭐⭐ NEW: 진행도 + 카드 격자 펼침 ⭐⭐⭐ */}
                 <button
                   onClick={() => setExpandedTeamId(prev => prev === team.id ? null : team.id)}
                   className="w-full px-4 pb-3 text-left hover:bg-white/5 transition group">
-                  {/* 진행도 바 */}
                   <div className="flex items-center gap-2 mb-1">
                     <div className="flex-1 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
                       {(team.completed_count || 0) > 0 && (
@@ -1015,7 +1011,6 @@ export default function ClassDetail() {
                   </p>
                 </button>
 
-                {/* 카드 진행 격자 (펼침) */}
                 {expandedTeamId === team.id && (
                   <div className="px-4 pb-4 pt-1">
                     <ClassTeamCardGrid team={team} />
@@ -1030,7 +1025,6 @@ export default function ClassDetail() {
       </div>
 
       <style jsx>{`
-        /* QR 버튼 살짝 펄스 */
         .qr-btn {
           animation: qrPulse 2.5s ease-in-out infinite;
         }
@@ -1039,7 +1033,6 @@ export default function ClassDetail() {
           50% { box-shadow: 0 8px 28px rgba(255,215,0,0.7); }
         }
 
-        /* 트로피 바운스 */
         @keyframes trophyBounce {
           0%, 100% { transform: translateY(0) rotate(-5deg); }
           50% { transform: translateY(-8px) rotate(5deg); }
@@ -1048,7 +1041,6 @@ export default function ClassDetail() {
           animation: trophyBounce 2s ease-in-out infinite;
         }
 
-        /* 화살표 바운스 */
         @keyframes arrowBounce {
           0%, 100% { transform: translateX(0); }
           50% { transform: translateX(8px); }
@@ -1057,7 +1049,6 @@ export default function ClassDetail() {
           animation: arrowBounce 1.5s ease-in-out infinite;
         }
 
-        /* 반짝이 입자 */
         .sparkle {
           position: absolute;
           font-size: 16px;
@@ -1074,7 +1065,6 @@ export default function ClassDetail() {
         .sparkle-3 { top: 25%; right: 15%; animation: sparkleAnim 2.5s ease-in-out 1.2s infinite; }
         .sparkle-4 { bottom: 20%; left: 30%; animation: sparkleAnim 2.5s ease-in-out 1.8s infinite; }
 
-        /* 랭킹 버튼 글로우 펄스 */
         @keyframes btnPulse {
           0%, 100% {
             box-shadow: 0 12px 40px rgba(255,215,0,0.4), inset 0 0 40px rgba(255,255,255,0.1);
@@ -1087,7 +1077,6 @@ export default function ClassDetail() {
           animation: btnPulse 3s ease-in-out infinite;
         }
 
-        /* 빛 신호 */
         .detail-signal-1 { animation: detailSignalRight 5s linear infinite; }
         @keyframes detailSignalRight {
           0% { transform: translateX(-100px); opacity: 0; }
@@ -1103,7 +1092,6 @@ export default function ClassDetail() {
           100% { transform: translateX(-100vw); opacity: 0; }
         }
 
-        /* 떠다니는 입자 */
         .detail-particle {
           animation-name: detailParticleTwinkle;
           animation-iteration-count: infinite;
@@ -1114,7 +1102,6 @@ export default function ClassDetail() {
           50% { opacity: 1; transform: scale(1.5); }
         }
 
-        /* ⭐⭐⭐ NEW 8번: 일괄 시작 펄스 ⭐⭐⭐ */
         @keyframes bulkStartPulse {
           0%, 100% {
             box-shadow: 0 12px 40px rgba(6,182,212,0.4), inset 0 0 40px rgba(255,255,255,0.08);
@@ -1136,7 +1123,6 @@ export default function ClassDetail() {
         }
       `}</style>
 
-      {/* ⭐⭐⭐ NEW 8번: 일괄 시작 확인 모달 ⭐⭐⭐ */}
       {showBulkStartModal && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center px-4"
           style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}
@@ -1149,7 +1135,6 @@ export default function ClassDetail() {
             }}
             onClick={(e) => e.stopPropagation()}>
 
-            {/* 코너 장식 */}
             <div className="absolute top-3 left-3 w-5 h-5 pointer-events-none"
               style={{ borderTop: `2px solid ${S.cyan}`, borderLeft: `2px solid ${S.cyan}` }} />
             <div className="absolute top-3 right-3 w-5 h-5 pointer-events-none"
@@ -1180,9 +1165,19 @@ export default function ClassDetail() {
                 현재 welcome 화면에서 대기 중인 학생들이<br />
                 <span style={{ color: S.green }} className="font-bold">5초 카운트다운</span> 후 게임 화면으로 이동해요.
               </p>
+              {/* ⭐⭐⭐ NEW: 일괄 시작 후 명단 잠금 안내 ⭐⭐⭐ */}
+              <div className="mt-3 rounded-lg p-2.5"
+                style={{
+                  background: 'rgba(234,179,8,0.08)',
+                  border: '1px solid rgba(234,179,8,0.3)',
+                }}>
+                <p className="text-[11px] leading-relaxed text-white" style={{ opacity: 0.85 }}>
+                  ⚠️ <span style={{ color: '#FBBF24' }} className="font-bold">시작 후에는 학생 명단을 추가할 수 없어요.</span><br/>
+                  지금 모든 학생이 명단에 있는지 확인해주세요!
+                </p>
+              </div>
             </div>
 
-            {/* 학급 정보 요약 */}
             <div className="rounded-xl p-3 mb-4"
               style={{
                 background: 'rgba(255,255,255,0.04)',
@@ -1198,7 +1193,6 @@ export default function ClassDetail() {
               </div>
             </div>
 
-            {/* 에러 메시지 */}
             {bulkStartError && (
               <div className="rounded-lg p-3 mb-3 text-[12px]"
                 style={{
@@ -1210,7 +1204,6 @@ export default function ClassDetail() {
               </div>
             )}
 
-            {/* 버튼 */}
             <div className="flex gap-2">
               <button
                 onClick={() => setShowBulkStartModal(false)}
@@ -1242,7 +1235,6 @@ export default function ClassDetail() {
         </div>
       )}
 
-      {/* ⭐⭐⭐ NEW Phase 4 (18번): 학생 강제 퇴장 확인 모달 ⭐⭐⭐ */}
       {deleteTargetMember && deleteTargetTeam && (() => {
         const teamGameStarted = deleteTargetTeam.game_started === true;
         const classGameStarted = cls?.game_started_at != null;
@@ -1267,7 +1259,6 @@ export default function ClassDetail() {
                 {deleteTargetMember.is_leader ? '👑 ' : ''}{deleteTargetMember.name} 학생을 퇴장시킬까요?
               </h3>
 
-              {/* 게임 진행 중 강한 경고 */}
               {inProgress && (
                 <div className="rounded-xl p-3 mb-3"
                   style={{
@@ -1335,7 +1326,6 @@ export default function ClassDetail() {
         );
       })()}
 
-      {/* ⭐⭐⭐ NEW Phase 4 (20번): 팀장 교체 모달 ⭐⭐⭐ */}
       {replaceTargetLeader && replaceTargetTeam && (() => {
         const candidates = (teamMembers[replaceTargetTeam.id] || []).filter(
           m => m.id !== replaceTargetLeader.id,
@@ -1364,7 +1354,6 @@ export default function ClassDetail() {
                 팀: <span className="text-white font-bold">{replaceTargetTeam.name}</span>
               </p>
 
-              {/* 시점별 안내 박스 */}
               {gameInProgress ? (
                 <div className="rounded-xl p-3 mb-4"
                   style={{
@@ -1398,7 +1387,6 @@ export default function ClassDetail() {
                 </div>
               )}
 
-              {/* 후보 학생 목록 */}
               <div className="space-y-2 mb-4 max-h-[280px] overflow-y-auto">
                 {candidates.map(m => (
                   <button key={m.id}
@@ -1444,7 +1432,6 @@ export default function ClassDetail() {
         );
       })()}
 
-      {/* ⭐⭐⭐ NEW: 팀 삭제 확인 모달 ⭐⭐⭐ */}
       {deleteTargetTeamObj && (() => {
         const teamInProgress = deleteTargetTeamObj.game_started === true;
         const classInProgress = cls?.game_started_at != null;
@@ -1469,7 +1456,6 @@ export default function ClassDetail() {
                 🗑 {deleteTargetTeamObj.name}을(를) 삭제할까요?
               </h3>
 
-              {/* 게임 진행 중 경고 */}
               {inProgress && (
                 <div className="rounded-xl p-3 mb-3"
                   style={{
@@ -1487,7 +1473,6 @@ export default function ClassDetail() {
                 </div>
               )}
 
-              {/* 보고서 있음 경고 */}
               {deleteTeamHasReport && (
                 <div className="rounded-xl p-3 mb-3"
                   style={{
@@ -1555,7 +1540,6 @@ export default function ClassDetail() {
   );
 }
 
-// ⭐⭐⭐ NEW: 학급 페이지용 카드 진행 격자 컴포넌트 ⭐⭐⭐
 const CARD_NAMES_FULL: Record<string, string> = {
   '01': '시장 개요', '02': '시장 분석', '03': '세분화', '04': '경쟁 분석',
   '05': '시장 기회', '06': '규제', '07': '고객 여정', '08': '비즈니스 모델',
@@ -1567,7 +1551,6 @@ function ClassTeamCardGrid({ team }: { team: Team }) {
   const completedIds = team.completed_card_ids || [];
   const completedSet = new Set(completedIds);
 
-  // 진행 중 카드 = 완료한 카드 중 가장 마지막의 다음 번호
   let inProgressId: string | null = null;
   if (completedIds.length > 0 && completedIds.length < 16) {
     const lastCompletedNum = parseInt(completedIds[completedIds.length - 1], 10);
@@ -1586,7 +1569,6 @@ function ClassTeamCardGrid({ team }: { team: Team }) {
         🃏 CARD PROGRESS
       </p>
 
-      {/* 8x2 격자 (16개) */}
       <div className="grid grid-cols-8 gap-1 mb-2">
         {Array.from({ length: 16 }, (_, i) => {
           const cardId = String(i + 1).padStart(2, '0');
@@ -1639,7 +1621,6 @@ function ClassTeamCardGrid({ team }: { team: Team }) {
         })}
       </div>
 
-      {/* 범례 */}
       <div className="flex items-center gap-2 text-[9px] font-mono mb-2" style={{ color: '#888' }}>
         <span className="flex items-center gap-1">
           <span style={{ width: '8px', height: '8px', background: S.cyan, borderRadius: '2px', display: 'inline-block' }} />
@@ -1655,7 +1636,6 @@ function ClassTeamCardGrid({ team }: { team: Team }) {
         </span>
       </div>
 
-      {/* 현재 진행 카드 */}
       {inProgressId && CARD_NAMES_FULL[inProgressId] && (
         <div className="rounded-lg px-3 py-2"
           style={{
@@ -1668,7 +1648,6 @@ function ClassTeamCardGrid({ team }: { team: Team }) {
         </div>
       )}
 
-      {/* 완주 시 */}
       {completedIds.length === 16 && (
         <div className="rounded-lg px-3 py-2 text-center"
           style={{
