@@ -71,6 +71,18 @@
     flex-shrink: 0;
   }
 
+  /* 🎬 시작 전: 모든 영상 애니메이션 일시정지 */
+  .stage.paused *,
+  .stage.paused *::before,
+  .stage.paused *::after {
+    animation-play-state: paused !important;
+  }
+
+  /* 시작 전 video-wrapper 숨김 */
+  .video-wrapper.hidden {
+    visibility: hidden;
+  }
+
   /* 모바일 세로 모드 안내 (가로 회전 권장) */
   .rotate-hint {
     position: fixed;
@@ -137,6 +149,211 @@
 
   .continue-btn:active {
     transform: scale(0.97);
+  }
+
+  /* ========================================
+     🎬 START SCREEN - 시작 화면 (BGM + 풀스크린 트리거)
+     ======================================== */
+  .start-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    cursor: pointer;
+    overflow: hidden;
+  }
+
+  .start-screen.hidden {
+    display: none;
+  }
+
+  /* 시작 화면 그리드 매트릭스 (인트로와 동일 톤) */
+  .start-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255, 111, 181, 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 111, 181, 0.08) 1px, transparent 1px);
+    background-size: 50px 50px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+    animation: startGridPulse 4s ease-in-out infinite;
+  }
+  @keyframes startGridPulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 0.8; }
+  }
+
+  .start-grid-near {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(139, 92, 246, 0.12) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(139, 92, 246, 0.12) 1px, transparent 1px);
+    background-size: 100px 100px;
+    mask-image: radial-gradient(ellipse at center, black 20%, transparent 60%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 20%, transparent 60%);
+  }
+
+  .start-content {
+    position: relative;
+    z-index: 10;
+    text-align: center;
+    padding: 0 24px;
+  }
+
+  /* SIGNAL 로고 (작게) */
+  .start-eyebrow {
+    font-family: 'Courier New', monospace;
+    font-size: clamp(11px, 1.5vw, 14px);
+    letter-spacing: 8px;
+    color: #FF6FB5;
+    text-shadow: 0 0 10px rgba(255, 111, 181, 0.8);
+    margin-bottom: 24px;
+    font-weight: 700;
+  }
+
+  .start-logo {
+    font-size: clamp(64px, 12vw, 140px);
+    font-weight: 900;
+    letter-spacing: -6px;
+    background: linear-gradient(135deg, #FF6FB5 0%, #FFB3DC 30%, #FFFFFF 50%, #C7A5FF 70%, #8B5CF6 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    line-height: 1;
+    filter: drop-shadow(0 0 20px rgba(255, 111, 181, 0.3));
+    margin-bottom: 16px;
+  }
+
+  .start-tagline {
+    font-family: 'Courier New', monospace;
+    font-size: clamp(11px, 1.3vw, 14px);
+    letter-spacing: 6px;
+    color: #C7A5FF;
+    text-shadow: 0 0 8px rgba(139, 92, 246, 0.7);
+    margin-bottom: 48px;
+    font-weight: 700;
+  }
+
+  /* ▶ 시작 버튼 */
+  .start-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 48px;
+    border: 2px solid var(--green);
+    background: rgba(231, 254, 85, 0.08);
+    color: var(--green);
+    border-radius: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: clamp(14px, 1.6vw, 18px);
+    font-weight: 900;
+    letter-spacing: 4px;
+    cursor: pointer;
+    box-shadow: 
+      0 0 30px rgba(231, 254, 85, 0.4),
+      inset 0 0 20px rgba(231, 254, 85, 0.05);
+    text-shadow: 0 0 12px var(--green);
+    transition: all 0.2s ease;
+    animation: startBtnPulse 2s ease-in-out infinite;
+    position: relative;
+  }
+
+  .start-btn::before {
+    content: '';
+    position: absolute;
+    top: -6px; left: -6px;
+    width: 14px; height: 14px;
+    border-top: 2px solid var(--green);
+    border-left: 2px solid var(--green);
+    box-shadow: 0 0 6px var(--green);
+  }
+  .start-btn::after {
+    content: '';
+    position: absolute;
+    bottom: -6px; right: -6px;
+    width: 14px; height: 14px;
+    border-bottom: 2px solid var(--green);
+    border-right: 2px solid var(--green);
+    box-shadow: 0 0 6px var(--green);
+  }
+
+  .start-btn:hover {
+    background: rgba(231, 254, 85, 0.15);
+    transform: scale(1.03);
+  }
+
+  .start-btn:active {
+    transform: scale(0.98);
+  }
+
+  @keyframes startBtnPulse {
+    0%, 100% { 
+      box-shadow: 0 0 30px rgba(231, 254, 85, 0.4), inset 0 0 20px rgba(231, 254, 85, 0.05);
+    }
+    50% { 
+      box-shadow: 0 0 50px rgba(231, 254, 85, 0.7), inset 0 0 30px rgba(231, 254, 85, 0.1);
+    }
+  }
+
+  .start-icon {
+    font-size: 1.2em;
+    filter: drop-shadow(0 0 8px currentColor);
+  }
+
+  .start-info {
+    margin-top: 32px;
+    font-family: 'Courier New', monospace;
+    font-size: clamp(10px, 1.1vw, 12px);
+    color: rgba(255, 255, 255, 0.4);
+    letter-spacing: 3px;
+  }
+
+  .start-info-icon {
+    color: #FF6FB5;
+    margin-right: 4px;
+  }
+
+  /* ========================================
+     🔊 MUTE TOGGLE (영상 재생 중 음소거 버튼)
+     ======================================== */
+  .mute-toggle {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 1000;
+    width: 48px;
+    height: 48px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1.5px solid var(--cyan);
+    border-radius: 50%;
+    color: var(--cyan);
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 0 16px rgba(6, 182, 212, 0.3);
+    transition: all 0.2s ease;
+    font-size: 20px;
+  }
+
+  .mute-toggle.show {
+    display: flex;
+  }
+
+  .mute-toggle:hover {
+    background: rgba(6, 182, 212, 0.15);
+    transform: scale(1.05);
+  }
+
+  .mute-toggle:active {
+    transform: scale(0.95);
   }
 
   /* ========================================
@@ -2037,6 +2254,45 @@
 </head>
 <body>
 
+<!-- ========================================
+     🎬 START SCREEN - 시작 화면
+     ======================================== -->
+<div class="start-screen" id="startScreen" onclick="startVideo()">
+  <div class="start-grid"></div>
+  <div class="start-grid-near"></div>
+  
+  <div class="start-content">
+    <p class="start-eyebrow">▎ CONNECTAI PRESENTS ▎</p>
+    <h1 class="start-logo">SIGNAL</h1>
+    <p class="start-tagline">DIGITAL · TRADE · CARDS</p>
+    
+    <button class="start-btn">
+      <span class="start-icon">▶</span>
+      <span>시작 (소리 켜짐)</span>
+    </button>
+    
+    <p class="start-info">
+      <span class="start-info-icon">●</span>
+      클릭하면 풀스크린으로 재생됩니다
+    </p>
+  </div>
+</div>
+
+<!-- ========================================
+     🎵 BGM AUDIO (자동 재생 X, 사용자 클릭 후 재생)
+     ======================================== -->
+<audio id="bgm" loop preload="auto">
+  <source src="/promo-bgm.mp3" type="audio/mpeg">
+  <source src="/promo-bgm.ogg" type="audio/ogg">
+</audio>
+
+<!-- ========================================
+     🔊 MUTE TOGGLE - 음소거 버튼 (영상 재생 중)
+     ======================================== -->
+<button class="mute-toggle" id="muteToggle" onclick="toggleMute(event)" title="음소거">
+  <span id="muteIcon">🔊</span>
+</button>
+
 <!-- 모바일 세로 모드 안내 (자동으로 보였다 안 보였다) -->
 <div class="rotate-hint" id="rotateHint">
   <svg class="rotate-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2050,8 +2306,8 @@
 </div>
 
 <!-- 영상 컨테이너 -->
-<div class="video-wrapper">
-<div class="stage">
+<div class="video-wrapper hidden" id="videoWrapper">
+<div class="stage paused" id="stage">
 
   <!-- 공통 환경 (4초 이후 등장) -->
   <div class="deep-grid"></div>
@@ -2679,6 +2935,13 @@ C</div>
 
 <script>
   // ========================================
+  // 전역 상태
+  // ========================================
+  let videoStarted = false;
+  let loopTimer = null;
+  const VIDEO_DURATION = 43000; // 43초
+
+  // ========================================
   // 자동 스케일링 (어떤 화면에서도 영상이 꽉 차게)
   // ========================================
   function updateScale() {
@@ -2704,6 +2967,13 @@ C</div>
     const isPortrait = window.innerHeight > window.innerWidth;
     const hint = document.getElementById('rotateHint');
     
+    // 시작 화면 보일 때는 안내 안 띄움
+    const startScreen = document.getElementById('startScreen');
+    if (!startScreen.classList.contains('hidden')) {
+      hint.classList.remove('show');
+      return;
+    }
+    
     // 사용자가 한 번 무시했으면 다시 보이지 않음
     if (sessionStorage.getItem('rotateHintDismissed') === 'true') {
       hint.classList.remove('show');
@@ -2722,55 +2992,142 @@ C</div>
     document.getElementById('rotateHint').classList.remove('show');
   }
 
-  // 초기 + 회전 감지
-  checkOrientation();
   window.addEventListener('orientationchange', () => {
     setTimeout(checkOrientation, 200);
   });
   window.addEventListener('resize', checkOrientation);
 
   // ========================================
-  // 풀스크린 자동 시도 (클릭 시)
+  // 🎬 시작 버튼 클릭 핸들러 (메인 로직)
   // ========================================
-  function tryFullscreen() {
+  function startVideo() {
+    if (videoStarted) return;
+    videoStarted = true;
+    
+    // 1. 풀스크린 요청 (사용자 클릭 컨텍스트에서)
     const elem = document.documentElement;
-    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-      if (elem.requestFullscreen) {
-        elem.requestFullscreen().catch(() => {});
-      } else if (elem.webkitRequestFullscreen) {
-        elem.webkitRequestFullscreen();
-      }
+    if (elem.requestFullscreen) {
+      elem.requestFullscreen().catch(err => {
+        console.log('풀스크린 진입 실패 (정상):', err);
+      });
+    } else if (elem.webkitRequestFullscreen) {
+      elem.webkitRequestFullscreen();
+    } else if (elem.msRequestFullscreen) {
+      elem.msRequestFullscreen();
+    }
+    
+    // 2. BGM 재생 시작
+    const bgm = document.getElementById('bgm');
+    bgm.volume = 0.5; // 적당한 볼륨
+    bgm.currentTime = 0;
+    bgm.play().catch(err => {
+      console.log('BGM 재생 실패 (BGM 파일 없을 수 있음):', err);
+    });
+    
+    // 3. 시작 화면 숨기기
+    document.getElementById('startScreen').classList.add('hidden');
+    
+    // 4. 영상 컨테이너 표시
+    document.getElementById('videoWrapper').classList.remove('hidden');
+    
+    // 5. 영상 애니메이션 시작 (paused 제거)
+    const stage = document.getElementById('stage');
+    
+    // 애니메이션 리셋을 위해 잠깐 display: none 처리
+    stage.style.display = 'none';
+    void stage.offsetHeight; // 리플로우 강제
+    stage.classList.remove('paused');
+    stage.style.display = '';
+    
+    // 6. 음소거 토글 버튼 표시
+    document.getElementById('muteToggle').classList.add('show');
+    
+    // 7. 모바일 가로 회전 안내 다시 체크
+    setTimeout(checkOrientation, 100);
+    
+    // 8. 43초 후 자동 루프
+    if (loopTimer) clearTimeout(loopTimer);
+    loopTimer = setTimeout(resetToStart, VIDEO_DURATION);
+  }
+
+  // ========================================
+  // 🔄 영상 리셋 (자동 루프)
+  // ========================================
+  function resetToStart() {
+    videoStarted = false;
+    
+    // BGM 정지
+    const bgm = document.getElementById('bgm');
+    bgm.pause();
+    bgm.currentTime = 0;
+    
+    // 시작 화면 다시 표시
+    document.getElementById('startScreen').classList.remove('hidden');
+    
+    // 영상 숨기기 + 일시정지 상태로
+    document.getElementById('videoWrapper').classList.add('hidden');
+    document.getElementById('stage').classList.add('paused');
+    
+    // 음소거 토글 숨기기
+    document.getElementById('muteToggle').classList.remove('show');
+    
+    // 페이지 새로고침으로 애니메이션 완전히 리셋
+    setTimeout(() => {
+      location.reload();
+    }, 100);
+  }
+
+  // ========================================
+  // 🔊 음소거 토글
+  // ========================================
+  function toggleMute(event) {
+    event.stopPropagation();
+    const bgm = document.getElementById('bgm');
+    const icon = document.getElementById('muteIcon');
+    
+    if (bgm.muted) {
+      bgm.muted = false;
+      icon.textContent = '🔊';
+    } else {
+      bgm.muted = true;
+      icon.textContent = '🔇';
     }
   }
 
-  // 화면 클릭/탭 시 풀스크린 시도 (브라우저 정책 때문에 사용자 인터랙션 필요)
-  document.addEventListener('click', tryFullscreen, { once: true });
-  document.addEventListener('touchstart', tryFullscreen, { once: true });
+  // ========================================
+  // 키보드 단축키 (ESC로 종료, M으로 음소거)
+  // ========================================
+  document.addEventListener('keydown', (e) => {
+    if (!videoStarted) return;
+    
+    if (e.key === 'Escape') {
+      // ESC: 시작 화면으로
+      resetToStart();
+    } else if (e.key === 'm' || e.key === 'M') {
+      // M: 음소거 토글
+      toggleMute({ stopPropagation: () => {} });
+    }
+  });
 
   // ========================================
-  // URL 파라미터로 자동 풀스크린 활성화 (?autofs=1)
+  // 풀스크린 종료 감지 (사용자가 ESC로 풀스크린 나가면)
   // ========================================
-  if (window.location.search.includes('autofs=1')) {
-    // 페이지 로드 후 살짝 기다렸다가 자동 시도
-    window.addEventListener('load', () => {
-      setTimeout(() => {
-        // 자동 풀스크린은 일부 브라우저에서 차단되니, 안내 메시지로 안전하게
-        const elem = document.documentElement;
-        if (elem.requestFullscreen) {
-          elem.requestFullscreen().catch(() => {
-            // 실패 시 한 번 클릭하면 풀스크린 되도록 (위에서 처리)
-          });
-        }
-      }, 100);
-    });
+  function handleFullscreenChange() {
+    const isFullscreen = !!(document.fullscreenElement 
+                          || document.webkitFullscreenElement 
+                          || document.msFullscreenElement);
+    
+    // 영상 재생 중인데 풀스크린 나가면 → 영상은 계속 재생
+    // (선택: 풀스크린 나가면 자동으로 종료시키려면 아래 주석 해제)
+    // if (!isFullscreen && videoStarted) {
+    //   resetToStart();
+    // }
   }
+  document.addEventListener('fullscreenchange', handleFullscreenChange);
+  document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+  document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+  document.addEventListener('MSFullscreenChange', handleFullscreenChange);
 
-  // ========================================
-  // 자동 루프 (43초)
-  // ========================================
-  setTimeout(() => {
-    location.reload();
-  }, 43000);
 </script>
 
 </body>
