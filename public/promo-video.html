@@ -326,6 +326,168 @@
     display: block;
   }
 
+  /* ========================================
+     📱 iPhone 사용자 안내 카드 (재생 불가 명시)
+     ======================================== */
+  .ios-warning {
+    display: none;
+    position: relative;
+    max-width: 480px;
+    margin: 24px auto 0;
+    padding: 32px 28px 28px;
+    border: 2px solid #EF4444;
+    background: rgba(239, 68, 68, 0.08);
+    border-radius: 12px;
+    box-shadow: 
+      0 0 32px rgba(239, 68, 68, 0.4),
+      inset 0 0 20px rgba(239, 68, 68, 0.05);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    animation: warningPulse 2.5s ease-in-out infinite;
+  }
+  
+  .ios-device .ios-warning {
+    display: block;
+  }
+
+  @keyframes warningPulse {
+    0%, 100% { 
+      box-shadow: 0 0 32px rgba(239, 68, 68, 0.4), inset 0 0 20px rgba(239, 68, 68, 0.05); 
+    }
+    50% { 
+      box-shadow: 0 0 48px rgba(239, 68, 68, 0.7), inset 0 0 24px rgba(239, 68, 68, 0.1); 
+    }
+  }
+
+  /* 코너 마커 (4 corners) */
+  .ios-warning::before {
+    content: '';
+    position: absolute;
+    top: -1px; left: -1px;
+    width: 18px; height: 18px;
+    border-top: 2.5px solid #EF4444;
+    border-left: 2.5px solid #EF4444;
+    box-shadow: 0 0 8px #EF4444;
+  }
+  .ios-warning::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; right: -1px;
+    width: 18px; height: 18px;
+    border-bottom: 2.5px solid #EF4444;
+    border-right: 2.5px solid #EF4444;
+    box-shadow: 0 0 8px #EF4444;
+  }
+
+  /* 경고 아이콘 (큼지막) */
+  .ios-warning-icon {
+    font-size: 48px;
+    text-align: center;
+    margin-bottom: 12px;
+    filter: drop-shadow(0 0 16px rgba(239, 68, 68, 0.6));
+  }
+
+  .ios-warning-label {
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    letter-spacing: 5px;
+    color: #FCA5A5;
+    text-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
+    font-weight: 900;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .ios-warning-label::before,
+  .ios-warning-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #EF4444, transparent);
+    box-shadow: 0 0 4px #EF4444;
+    max-width: 60px;
+  }
+
+  .ios-warning-title {
+    font-family: 'Pretendard', sans-serif;
+    font-size: 20px;
+    font-weight: 900;
+    color: white;
+    margin-bottom: 14px;
+    letter-spacing: -0.5px;
+    line-height: 1.3;
+    text-align: center;
+  }
+
+  .ios-warning-text {
+    font-family: 'Pretendard', sans-serif;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.8);
+    line-height: 1.6;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+
+  .ios-warning-text strong {
+    color: #FCA5A5;
+    font-weight: 700;
+  }
+
+  /* 추천 디바이스 박스 */
+  .ios-warning-recommend {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 14px 20px;
+    background: rgba(6, 182, 212, 0.12);
+    border: 1.5px solid rgba(6, 182, 212, 0.5);
+    border-radius: 10px;
+    margin-top: 4px;
+    box-shadow: 0 0 16px rgba(6, 182, 212, 0.2);
+  }
+
+  .ios-warning-recommend-icon {
+    font-size: 24px;
+    filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.6));
+  }
+
+  .ios-warning-recommend-text {
+    font-family: 'Pretendard', sans-serif;
+    font-size: 13px;
+    color: #06B6D4;
+    letter-spacing: 0;
+    font-weight: 700;
+    text-shadow: 0 0 8px rgba(6, 182, 212, 0.6);
+    text-align: left;
+  }
+
+  .ios-warning-recommend-text strong {
+    font-family: 'Courier New', monospace;
+    letter-spacing: 2px;
+    font-size: 12px;
+    display: block;
+    margin-top: 2px;
+    color: white;
+    text-shadow: 0 0 8px rgba(6, 182, 212, 0.8);
+  }
+
+  /* iPhone에서는 시작 버튼 비활성화 */
+  .ios-device .start-btn {
+    opacity: 0.3;
+    pointer-events: none;
+    cursor: not-allowed;
+    animation: none;
+  }
+
+  /* iPhone에서는 "클릭하면 풀스크린..." 안내 숨김 */
+  .ios-device .start-info {
+    display: none;
+  }
+
   .start-info-icon {
     color: #FF6FB5;
     margin-right: 4px;
@@ -2287,10 +2449,27 @@
       <span class="start-info-icon">●</span>
       클릭하면 풀스크린으로 재생됩니다
     </p>
-    <p class="start-info-ios">
-      <span class="start-info-icon">●</span>
-      iPhone은 우측 상단 🔊 버튼으로 소리 켜기
-    </p>
+    
+    <!-- 📱 iPhone 사용자에게만 보이는 경고 카드 (재생 불가 안내) -->
+    <div class="ios-warning">
+      <div class="ios-warning-icon">⚠️</div>
+      <div class="ios-warning-label">▎ DEVICE NOT SUPPORTED ▎</div>
+      <h3 class="ios-warning-title">
+        iPhone에서는 재생되지 않습니다
+      </h3>
+      <p class="ios-warning-text">
+        본 영상은 고급 시각 효과로 인해<br/>
+        <strong>iPhone Safari에서 지원되지 않습니다.</strong><br/>
+        아래 환경에서 시청해주세요.
+      </p>
+      <div class="ios-warning-recommend">
+        <span class="ios-warning-recommend-icon">💻</span>
+        <span class="ios-warning-recommend-text">
+          지원 환경
+          <strong>PC · GALAXY · iPAD</strong>
+        </span>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -2958,12 +3137,20 @@ C</div>
   const VIDEO_DURATION = 43000; // 43초
 
   // ========================================
-  // 🍎 iOS 디바이스 감지 (BGM 안내용)
+  // 🍎 디바이스 감지 (iPhone만 차단, iPad는 시도 가능)
   // ========================================
-  const IS_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) 
-                || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  // iPhone, iPod만 정확히 감지 (iPad는 제외)
+  const IS_IPHONE = /iPhone|iPod/.test(navigator.userAgent);
   
-  if (IS_IOS) {
+  // iPad는 별도 감지 (필요 시)
+  const IS_IPAD = /iPad/.test(navigator.userAgent) 
+                  || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  
+  // iOS 전체 (BGM 호환성용 - iPad도 포함)
+  const IS_IOS = IS_IPHONE || IS_IPAD;
+  
+  // iPhone만 "재생 불가" 안내 표시
+  if (IS_IPHONE) {
     document.documentElement.classList.add('ios-device');
   }
 
