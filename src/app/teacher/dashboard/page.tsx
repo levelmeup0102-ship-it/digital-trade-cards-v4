@@ -165,6 +165,12 @@ export default function TeacherDashboard() {
     }
   };
 
+  // ⭐⭐⭐ NEW: SIGNAL 소개 영상 열기 ⭐⭐⭐
+  const handleOpenPromoVideo = () => {
+    // 새 탭에서 풀스크린 자동 시도하며 영상 열기
+    window.open('/promo-video.html?autofs=1', '_blank', 'noopener,noreferrer');
+  };
+
   const statusLabel = { draft: '준비중', active: '진행중', completed: '완료' };
   const statusColor = { draft: '#666', active: S.cyan, completed: S.purple };
 
@@ -269,6 +275,48 @@ export default function TeacherDashboard() {
               boxShadow: `0 8px 24px -8px ${S.cyan}AA, 0 0 24px ${S.cyan}55`,
             }}>
             <span className="relative z-10">{`>`} 새 수업 만들기</span>
+          </button>
+        )}
+
+        {/* ⭐⭐⭐ NEW: SIGNAL 소개 영상 버튼 ⭐⭐⭐ */}
+        {!showCreate && (
+          <button onClick={handleOpenPromoVideo}
+            className="promo-video-btn relative w-full py-3 md:py-3.5 font-bold rounded-2xl text-[12px] md:text-[13px] mb-3 transition-all hover:scale-[1.01] overflow-hidden group"
+            style={{
+              background: `${S.cyan}12`,
+              border: `1.5px solid ${S.cyan}66`,
+              color: S.cyan,
+              boxShadow: `0 0 16px ${S.cyan}33`,
+              textShadow: `0 0 8px ${S.cyan}66`,
+            }}>
+            {/* 호버 시 빛 흐름 효과 */}
+            <span 
+              className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none promo-shimmer"
+              style={{
+                background: `linear-gradient(90deg, transparent, ${S.cyan}22, transparent)`,
+              }}
+            />
+            {/* 코너 마커 (사이버틱) */}
+            <span 
+              className="absolute top-1 left-1 w-2 h-2 pointer-events-none"
+              style={{
+                borderTop: `1.5px solid ${S.cyan}`,
+                borderLeft: `1.5px solid ${S.cyan}`,
+                boxShadow: `0 0 4px ${S.cyan}`,
+              }}
+            />
+            <span 
+              className="absolute bottom-1 right-1 w-2 h-2 pointer-events-none"
+              style={{
+                borderBottom: `1.5px solid ${S.cyan}`,
+                borderRight: `1.5px solid ${S.cyan}`,
+                boxShadow: `0 0 4px ${S.cyan}`,
+              }}
+            />
+            <span className="relative z-10 flex items-center justify-center gap-2">
+              <span>🎬 SIGNAL 소개 영상</span>
+              <span className="text-[10px] opacity-70">— 세미나 / 전시회 용</span>
+            </span>
           </button>
         )}
 
@@ -718,6 +766,28 @@ export default function TeacherDashboard() {
           background: rgba(6, 182, 212, 0.08) !important;
           border-color: ${S.cyan}88 !important;
           box-shadow: 0 0 24px ${S.cyan}33 !important;
+        }
+
+        /* ⭐ SIGNAL 영상 버튼 - 호버 시 빛 흐름 */
+        .promo-shimmer {
+          animation: promoShimmer 1.5s ease-in-out infinite;
+        }
+        @keyframes promoShimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+
+        /* ⭐ SIGNAL 영상 버튼 - 살짝 글로우 펄스 */
+        .promo-video-btn { 
+          animation: promoBtnPulse 3s ease-in-out infinite; 
+        }
+        @keyframes promoBtnPulse {
+          0%, 100% { 
+            box-shadow: 0 0 16px ${S.cyan}33; 
+          }
+          50% { 
+            box-shadow: 0 0 24px ${S.cyan}66, 0 0 12px ${S.cyan}33 inset; 
+          }
         }
 
         /* number input 스피너 제거 */
