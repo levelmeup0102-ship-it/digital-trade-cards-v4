@@ -455,7 +455,14 @@ function StudentJoinInner() {
         if (result.team.item) setItem(result.team.item);
         if (result.team.level) setLevel(result.team.level);
 
-        setStep('select');
+        // ⭐⭐⭐ FIX v16: 게임 시작 여부에 따라 분기 ⭐⭐⭐
+        // - 게임 시작 안 됨 → confirm (이름 입력) ← 새로 들어오는 학생
+        // - 게임 시작됨 → select (이름 선택) ← 지각자 (보안용)
+        if (result.team.game_started) {
+          setStep('select');
+        } else {
+          setStep('confirm');
+        }
       } catch (e) {
         setCodeError('오류가 발생했어요. 다시 시도해주세요.');
       } finally {
