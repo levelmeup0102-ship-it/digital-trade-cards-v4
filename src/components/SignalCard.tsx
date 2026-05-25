@@ -364,7 +364,7 @@ export default function SignalCard({
               
               {isNewlyUnlocked && (
                 <span 
-                  className="new-badge absolute -top-1.5 -right-1 px-1.5 py-0.5 rounded-full text-[8px] font-black"
+                  className="new-badge absolute top-0.5 right-0.5 px-1.5 py-0.5 rounded-md text-[8px] font-black"
                   style={{
                     background: S.green,
                     color: S.navy,
