@@ -17,7 +17,6 @@ const S = { green: '#E7FE55', aqua: '#C1E8EB', navy: '#111111', cyan: '#06B6D4',
 const TABS = ['주제', 'Q1', 'Q2', 'Q3', '결론'] as const;
 type TabType = typeof TABS[number];
 
-// ⭐ 직무별 인사이트 작성 가이드 (CEO 제외, 6직무)
 const ROLE_INSIGHT_GUIDES: Partial<Record<RoleCode, { label: string; tips: string[] }>> = {
   market_analyst: {
     label: '시장 분석가라면 이런 걸 고려해보세요',
@@ -188,6 +187,74 @@ export default function SignalCard({
     leaderConclusion.fields || []
   );
 
+  // ═══════════════════════════════════════════════════════
+  // ⭐⭐⭐ NEW v15: 단계 전환 감지 + 시각적 신호 ⭐⭐⭐
+  // ═══════════════════════════════════════════════════════
+  
+  const tabLockStates = [
+    false,
+    subLockStatus[0]?.isLocked || false,
+    subLockStatus[1]?.isLocked || false,
+    subLockStatus[2]?.isLocked || false,
+    isConclusionLocked,
+  ];
+  
+  const prevLockStatesRef = useRef<boolean[]>(tabLockStates);
+  
+  const [newlyUnlockedTab, setNewlyUnlockedTab] = useState<TabType | null>(null);
+  const [showUnlockToast, setShowUnlockToast] = useState(false);
+  
+  useEffect(() => {
+    const prev = prevLockStatesRef.current;
+    const curr = tabLockStates;
+    
+    for (let i = 0; i < TABS.length; i++) {
+      if (prev[i] === true && curr[i] === false) {
+        const unlockedTab = TABS[i];
+        
+        if (unlockedTab !== currentTab) {
+          setNewlyUnlockedTab(unlockedTab);
+          setShowUnlockToast(true);
+          
+          setTimeout(() => {
+            setShowUnlockToast(false);
+          }, 5000);
+          
+          setTimeout(() => {
+            setNewlyUnlockedTab(null);
+          }, 10000);
+        }
+        
+        break;
+      }
+    }
+    
+    prevLockStatesRef.current = curr;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabLockStates.join(',')]);
+  
+  useEffect(() => {
+    if (newlyUnlockedTab === currentTab) {
+      setNewlyUnlockedTab(null);
+      setShowUnlockToast(false);
+    }
+  }, [currentTab, newlyUnlockedTab]);
+  
+  const handleGoToNewTab = () => {
+    if (newlyUnlockedTab) {
+      onTabChange(newlyUnlockedTab);
+      setShowUnlockToast(false);
+    }
+  };
+
+  const getUnlockMessage = (tab: TabType) => {
+    if (tab === 'Q1') return { title: 'Q1이 열렸어요!', sub: '첫 번째 질문에 답해주세요' };
+    if (tab === 'Q2') return { title: 'Q2가 열렸어요!', sub: '두 번째 질문으로 넘어가요' };
+    if (tab === 'Q3') return { title: 'Q3가 열렸어요!', sub: '마지막 질문이에요' };
+    if (tab === '결론') return { title: '결론 단계 도착!', sub: '한 문장 전략을 작성해요' };
+    return { title: '다음 단계!', sub: '' };
+  };
+
   return (
     <div className="w-full max-w-[340px] md:max-w-4xl mx-auto md:flex md:gap-6 md:items-start">
 
@@ -243,7 +310,7 @@ export default function SignalCard({
 
       <div className="md:flex-1 md:min-w-0 w-full">
 
-      <div className="flex rounded-xl overflow-hidden mb-2"
+      <div className="flex rounded-xl overflow-hidden mb-2 relative"
         style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
         {TABS.map((tab, i) => {
           const isActive = currentTab === tab;
@@ -260,21 +327,31 @@ export default function SignalCard({
             isLocked = subStatus?.isLocked || false;
             isDone = subStatus?.isCompleted || false;
           }
+          
+          const isNewlyUnlocked = newlyUnlockedTab === tab && !isActive;
 
           return (
             <button
               key={tab}
               onClick={() => !isLocked && onTabChange(tab)}
               disabled={isLocked}
-              className={`flex-1 py-2 text-[11px] font-bold transition-all flex items-center justify-center gap-1 ${isLocked ? 'cursor-not-allowed' : ''}`}
+              className={`flex-1 py-2 text-[11px] font-bold transition-all flex items-center justify-center gap-1 relative ${isLocked ? 'cursor-not-allowed' : ''} ${isNewlyUnlocked ? 'tab-newly-unlocked' : ''}`}
               style={{
-                background: isActive ? color : 'transparent',
+                background: isActive 
+                  ? color 
+                  : isNewlyUnlocked 
+                    ? `${S.green}25`
+                    : 'transparent',
                 color: isActive
                   ? textColorForCard(color)
-                  : isLocked ? '#555' : isDone ? color : '#999',
+                  : isLocked 
+                    ? '#555' 
+                    : isNewlyUnlocked
+                      ? S.green
+                      : isDone ? color : '#999',
                 opacity: isLocked ? 0.5 : 1,
               }}
-              title={isLocked ? '이전 단계를 완료하면 열려요' : ''}
+              title={isLocked ? '이전 단계를 완료하면 열려요' : isNewlyUnlocked ? '✨ 새로 열렸어요!' : ''}
             >
               {isLocked && (
                 <svg width="11" height="13" viewBox="0 0 12 14" fill="none" style={{ flexShrink: 0 }}>
@@ -284,12 +361,67 @@ export default function SignalCard({
               )}
               {!isLocked && isDone && !isActive && '✓'}
               <span>{tab}</span>
+              
+              {isNewlyUnlocked && (
+                <span 
+                  className="new-badge absolute -top-1.5 -right-1 px-1.5 py-0.5 rounded-full text-[8px] font-black"
+                  style={{
+                    background: S.green,
+                    color: S.navy,
+                    boxShadow: `0 0 8px ${S.green}`,
+                    letterSpacing: '0.5px',
+                    zIndex: 10,
+                  }}>
+                  NEW
+                </span>
+              )}
             </button>
           );
         })}
       </div>
 
-      <div className="rounded-2xl overflow-hidden"
+      {showUnlockToast && newlyUnlockedTab && (
+        <div
+          onClick={handleGoToNewTab}
+          className="unlock-toast cursor-pointer mb-3 rounded-xl p-3 flex items-center gap-3"
+          style={{
+            background: `linear-gradient(135deg, ${S.green}25 0%, ${S.cyan}15 100%)`,
+            border: `1.5px solid ${S.green}`,
+            boxShadow: `0 0 24px ${S.green}40, inset 0 0 12px ${S.green}10`,
+          }}
+        >
+          <div className="flex-shrink-0 relative">
+            <div 
+              className="w-10 h-10 rounded-full flex items-center justify-center text-lg"
+              style={{
+                background: S.green,
+                color: S.navy,
+                boxShadow: `0 0 12px ${S.green}`,
+              }}>
+              ✨
+            </div>
+            <div className="absolute inset-0 rounded-full toast-pulse-ring"
+              style={{ border: `2px solid ${S.green}` }} />
+          </div>
+          
+          <div className="flex-1 min-w-0">
+            <p className="text-[12px] font-black text-white leading-tight">
+              {getUnlockMessage(newlyUnlockedTab).title}
+            </p>
+            <p className="text-[10px] mt-0.5" style={{ color: S.aqua }}>
+              {getUnlockMessage(newlyUnlockedTab).sub}
+            </p>
+          </div>
+          
+          <div className="flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-md"
+            style={{ background: S.green, color: S.navy }}>
+            <span className="text-[10px] font-black">이동</span>
+            <span className="text-[12px]">→</span>
+          </div>
+        </div>
+      )}
+
+      <div className="rounded-2xl overflow-hidden tab-content"
         style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
 
         {currentTab === '주제' && (
@@ -535,11 +667,80 @@ export default function SignalCard({
 
       </div>
 
+      <style jsx>{`
+        .new-badge {
+          animation: newBadgePulse 1.5s ease-in-out infinite;
+        }
+        @keyframes newBadgePulse {
+          0%, 100% { 
+            transform: scale(1);
+            box-shadow: 0 0 8px ${S.green};
+          }
+          50% { 
+            transform: scale(1.1);
+            box-shadow: 0 0 16px ${S.green}, 0 0 24px ${S.green}88;
+          }
+        }
+        
+        .tab-newly-unlocked {
+          animation: tabUnlockedPulse 2s ease-in-out infinite;
+        }
+        @keyframes tabUnlockedPulse {
+          0%, 100% {
+            box-shadow: inset 0 0 0 rgba(231, 254, 85, 0);
+          }
+          50% {
+            box-shadow: inset 0 0 12px rgba(231, 254, 85, 0.4);
+          }
+        }
+        
+        .unlock-toast {
+          animation: toastSlideDown 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @keyframes toastSlideDown {
+          0% {
+            opacity: 0;
+            transform: translateY(-12px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        .toast-pulse-ring {
+          animation: toastRing 1.5s ease-out infinite;
+        }
+        @keyframes toastRing {
+          0% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: scale(1.6);
+          }
+        }
+        
+        .tab-content {
+          animation: tabContentFade 0.3s ease-out;
+        }
+        @keyframes tabContentFade {
+          0% {
+            opacity: 0.7;
+            transform: translateY(4px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
+
     </div>
   );
 }
 
-// ═══════════════════════════════════════════════════════
 function FillInBlankForm({
   template, values, onChange, disabled, cardColor,
 }: {
@@ -571,9 +772,6 @@ function FillInBlankForm({
   );
 }
 
-// ═══════════════════════════════════════════════════════
-// BlankInput v12 — 포커스 중 외부 업데이트 차단 (유지)
-// ═══════════════════════════════════════════════════════
 function BlankInput({
   value, onChange, disabled, cardColor,
 }: {
@@ -1019,10 +1217,6 @@ function TeamInsightSidebar({
   );
 }
 
-// ═══════════════════════════════════════════════════════
-// ⭐⭐⭐ NEW v14: RoleInfoModal — 팀원 직무 정보 중앙 모달
-// 미션 + 가이드 박스 둘 다 표시
-// ═══════════════════════════════════════════════════════
 function RoleInfoModal({
   role, prompt, guide, onClose,
 }: {
@@ -1111,11 +1305,6 @@ function RoleInfoModal({
   );
 }
 
-// ═══════════════════════════════════════════════════════
-// ⭐⭐⭐ MemberQView v14 — 12번 레이아웃 개선
-// 흐름: 직무 띠 + 노란 바운스 버튼 → 답변창
-// 미션 + 가이드는 모달로 이동
-// ═══════════════════════════════════════════════════════
 function MemberQView({
   sub, color,
   myMemberId, myRoleCode, teamId,
@@ -1137,7 +1326,6 @@ function MemberQView({
   const [content, setContent] = useState(myInsight?.content || '');
   const [isCompleted, setIsCompleted] = useState(!!myInsight?.is_completed);
   const [saving, setSaving] = useState(false);
-  // ⭐ NEW: 직무 정보 모달 상태
   const [showRoleModal, setShowRoleModal] = useState(false);
 
   const isComposingRef = useRef(false);
@@ -1225,7 +1413,6 @@ function MemberQView({
 
   return (
     <>
-      {/* ⭐⭐⭐ NEW: 직무 띠 + 노란 바운스 버튼 + 회전 빛줄기 테두리 */}
       {myRole && (
         <div
           className="mb-3 role-orbit-wrapper"
@@ -1344,7 +1531,6 @@ function MemberQView({
         </p>
       )}
 
-      {/* ⭐ NEW: 직무 정보 모달 (바텀시트) */}
       {showRoleModal && (
         <RoleInfoModal
           role={myRole}
@@ -1354,7 +1540,6 @@ function MemberQView({
         />
       )}
 
-      {/* ⭐ NEW: 노란 바운스 버튼 + 회전 빛줄기 애니메이션 */}
       <style jsx>{`
         .role-bounce-btn {
           animation: roleBtnBounce 2.5s ease-in-out infinite;
@@ -1377,7 +1562,6 @@ function MemberQView({
           }
         }
 
-        /* ⭐ NEW: YOUR ROLE 박스 외곽 빛줄기 흐름 효과 */
         .role-orbit-line {
           position: absolute;
           inset: 0;
