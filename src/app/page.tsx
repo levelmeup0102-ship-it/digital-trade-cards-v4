@@ -260,6 +260,9 @@ export default function Home() {
   const [introDone, setIntroDone] = useState(false);
   const [exiting, setExiting] = useState(false);
 
+  // ⭐ NEW: 영상 선택 모달 상태
+  const [showVideoModal, setShowVideoModal] = useState(false);
+
   // ⭐⭐⭐ NEW: 루트(/) 진입 시 인트로 표시 여부 ⭐⭐⭐
   // 학급 페이지와 sessionStorage 키 공유 ('dtc_intro_seen_v1')
   // 'unknown' = 아직 sessionStorage 안 읽음 (SSR 안전)
@@ -1431,7 +1434,7 @@ export default function Home() {
 
         {/* ⭐ CHANGED: 소개서 보기 - 빨려들어가는 효과 + 발광 효과 */}
         <button onClick={() => handleStartClick('/intro.html')}
-          className="relative w-full py-3 md:py-3.5 rounded-2xl text-[13px] md:text-[14px] font-bold transition-all hover:scale-[1.01] landing-btn-glow-purple"
+          className="relative w-full py-3 md:py-3.5 rounded-2xl text-[13px] md:text-[14px] font-bold transition-all hover:scale-[1.01] mb-3 landing-btn-glow-purple"
           style={{
             background: 'linear-gradient(135deg, rgba(20, 12, 40, 0.95), rgba(15, 23, 42, 0.95))',
             backdropFilter: 'blur(10px)',
@@ -1444,8 +1447,130 @@ export default function Home() {
           {`>`} 소개서 보기
         </button>
 
+        {/* ⭐ NEW: 영상 보기 버튼 (누르면 영상 선택 모달) */}
+        <button onClick={() => setShowVideoModal(true)}
+          className="relative w-full py-3 md:py-3.5 rounded-2xl text-[13px] md:text-[14px] font-bold transition-all hover:scale-[1.01] mb-3 landing-btn-glow-pink"
+          style={{
+            background: 'linear-gradient(135deg, rgba(40, 12, 30, 0.95), rgba(15, 23, 42, 0.95))',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            border: `1px solid ${S.pink}66`,
+            color: S.pink,
+            textShadow: `0 0 12px ${S.pink}, 0 0 24px ${S.pink}88`,
+            boxShadow: `0 0 20px ${S.pink}26`,
+          }}>
+          {`>`} 🎬 소개 영상 보기
+        </button>
+
+        {/* ⭐ NEW: 체험판 바로가기 버튼 */}
+        <button onClick={() => { window.location.href = 'https://connectai.academy/demo'; }}
+          className="relative w-full py-3 md:py-3.5 rounded-2xl text-[13px] md:text-[14px] font-bold transition-all hover:scale-[1.01] landing-btn-glow-blue"
+          style={{
+            background: 'linear-gradient(135deg, rgba(10, 24, 48, 0.95), rgba(15, 23, 42, 0.95))',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            border: `1px solid ${S.blue}66`,
+            color: S.blue,
+            textShadow: `0 0 12px ${S.blue}, 0 0 24px ${S.blue}88`,
+            boxShadow: `0 0 20px ${S.blue}26`,
+          }}>
+          {`>`} 🎮 체험판 바로가기 →
+        </button>
+
         <p className="text-gray-700 text-[10px] mt-6 md:mt-8 font-mono">© 2026 SIGNAL — ConnectAI</p>
       </div>
+
+      {/* ⭐ NEW: 영상 선택 모달 */}
+      {showVideoModal && (
+        <div className="fixed inset-0 z-[500] flex items-center justify-center p-4"
+          onClick={() => setShowVideoModal(false)}
+          style={{
+            background: 'rgba(0, 0, 0, 0.85)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            animation: 'videoModalFadeIn 0.3s ease-out',
+          }}>
+          <div onClick={(e) => e.stopPropagation()}
+            className="relative w-full max-w-sm rounded-3xl p-6 md:p-7"
+            style={{
+              background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(10, 10, 20, 0.98))',
+              border: `1px solid ${S.cyan}44`,
+              boxShadow: `0 0 40px ${S.cyan}33, 0 20px 60px rgba(0,0,0,0.6)`,
+              animation: 'videoModalSlideUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1)',
+            }}>
+
+            {/* 모달 코너 데코 */}
+            <div className="absolute top-3 left-3 w-5 h-5"
+              style={{ borderTop: `2px solid ${S.cyan}`, borderLeft: `2px solid ${S.cyan}`, opacity: 0.6 }} />
+            <div className="absolute bottom-3 right-3 w-5 h-5"
+              style={{ borderBottom: `2px solid ${S.cyan}`, borderRight: `2px solid ${S.cyan}`, opacity: 0.6 }} />
+
+            {/* 헤더 */}
+            <div className="text-center mb-6">
+              <p className="text-[10px] tracking-[4px] font-mono font-bold mb-2"
+                style={{ color: S.cyan, textShadow: `0 0 10px ${S.cyan}88` }}>
+                SELECT VIDEO
+              </p>
+              <h3 className="text-xl font-black text-white">어떤 영상을 볼까요?</h3>
+            </div>
+
+            {/* SIGNAL 소개 영상 */}
+            <button onClick={() => { window.location.href = '/promo-video.html'; }}
+              className="relative w-full p-4 mb-3 rounded-2xl text-left transition-all hover:scale-[1.02] group overflow-hidden"
+              style={{
+                background: `linear-gradient(135deg, ${S.green}18, ${S.green}08)`,
+                border: `1.5px solid ${S.green}55`,
+                boxShadow: `0 0 16px ${S.green}22`,
+              }}>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
+                  style={{ background: `${S.green}22`, border: `1px solid ${S.green}66` }}>
+                  🎬
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[9px] font-mono tracking-wider mb-0.5" style={{ color: S.green }}>PROMO</p>
+                  <p className="text-[15px] font-bold text-white">SIGNAL 소개 영상</p>
+                  <p className="text-[11px] text-gray-400">서비스 전체를 소개하는 영상</p>
+                </div>
+                <span className="text-xl" style={{ color: S.green }}>→</span>
+              </div>
+              <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700"
+                style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)' }} />
+            </button>
+
+            {/* 직무 소개 영상 */}
+            <button onClick={() => { window.location.href = '/roles-video.html'; }}
+              className="relative w-full p-4 mb-5 rounded-2xl text-left transition-all hover:scale-[1.02] group overflow-hidden"
+              style={{
+                background: `linear-gradient(135deg, ${S.purple}18, ${S.purple}08)`,
+                border: `1.5px solid ${S.purple}55`,
+                boxShadow: `0 0 16px ${S.purple}22`,
+              }}>
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0"
+                  style={{ background: `${S.purple}22`, border: `1px solid ${S.purple}66` }}>
+                  👥
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[9px] font-mono tracking-wider mb-0.5" style={{ color: S.purple }}>ROLES</p>
+                  <p className="text-[15px] font-bold text-white">직무 소개 영상</p>
+                  <p className="text-[11px] text-gray-400">7가지 직무를 소개하는 영상</p>
+                </div>
+                <span className="text-xl" style={{ color: S.purple }}>→</span>
+              </div>
+              <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700"
+                style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)' }} />
+            </button>
+
+            {/* 닫기 버튼 */}
+            <button onClick={() => setShowVideoModal(false)}
+              className="w-full py-3 rounded-xl text-[13px] font-bold text-gray-400 transition-all hover:text-white"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
         .landing-circuit-1 { animation: landingSignalRight 4s linear infinite; }
@@ -1511,6 +1636,24 @@ export default function Home() {
         @keyframes purpleGlowPulse {
           0%, 100% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.15); }
           50% { box-shadow: 0 0 30px rgba(139, 92, 246, 0.4), 0 0 50px rgba(139, 92, 246, 0.2); }
+        }
+        .landing-btn-glow-pink { animation: pinkGlowPulse 2.5s ease-in-out infinite 0.8s; }
+        @keyframes pinkGlowPulse {
+          0%, 100% { box-shadow: 0 0 20px rgba(255, 111, 181, 0.15); }
+          50% { box-shadow: 0 0 30px rgba(255, 111, 181, 0.4), 0 0 50px rgba(255, 111, 181, 0.2); }
+        }
+        .landing-btn-glow-blue { animation: blueGlowPulse 2.5s ease-in-out infinite 1.1s; }
+        @keyframes blueGlowPulse {
+          0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.15); }
+          50% { box-shadow: 0 0 30px rgba(59, 130, 246, 0.4), 0 0 50px rgba(59, 130, 246, 0.2); }
+        }
+        @keyframes videoModalFadeIn {
+          0% { opacity: 0; }
+          100% { opacity: 1; }
+        }
+        @keyframes videoModalSlideUp {
+          0% { opacity: 0; transform: translateY(30px) scale(0.95); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
         }
       `}</style>
     </div>
