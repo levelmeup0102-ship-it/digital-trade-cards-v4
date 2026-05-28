@@ -52,10 +52,8 @@
     flex-shrink: 0;
   }
   
-  /* 시작 전(videoWrapper 숨김): 애니메이션 일시정지 → 시작 시 자동 재생 */
-  .video-wrapper.hidden .stage * {
-    animation-play-state: paused !important;
-  }
+  /* (promo-video와 동일: paused 방식 미사용 - 애니메이션은 처음부터 흐르고
+     시작 시 restartAllAnimations로 재시작. paused 한꺼번에 깨우기가 딜레이 원인이었음) */
   
   .video-wrapper { visibility: visible; }
   .video-wrapper.hidden { visibility: hidden; }
@@ -4158,19 +4156,14 @@
     if (videoStarted) return;
     videoStarted = true;
     
-    // ⭐ 1순위: 화면 전환 + 애니메이션 즉시 시작 (시각적 반응 최우선)
-    document.getElementById('startScreen').classList.add('hidden');
-    document.getElementById('videoWrapper').classList.remove('hidden');
-    restartAllAnimations();
-    document.getElementById('muteToggle').classList.add('show');
-    
-    // 2순위: BGM 재생 (애니메이션과 별개로 비동기 처리)
     const bgm = document.getElementById('bgm');
+    
+    // STEP 1: BGM 먼저 (사용자 클릭 직후)
     bgm.volume = 0.5;
     bgm.currentTime = 0;
     bgm.muted = false;
     const playPromise = bgm.play();
-    if (playPromise) {
+    if (playPromise !== undefined) {
       playPromise.catch(err => {
         bgm.muted = true;
         bgm.play().then(() => {
@@ -4180,7 +4173,16 @@
       });
     }
     
-    // 3순위: 전체화면 (애니메이션 안정화 후, 멈칫 방지를 위해 충분히 늦춤)
+    // STEP 2: 시작 화면 숨기기
+    document.getElementById('startScreen').classList.add('hidden');
+    // STEP 3: 영상 컨테이너 보이기
+    document.getElementById('videoWrapper').classList.remove('hidden');
+    // STEP 4: 음소거 버튼 표시
+    document.getElementById('muteToggle').classList.add('show');
+    // STEP 5: 모든 애니메이션 강제 재시작 (promo와 동일)
+    restartAllAnimations();
+    
+    // STEP 6: 풀스크린 (iOS 제외, promo와 동일 50ms)
     if (!IS_IPHONE) {
       setTimeout(() => {
         const elem = document.documentElement;
@@ -4189,7 +4191,7 @@
         } else if (elem.webkitRequestFullscreen) {
           elem.webkitRequestFullscreen();
         }
-      }, 300);
+      }, 50);
     }
     
     if (loopTimer) clearTimeout(loopTimer);
@@ -4197,11 +4199,31 @@
   }
   
   function restartAllAnimations() {
-    // videoWrapper의 hidden이 풀리면 paused가 해제되며
-    // 모든 애니메이션이 0초부터 자동 재생됨 (별도 처리 불필요)
-    // reflow 한 번만 강제해서 즉시 반영
     const stage = document.getElementById('stage');
-    if (stage) void stage.offsetWidth;
+    if (!stage) return;
+    
+    // promo-video와 동일한 방식 (딜레이 없음)
+    // 1. 모든 애니메이션 요소를 none→재활성화로 재시작
+    const allElements = stage.querySelectorAll('*');
+    allElements.forEach(el => {
+      const currentAnimation = window.getComputedStyle(el).animation;
+      if (currentAnimation && currentAnimation !== 'none' && currentAnimation !== 'none 0s ease 0s 1 normal none running') {
+        el.style.animation = 'none';
+        void el.offsetHeight;
+        el.style.animation = '';
+      }
+    });
+    
+    // 2. stage를 살짝 떼었다가 다시 붙임 (확실한 리셋)
+    const parent = stage.parentNode;
+    const next = stage.nextSibling;
+    parent.removeChild(stage);
+    void stage.offsetHeight;
+    if (next) {
+      parent.insertBefore(stage, next);
+    } else {
+      parent.appendChild(stage);
+    }
   }
   
   function resetToStart() {
