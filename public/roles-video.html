@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;700;900&family=JetBrains+Mono:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Do+Hyeon&family=Jua&family=Gothic+A1:wght@700;800;900&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   
@@ -52,11 +53,12 @@
     flex-shrink: 0;
   }
   
-  /* (promo-video와 동일: paused 방식 미사용 - 애니메이션은 처음부터 흐르고
-     시작 시 restartAllAnimations로 재시작. paused 한꺼번에 깨우기가 딜레이 원인이었음) */
-  
+  /* 시작 전에는 video-wrapper를 display:none으로 완전히 숨긴다.
+     숨겨진 동안에는 내부 CSS 애니메이션이 전혀 진행되지 않으므로,
+     시작 버튼을 누르는 순간 인트로부터 모든 애니메이션이 0초에서 동시에 깨끗하게 재생된다.
+     (이전엔 visibility:hidden이라 애니메이션이 백그라운드에서 미리 돌아 시작 시 어긋남 = 로딩 문제) */
   .video-wrapper { visibility: visible; }
-  .video-wrapper.hidden { visibility: hidden; }
+  .video-wrapper.hidden { display: none; }
   
   .scene {
     position: absolute;
@@ -117,96 +119,308 @@
      [0-5s] 인트로
      ======================================== */
   .scene-intro {
-    animation: sceneFadeIntro 6s linear forwards;
+    animation: scene1Fade 6s ease-in-out forwards;
     animation-delay: 0s;
     background: #000;
     z-index: 20;
   }
-  
-  /* 인트로 전용: 0초부터 바로 보임 (검은 화면 없음) */
-  @keyframes sceneFadeIntro {
-    0% { opacity: 1; }
-    78% { opacity: 1; }
-    85% { opacity: 0; }
+  @keyframes scene1Fade {
+    0%, 88% { opacity: 1; }
     100% { opacity: 0; }
   }
 
-  /* ═══ 심플 인트로 (가벼움) ═══ */
-  .intro-simple-bg {
+  /* 그리드 매트릭스 (핑크 + 퍼플) */
+  .intro-grid-bg {
     position: absolute;
     inset: 0;
-    background:
-      radial-gradient(ellipse at center, rgba(6, 182, 212, 0.12), transparent 60%),
-      radial-gradient(ellipse at 30% 70%, rgba(139, 92, 246, 0.08), transparent 55%);
+    background-image:
+      linear-gradient(rgba(255, 111, 181, 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 111, 181, 0.08) 1px, transparent 1px);
+    background-size: 50px 50px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+    animation: intro-grid-pulse 4s ease-in-out infinite;
+    pointer-events: none;
   }
-  @keyframes introBgFade {
+  .intro-grid-near {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(139, 92, 246, 0.12) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(139, 92, 246, 0.12) 1px, transparent 1px);
+    background-size: 100px 100px;
+    mask-image: radial-gradient(ellipse at center, black 20%, transparent 60%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 20%, transparent 60%);
+    pointer-events: none;
+  }
+  @keyframes intro-grid-pulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 0.8; }
+  }
+
+  /* 매트릭스 비 (양 사이드) */
+  .matrix-rain {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 80px;
+    overflow: hidden;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    pointer-events: none;
+  }
+  .matrix-rain.left {
+    left: 0;
+    mask-image: linear-gradient(to right, black, transparent);
+    -webkit-mask-image: linear-gradient(to right, black, transparent);
+  }
+  .matrix-rain.right {
+    right: 0;
+    mask-image: linear-gradient(to left, black, transparent);
+    -webkit-mask-image: linear-gradient(to left, black, transparent);
+  }
+  .matrix-col {
+    position: absolute;
+    top: -200px;
+    width: 16px;
+    text-align: center;
+    line-height: 16px;
+    white-space: pre-line;
+    text-shadow: 0 0 4px currentColor;
+    animation: matrixFall linear infinite;
+    color: rgba(255, 111, 181, 0.5);
+  }
+  .matrix-col.purple { color: rgba(139, 92, 246, 0.5); }
+  @keyframes matrixFall {
+    0% { transform: translateY(-200px); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateY(100vh); opacity: 0; }
+  }
+
+  /* CRT 스캔라인 */
+  .crt-lines {
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 2px,
+      rgba(255, 255, 255, 0.025) 2px,
+      rgba(255, 255, 255, 0.025) 3px
+    );
+    pointer-events: none;
+  }
+  .intro-scanline {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(to bottom, transparent, rgba(255, 111, 181, 0.8), transparent);
+    box-shadow: 0 0 20px rgba(255, 111, 181, 0.6);
+    animation: introScanMove 4s linear infinite;
+    pointer-events: none;
+  }
+  @keyframes introScanMove {
+    0% { transform: translateY(-10px); }
+    100% { transform: translateY(100vh); }
+  }
+
+  /* 부팅 시퀀스 */
+  .boot-log {
+    position: absolute;
+    top: 35%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Courier New', monospace;
+    font-size: 16px;
+    letter-spacing: 2px;
+    text-align: center;
+    line-height: 2;
+    width: 800px;
+    pointer-events: none;
+    animation: bootLogFade 0.4s ease-out 2.8s forwards;
+  }
+  @keyframes bootLogFade {
+    to { opacity: 0; transform: translate(-50%, -60%); }
+  }
+  .boot-line {
+    opacity: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    display: inline-block;
+    border-right: 2px solid transparent;
+  }
+  .boot-line-1 {
+    animation: typing 0.5s steps(35) 0.3s forwards;
+    color: rgba(255, 111, 181, 0.85);
+    text-shadow: 0 0 6px rgba(255, 111, 181, 0.5);
+  }
+  .boot-line-2 {
+    animation: typing 0.5s steps(35) 1s forwards;
+    color: rgba(139, 92, 246, 0.85);
+    text-shadow: 0 0 6px rgba(139, 92, 246, 0.5);
+  }
+  .boot-line-3 {
+    animation: typing 0.5s steps(40) 1.7s forwards;
+    color: rgba(255, 111, 181, 0.85);
+    text-shadow: 0 0 6px rgba(255, 111, 181, 0.5);
+  }
+  .boot-complete {
+    animation: bootComplete 0.4s ease-out 2.4s forwards;
+    color: rgba(193, 232, 235, 1);
+    font-weight: 700;
+    text-shadow: 0 0 10px rgba(255, 111, 181, 0.7);
+  }
+  @keyframes typing {
+    from { opacity: 1; width: 0; }
+    to { opacity: 1; width: 100%; }
+  }
+  @keyframes bootComplete {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  /* 화면 플래시 */
+  .intro-flash {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle, #FFB3DC, #FF6FB5);
+    opacity: 0;
+    pointer-events: none;
+    animation: introFlashOnce 0.25s ease-out 2.9s;
+  }
+  @keyframes introFlashOnce {
     0% { opacity: 0; }
-    100% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 0; }
   }
-  .intro-simple-content {
+
+  /* 동심원 펄스 */
+  .pulse-ring {
     position: absolute;
-    inset: 0;
+    top: 50%; left: 50%;
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 111, 181, 0.7);
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .pulse-r1 { animation: pulseExpand 1.5s ease-out 2.4s 1; }
+  .pulse-r2 { animation: pulseExpand 1.5s ease-out 2.6s 1; border-color: rgba(139, 92, 246, 0.6); }
+  .pulse-r3 { animation: pulseExpand 1.5s ease-out 2.8s 1; border-color: rgba(255, 111, 181, 0.4); }
+  @keyframes pulseExpand {
+    0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(5); opacity: 0; }
+  }
+
+  /* SIGNAL 로고 */
+  .intro-logo-wrap {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
     display: flex;
     flex-direction: column;
-    justify-content: center;
     align-items: center;
-    text-align: center;
-    z-index: 10;
+    opacity: 0;
+    animation: introLogoAppear 0.7s ease-out 3s forwards;
+    pointer-events: none;
   }
-  .intro-simple-eyebrow {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 22px;
-    letter-spacing: 12px;
-    color: var(--cyan);
-    text-shadow: 0 0 12px var(--cyan);
+  @keyframes introLogoAppear {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.95); filter: blur(10px); }
+    100% { opacity: 1; transform: translate(-50%, -50%) scale(1); filter: blur(0); }
+  }
+
+  .intro-top-label {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .intro-top-line {
+    width: 48px;
+    height: 1px;
+    background: linear-gradient(to right, transparent, #FF6FB5);
+    box-shadow: 0 0 6px #FF6FB5;
+  }
+  .intro-top-label .intro-top-line:last-child {
+    background: linear-gradient(to left, transparent, #FF6FB5);
+  }
+  .intro-top-text {
+    font-size: 14px;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 8px;
+    color: #FF6FB5;
+    text-shadow: 0 0 10px rgba(255, 111, 181, 0.8);
     font-weight: 700;
-    margin-bottom: 36px;
-    opacity: 1;
   }
-  .intro-simple-logo {
+
+  .intro-logo-stack {
+    position: relative;
+    padding: 12px 20px;
+  }
+  .intro-logo-main {
     font-size: 200px;
     font-weight: 900;
     letter-spacing: -8px;
-    line-height: 1;
-    margin: 0;
-    background: linear-gradient(135deg, #FFFFFF 0%, var(--cyan) 45%, var(--purple) 100%);
+    background: linear-gradient(135deg, #FF6FB5 0%, #FFB3DC 30%, #FFFFFF 50%, #C7A5FF 70%, #8B5CF6 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 0 30px rgba(6, 182, 212, 0.5));
-    opacity: 0;
-    animation: introSimpleLogo 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0s forwards;
+    text-shadow: 0 0 30px rgba(255, 111, 181, 0.5);
+    line-height: 1;
+    filter: drop-shadow(0 0 20px rgba(255, 111, 181, 0.3));
+    margin: 0;
   }
-  .intro-simple-line {
-    width: 0;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, var(--cyan), var(--purple), transparent);
-    box-shadow: 0 0 12px var(--cyan);
-    margin: 32px 0;
+  .intro-logo-glitch-pink, .intro-logo-glitch-purple {
+    position: absolute;
+    top: 12px; left: 20px;
+    font-size: 200px;
+    font-weight: 900;
+    letter-spacing: -8px;
+    mix-blend-mode: screen;
+    pointer-events: none;
+    line-height: 1;
     opacity: 0;
-    animation: introSimpleLine 0.7s ease-out 0.9s forwards;
   }
-  .intro-simple-tagline {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 26px;
-    letter-spacing: 8px;
-    color: rgba(255, 255, 255, 0.7);
-    font-weight: 600;
+  .intro-logo-glitch-pink { color: #ff1e8c; animation: glitchPinkOnce 0.4s ease-out 3.5s; }
+  .intro-logo-glitch-purple { color: #c084ff; animation: glitchPurpleOnce 0.4s ease-out 3.5s; }
+  @keyframes glitchPinkOnce {
+    0%, 100% { transform: translate(0, 0); opacity: 0; }
+    30% { transform: translate(-5px, 0); opacity: 0.7; }
+    60% { transform: translate(3px, 0); opacity: 0.5; }
+  }
+  @keyframes glitchPurpleOnce {
+    0%, 100% { transform: translate(0, 0); opacity: 0; }
+    30% { transform: translate(5px, 0); opacity: 0.7; }
+    60% { transform: translate(-3px, 0); opacity: 0.5; }
+  }
+
+  .intro-bottom-label {
+    font-size: 16px;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 6px;
+    color: #C7A5FF;
+    text-shadow: 0 0 8px rgba(139, 92, 246, 0.7);
+    margin: 24px 0 0 0;
     opacity: 0;
-    animation: introSimpleFade 0.7s ease-out 1.2s forwards;
+    animation: fadeInUp 0.6s ease-out 3.4s forwards;
+    font-weight: 700;
   }
-  @keyframes introSimpleFade {
-    0% { opacity: 0; transform: translateY(16px); }
+
+  /* 비네팅 */
+  .intro-vignette {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.85) 100%);
+    pointer-events: none;
+  }
+
+  @keyframes fadeInUp {
+    0% { opacity: 0; transform: translateY(15px); }
     100% { opacity: 1; transform: translateY(0); }
   }
-  @keyframes introSimpleLogo {
-    0% { opacity: 1; transform: scale(1.04); filter: blur(0) drop-shadow(0 0 30px rgba(6, 182, 212, 0.5)); }
-    100% { opacity: 1; transform: scale(1); filter: blur(0) drop-shadow(0 0 30px rgba(6, 182, 212, 0.5)); }
-  }
-  @keyframes introSimpleLine {
-    0% { width: 0; opacity: 0; }
-    100% { width: 280px; opacity: 1; }
-  }
+
+
 
   
   /* ========================================
@@ -264,6 +478,61 @@
     transform: translateX(-50%);
     pointer-events: none;
     z-index: 35;
+  }
+  
+  /* 직무 소개 문장 (화면 하단, 테마색 큰 글씨) */
+  .role-tagline {
+    position: absolute;
+    bottom: 44px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 92%;
+    max-width: 1500px;
+    text-align: center;
+    font-family: 'Black Han Sans', 'Pretendard', sans-serif;
+    font-size: 56px;
+    font-weight: 400;
+    letter-spacing: 1px;
+    line-height: 1.1;
+    color: currentColor;
+    /* 후광(같은색 글로우) 제거 → 어두운 선명한 그림자만 남겨 글씨가 또렷하게 보이도록 */
+    text-shadow:
+      0 0 1px rgba(0, 0, 0, 0.95),
+      0 1px 2px rgba(0, 0, 0, 0.95),
+      0 2px 6px rgba(0, 0, 0, 0.8);
+    filter: brightness(1.5) saturate(1.05);
+    z-index: 36;
+    opacity: 0;
+    white-space: nowrap;
+    will-change: transform, opacity;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+  }
+  /* 양옆 데코 라인 */
+  .role-tagline::before,
+  .role-tagline::after {
+    content: '';
+    width: 60px;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, currentColor);
+    box-shadow: 0 0 12px currentColor;
+    flex-shrink: 0;
+  }
+  .role-tagline::after {
+    background: linear-gradient(90deg, currentColor, transparent);
+  }
+  .role-tagline .tagline-quote {
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.7em;
+    margin: 0 0.15em;
+  }
+  @keyframes roleTaglineEnter {
+    0%, 14% { opacity: 0; transform: translate(-50%, 30px); }
+    24% { opacity: 1; transform: translate(-50%, 0); }
+    85% { opacity: 1; transform: translate(-50%, 0); }
+    100% { opacity: 0; transform: translate(-50%, -20px); }
   }
   
   .side-keyword {
@@ -1251,12 +1520,19 @@
     opacity: 0;
   }
   .scene-ceo .card-container { color: var(--green); }
+  .scene-ceo .side-keyword { color: var(--green); }
   .scene-analyst .card-container { color: var(--cyan); }
+  .scene-analyst .side-keyword { color: var(--cyan); }
   .scene-brand .card-container { color: var(--purple); }
+  .scene-brand .side-keyword { color: var(--purple); }
   .scene-customer .card-container { color: var(--pink); }
+  .scene-customer .side-keyword { color: var(--pink); }
   .scene-global .card-container { color: var(--blue); }
+  .scene-global .side-keyword { color: var(--blue); }
   .scene-marketer .card-container { color: var(--yellow); }
+  .scene-marketer .side-keyword { color: var(--yellow); }
   .scene-compliance .card-container { color: var(--orange); }
+  .scene-compliance .side-keyword { color: var(--orange); }
   @keyframes cardPulseGlow {
     0%, 3% { opacity: 0; }
     5% { opacity: 0.9; }
@@ -2470,7 +2746,7 @@
     
     <p class="start-info">
       <span style="color: var(--cyan);">●</span>
-      클릭하면 풀스크린으로 재생됩니다
+      클릭하면 풀스크린으로 재생됩니다 · v2 (키워드+소개문구)
     </p>
     
     <div class="ios-warning">
@@ -2691,13 +2967,119 @@
 
   <!-- [0-5s] 인트로 -->
   <div class="scene scene-intro">
-    <div class="intro-simple-bg"></div>
-    <div class="intro-simple-content">
-      <p class="intro-simple-eyebrow">CONNECTAI PRESENTS</p>
-      <h1 class="intro-simple-logo">SIGNAL</h1>
-      <div class="intro-simple-line"></div>
-      <p class="intro-simple-tagline">DIGITAL TRADE CARDS</p>
+    <!-- 핑크/퍼플 그리드 매트릭스 -->
+    <div class="intro-grid-bg"></div>
+    <div class="intro-grid-near"></div>
+
+    <!-- 매트릭스 비 (좌측) -->
+    <div class="matrix-rain left">
+      <div class="matrix-col" style="left:4px; animation-duration:6s;">0
+1
+1
+0
+1
+0
+1
+1</div>
+      <div class="matrix-col" style="left:24px; animation-duration:8s; animation-delay:0.5s;">A
+F
+3
+2
+B
+1
+C
+8</div>
+      <div class="matrix-col purple" style="left:44px; animation-duration:5s; animation-delay:1s;">1
+0
+0
+1
+1
+0
+1
+0</div>
+      <div class="matrix-col" style="left:64px; animation-duration:7s; animation-delay:1.5s;">F
+9
+A
+2
+C
+0
+B
+1</div>
     </div>
+
+    <!-- 매트릭스 비 (우측) -->
+    <div class="matrix-rain right">
+      <div class="matrix-col" style="left:4px; animation-duration:7s; animation-delay:0.3s;">3
+F
+A
+1
+0
+B
+2
+C</div>
+      <div class="matrix-col purple" style="left:24px; animation-duration:6s; animation-delay:1s;">1
+1
+0
+1
+0
+0
+1
+1</div>
+      <div class="matrix-col" style="left:44px; animation-duration:9s; animation-delay:0.5s;">B
+2
+F
+0
+A
+1
+3
+C</div>
+      <div class="matrix-col" style="left:64px; animation-duration:5s; animation-delay:2s;">0
+1
+1
+0
+1
+1
+0
+0</div>
+    </div>
+
+    <!-- 스캔라인 + CRT -->
+    <div class="intro-scanline"></div>
+    <div class="crt-lines"></div>
+
+    <!-- 부팅 시퀀스 -->
+    <div class="boot-log">
+      <div class="boot-line boot-line-1">▸ INITIALIZING SIGNAL.NET PROTOCOL...</div><br>
+      <div class="boot-line boot-line-2">▸ AUTHENTICATING TEAM CREDENTIALS...</div><br>
+      <div class="boot-line boot-line-3">▸ LOADING DIGITAL TRADE CARDS...</div><br>
+      <div class="boot-line boot-complete">▸ CONNECTION ESTABLISHED ✓</div>
+    </div>
+
+    <!-- 동심원 펄스 -->
+    <div class="pulse-ring pulse-r1"></div>
+    <div class="pulse-ring pulse-r2"></div>
+    <div class="pulse-ring pulse-r3"></div>
+
+    <!-- 화면 플래시 -->
+    <div class="intro-flash"></div>
+
+    <!-- SIGNAL 로고 -->
+    <div class="intro-logo-wrap">
+      <div class="intro-top-label">
+        <span class="intro-top-line"></span>
+        <span class="intro-top-text">CONNECTAI</span>
+        <span class="intro-top-line"></span>
+      </div>
+      <div class="intro-logo-stack">
+        <span class="intro-logo-glitch-pink" aria-hidden>SIGNAL</span>
+        <span class="intro-logo-glitch-purple" aria-hidden>SIGNAL</span>
+        <h1 class="intro-logo-main">SIGNAL</h1>
+      </div>
+      <p class="intro-bottom-label">DIGITAL TRADE CARDS</p>
+    </div>
+
+    <!-- 비네팅 -->
+    <div class="intro-vignette"></div>
   </div>
 
   <!-- ========================================
@@ -2850,6 +3232,7 @@
           </div>
         </div>
     </div>
+      <div class="role-tagline" style="color: var(--green); animation: roleTaglineEnter 7s ease-in-out 8s forwards;">회사의 방향을 결정하는 최종 의사결정자</div>
   </div>
 
   <!-- ========================================
@@ -3043,6 +3426,7 @@
           </div>
         </div>
     </div>
+      <div class="role-tagline" style="color: var(--cyan); animation: roleTaglineEnter 7s ease-in-out 15s forwards;">데이터로 시장의 흐름을 읽는 전략가</div>
   </div>
 
   <!-- ========================================
@@ -3202,6 +3586,7 @@
           </div>
         </div>
     </div>
+      <div class="role-tagline" style="color: var(--purple); animation: roleTaglineEnter 7s ease-in-out 22s forwards;">브랜드의 가치와 정체성을 설계하는 사람</div>
   </div>
 
   <!-- ========================================
@@ -3378,6 +3763,7 @@
           </div>
         </div>
     </div>
+      <div class="role-tagline" style="color: var(--pink); animation: roleTaglineEnter 7s ease-in-out 29s forwards;">고객의 마음을 읽고 인사이트를 발굴하는 사람</div>
   </div>
 
   <!-- ========================================
@@ -3537,6 +3923,7 @@
           </div>
         </div>
     </div>
+      <div class="role-tagline" style="color: var(--blue); animation: roleTaglineEnter 7s ease-in-out 36s forwards;">세계 무대에서 거래를 성사시키는 협상가</div>
   </div>
 
   <!-- ========================================
@@ -3706,6 +4093,7 @@
           </div>
         </div>
     </div>
+      <div class="role-tagline" style="color: var(--yellow); animation: roleTaglineEnter 7s ease-in-out 43s forwards;">디지털 채널로 시장을 사로잡는 마케터</div>
   </div>
 
   <!-- ========================================
@@ -3875,6 +4263,7 @@
           </div>
         </div>
     </div>
+      <div class="role-tagline" style="color: var(--orange); animation: roleTaglineEnter 7s ease-in-out 50s forwards;">무역 규제를 꿰뚫는 팀의 안전장치</div>
   </div>
 
   <!-- ========================================
@@ -4167,7 +4556,6 @@
       const p = bgm.play();
       if (p !== undefined) {
         p.catch(err => {
-          // 자동재생 차단 시 음소거로 재생
           bgm.muted = true;
           bgm.play().then(() => {
             const icon = document.getElementById('muteIcon');
@@ -4178,57 +4566,71 @@
     }
     tryPlayBgm();
     
-    // STEP 2: 시작 화면 숨기기
-    document.getElementById('startScreen').classList.add('hidden');
-    // STEP 3: 영상 컨테이너 보이기
-    document.getElementById('videoWrapper').classList.remove('hidden');
-    // STEP 4: 음소거 버튼 표시
-    document.getElementById('muteToggle').classList.add('show');
-    // STEP 5: 모든 애니메이션 강제 재시작 (promo와 동일)
-    restartAllAnimations();
-    
-    // STEP 5.5: DOM 조작 후 BGM 한 번 더 확인 (멈췄으면 재시도)
-    setTimeout(() => {
-      if (bgm.paused && !bgm.muted) tryPlayBgm();
-    }, 100);
-    
-    // STEP 6: 풀스크린 (iOS 제외, promo와 동일 50ms)
-    if (!IS_IPHONE) {
+    // ⭐ 실제 영상 시작 (인트로 재생) - 전체화면 전환이 끝난 뒤 호출됨
+    let videoLaunched = false;
+    function launchVideo() {
+      if (videoLaunched) return;
+      videoLaunched = true;
+      // 화면 전환
+      document.getElementById('startScreen').classList.add('hidden');
+      document.getElementById('videoWrapper').classList.remove('hidden');
+      document.getElementById('muteToggle').classList.add('show');
+      // display:none → 표시로 바뀌는 순간 모든 애니메이션이 0초부터 자동 시작됨.
+      // (별도 강제 재시작 불필요 — 이게 인트로 어긋남/로딩 문제의 근본 해결)
+      // BGM 재확인
       setTimeout(() => {
-        const elem = document.documentElement;
-        if (elem.requestFullscreen) {
-          elem.requestFullscreen().catch(() => {});
-        } else if (elem.webkitRequestFullscreen) {
-          elem.webkitRequestFullscreen();
-        }
-      }, 50);
+        if (bgm.paused && !bgm.muted) tryPlayBgm();
+      }, 100);
+      // 루프 타이머
+      if (loopTimer) clearTimeout(loopTimer);
+      loopTimer = setTimeout(resetToStart, VIDEO_DURATION);
     }
     
-    if (loopTimer) clearTimeout(loopTimer);
-    loopTimer = setTimeout(resetToStart, VIDEO_DURATION);
+    // STEP 2: ⭐ 전체화면 먼저 요청 (인트로 시작 전에!)
+    if (!IS_IPHONE) {
+      const elem = document.documentElement;
+      // 전체화면 전환 완료를 감지하면 그때 인트로 시작
+      const onFsChange = () => {
+        document.removeEventListener('fullscreenchange', onFsChange);
+        document.removeEventListener('webkitfullscreenchange', onFsChange);
+        // 전환 직후 한 프레임 쉬고 인트로 시작 (렌더링 안정화)
+        setTimeout(launchVideo, 80);
+      };
+      document.addEventListener('fullscreenchange', onFsChange);
+      document.addEventListener('webkitfullscreenchange', onFsChange);
+      
+      let fsPromise;
+      if (elem.requestFullscreen) {
+        fsPromise = elem.requestFullscreen();
+      } else if (elem.webkitRequestFullscreen) {
+        elem.webkitRequestFullscreen();
+      }
+      // 전체화면이 지원 안 되거나 거부되면 그냥 바로 시작
+      if (fsPromise && fsPromise.catch) {
+        fsPromise.catch(() => {
+          document.removeEventListener('fullscreenchange', onFsChange);
+          document.removeEventListener('webkitfullscreenchange', onFsChange);
+          launchVideo();
+        });
+      }
+      // 안전장치: 600ms 내 전환 이벤트 없으면 그냥 시작
+      setTimeout(launchVideo, 600);
+    } else {
+      // iPhone: 전체화면 없이 바로 시작
+      launchVideo();
+    }
   }
   
   function restartAllAnimations() {
     const stage = document.getElementById('stage');
     if (!stage) return;
     
-    // promo-video와 동일한 방식 (딜레이 없음)
-    // 1. 모든 애니메이션 요소를 none→재활성화로 재시작
-    const allElements = stage.querySelectorAll('*');
-    allElements.forEach(el => {
-      const currentAnimation = window.getComputedStyle(el).animation;
-      if (currentAnimation && currentAnimation !== 'none' && currentAnimation !== 'none 0s ease 0s 1 normal none running') {
-        el.style.animation = 'none';
-        void el.offsetHeight;
-        el.style.animation = '';
-      }
-    });
-    
-    // 2. stage를 살짝 떼었다가 다시 붙임 (확실한 리셋)
+    // stage를 DOM에서 떼었다 다시 붙이면 모든 CSS 애니메이션이 0초부터 재시작됨.
+    // (인라인 style의 animation은 건드리지 않음 → side-keyword, role-tagline 보존)
     const parent = stage.parentNode;
     const next = stage.nextSibling;
     parent.removeChild(stage);
-    void stage.offsetHeight;
+    void stage.offsetHeight; // 리플로우
     if (next) {
       parent.insertBefore(stage, next);
     } else {
