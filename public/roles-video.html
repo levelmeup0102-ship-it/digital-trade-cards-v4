@@ -52,13 +52,9 @@
     flex-shrink: 0;
   }
   
-  /* 시작 전: 모든 애니메이션 일시정지 (0초 프레임에 멈춤) */
-  .stage * {
+  /* 시작 전(videoWrapper 숨김): 애니메이션 일시정지 → 시작 시 자동 재생 */
+  .video-wrapper.hidden .stage * {
     animation-play-state: paused !important;
-  }
-  /* 시작 후: 재생 */
-  .stage.playing * {
-    animation-play-state: running !important;
   }
   
   .video-wrapper { visibility: visible; }
@@ -123,8 +119,16 @@
      [0-5s] 인트로
      ======================================== */
   .scene-intro {
-    animation: sceneFade 6s linear forwards;
+    animation: sceneFadeIntro 6s linear forwards;
     animation-delay: 0s;
+  }
+  
+  /* 인트로 전용: 0초부터 바로 보임 (검은 화면 없음) */
+  @keyframes sceneFadeIntro {
+    0% { opacity: 1; }
+    78% { opacity: 1; }
+    85% { opacity: 0; }
+    100% { opacity: 0; }
   }
 
   /* ═══ 심플 인트로 (가벼움) ═══ */
@@ -134,6 +138,12 @@
     background:
       radial-gradient(ellipse at center, rgba(6, 182, 212, 0.12), transparent 60%),
       radial-gradient(ellipse at 30% 70%, rgba(139, 92, 246, 0.08), transparent 55%);
+    opacity: 0;
+    animation: introBgFade 1s ease-out 0s forwards;
+  }
+  @keyframes introBgFade {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
   }
   .intro-simple-content {
     position: absolute;
@@ -154,7 +164,7 @@
     font-weight: 700;
     margin-bottom: 36px;
     opacity: 0;
-    animation: introSimpleFade 0.8s ease-out 0.4s forwards;
+    animation: introSimpleFade 0.9s ease-out 0.3s forwards;
   }
   .intro-simple-logo {
     font-size: 200px;
@@ -168,7 +178,7 @@
     -webkit-text-fill-color: transparent;
     filter: drop-shadow(0 0 30px rgba(6, 182, 212, 0.5));
     opacity: 0;
-    animation: introSimpleLogo 1s cubic-bezier(0.16, 1, 0.3, 1) 0.9s forwards;
+    animation: introSimpleLogo 1.4s cubic-bezier(0.22, 1, 0.36, 1) 0.5s forwards;
   }
   .intro-simple-line {
     width: 0;
@@ -177,7 +187,7 @@
     box-shadow: 0 0 12px var(--cyan);
     margin: 32px 0;
     opacity: 0;
-    animation: introSimpleLine 0.8s ease-out 1.8s forwards;
+    animation: introSimpleLine 0.8s ease-out 1.6s forwards;
   }
   .intro-simple-tagline {
     font-family: 'JetBrains Mono', monospace;
@@ -186,14 +196,15 @@
     color: rgba(255, 255, 255, 0.7);
     font-weight: 600;
     opacity: 0;
-    animation: introSimpleFade 0.8s ease-out 2.2s forwards;
+    animation: introSimpleFade 0.9s ease-out 2.0s forwards;
   }
   @keyframes introSimpleFade {
     0% { opacity: 0; transform: translateY(16px); }
     100% { opacity: 1; transform: translateY(0); }
   }
   @keyframes introSimpleLogo {
-    0% { opacity: 0; transform: scale(0.85); filter: blur(12px) drop-shadow(0 0 30px rgba(6, 182, 212, 0.5)); }
+    0% { opacity: 0; transform: scale(1.15); filter: blur(16px) drop-shadow(0 0 30px rgba(6, 182, 212, 0.5)); }
+    60% { opacity: 1; filter: blur(0) drop-shadow(0 0 30px rgba(6, 182, 212, 0.5)); }
     100% { opacity: 1; transform: scale(1); filter: blur(0) drop-shadow(0 0 30px rgba(6, 182, 212, 0.5)); }
   }
   @keyframes introSimpleLine {
@@ -4147,11 +4158,17 @@
     if (videoStarted) return;
     videoStarted = true;
     
+    // ⭐ 1순위: 화면 전환 + 애니메이션 즉시 시작 (시각적 반응 최우선)
+    document.getElementById('startScreen').classList.add('hidden');
+    document.getElementById('videoWrapper').classList.remove('hidden');
+    restartAllAnimations();
+    document.getElementById('muteToggle').classList.add('show');
+    
+    // 2순위: BGM 재생 (애니메이션과 별개로 비동기 처리)
     const bgm = document.getElementById('bgm');
     bgm.volume = 0.5;
     bgm.currentTime = 0;
     bgm.muted = false;
-    
     const playPromise = bgm.play();
     if (playPromise) {
       playPromise.catch(err => {
@@ -4163,13 +4180,7 @@
       });
     }
     
-    document.getElementById('startScreen').classList.add('hidden');
-    document.getElementById('videoWrapper').classList.remove('hidden');
-    
-    restartAllAnimations();
-    
-    document.getElementById('muteToggle').classList.add('show');
-    
+    // 3순위: 전체화면 (애니메이션 안정화 후, 멈칫 방지를 위해 충분히 늦춤)
     if (!IS_IPHONE) {
       setTimeout(() => {
         const elem = document.documentElement;
@@ -4178,7 +4189,7 @@
         } else if (elem.webkitRequestFullscreen) {
           elem.webkitRequestFullscreen();
         }
-      }, 50);
+      }, 300);
     }
     
     if (loopTimer) clearTimeout(loopTimer);
@@ -4186,18 +4197,11 @@
   }
   
   function restartAllAnimations() {
+    // videoWrapper의 hidden이 풀리면 paused가 해제되며
+    // 모든 애니메이션이 0초부터 자동 재생됨 (별도 처리 불필요)
+    // reflow 한 번만 강제해서 즉시 반영
     const stage = document.getElementById('stage');
-    if (!stage) return;
-    // 일단 playing 제거 (애니메이션 0초로 리셋)
-    stage.classList.remove('playing');
-    // 강제 reflow로 리셋 확정
-    void stage.offsetHeight;
-    // 다음 프레임에 playing 추가 → 0초부터 부드럽게 재생
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        stage.classList.add('playing');
-      });
-    });
+    if (stage) void stage.offsetWidth;
   }
   
   function resetToStart() {
