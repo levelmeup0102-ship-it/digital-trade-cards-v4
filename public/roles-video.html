@@ -52,6 +52,16 @@
     transform: scale(var(--video-scale, 1));
     flex-shrink: 0;
   }
+
+  /* 시작 전: 무대 전체 애니메이션을 0초에 고정(일시정지).
+     레이아웃/페인트는 시작화면 뒤에서 미리 끝내두고, 타임라인만 멈춰둔다.
+     시작 버튼을 누르면 .paused 제거 → 인트로부터 모든 씬이 0초에서 한 번에 매끄럽게 재생. */
+  .stage.paused,
+  .stage.paused *,
+  .stage.paused *::before,
+  .stage.paused *::after {
+    animation-play-state: paused !important;
+  }
   
   /* 시작 전에는 video-wrapper를 display:none으로 완전히 숨긴다.
      숨겨진 동안에는 내부 CSS 애니메이션이 전혀 진행되지 않으므로,
@@ -116,7 +126,9 @@
   }
   
   /* ========================================
-     [0-5s] 인트로
+     [0-6s] 인트로 — 경량 버전 (transform/opacity만 사용)
+     매트릭스/부팅타이핑/글리치/CRT/blur/mask 애니메이션을 전부 제거.
+     시작 버튼을 눌렀을 때 첫 프레임 페인트 비용이 낮아 끊김이 없음.
      ======================================== */
   .scene-intro {
     animation: scene1Fade 6s ease-in-out forwards;
@@ -125,299 +137,99 @@
     z-index: 20;
   }
   @keyframes scene1Fade {
-    0%, 88% { opacity: 1; }
+    0%, 85% { opacity: 1; }
     100% { opacity: 0; }
   }
 
-  /* 그리드 매트릭스 (핑크 + 퍼플) */
-  .intro-grid-bg {
-    position: absolute;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(255, 111, 181, 0.08) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 111, 181, 0.08) 1px, transparent 1px);
-    background-size: 50px 50px;
-    mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
-    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
-    animation: intro-grid-pulse 4s ease-in-out infinite;
-    pointer-events: none;
-  }
-  .intro-grid-near {
-    position: absolute;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(139, 92, 246, 0.12) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(139, 92, 246, 0.12) 1px, transparent 1px);
-    background-size: 100px 100px;
-    mask-image: radial-gradient(ellipse at center, black 20%, transparent 60%);
-    -webkit-mask-image: radial-gradient(ellipse at center, black 20%, transparent 60%);
-    pointer-events: none;
-  }
-  @keyframes intro-grid-pulse {
-    0%, 100% { opacity: 0.5; }
-    50% { opacity: 0.8; }
-  }
-
-  /* 매트릭스 비 (양 사이드) */
-  .matrix-rain {
-    position: absolute;
-    top: 0; bottom: 0;
-    width: 80px;
-    overflow: hidden;
-    font-family: 'Courier New', monospace;
-    font-size: 11px;
-    pointer-events: none;
-  }
-  .matrix-rain.left {
-    left: 0;
-    mask-image: linear-gradient(to right, black, transparent);
-    -webkit-mask-image: linear-gradient(to right, black, transparent);
-  }
-  .matrix-rain.right {
-    right: 0;
-    mask-image: linear-gradient(to left, black, transparent);
-    -webkit-mask-image: linear-gradient(to left, black, transparent);
-  }
-  .matrix-col {
-    position: absolute;
-    top: -200px;
-    width: 16px;
-    text-align: center;
-    line-height: 16px;
-    white-space: pre-line;
-    text-shadow: 0 0 4px currentColor;
-    animation: matrixFall linear infinite;
-    color: rgba(255, 111, 181, 0.5);
-  }
-  .matrix-col.purple { color: rgba(139, 92, 246, 0.5); }
-  @keyframes matrixFall {
-    0% { transform: translateY(-200px); opacity: 0; }
-    10% { opacity: 1; }
-    90% { opacity: 1; }
-    100% { transform: translateY(100vh); opacity: 0; }
-  }
-
-  /* CRT 스캔라인 */
-  .crt-lines {
-    position: absolute;
-    inset: 0;
-    background: repeating-linear-gradient(
-      to bottom,
-      transparent 0,
-      transparent 2px,
-      rgba(255, 255, 255, 0.025) 2px,
-      rgba(255, 255, 255, 0.025) 3px
-    );
-    pointer-events: none;
-  }
-  .intro-scanline {
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 2px;
-    background: linear-gradient(to bottom, transparent, rgba(255, 111, 181, 0.8), transparent);
-    box-shadow: 0 0 20px rgba(255, 111, 181, 0.6);
-    animation: introScanMove 4s linear infinite;
-    pointer-events: none;
-  }
-  @keyframes introScanMove {
-    0% { transform: translateY(-10px); }
-    100% { transform: translateY(100vh); }
-  }
-
-  /* 부팅 시퀀스 */
-  .boot-log {
-    position: absolute;
-    top: 35%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-family: 'Courier New', monospace;
-    font-size: 16px;
-    letter-spacing: 2px;
-    text-align: center;
-    line-height: 2;
-    width: 800px;
-    pointer-events: none;
-    animation: bootLogFade 0.4s ease-out 2.8s forwards;
-  }
-  @keyframes bootLogFade {
-    to { opacity: 0; transform: translate(-50%, -60%); }
-  }
-  .boot-line {
-    opacity: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    display: inline-block;
-    border-right: 2px solid transparent;
-  }
-  .boot-line-1 {
-    animation: typing 0.5s steps(35) 0.3s forwards;
-    color: rgba(255, 111, 181, 0.85);
-    text-shadow: 0 0 6px rgba(255, 111, 181, 0.5);
-  }
-  .boot-line-2 {
-    animation: typing 0.5s steps(35) 1s forwards;
-    color: rgba(139, 92, 246, 0.85);
-    text-shadow: 0 0 6px rgba(139, 92, 246, 0.5);
-  }
-  .boot-line-3 {
-    animation: typing 0.5s steps(40) 1.7s forwards;
-    color: rgba(255, 111, 181, 0.85);
-    text-shadow: 0 0 6px rgba(255, 111, 181, 0.5);
-  }
-  .boot-complete {
-    animation: bootComplete 0.4s ease-out 2.4s forwards;
-    color: rgba(193, 232, 235, 1);
-    font-weight: 700;
-    text-shadow: 0 0 10px rgba(255, 111, 181, 0.7);
-  }
-  @keyframes typing {
-    from { opacity: 1; width: 0; }
-    to { opacity: 1; width: 100%; }
-  }
-  @keyframes bootComplete {
-    from { opacity: 0; transform: scale(0.9); }
-    to { opacity: 1; transform: scale(1); }
-  }
-
-  /* 화면 플래시 */
-  .intro-flash {
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(circle, #FFB3DC, #FF6FB5);
-    opacity: 0;
-    pointer-events: none;
-    animation: introFlashOnce 0.25s ease-out 2.9s;
-  }
-  @keyframes introFlashOnce {
-    0% { opacity: 0; }
-    50% { opacity: 0.5; }
-    100% { opacity: 0; }
-  }
-
-  /* 동심원 펄스 */
-  .pulse-ring {
-    position: absolute;
-    top: 50%; left: 50%;
-    width: 200px; height: 200px;
-    border-radius: 50%;
-    border: 1px solid rgba(255, 111, 181, 0.7);
-    transform: translate(-50%, -50%) scale(0);
-    opacity: 0;
-    pointer-events: none;
-  }
-  .pulse-r1 { animation: pulseExpand 1.5s ease-out 2.4s 1; }
-  .pulse-r2 { animation: pulseExpand 1.5s ease-out 2.6s 1; border-color: rgba(139, 92, 246, 0.6); }
-  .pulse-r3 { animation: pulseExpand 1.5s ease-out 2.8s 1; border-color: rgba(255, 111, 181, 0.4); }
-  @keyframes pulseExpand {
-    0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
-    100% { transform: translate(-50%, -50%) scale(5); opacity: 0; }
-  }
-
-  /* SIGNAL 로고 */
-  .intro-logo-wrap {
+  .intro2 {
     position: absolute;
     top: 50%; left: 50%;
     transform: translate(-50%, -50%);
     display: flex;
     flex-direction: column;
     align-items: center;
-    opacity: 0;
-    animation: introLogoAppear 0.7s ease-out 3s forwards;
+    text-align: center;
     pointer-events: none;
   }
-  @keyframes introLogoAppear {
-    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.95); filter: blur(10px); }
-    100% { opacity: 1; transform: translate(-50%, -50%) scale(1); filter: blur(0); }
-  }
 
-  .intro-top-label {
+  /* CONNECTAI 라벨 */
+  .intro2-eyebrow {
     display: flex;
     align-items: center;
-    gap: 16px;
-    margin-bottom: 20px;
+    gap: 18px;
+    margin-bottom: 30px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: 10px;
+    color: #FF9BCE;
+    opacity: 0;
+    transform: translateY(12px);
+    animation: intro2In 0.6s ease-out 0.35s forwards;
+    will-change: transform, opacity;
   }
-  .intro-top-line {
-    width: 48px;
-    height: 1px;
-    background: linear-gradient(to right, transparent, #FF6FB5);
-    box-shadow: 0 0 6px #FF6FB5;
+  .intro2-eyebrow-text { text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55); }
+  .intro2-bar {
+    width: 46px; height: 2px;
+    background: linear-gradient(90deg, transparent, #FF6FB5);
   }
-  .intro-top-label .intro-top-line:last-child {
-    background: linear-gradient(to left, transparent, #FF6FB5);
-  }
-  .intro-top-text {
-    font-size: 14px;
-    font-family: 'Courier New', monospace;
-    letter-spacing: 8px;
-    color: #FF6FB5;
-    text-shadow: 0 0 10px rgba(255, 111, 181, 0.8);
-    font-weight: 700;
+  .intro2-bar:last-child {
+    background: linear-gradient(90deg, #FF6FB5, transparent);
   }
 
-  .intro-logo-stack {
-    position: relative;
-    padding: 12px 20px;
-  }
-  .intro-logo-main {
-    font-size: 200px;
+  /* SIGNAL 로고 — 정적 그라데이션(페인트 1회), 애니메이션은 transform/opacity만 */
+  .intro2-logo {
+    margin: 0;
+    font-family: 'Pretendard', sans-serif;
+    font-size: 220px;
     font-weight: 900;
+    line-height: 0.95;
     letter-spacing: -8px;
-    background: linear-gradient(135deg, #FF6FB5 0%, #FFB3DC 30%, #FFFFFF 50%, #C7A5FF 70%, #8B5CF6 100%);
+    background: linear-gradient(120deg, #FF6FB5 0%, #FFB3DC 28%, #FFFFFF 50%, #C7A5FF 72%, #8B5CF6 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    text-shadow: 0 0 30px rgba(255, 111, 181, 0.5);
-    line-height: 1;
-    filter: drop-shadow(0 0 20px rgba(255, 111, 181, 0.3));
+    color: transparent;
+    opacity: 0;
+    transform: translateY(26px) scale(0.96);
+    animation: intro2LogoIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.55s forwards;
+    will-change: transform, opacity;
+  }
+
+  /* 가운데 라인 — scaleX 성장 */
+  .intro2-rule {
+    width: 360px;
+    height: 2px;
+    margin: 28px 0 22px;
+    background: linear-gradient(90deg, transparent, #C7A5FF, #FF6FB5, #C7A5FF, transparent);
+    transform: scaleX(0);
+    opacity: 0;
+    animation: intro2RuleIn 0.7s ease-out 1.05s forwards;
+    will-change: transform, opacity;
+  }
+
+  /* 서브 라벨 */
+  .intro2-sub {
     margin: 0;
-  }
-  .intro-logo-glitch-pink, .intro-logo-glitch-purple {
-    position: absolute;
-    top: 12px; left: 20px;
-    font-size: 200px;
-    font-weight: 900;
-    letter-spacing: -8px;
-    mix-blend-mode: screen;
-    pointer-events: none;
-    line-height: 1;
-    opacity: 0;
-  }
-  .intro-logo-glitch-pink { color: #ff1e8c; animation: glitchPinkOnce 0.4s ease-out 3.5s; }
-  .intro-logo-glitch-purple { color: #c084ff; animation: glitchPurpleOnce 0.4s ease-out 3.5s; }
-  @keyframes glitchPinkOnce {
-    0%, 100% { transform: translate(0, 0); opacity: 0; }
-    30% { transform: translate(-5px, 0); opacity: 0.7; }
-    60% { transform: translate(3px, 0); opacity: 0.5; }
-  }
-  @keyframes glitchPurpleOnce {
-    0%, 100% { transform: translate(0, 0); opacity: 0; }
-    30% { transform: translate(5px, 0); opacity: 0.7; }
-    60% { transform: translate(-3px, 0); opacity: 0.5; }
-  }
-
-  .intro-bottom-label {
-    font-size: 16px;
-    font-family: 'Courier New', monospace;
-    letter-spacing: 6px;
-    color: #C7A5FF;
-    text-shadow: 0 0 8px rgba(139, 92, 246, 0.7);
-    margin: 24px 0 0 0;
-    opacity: 0;
-    animation: fadeInUp 0.6s ease-out 3.4s forwards;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px;
     font-weight: 700;
+    letter-spacing: 8px;
+    color: #C9B3FF;
+    opacity: 0;
+    transform: translateY(12px);
+    animation: intro2In 0.6s ease-out 1.35s forwards;
+    will-change: transform, opacity;
   }
 
-  /* 비네팅 */
-  .intro-vignette {
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.85) 100%);
-    pointer-events: none;
+  @keyframes intro2In {
+    to { opacity: 1; transform: translateY(0); }
   }
-
-  @keyframes fadeInUp {
-    0% { opacity: 0; transform: translateY(15px); }
-    100% { opacity: 1; transform: translateY(0); }
+  @keyframes intro2LogoIn {
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes intro2RuleIn {
+    to { opacity: 1; transform: scaleX(1); }
   }
 
 
@@ -2960,126 +2772,23 @@
   </defs>
 </svg>
 
-<div class="video-wrapper hidden" id="videoWrapper">
-<div class="stage" id="stage">
+<div class="video-wrapper" id="videoWrapper">
+<div class="stage paused" id="stage">
 
   <div class="global-grid"></div>
 
-  <!-- [0-5s] 인트로 -->
+  <!-- [0-6s] 인트로 (경량: transform/opacity만 → 시작 즉시 끊김 없음) -->
   <div class="scene scene-intro">
-    <!-- 핑크/퍼플 그리드 매트릭스 -->
-    <div class="intro-grid-bg"></div>
-    <div class="intro-grid-near"></div>
-
-    <!-- 매트릭스 비 (좌측) -->
-    <div class="matrix-rain left">
-      <div class="matrix-col" style="left:4px; animation-duration:6s;">0
-1
-1
-0
-1
-0
-1
-1</div>
-      <div class="matrix-col" style="left:24px; animation-duration:8s; animation-delay:0.5s;">A
-F
-3
-2
-B
-1
-C
-8</div>
-      <div class="matrix-col purple" style="left:44px; animation-duration:5s; animation-delay:1s;">1
-0
-0
-1
-1
-0
-1
-0</div>
-      <div class="matrix-col" style="left:64px; animation-duration:7s; animation-delay:1.5s;">F
-9
-A
-2
-C
-0
-B
-1</div>
-    </div>
-
-    <!-- 매트릭스 비 (우측) -->
-    <div class="matrix-rain right">
-      <div class="matrix-col" style="left:4px; animation-duration:7s; animation-delay:0.3s;">3
-F
-A
-1
-0
-B
-2
-C</div>
-      <div class="matrix-col purple" style="left:24px; animation-duration:6s; animation-delay:1s;">1
-1
-0
-1
-0
-0
-1
-1</div>
-      <div class="matrix-col" style="left:44px; animation-duration:9s; animation-delay:0.5s;">B
-2
-F
-0
-A
-1
-3
-C</div>
-      <div class="matrix-col" style="left:64px; animation-duration:5s; animation-delay:2s;">0
-1
-1
-0
-1
-1
-0
-0</div>
-    </div>
-
-    <!-- 스캔라인 + CRT -->
-    <div class="intro-scanline"></div>
-    <div class="crt-lines"></div>
-
-    <!-- 부팅 시퀀스 -->
-    <div class="boot-log">
-      <div class="boot-line boot-line-1">▸ INITIALIZING SIGNAL.NET PROTOCOL...</div><br>
-      <div class="boot-line boot-line-2">▸ AUTHENTICATING TEAM CREDENTIALS...</div><br>
-      <div class="boot-line boot-line-3">▸ LOADING DIGITAL TRADE CARDS...</div><br>
-      <div class="boot-line boot-complete">▸ CONNECTION ESTABLISHED ✓</div>
-    </div>
-
-    <!-- 동심원 펄스 -->
-    <div class="pulse-ring pulse-r1"></div>
-    <div class="pulse-ring pulse-r2"></div>
-    <div class="pulse-ring pulse-r3"></div>
-
-    <!-- 화면 플래시 -->
-    <div class="intro-flash"></div>
-
-    <!-- SIGNAL 로고 -->
-    <div class="intro-logo-wrap">
-      <div class="intro-top-label">
-        <span class="intro-top-line"></span>
-        <span class="intro-top-text">CONNECTAI</span>
-        <span class="intro-top-line"></span>
+    <div class="intro2">
+      <div class="intro2-eyebrow">
+        <span class="intro2-bar"></span>
+        <span class="intro2-eyebrow-text">CONNECTAI</span>
+        <span class="intro2-bar"></span>
       </div>
-      <div class="intro-logo-stack">
-        <span class="intro-logo-glitch-pink" aria-hidden>SIGNAL</span>
-        <span class="intro-logo-glitch-purple" aria-hidden>SIGNAL</span>
-        <h1 class="intro-logo-main">SIGNAL</h1>
-      </div>
-      <p class="intro-bottom-label">DIGITAL TRADE CARDS</p>
+      <h1 class="intro2-logo">SIGNAL</h1>
+      <div class="intro2-rule"></div>
+      <p class="intro2-sub">DIGITAL · TRADE · CARDS</p>
     </div>
-
-    <!-- 비네팅 -->
-    <div class="intro-vignette"></div>
   </div>
 
   <!-- ========================================
@@ -4571,16 +4280,19 @@ C</div>
     function launchVideo() {
       if (videoLaunched) return;
       videoLaunched = true;
-      // 화면 전환
+      // 시작화면만 감춘다. 무대는 이미 렌더링되어 있고 애니메이션만 paused 상태.
       document.getElementById('startScreen').classList.add('hidden');
-      document.getElementById('videoWrapper').classList.remove('hidden');
       document.getElementById('muteToggle').classList.add('show');
-      // display:none → 표시로 바뀌는 순간 모든 애니메이션이 0초부터 자동 시작됨.
-      // (별도 강제 재시작 불필요 — 이게 인트로 어긋남/로딩 문제의 근본 해결)
+      // 전체화면 전환이 끝난 뒤, 프레임 경계에 맞춰 무대 애니메이션을 0초부터 한 번에 재생.
+      // 레이아웃/페인트가 이미 끝나 있으므로 버튼 누른 순간 끊김이 없다.
+      const stage = document.getElementById('stage');
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        stage.classList.remove('paused');
+      }));
       // BGM 재확인
       setTimeout(() => {
         if (bgm.paused && !bgm.muted) tryPlayBgm();
-      }, 100);
+      }, 120);
       // 루프 타이머
       if (loopTimer) clearTimeout(loopTimer);
       loopTimer = setTimeout(resetToStart, VIDEO_DURATION);
