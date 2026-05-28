@@ -119,6 +119,8 @@
   .scene-intro {
     animation: sceneFadeIntro 6s linear forwards;
     animation-delay: 0s;
+    background: #000;
+    z-index: 20;
   }
   
   /* 인트로 전용: 0초부터 바로 보임 (검은 화면 없음) */
@@ -136,8 +138,6 @@
     background:
       radial-gradient(ellipse at center, rgba(6, 182, 212, 0.12), transparent 60%),
       radial-gradient(ellipse at 30% 70%, rgba(139, 92, 246, 0.08), transparent 55%);
-    opacity: 0;
-    animation: introBgFade 1s ease-out 0s forwards;
   }
   @keyframes introBgFade {
     0% { opacity: 0; }
@@ -161,8 +161,7 @@
     text-shadow: 0 0 12px var(--cyan);
     font-weight: 700;
     margin-bottom: 36px;
-    opacity: 0;
-    animation: introSimpleFade 0.9s ease-out 0.3s forwards;
+    opacity: 1;
   }
   .intro-simple-logo {
     font-size: 200px;
@@ -176,7 +175,7 @@
     -webkit-text-fill-color: transparent;
     filter: drop-shadow(0 0 30px rgba(6, 182, 212, 0.5));
     opacity: 0;
-    animation: introSimpleLogo 1.4s cubic-bezier(0.22, 1, 0.36, 1) 0.5s forwards;
+    animation: introSimpleLogo 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0s forwards;
   }
   .intro-simple-line {
     width: 0;
@@ -185,7 +184,7 @@
     box-shadow: 0 0 12px var(--cyan);
     margin: 32px 0;
     opacity: 0;
-    animation: introSimpleLine 0.8s ease-out 1.6s forwards;
+    animation: introSimpleLine 0.7s ease-out 0.9s forwards;
   }
   .intro-simple-tagline {
     font-family: 'JetBrains Mono', monospace;
@@ -194,15 +193,14 @@
     color: rgba(255, 255, 255, 0.7);
     font-weight: 600;
     opacity: 0;
-    animation: introSimpleFade 0.9s ease-out 2.0s forwards;
+    animation: introSimpleFade 0.7s ease-out 1.2s forwards;
   }
   @keyframes introSimpleFade {
     0% { opacity: 0; transform: translateY(16px); }
     100% { opacity: 1; transform: translateY(0); }
   }
   @keyframes introSimpleLogo {
-    0% { opacity: 0; transform: scale(1.15); filter: blur(16px) drop-shadow(0 0 30px rgba(6, 182, 212, 0.5)); }
-    60% { opacity: 1; filter: blur(0) drop-shadow(0 0 30px rgba(6, 182, 212, 0.5)); }
+    0% { opacity: 1; transform: scale(1.04); filter: blur(0) drop-shadow(0 0 30px rgba(6, 182, 212, 0.5)); }
     100% { opacity: 1; transform: scale(1); filter: blur(0) drop-shadow(0 0 30px rgba(6, 182, 212, 0.5)); }
   }
   @keyframes introSimpleLine {
@@ -2494,8 +2492,9 @@
   </div>
 </div>
 
-<audio id="bgm" loop preload="auto" playsinline webkit-playsinline>
+<audio id="bgm" loop preload="auto" playsinline webkit-playsinline x-webkit-airplay="allow">
   <source src="/promo-bgm.mp3" type="audio/mpeg">
+  <source src="/promo-bgm.ogg" type="audio/ogg">
 </audio>
 
 <button class="mute-toggle" id="muteToggle" onclick="toggleMute(event)">
@@ -4158,20 +4157,26 @@
     
     const bgm = document.getElementById('bgm');
     
-    // STEP 1: BGM 먼저 (사용자 클릭 직후)
+    // STEP 1: BGM 먼저 (사용자 클릭 직후 - 자동재생 정책상 클릭 컨텍스트에서 호출 필수)
     bgm.volume = 0.5;
     bgm.currentTime = 0;
     bgm.muted = false;
-    const playPromise = bgm.play();
-    if (playPromise !== undefined) {
-      playPromise.catch(err => {
-        bgm.muted = true;
-        bgm.play().then(() => {
-          const icon = document.getElementById('muteIcon');
-          if (icon) icon.textContent = '🔇';
-        }).catch(() => {});
-      });
+    bgm.load();
+    
+    function tryPlayBgm() {
+      const p = bgm.play();
+      if (p !== undefined) {
+        p.catch(err => {
+          // 자동재생 차단 시 음소거로 재생
+          bgm.muted = true;
+          bgm.play().then(() => {
+            const icon = document.getElementById('muteIcon');
+            if (icon) icon.textContent = '🔇';
+          }).catch(() => {});
+        });
+      }
     }
+    tryPlayBgm();
     
     // STEP 2: 시작 화면 숨기기
     document.getElementById('startScreen').classList.add('hidden');
@@ -4181,6 +4186,11 @@
     document.getElementById('muteToggle').classList.add('show');
     // STEP 5: 모든 애니메이션 강제 재시작 (promo와 동일)
     restartAllAnimations();
+    
+    // STEP 5.5: DOM 조작 후 BGM 한 번 더 확인 (멈췄으면 재시도)
+    setTimeout(() => {
+      if (bgm.paused && !bgm.muted) tryPlayBgm();
+    }, 100);
     
     // STEP 6: 풀스크린 (iOS 제외, promo와 동일 50ms)
     if (!IS_IPHONE) {
