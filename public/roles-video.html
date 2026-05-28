@@ -52,6 +52,15 @@
     flex-shrink: 0;
   }
   
+  /* 시작 전: 모든 애니메이션 일시정지 (0초 프레임에 멈춤) */
+  .stage * {
+    animation-play-state: paused !important;
+  }
+  /* 시작 후: 재생 */
+  .stage.playing * {
+    animation-play-state: running !important;
+  }
+  
   .video-wrapper { visibility: visible; }
   .video-wrapper.hidden { visibility: hidden; }
   
@@ -114,20 +123,19 @@
      [0-5s] 인트로
      ======================================== */
   .scene-intro {
-    animation: sceneFade 5s linear forwards;
+    animation: sceneFade 6s linear forwards;
     animation-delay: 0s;
   }
-  
-  .intro-bg {
+
+  /* ═══ 심플 인트로 (가벼움) ═══ */
+  .intro-simple-bg {
     position: absolute;
     inset: 0;
     background:
-      radial-gradient(circle at 50% 50%, rgba(6, 182, 212, 0.15), transparent 60%),
-      radial-gradient(circle at 20% 80%, rgba(139, 92, 246, 0.1), transparent 50%),
-      radial-gradient(circle at 80% 20%, rgba(231, 254, 85, 0.08), transparent 50%);
+      radial-gradient(ellipse at center, rgba(6, 182, 212, 0.12), transparent 60%),
+      radial-gradient(ellipse at 30% 70%, rgba(139, 92, 246, 0.08), transparent 55%);
   }
-  
-  .intro-content {
+  .intro-simple-content {
     position: absolute;
     inset: 0;
     display: flex;
@@ -137,100 +145,62 @@
     text-align: center;
     z-index: 10;
   }
-  
-  .intro-system-line {
-    position: absolute;
-    top: 80px;
-    left: 80px;
+  .intro-simple-eyebrow {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 18px;
-    color: var(--green);
-    text-shadow: 0 0 8px var(--green);
-    font-weight: 500;
-    letter-spacing: 2px;
-    opacity: 0;
-    animation: introBootText 0.4s ease-out 0.2s forwards;
-  }
-  
-  @keyframes introBootText {
-    0% { opacity: 0; transform: translateX(-20px); }
-    100% { opacity: 1; transform: translateX(0); }
-  }
-  
-  .intro-eyebrow {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 24px;
-    letter-spacing: 18px;
-    color: var(--cyan);
-    text-shadow: 0 0 20px var(--cyan);
-    margin-bottom: 32px;
-    font-weight: 700;
-    opacity: 0;
-    animation: introTextFade 1s ease-out 0.5s forwards;
-  }
-  
-  .intro-logo {
-    font-size: 280px;
-    font-weight: 900;
-    letter-spacing: -16px;
-    color: white;
-    line-height: 1;
-    margin-bottom: 32px;
-    text-shadow: 
-      0 0 40px rgba(6, 182, 212, 0.6),
-      0 0 80px rgba(6, 182, 212, 0.3);
-    opacity: 0;
-    animation: introLogoEnter 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.8s forwards;
-  }
-  
-  @keyframes introLogoEnter {
-    0% { opacity: 0; transform: scale(1.2); filter: blur(20px); letter-spacing: -8px; }
-    100% { opacity: 1; transform: scale(1); filter: blur(0); letter-spacing: -16px; }
-  }
-  
-  .intro-tagline {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 36px;
-    letter-spacing: 14px;
-    color: var(--green);
-    text-shadow: 0 0 16px var(--green);
-    font-weight: 800;
-    margin-bottom: 16px;
-    opacity: 0;
-    animation: introTextFade 1s ease-out 2s forwards;
-  }
-  
-  .intro-subtitle {
     font-size: 22px;
-    color: rgba(255, 255, 255, 0.5);
-    font-weight: 400;
-    letter-spacing: 4px;
+    letter-spacing: 12px;
+    color: var(--cyan);
+    text-shadow: 0 0 12px var(--cyan);
+    font-weight: 700;
+    margin-bottom: 36px;
     opacity: 0;
-    animation: introTextFade 1s ease-out 2.5s forwards;
+    animation: introSimpleFade 0.8s ease-out 0.4s forwards;
   }
-  
-  @keyframes introTextFade {
-    0% { opacity: 0; transform: translateY(20px); }
+  .intro-simple-logo {
+    font-size: 200px;
+    font-weight: 900;
+    letter-spacing: -8px;
+    line-height: 1;
+    margin: 0;
+    background: linear-gradient(135deg, #FFFFFF 0%, var(--cyan) 45%, var(--purple) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 30px rgba(6, 182, 212, 0.5));
+    opacity: 0;
+    animation: introSimpleLogo 1s cubic-bezier(0.16, 1, 0.3, 1) 0.9s forwards;
+  }
+  .intro-simple-line {
+    width: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--cyan), var(--purple), transparent);
+    box-shadow: 0 0 12px var(--cyan);
+    margin: 32px 0;
+    opacity: 0;
+    animation: introSimpleLine 0.8s ease-out 1.8s forwards;
+  }
+  .intro-simple-tagline {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 26px;
+    letter-spacing: 8px;
+    color: rgba(255, 255, 255, 0.7);
+    font-weight: 600;
+    opacity: 0;
+    animation: introSimpleFade 0.8s ease-out 2.2s forwards;
+  }
+  @keyframes introSimpleFade {
+    0% { opacity: 0; transform: translateY(16px); }
     100% { opacity: 1; transform: translateY(0); }
   }
-  
-  .intro-corner {
-    position: absolute;
-    width: 80px;
-    height: 80px;
-    pointer-events: none;
-    opacity: 0;
-    animation: cornerAppear 0.6s ease-out 1.5s forwards;
+  @keyframes introSimpleLogo {
+    0% { opacity: 0; transform: scale(0.85); filter: blur(12px) drop-shadow(0 0 30px rgba(6, 182, 212, 0.5)); }
+    100% { opacity: 1; transform: scale(1); filter: blur(0) drop-shadow(0 0 30px rgba(6, 182, 212, 0.5)); }
   }
-  .intro-corner.tl { top: 60px; left: 60px; border-top: 2px solid var(--cyan); border-left: 2px solid var(--cyan); box-shadow: -1px -1px 8px var(--cyan); }
-  .intro-corner.tr { top: 60px; right: 60px; border-top: 2px solid var(--cyan); border-right: 2px solid var(--cyan); box-shadow: 1px -1px 8px var(--cyan); }
-  .intro-corner.bl { bottom: 60px; left: 60px; border-bottom: 2px solid var(--cyan); border-left: 2px solid var(--cyan); box-shadow: -1px 1px 8px var(--cyan); }
-  .intro-corner.br { bottom: 60px; right: 60px; border-bottom: 2px solid var(--cyan); border-right: 2px solid var(--cyan); box-shadow: 1px 1px 8px var(--cyan); }
-  
-  @keyframes cornerAppear {
-    0% { opacity: 0; transform: scale(0.5); }
-    100% { opacity: 1; transform: scale(1); }
+  @keyframes introSimpleLine {
+    0% { width: 0; opacity: 0; }
+    100% { width: 280px; opacity: 1; }
   }
+
   
   /* ========================================
      ★★★ 직무 씬 - 카드 뒤집기 ★★★
@@ -927,13 +897,14 @@
     opacity: 0;
   }
   
-  .transition-fade.t1 { animation: fadeBlink 1.5s ease-in-out 11.0s forwards; }
-  .transition-fade.t2 { animation: fadeBlink 1.5s ease-in-out 18.0s forwards; }
-  .transition-fade.t3 { animation: fadeBlink 1.5s ease-in-out 25.0s forwards; }
-  .transition-fade.t4 { animation: fadeBlink 1.5s ease-in-out 32.0s forwards; }
-  .transition-fade.t5 { animation: fadeBlink 1.5s ease-in-out 39.0s forwards; }
-  .transition-fade.t6 { animation: fadeBlink 1.5s ease-in-out 46.0s forwards; }
-  .transition-fade.t7 { animation: fadeBlink 1.5s ease-in-out 53.0s forwards; }
+  .transition-fade.t0 { animation: fadeBlink 1.5s ease-in-out 6s forwards; }
+  .transition-fade.t1 { animation: fadeBlink 1.5s ease-in-out 14s forwards; }
+  .transition-fade.t2 { animation: fadeBlink 1.5s ease-in-out 21s forwards; }
+  .transition-fade.t3 { animation: fadeBlink 1.5s ease-in-out 28s forwards; }
+  .transition-fade.t4 { animation: fadeBlink 1.5s ease-in-out 35s forwards; }
+  .transition-fade.t5 { animation: fadeBlink 1.5s ease-in-out 42s forwards; }
+  .transition-fade.t6 { animation: fadeBlink 1.5s ease-in-out 49s forwards; }
+  .transition-fade.t7 { animation: fadeBlink 1.5s ease-in-out 56s forwards; }
   
   @keyframes fadeBlink {
     0% { opacity: 0; }
@@ -946,6 +917,9 @@
   /* ===========================================
      데이터 비 트랜지션
      =========================================== */
+  /* ===========================================
+     트랜지션 (가벼운 스캔 스윕 - 데이터비 대체)
+     =========================================== */
   .data-rain {
     position: absolute;
     inset: 0;
@@ -955,13 +929,14 @@
     opacity: 0;
   }
   
-  .data-rain.t1 { animation: rainAppear 1.5s ease-out 11.0s forwards; color: var(--cyan); }
-  .data-rain.t2 { animation: rainAppear 1.5s ease-out 18.0s forwards; color: var(--purple); }
-  .data-rain.t3 { animation: rainAppear 1.5s ease-out 25.0s forwards; color: var(--pink); }
-  .data-rain.t4 { animation: rainAppear 1.5s ease-out 32.0s forwards; color: var(--blue); }
-  .data-rain.t5 { animation: rainAppear 1.5s ease-out 39.0s forwards; color: var(--yellow); }
-  .data-rain.t6 { animation: rainAppear 1.5s ease-out 46.0s forwards; color: var(--orange); }
-  .data-rain.t7 { animation: rainAppear 1.5s ease-out 53.0s forwards; color: var(--green); }
+  .data-rain.t0 { animation: rainAppear 1.5s ease-out 6s forwards; color: var(--green); }
+  .data-rain.t1 { animation: rainAppear 1.5s ease-out 14s forwards; color: var(--cyan); }
+  .data-rain.t2 { animation: rainAppear 1.5s ease-out 21s forwards; color: var(--purple); }
+  .data-rain.t3 { animation: rainAppear 1.5s ease-out 28s forwards; color: var(--pink); }
+  .data-rain.t4 { animation: rainAppear 1.5s ease-out 35s forwards; color: var(--blue); }
+  .data-rain.t5 { animation: rainAppear 1.5s ease-out 42s forwards; color: var(--yellow); }
+  .data-rain.t6 { animation: rainAppear 1.5s ease-out 49s forwards; color: var(--orange); }
+  .data-rain.t7 { animation: rainAppear 1.5s ease-out 56s forwards; color: var(--green); }
   
   @keyframes rainAppear {
     0% { opacity: 0; }
@@ -970,31 +945,53 @@
     100% { opacity: 0; }
   }
   
-  .rain-column {
+  /* 가로 스캔 라인 스윕 (위→아래, 가벼움 - transform/opacity만) */
+  .rain-sweep {
     position: absolute;
-    top: -100px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 16px;
-    color: currentColor;
-    text-shadow: 0 0 8px currentColor;
-    line-height: 1.4;
-    font-weight: 700;
-    white-space: nowrap;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, currentColor, transparent);
+    opacity: 0;
     will-change: transform, opacity;
-    animation: rainFall 1.5s linear infinite;
+  }
+  .rain-sweep.s1 { top: 0; animation: rainSweepMove 1.5s ease-in-out forwards; }
+  
+  @keyframes rainSweepMove {
+    0% { opacity: 0; transform: translateY(-10vh); }
+    20% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(100vh); }
   }
   
-  @keyframes rainFall {
-    0% { 
-      transform: translateY(0);
-      opacity: 0;
-    }
-    10% { opacity: 1; }
-    90% { opacity: 1; }
-    100% { 
-      transform: translateY(120vh);
-      opacity: 0;
-    }
+  /* 각 트랜지션별 sweep/centerline 딜레이 */
+  .data-rain.t0 .rain-sweep, .data-rain.t0 .rain-centerline { animation-delay: 6s; }
+  .data-rain.t1 .rain-sweep, .data-rain.t1 .rain-centerline { animation-delay: 14s; }
+  .data-rain.t2 .rain-sweep, .data-rain.t2 .rain-centerline { animation-delay: 21s; }
+  .data-rain.t3 .rain-sweep, .data-rain.t3 .rain-centerline { animation-delay: 28s; }
+  .data-rain.t4 .rain-sweep, .data-rain.t4 .rain-centerline { animation-delay: 35s; }
+  .data-rain.t5 .rain-sweep, .data-rain.t5 .rain-centerline { animation-delay: 42s; }
+  .data-rain.t6 .rain-sweep, .data-rain.t6 .rain-centerline { animation-delay: 49s; }
+  .data-rain.t7 .rain-sweep, .data-rain.t7 .rain-centerline { animation-delay: 56s; }
+  
+  /* 중앙 가로 라인 (브랜드 라인) */
+  .rain-centerline {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, currentColor 30%, currentColor 70%, transparent);
+    opacity: 0;
+    will-change: transform, opacity;
+  }
+  .rain-centerline.c1 { animation: rainCenterPulse 1.5s ease-out forwards; }
+  
+  @keyframes rainCenterPulse {
+    0% { opacity: 0; transform: scaleX(0); }
+    25% { opacity: 0.8; transform: scaleX(1); }
+    75% { opacity: 0.8; transform: scaleX(1); }
+    100% { opacity: 0; transform: scaleX(0.6); }
   }
   
   /* 3. 로딩 컨테이너 */
@@ -1010,13 +1007,14 @@
     text-align: center;
   }
   
-  .transition-loader.t1 { animation: loaderShow 1.5s ease-out 11.0s forwards; color: var(--cyan); }
-  .transition-loader.t2 { animation: loaderShow 1.5s ease-out 18.0s forwards; color: var(--purple); }
-  .transition-loader.t3 { animation: loaderShow 1.5s ease-out 25.0s forwards; color: var(--pink); }
-  .transition-loader.t4 { animation: loaderShow 1.5s ease-out 32.0s forwards; color: var(--blue); }
-  .transition-loader.t5 { animation: loaderShow 1.5s ease-out 39.0s forwards; color: var(--yellow); }
-  .transition-loader.t6 { animation: loaderShow 1.5s ease-out 46.0s forwards; color: var(--orange); }
-  .transition-loader.t7 { animation: loaderShow 1.5s ease-out 53.0s forwards; color: var(--green); }
+  .transition-loader.t0 { animation: loaderShow 1.5s ease-out 6s forwards; color: var(--green); }
+  .transition-loader.t1 { animation: loaderShow 1.5s ease-out 14s forwards; color: var(--cyan); }
+  .transition-loader.t2 { animation: loaderShow 1.5s ease-out 21s forwards; color: var(--purple); }
+  .transition-loader.t3 { animation: loaderShow 1.5s ease-out 28s forwards; color: var(--pink); }
+  .transition-loader.t4 { animation: loaderShow 1.5s ease-out 35s forwards; color: var(--blue); }
+  .transition-loader.t5 { animation: loaderShow 1.5s ease-out 42s forwards; color: var(--yellow); }
+  .transition-loader.t6 { animation: loaderShow 1.5s ease-out 49s forwards; color: var(--orange); }
+  .transition-loader.t7 { animation: loaderShow 1.5s ease-out 56s forwards; color: var(--green); }
   
   @keyframes loaderShow {
     0% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
@@ -1096,13 +1094,14 @@
     transform-origin: left;
   }
   
-  .loader-bar-fill.t1 { animation: barFill 1.0s ease-out 11.2s forwards; }
-  .loader-bar-fill.t2 { animation: barFill 1.0s ease-out 18.2s forwards; }
-  .loader-bar-fill.t3 { animation: barFill 1.0s ease-out 25.2s forwards; }
-  .loader-bar-fill.t4 { animation: barFill 1.0s ease-out 32.2s forwards; }
-  .loader-bar-fill.t5 { animation: barFill 1.0s ease-out 39.2s forwards; }
-  .loader-bar-fill.t6 { animation: barFill 1.0s ease-out 46.2s forwards; }
-  .loader-bar-fill.t7 { animation: barFill 1.0s ease-out 53.2s forwards; }
+  .loader-bar-fill.t0 { animation: barFill 1.0s ease-out 6.2s forwards; }
+  .loader-bar-fill.t1 { animation: barFill 1.0s ease-out 14.2s forwards; }
+  .loader-bar-fill.t2 { animation: barFill 1.0s ease-out 21.2s forwards; }
+  .loader-bar-fill.t3 { animation: barFill 1.0s ease-out 28.2s forwards; }
+  .loader-bar-fill.t4 { animation: barFill 1.0s ease-out 35.2s forwards; }
+  .loader-bar-fill.t5 { animation: barFill 1.0s ease-out 42.2s forwards; }
+  .loader-bar-fill.t6 { animation: barFill 1.0s ease-out 49.2s forwards; }
+  .loader-bar-fill.t7 { animation: barFill 1.0s ease-out 56.2s forwards; }
   
   @keyframes barFill {
     to { transform: scaleX(1); }
@@ -1153,13 +1152,14 @@
     top: 0;
   }
   
-  .transition-scanline.t1 { animation: scanlineFlash 1.5s linear 11.0s forwards; color: var(--cyan); }
-  .transition-scanline.t2 { animation: scanlineFlash 1.5s linear 18.0s forwards; color: var(--purple); }
-  .transition-scanline.t3 { animation: scanlineFlash 1.5s linear 25.0s forwards; color: var(--pink); }
-  .transition-scanline.t4 { animation: scanlineFlash 1.5s linear 32.0s forwards; color: var(--blue); }
-  .transition-scanline.t5 { animation: scanlineFlash 1.5s linear 39.0s forwards; color: var(--yellow); }
-  .transition-scanline.t6 { animation: scanlineFlash 1.5s linear 46.0s forwards; color: var(--orange); }
-  .transition-scanline.t7 { animation: scanlineFlash 1.5s linear 53.0s forwards; color: var(--green); }
+  .transition-scanline.t0 { animation: scanlineFlash 1.5s linear 6s forwards; color: var(--green); }
+  .transition-scanline.t1 { animation: scanlineFlash 1.5s linear 14s forwards; color: var(--cyan); }
+  .transition-scanline.t2 { animation: scanlineFlash 1.5s linear 21s forwards; color: var(--purple); }
+  .transition-scanline.t3 { animation: scanlineFlash 1.5s linear 28s forwards; color: var(--pink); }
+  .transition-scanline.t4 { animation: scanlineFlash 1.5s linear 35s forwards; color: var(--blue); }
+  .transition-scanline.t5 { animation: scanlineFlash 1.5s linear 42s forwards; color: var(--yellow); }
+  .transition-scanline.t6 { animation: scanlineFlash 1.5s linear 49s forwards; color: var(--orange); }
+  .transition-scanline.t7 { animation: scanlineFlash 1.5s linear 56s forwards; color: var(--green); }
   
   @keyframes scanlineFlash {
     0% { opacity: 0; top: 0; }
@@ -1191,68 +1191,70 @@
   
   /* 슬라이드 인 (왼쪽→중앙) + 글리치 → 슬라이드 아웃 (중앙→오른쪽) + 글리치 */
   @keyframes cardSlideAndGlitch {
-    /* 0-0.5초: 슬라이드 인 + 글리치 */
+    /* 0-7%: 임팩트 등장 (줌인 + 살짝 회전) */
     0% { 
-      transform: translateX(-100vw) scale(0.8); 
+      transform: translateX(-60%) scale(0.6) rotate(-8deg); 
       opacity: 0;
-      filter: blur(3px);
     }
-    3% { 
-      transform: translateX(-30%) scale(0.95);
-      opacity: 0.5;
-      filter: blur(2px);
-    }
-    5% { 
-      transform: translateX(10%) scale(1.02);
-      opacity: 0.8;
-      filter: blur(1px);
+    4% { 
+      transform: translateX(8%) scale(1.08) rotate(2deg);
+      opacity: 1;
     }
     6% { 
-      transform: translateX(-5%) scale(1);
+      transform: translateX(-2%) scale(0.98) rotate(-1deg);
       opacity: 1;
-      filter: blur(0);
     }
     7% { 
-      transform: translateX(0) scale(1);
+      transform: translateX(0) scale(1) rotate(0deg);
       opacity: 1;
-      filter: blur(0);
     }
     
-    /* 7-78%: 정상 표시 (0.5초 ~ 5.5초까지, 5초간 표시) */
+    /* 7-78%: 정상 표시 */
     78% { 
-      transform: translateX(0) scale(1);
+      transform: translateX(0) scale(1) rotate(0deg);
       opacity: 1;
-      filter: blur(0);
     }
     
-    /* 78-85%: 슬라이드 아웃 + 글리치 (5.5초 ~ 6.0초) */
-    79% { 
-      transform: translateX(5%) scale(1);
-      opacity: 1;
-      filter: blur(0);
-    }
+    /* 78-85%: 임팩트 퇴장 (줌아웃 + 회전) */
     80% { 
-      transform: translateX(-3%) scale(0.98);
-      opacity: 0.9;
-      filter: blur(1px);
-    }
-    83% { 
-      transform: translateX(40%) scale(0.92);
-      opacity: 0.5;
-      filter: blur(2px);
+      transform: translateX(2%) scale(1.04) rotate(1deg);
+      opacity: 1;
     }
     85% { 
-      transform: translateX(100vw) scale(0.8);
+      transform: translateX(60%) scale(0.6) rotate(8deg);
       opacity: 0;
-      filter: blur(3px);
     }
     
-    /* 85-100%: 완전히 사라진 상태 유지 (6.0초 ~ 7.0초, 전환에 1초 사용) */
+    /* 85-100%: 사라진 상태 유지 */
     100% { 
-      transform: translateX(100vw) scale(0.8);
+      transform: translateX(60%) scale(0.6) rotate(8deg);
       opacity: 0;
-      filter: blur(3px);
     }
+  }
+  
+  /* 카드 등장 시 펄스 글로우 (임팩트) */
+  .card-container::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 28px;
+    pointer-events: none;
+    z-index: 40;
+    box-shadow: 0 0 0 2px currentColor, 0 0 30px currentColor;
+    opacity: 0;
+  }
+  .scene-ceo .card-container { color: var(--green); }
+  .scene-analyst .card-container { color: var(--cyan); }
+  .scene-brand .card-container { color: var(--purple); }
+  .scene-customer .card-container { color: var(--pink); }
+  .scene-global .card-container { color: var(--blue); }
+  .scene-marketer .card-container { color: var(--yellow); }
+  .scene-compliance .card-container { color: var(--orange); }
+  @keyframes cardPulseGlow {
+    0%, 3% { opacity: 0; }
+    5% { opacity: 0.9; }
+    12% { opacity: 0; }
+    100% { opacity: 0; }
   }
   
   /* RGB 분리 글리치 효과 (카드 그림자) */
@@ -1297,31 +1299,29 @@
     inset: 0;
     border-radius: 24px;
     overflow: hidden;
-    will-change: clip-path;
+  }
+  
+  /* 스캔 효과 제거 (버퍼링 원인) - 뒷면/레이저/격자 숨김 */
+  .scan-grid, .scan-laser, .card-back {
+    display: none !important;
   }
   
   /* 뒷면 콘텐츠 - 스캔과 함께 위에서 아래로 사라짐 */
   .card-back {
-    animation: laserScanHide 7s ease-in-out forwards;
+    /* 숨김 처리됨 (위 display:none) */
   }
   
-  /* 앞면 콘텐츠 - 스캔과 함께 위에서 아래로 나타남 */
+  /* 앞면 콘텐츠 - 항상 표시 (스캔 제거) */
   .card-front {
-    animation: laserScanReveal 7s ease-in-out forwards;
+    clip-path: none;
   }
   
   @keyframes laserScanHide {
-    0%   { clip-path: inset(0 0 0 0); }
-    14%  { clip-path: inset(0 0 0 0); }              /* 1초까지 완전 표시 */
-    36%  { clip-path: inset(100% 0 0 0); }           /* 2.5초까지 위에서 아래로 사라짐 */
-    100% { clip-path: inset(100% 0 0 0); }
+    0%, 100% { opacity: 1; }
   }
   
   @keyframes laserScanReveal {
-    0%   { clip-path: inset(0 0 100% 0); }           /* 처음엔 안 보임 */
-    14%  { clip-path: inset(0 0 100% 0); }
-    36%  { clip-path: inset(0 0 0 0); }              /* 위에서 아래로 펼쳐짐 */
-    100% { clip-path: inset(0 0 0 0); }
+    0%, 100% { opacity: 1; }
   }
   
   /* 레이저 바 */
@@ -1338,11 +1338,11 @@
       transparent);
     box-shadow: 
       0 0 20px currentColor,
-      0 0 40px currentColor,
-      0 0 60px currentColor;
+      0 0 40px currentColor;
     z-index: 100;
     opacity: 0;
     pointer-events: none;
+    will-change: transform, opacity;
     animation: laserBarMove 7s ease-in-out forwards;
   }
   
@@ -1370,12 +1370,12 @@
   }
   
   @keyframes laserBarMove {
-    0%   { top: 0; opacity: 0; }
-    13%  { top: 0; opacity: 0; }
-    15%  { top: 0; opacity: 1; }
-    35%  { top: calc(100% - 6px); opacity: 1; }
-    38%  { top: calc(100% - 6px); opacity: 0; }
-    100% { top: calc(100% - 6px); opacity: 0; }
+    0%   { transform: translateY(0); opacity: 0; }
+    12%  { transform: translateY(0); opacity: 0; }
+    14%  { transform: translateY(0); opacity: 1; }
+    36%  { transform: translateY(794px); opacity: 1; }
+    39%  { transform: translateY(794px); opacity: 0; }
+    100% { transform: translateY(794px); opacity: 0; }
   }
   
   /* 스캔 라인 효과 (배경 격자) */
@@ -1924,60 +1924,67 @@
   .scene-compliance .hud-system .status { color: var(--orange); }
   
   /* 직무별 씬 타이밍 + 카드 애니메이션 */
-  .scene-ceo { animation: sceneFade 7s linear forwards; animation-delay: 5s; }
-  .scene-ceo .card-container { animation: cardSlideAndGlitch 7s ease-in-out 5s forwards; }
-  .scene-ceo .card-back { animation: laserScanHide 7s ease-in-out 5s forwards; }
-  .scene-ceo .card-front { animation: laserScanReveal 7s ease-in-out 5s forwards; }
-  .scene-ceo .scan-laser { animation: laserBarMove 7s ease-in-out 5s forwards; }
-  .scene-ceo .scan-grid { animation: scanGridShow 7s ease-in-out 5s forwards; }
+  .scene-ceo { animation: sceneFade 7s linear forwards; animation-delay: 8s; }
+  .scene-ceo .card-container { animation: cardSlideAndGlitch 7s ease-in-out 8s forwards; }
+  .scene-ceo .card-container::after { animation: cardPulseGlow 7s ease-in-out 8s forwards; }
+  .scene-ceo .card-back { animation: laserScanHide 7s ease-in-out 8s forwards; }
+  .scene-ceo .card-front { animation: laserScanReveal 7s ease-in-out 8s forwards; }
+  .scene-ceo .scan-laser { animation: laserBarMove 7s ease-in-out 8s forwards; }
+  .scene-ceo .scan-grid { animation: scanGridShow 7s ease-in-out 8s forwards; }
   .scene-ceo .role-scene-bg { background: radial-gradient(ellipse at center, rgba(231, 254, 85, 0.08), transparent 60%); }
   
-  .scene-analyst { animation: sceneFade 7s linear forwards; animation-delay: 12s; }
-  .scene-analyst .card-container { animation: cardSlideAndGlitch 7s ease-in-out 12s forwards; }
-  .scene-analyst .card-back { animation: laserScanHide 7s ease-in-out 12s forwards; }
-  .scene-analyst .card-front { animation: laserScanReveal 7s ease-in-out 12s forwards; }
-  .scene-analyst .scan-laser { animation: laserBarMove 7s ease-in-out 12s forwards; }
-  .scene-analyst .scan-grid { animation: scanGridShow 7s ease-in-out 12s forwards; }
+  .scene-analyst { animation: sceneFade 7s linear forwards; animation-delay: 15s; }
+  .scene-analyst .card-container { animation: cardSlideAndGlitch 7s ease-in-out 15s forwards; }
+  .scene-analyst .card-container::after { animation: cardPulseGlow 7s ease-in-out 15s forwards; }
+  .scene-analyst .card-back { animation: laserScanHide 7s ease-in-out 15s forwards; }
+  .scene-analyst .card-front { animation: laserScanReveal 7s ease-in-out 15s forwards; }
+  .scene-analyst .scan-laser { animation: laserBarMove 7s ease-in-out 15s forwards; }
+  .scene-analyst .scan-grid { animation: scanGridShow 7s ease-in-out 15s forwards; }
   .scene-analyst .role-scene-bg { background: radial-gradient(ellipse at center, rgba(6, 182, 212, 0.08), transparent 60%); }
   
-  .scene-brand { animation: sceneFade 7s linear forwards; animation-delay: 19s; }
-  .scene-brand .card-container { animation: cardSlideAndGlitch 7s ease-in-out 19s forwards; }
-  .scene-brand .card-back { animation: laserScanHide 7s ease-in-out 19s forwards; }
-  .scene-brand .card-front { animation: laserScanReveal 7s ease-in-out 19s forwards; }
-  .scene-brand .scan-laser { animation: laserBarMove 7s ease-in-out 19s forwards; }
-  .scene-brand .scan-grid { animation: scanGridShow 7s ease-in-out 19s forwards; }
+  .scene-brand { animation: sceneFade 7s linear forwards; animation-delay: 22s; }
+  .scene-brand .card-container { animation: cardSlideAndGlitch 7s ease-in-out 22s forwards; }
+  .scene-brand .card-container::after { animation: cardPulseGlow 7s ease-in-out 22s forwards; }
+  .scene-brand .card-back { animation: laserScanHide 7s ease-in-out 22s forwards; }
+  .scene-brand .card-front { animation: laserScanReveal 7s ease-in-out 22s forwards; }
+  .scene-brand .scan-laser { animation: laserBarMove 7s ease-in-out 22s forwards; }
+  .scene-brand .scan-grid { animation: scanGridShow 7s ease-in-out 22s forwards; }
   .scene-brand .role-scene-bg { background: radial-gradient(ellipse at center, rgba(139, 92, 246, 0.08), transparent 60%); }
   
-  .scene-customer { animation: sceneFade 7s linear forwards; animation-delay: 26s; }
-  .scene-customer .card-container { animation: cardSlideAndGlitch 7s ease-in-out 26s forwards; }
-  .scene-customer .card-back { animation: laserScanHide 7s ease-in-out 26s forwards; }
-  .scene-customer .card-front { animation: laserScanReveal 7s ease-in-out 26s forwards; }
-  .scene-customer .scan-laser { animation: laserBarMove 7s ease-in-out 26s forwards; }
-  .scene-customer .scan-grid { animation: scanGridShow 7s ease-in-out 26s forwards; }
+  .scene-customer { animation: sceneFade 7s linear forwards; animation-delay: 29s; }
+  .scene-customer .card-container { animation: cardSlideAndGlitch 7s ease-in-out 29s forwards; }
+  .scene-customer .card-container::after { animation: cardPulseGlow 7s ease-in-out 29s forwards; }
+  .scene-customer .card-back { animation: laserScanHide 7s ease-in-out 29s forwards; }
+  .scene-customer .card-front { animation: laserScanReveal 7s ease-in-out 29s forwards; }
+  .scene-customer .scan-laser { animation: laserBarMove 7s ease-in-out 29s forwards; }
+  .scene-customer .scan-grid { animation: scanGridShow 7s ease-in-out 29s forwards; }
   .scene-customer .role-scene-bg { background: radial-gradient(ellipse at center, rgba(255, 111, 181, 0.08), transparent 60%); }
   
-  .scene-global { animation: sceneFade 7s linear forwards; animation-delay: 33s; }
-  .scene-global .card-container { animation: cardSlideAndGlitch 7s ease-in-out 33s forwards; }
-  .scene-global .card-back { animation: laserScanHide 7s ease-in-out 33s forwards; }
-  .scene-global .card-front { animation: laserScanReveal 7s ease-in-out 33s forwards; }
-  .scene-global .scan-laser { animation: laserBarMove 7s ease-in-out 33s forwards; }
-  .scene-global .scan-grid { animation: scanGridShow 7s ease-in-out 33s forwards; }
+  .scene-global { animation: sceneFade 7s linear forwards; animation-delay: 36s; }
+  .scene-global .card-container { animation: cardSlideAndGlitch 7s ease-in-out 36s forwards; }
+  .scene-global .card-container::after { animation: cardPulseGlow 7s ease-in-out 36s forwards; }
+  .scene-global .card-back { animation: laserScanHide 7s ease-in-out 36s forwards; }
+  .scene-global .card-front { animation: laserScanReveal 7s ease-in-out 36s forwards; }
+  .scene-global .scan-laser { animation: laserBarMove 7s ease-in-out 36s forwards; }
+  .scene-global .scan-grid { animation: scanGridShow 7s ease-in-out 36s forwards; }
   .scene-global .role-scene-bg { background: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.08), transparent 60%); }
   
-  .scene-marketer { animation: sceneFade 7s linear forwards; animation-delay: 40s; }
-  .scene-marketer .card-container { animation: cardSlideAndGlitch 7s ease-in-out 40s forwards; }
-  .scene-marketer .card-back { animation: laserScanHide 7s ease-in-out 40s forwards; }
-  .scene-marketer .card-front { animation: laserScanReveal 7s ease-in-out 40s forwards; }
-  .scene-marketer .scan-laser { animation: laserBarMove 7s ease-in-out 40s forwards; }
-  .scene-marketer .scan-grid { animation: scanGridShow 7s ease-in-out 40s forwards; }
+  .scene-marketer { animation: sceneFade 7s linear forwards; animation-delay: 43s; }
+  .scene-marketer .card-container { animation: cardSlideAndGlitch 7s ease-in-out 43s forwards; }
+  .scene-marketer .card-container::after { animation: cardPulseGlow 7s ease-in-out 43s forwards; }
+  .scene-marketer .card-back { animation: laserScanHide 7s ease-in-out 43s forwards; }
+  .scene-marketer .card-front { animation: laserScanReveal 7s ease-in-out 43s forwards; }
+  .scene-marketer .scan-laser { animation: laserBarMove 7s ease-in-out 43s forwards; }
+  .scene-marketer .scan-grid { animation: scanGridShow 7s ease-in-out 43s forwards; }
   .scene-marketer .role-scene-bg { background: radial-gradient(ellipse at center, rgba(255, 199, 44, 0.08), transparent 60%); }
   
-  .scene-compliance { animation: sceneFade 7s linear forwards; animation-delay: 47s; }
-  .scene-compliance .card-container { animation: cardSlideAndGlitch 7s ease-in-out 47s forwards; }
-  .scene-compliance .card-back { animation: laserScanHide 7s ease-in-out 47s forwards; }
-  .scene-compliance .card-front { animation: laserScanReveal 7s ease-in-out 47s forwards; }
-  .scene-compliance .scan-laser { animation: laserBarMove 7s ease-in-out 47s forwards; }
-  .scene-compliance .scan-grid { animation: scanGridShow 7s ease-in-out 47s forwards; }
+  .scene-compliance { animation: sceneFade 7s linear forwards; animation-delay: 50s; }
+  .scene-compliance .card-container { animation: cardSlideAndGlitch 7s ease-in-out 50s forwards; }
+  .scene-compliance .card-container::after { animation: cardPulseGlow 7s ease-in-out 50s forwards; }
+  .scene-compliance .card-back { animation: laserScanHide 7s ease-in-out 50s forwards; }
+  .scene-compliance .card-front { animation: laserScanReveal 7s ease-in-out 50s forwards; }
+  .scene-compliance .scan-laser { animation: laserBarMove 7s ease-in-out 50s forwards; }
+  .scene-compliance .scan-grid { animation: scanGridShow 7s ease-in-out 50s forwards; }
   .scene-compliance .role-scene-bg { background: radial-gradient(ellipse at center, rgba(255, 103, 31, 0.08), transparent 60%); }
   
   /* ========================================
@@ -1985,7 +1992,7 @@
      ======================================== */
   .scene-closing {
     animation: sceneFade 6s linear forwards;
-    animation-delay: 54s;
+    animation-delay: 57s;
   }
   
   .closing-bg {
@@ -2011,10 +2018,31 @@
     letter-spacing: 16px;
     color: var(--cyan);
     text-shadow: 0 0 16px var(--cyan);
-    margin-bottom: 56px;
+    margin-bottom: 20px;
     font-weight: 700;
     opacity: 0;
     animation: introTextFade 1s ease-out 0.3s forwards;
+  }
+  
+  /* 메인 카피 (카드 위 멋진 문구) */
+  .closing-headline {
+    font-size: 64px;
+    font-weight: 900;
+    letter-spacing: -1px;
+    line-height: 1.2;
+    text-align: center;
+    margin-bottom: 48px;
+    background: linear-gradient(135deg, #FFFFFF 0%, var(--cyan) 40%, var(--purple) 75%, var(--pink) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 24px rgba(6, 182, 212, 0.5));
+    opacity: 0;
+    animation: closingHeadlineEnter 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.6s forwards;
+  }
+  @keyframes closingHeadlineEnter {
+    0% { opacity: 0; transform: translateY(24px) scale(0.96); filter: blur(8px) drop-shadow(0 0 24px rgba(6, 182, 212, 0.5)); }
+    100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0) drop-shadow(0 0 24px rgba(6, 182, 212, 0.5)); }
   }
   
   .closing-circle {
@@ -2655,19 +2683,12 @@
 
   <!-- [0-5s] 인트로 -->
   <div class="scene scene-intro">
-    <div class="intro-bg"></div>
-    <div class="intro-system-line">&gt; SYSTEM_INIT: TEAM_INTRODUCTION.exe</div>
-    
-    <div class="intro-corner tl"></div>
-    <div class="intro-corner tr"></div>
-    <div class="intro-corner bl"></div>
-    <div class="intro-corner br"></div>
-    
-    <div class="intro-content">
-      <p class="intro-eyebrow">▎ MEET YOUR TEAM ▎</p>
-      <h1 class="intro-logo">SIGNAL</h1>
-      <p class="intro-tagline">7 ROLES · 1 TEAM</p>
-      <p class="intro-subtitle">당신의 직무를 만나세요</p>
+    <div class="intro-simple-bg"></div>
+    <div class="intro-simple-content">
+      <p class="intro-simple-eyebrow">CONNECTAI PRESENTS</p>
+      <h1 class="intro-simple-logo">SIGNAL</h1>
+      <div class="intro-simple-line"></div>
+      <p class="intro-simple-tagline">DIGITAL TRADE CARDS</p>
     </div>
   </div>
 
@@ -2682,12 +2703,12 @@
     
     <!-- ✨ 카드 양옆 키워드 (레이저 스캔 후 등장) -->
     <div class="side-keywords">
-      <div class="side-keyword left" style="top: 24%; font-size: 40px; animation: sideKeywordLeft 7s ease-in-out 5s forwards;">LEADERSHIP</div>
-      <div class="side-keyword left" style="top: 40%; font-size: 30px; animation: sideKeywordLeft 7s ease-in-out 5.2s forwards;">VISION</div>
-      <div class="side-keyword left" style="top: 54%; font-size: 26px; animation: sideKeywordLeft 7s ease-in-out 5.4s forwards;">DECISION</div>
-      <div class="side-keyword right" style="top: 28%; font-size: 38px; animation: sideKeywordRight 7s ease-in-out 5.3s forwards;">STRATEGY</div>
-      <div class="side-keyword right" style="top: 44%; font-size: 28px; animation: sideKeywordRight 7s ease-in-out 5.5s forwards;">GROWTH</div>
-      <div class="side-keyword right" style="top: 58%; font-size: 24px; animation: sideKeywordRight 7s ease-in-out 5.7s forwards;">IMPACT</div>
+      <div class="side-keyword left" style="top: 24%; font-size: 40px; animation: sideKeywordLeft 7s ease-in-out 8s forwards;">LEADERSHIP</div>
+      <div class="side-keyword left" style="top: 40%; font-size: 30px; animation: sideKeywordLeft 7s ease-in-out 8.2s forwards;">VISION</div>
+      <div class="side-keyword left" style="top: 54%; font-size: 26px; animation: sideKeywordLeft 7s ease-in-out 8.4s forwards;">DECISION</div>
+      <div class="side-keyword right" style="top: 28%; font-size: 38px; animation: sideKeywordRight 7s ease-in-out 8.3s forwards;">STRATEGY</div>
+      <div class="side-keyword right" style="top: 44%; font-size: 28px; animation: sideKeywordRight 7s ease-in-out 8.5s forwards;">GROWTH</div>
+      <div class="side-keyword right" style="top: 58%; font-size: 24px; animation: sideKeywordRight 7s ease-in-out 8.7s forwards;">IMPACT</div>
     </div>
     
     <div class="hud-header">
@@ -2772,32 +2793,32 @@
             <div class="skill-row">
               <span class="skill-name">의사결정</span>
               <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 7.5s"></div>
-                <div class="skill-bar filled" style="animation-delay: 7.6s"></div>
-                <div class="skill-bar filled" style="animation-delay: 7.7s"></div>
-                <div class="skill-bar filled" style="animation-delay: 7.8s"></div>
-                <div class="skill-bar filled" style="animation-delay: 7.9s"></div>
+                <div class="skill-bar filled" style="animation-delay: 10.5s"></div>
+                <div class="skill-bar filled" style="animation-delay: 10.6s"></div>
+                <div class="skill-bar filled" style="animation-delay: 10.7s"></div>
+                <div class="skill-bar filled" style="animation-delay: 10.8s"></div>
+                <div class="skill-bar filled" style="animation-delay: 10.9s"></div>
               </div>
               <span class="skill-value">5</span>
             </div>
             <div class="skill-row">
               <span class="skill-name">통솔력</span>
               <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 7.7s"></div>
-                <div class="skill-bar filled" style="animation-delay: 7.8s"></div>
-                <div class="skill-bar filled" style="animation-delay: 7.9s"></div>
-                <div class="skill-bar filled" style="animation-delay: 8.0s"></div>
-                <div class="skill-bar filled" style="animation-delay: 8.1s"></div>
+                <div class="skill-bar filled" style="animation-delay: 10.7s"></div>
+                <div class="skill-bar filled" style="animation-delay: 10.8s"></div>
+                <div class="skill-bar filled" style="animation-delay: 10.9s"></div>
+                <div class="skill-bar filled" style="animation-delay: 11s"></div>
+                <div class="skill-bar filled" style="animation-delay: 11.1s"></div>
               </div>
               <span class="skill-value">5</span>
             </div>
             <div class="skill-row">
               <span class="skill-name">비전</span>
               <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 7.9s"></div>
-                <div class="skill-bar filled" style="animation-delay: 8.0s"></div>
-                <div class="skill-bar filled" style="animation-delay: 8.1s"></div>
-                <div class="skill-bar filled" style="animation-delay: 8.2s"></div>
+                <div class="skill-bar filled" style="animation-delay: 10.9s"></div>
+                <div class="skill-bar filled" style="animation-delay: 11s"></div>
+                <div class="skill-bar filled" style="animation-delay: 11.1s"></div>
+                <div class="skill-bar filled" style="animation-delay: 11.2s"></div>
                 <div class="skill-bar"></div>
               </div>
               <span class="skill-value">4</span>
@@ -2805,10 +2826,10 @@
             <div class="skill-row">
               <span class="skill-name">협상력</span>
               <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 8.1s"></div>
-                <div class="skill-bar filled" style="animation-delay: 8.2s"></div>
-                <div class="skill-bar filled" style="animation-delay: 8.3s"></div>
-                <div class="skill-bar filled" style="animation-delay: 8.4s"></div>
+                <div class="skill-bar filled" style="animation-delay: 11.1s"></div>
+                <div class="skill-bar filled" style="animation-delay: 11.2s"></div>
+                <div class="skill-bar filled" style="animation-delay: 11.3s"></div>
+                <div class="skill-bar filled" style="animation-delay: 11.4s"></div>
                 <div class="skill-bar"></div>
               </div>
               <span class="skill-value">4</span>
@@ -2877,12 +2898,12 @@
       </div>
     </div>
     <div class="side-keywords">
-      <div class="side-keyword left" style="top: 24%; font-size: 38px; animation: sideKeywordLeft 7s ease-in-out 12s forwards;">DATA</div>
-      <div class="side-keyword left" style="top: 40%; font-size: 28px; animation: sideKeywordLeft 7s ease-in-out 12.2s forwards;">INSIGHT</div>
-      <div class="side-keyword left" style="top: 54%; font-size: 24px; animation: sideKeywordLeft 7s ease-in-out 12.4s forwards;">TREND</div>
-      <div class="side-keyword right" style="top: 28%; font-size: 36px; animation: sideKeywordRight 7s ease-in-out 12.3s forwards;">ANALYSIS</div>
-      <div class="side-keyword right" style="top: 44%; font-size: 26px; animation: sideKeywordRight 7s ease-in-out 12.5s forwards;">FORECAST</div>
-      <div class="side-keyword right" style="top: 58%; font-size: 24px; animation: sideKeywordRight 7s ease-in-out 12.7s forwards;">METRICS</div>
+      <div class="side-keyword left" style="top: 24%; font-size: 38px; animation: sideKeywordLeft 7s ease-in-out 15s forwards;">DATA</div>
+      <div class="side-keyword left" style="top: 40%; font-size: 28px; animation: sideKeywordLeft 7s ease-in-out 15.2s forwards;">INSIGHT</div>
+      <div class="side-keyword left" style="top: 54%; font-size: 24px; animation: sideKeywordLeft 7s ease-in-out 15.4s forwards;">TREND</div>
+      <div class="side-keyword right" style="top: 28%; font-size: 36px; animation: sideKeywordRight 7s ease-in-out 15.3s forwards;">ANALYSIS</div>
+      <div class="side-keyword right" style="top: 44%; font-size: 26px; animation: sideKeywordRight 7s ease-in-out 15.5s forwards;">FORECAST</div>
+      <div class="side-keyword right" style="top: 58%; font-size: 24px; animation: sideKeywordRight 7s ease-in-out 15.7s forwards;">METRICS</div>
     </div>
     
     <div class="hud-header">
@@ -2965,32 +2986,32 @@
             <div class="skill-row">
               <span class="skill-name">데이터 분석</span>
               <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 14.5s"></div>
-                <div class="skill-bar filled" style="animation-delay: 14.6s"></div>
-                <div class="skill-bar filled" style="animation-delay: 14.7s"></div>
-                <div class="skill-bar filled" style="animation-delay: 14.8s"></div>
-                <div class="skill-bar filled" style="animation-delay: 14.9s"></div>
+                <div class="skill-bar filled" style="animation-delay: 17.5s"></div>
+                <div class="skill-bar filled" style="animation-delay: 17.6s"></div>
+                <div class="skill-bar filled" style="animation-delay: 17.7s"></div>
+                <div class="skill-bar filled" style="animation-delay: 17.8s"></div>
+                <div class="skill-bar filled" style="animation-delay: 17.9s"></div>
               </div>
               <span class="skill-value">5</span>
             </div>
             <div class="skill-row">
               <span class="skill-name">시장 조사</span>
               <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 14.7s"></div>
-                <div class="skill-bar filled" style="animation-delay: 14.8s"></div>
-                <div class="skill-bar filled" style="animation-delay: 14.9s"></div>
-                <div class="skill-bar filled" style="animation-delay: 15.0s"></div>
-                <div class="skill-bar filled" style="animation-delay: 15.1s"></div>
+                <div class="skill-bar filled" style="animation-delay: 17.7s"></div>
+                <div class="skill-bar filled" style="animation-delay: 17.8s"></div>
+                <div class="skill-bar filled" style="animation-delay: 17.9s"></div>
+                <div class="skill-bar filled" style="animation-delay: 18s"></div>
+                <div class="skill-bar filled" style="animation-delay: 18.1s"></div>
               </div>
               <span class="skill-value">5</span>
             </div>
             <div class="skill-row">
               <span class="skill-name">통계</span>
               <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 14.9s"></div>
-                <div class="skill-bar filled" style="animation-delay: 15.0s"></div>
-                <div class="skill-bar filled" style="animation-delay: 15.1s"></div>
-                <div class="skill-bar filled" style="animation-delay: 15.2s"></div>
+                <div class="skill-bar filled" style="animation-delay: 17.9s"></div>
+                <div class="skill-bar filled" style="animation-delay: 18s"></div>
+                <div class="skill-bar filled" style="animation-delay: 18.1s"></div>
+                <div class="skill-bar filled" style="animation-delay: 18.2s"></div>
                 <div class="skill-bar"></div>
               </div>
               <span class="skill-value">4</span>
@@ -2998,10 +3019,10 @@
             <div class="skill-row">
               <span class="skill-name">예측력</span>
               <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 15.1s"></div>
-                <div class="skill-bar filled" style="animation-delay: 15.2s"></div>
-                <div class="skill-bar filled" style="animation-delay: 15.3s"></div>
-                <div class="skill-bar filled" style="animation-delay: 15.4s"></div>
+                <div class="skill-bar filled" style="animation-delay: 18.1s"></div>
+                <div class="skill-bar filled" style="animation-delay: 18.2s"></div>
+                <div class="skill-bar filled" style="animation-delay: 18.3s"></div>
+                <div class="skill-bar filled" style="animation-delay: 18.4s"></div>
                 <div class="skill-bar"></div>
               </div>
               <span class="skill-value">4</span>
@@ -3036,12 +3057,12 @@
       <div class="theme-color-dot" style="top: 45%; right: 10%; background: #FF671F; animation-delay: 1.8s;"></div>
     </div>
     <div class="side-keywords">
-      <div class="side-keyword left" style="top: 24%; font-size: 38px; animation: sideKeywordLeft 7s ease-in-out 19s forwards;">IDENTITY</div>
-      <div class="side-keyword left" style="top: 40%; font-size: 28px; animation: sideKeywordLeft 7s ease-in-out 19.2s forwards;">STORY</div>
-      <div class="side-keyword left" style="top: 54%; font-size: 24px; animation: sideKeywordLeft 7s ease-in-out 19.4s forwards;">VALUE</div>
-      <div class="side-keyword right" style="top: 28%; font-size: 36px; animation: sideKeywordRight 7s ease-in-out 19.3s forwards;">CREATIVE</div>
-      <div class="side-keyword right" style="top: 44%; font-size: 26px; animation: sideKeywordRight 7s ease-in-out 19.5s forwards;">EMOTION</div>
-      <div class="side-keyword right" style="top: 58%; font-size: 24px; animation: sideKeywordRight 7s ease-in-out 19.7s forwards;">DESIGN</div>
+      <div class="side-keyword left" style="top: 24%; font-size: 38px; animation: sideKeywordLeft 7s ease-in-out 22s forwards;">IDENTITY</div>
+      <div class="side-keyword left" style="top: 40%; font-size: 28px; animation: sideKeywordLeft 7s ease-in-out 22.2s forwards;">STORY</div>
+      <div class="side-keyword left" style="top: 54%; font-size: 24px; animation: sideKeywordLeft 7s ease-in-out 22.4s forwards;">VALUE</div>
+      <div class="side-keyword right" style="top: 28%; font-size: 36px; animation: sideKeywordRight 7s ease-in-out 22.3s forwards;">CREATIVE</div>
+      <div class="side-keyword right" style="top: 44%; font-size: 26px; animation: sideKeywordRight 7s ease-in-out 22.5s forwards;">EMOTION</div>
+      <div class="side-keyword right" style="top: 58%; font-size: 24px; animation: sideKeywordRight 7s ease-in-out 22.7s forwards;">DESIGN</div>
     </div>
     
     <div class="hud-header">
@@ -3124,32 +3145,32 @@
             <div class="skill-row">
               <span class="skill-name">브랜딩</span>
               <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 21.5s"></div>
-                <div class="skill-bar filled" style="animation-delay: 21.6s"></div>
-                <div class="skill-bar filled" style="animation-delay: 21.7s"></div>
-                <div class="skill-bar filled" style="animation-delay: 21.8s"></div>
-                <div class="skill-bar filled" style="animation-delay: 21.9s"></div>
+                <div class="skill-bar filled" style="animation-delay: 24.5s"></div>
+                <div class="skill-bar filled" style="animation-delay: 24.6s"></div>
+                <div class="skill-bar filled" style="animation-delay: 24.7s"></div>
+                <div class="skill-bar filled" style="animation-delay: 24.8s"></div>
+                <div class="skill-bar filled" style="animation-delay: 24.9s"></div>
               </div>
               <span class="skill-value">5</span>
             </div>
             <div class="skill-row">
               <span class="skill-name">차별화</span>
               <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 21.7s"></div>
-                <div class="skill-bar filled" style="animation-delay: 21.8s"></div>
-                <div class="skill-bar filled" style="animation-delay: 21.9s"></div>
-                <div class="skill-bar filled" style="animation-delay: 22.0s"></div>
-                <div class="skill-bar filled" style="animation-delay: 22.1s"></div>
+                <div class="skill-bar filled" style="animation-delay: 24.7s"></div>
+                <div class="skill-bar filled" style="animation-delay: 24.8s"></div>
+                <div class="skill-bar filled" style="animation-delay: 24.9s"></div>
+                <div class="skill-bar filled" style="animation-delay: 25s"></div>
+                <div class="skill-bar filled" style="animation-delay: 25.1s"></div>
               </div>
               <span class="skill-value">5</span>
             </div>
             <div class="skill-row">
               <span class="skill-name">디자인 감각</span>
               <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 21.9s"></div>
-                <div class="skill-bar filled" style="animation-delay: 22.0s"></div>
-                <div class="skill-bar filled" style="animation-delay: 22.1s"></div>
-                <div class="skill-bar filled" style="animation-delay: 22.2s"></div>
+                <div class="skill-bar filled" style="animation-delay: 24.9s"></div>
+                <div class="skill-bar filled" style="animation-delay: 25s"></div>
+                <div class="skill-bar filled" style="animation-delay: 25.1s"></div>
+                <div class="skill-bar filled" style="animation-delay: 25.2s"></div>
                 <div class="skill-bar"></div>
               </div>
               <span class="skill-value">4</span>
@@ -3157,10 +3178,10 @@
             <div class="skill-row">
               <span class="skill-name">스토리텔링</span>
               <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 22.1s"></div>
-                <div class="skill-bar filled" style="animation-delay: 22.2s"></div>
-                <div class="skill-bar filled" style="animation-delay: 22.3s"></div>
-                <div class="skill-bar filled" style="animation-delay: 22.4s"></div>
+                <div class="skill-bar filled" style="animation-delay: 25.1s"></div>
+                <div class="skill-bar filled" style="animation-delay: 25.2s"></div>
+                <div class="skill-bar filled" style="animation-delay: 25.3s"></div>
+                <div class="skill-bar filled" style="animation-delay: 25.4s"></div>
                 <div class="skill-bar"></div>
               </div>
               <span class="skill-value">4</span>
@@ -3212,12 +3233,12 @@
       </svg>
     </div>
     <div class="side-keywords">
-      <div class="side-keyword left" style="top: 24%; font-size: 38px; animation: sideKeywordLeft 7s ease-in-out 26s forwards;">EMPATHY</div>
-      <div class="side-keyword left" style="top: 40%; font-size: 28px; animation: sideKeywordLeft 7s ease-in-out 26.2s forwards;">NEEDS</div>
-      <div class="side-keyword left" style="top: 54%; font-size: 24px; animation: sideKeywordLeft 7s ease-in-out 26.4s forwards;">VOICE</div>
-      <div class="side-keyword right" style="top: 28%; font-size: 36px; animation: sideKeywordRight 7s ease-in-out 26.3s forwards;">PERSONA</div>
-      <div class="side-keyword right" style="top: 44%; font-size: 26px; animation: sideKeywordRight 7s ease-in-out 26.5s forwards;">JOURNEY</div>
-      <div class="side-keyword right" style="top: 58%; font-size: 24px; animation: sideKeywordRight 7s ease-in-out 26.7s forwards;">CARE</div>
+      <div class="side-keyword left" style="top: 24%; font-size: 38px; animation: sideKeywordLeft 7s ease-in-out 29s forwards;">EMPATHY</div>
+      <div class="side-keyword left" style="top: 40%; font-size: 28px; animation: sideKeywordLeft 7s ease-in-out 29.2s forwards;">NEEDS</div>
+      <div class="side-keyword left" style="top: 54%; font-size: 24px; animation: sideKeywordLeft 7s ease-in-out 29.4s forwards;">VOICE</div>
+      <div class="side-keyword right" style="top: 28%; font-size: 36px; animation: sideKeywordRight 7s ease-in-out 29.3s forwards;">PERSONA</div>
+      <div class="side-keyword right" style="top: 44%; font-size: 26px; animation: sideKeywordRight 7s ease-in-out 29.5s forwards;">JOURNEY</div>
+      <div class="side-keyword right" style="top: 58%; font-size: 24px; animation: sideKeywordRight 7s ease-in-out 29.7s forwards;">CARE</div>
     </div>
     
     <div class="hud-header">
@@ -3300,32 +3321,32 @@
             <div class="skill-row">
               <span class="skill-name">공감력</span>
               <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 28.5s"></div>
-                <div class="skill-bar filled" style="animation-delay: 28.6s"></div>
-                <div class="skill-bar filled" style="animation-delay: 28.7s"></div>
-                <div class="skill-bar filled" style="animation-delay: 28.8s"></div>
-                <div class="skill-bar filled" style="animation-delay: 28.9s"></div>
+                <div class="skill-bar filled" style="animation-delay: 31.5s"></div>
+                <div class="skill-bar filled" style="animation-delay: 31.6s"></div>
+                <div class="skill-bar filled" style="animation-delay: 31.7s"></div>
+                <div class="skill-bar filled" style="animation-delay: 31.8s"></div>
+                <div class="skill-bar filled" style="animation-delay: 31.9s"></div>
               </div>
               <span class="skill-value">5</span>
             </div>
             <div class="skill-row">
               <span class="skill-name">행동 분석</span>
               <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 28.7s"></div>
-                <div class="skill-bar filled" style="animation-delay: 28.8s"></div>
-                <div class="skill-bar filled" style="animation-delay: 28.9s"></div>
-                <div class="skill-bar filled" style="animation-delay: 29.0s"></div>
-                <div class="skill-bar filled" style="animation-delay: 29.1s"></div>
+                <div class="skill-bar filled" style="animation-delay: 31.7s"></div>
+                <div class="skill-bar filled" style="animation-delay: 31.8s"></div>
+                <div class="skill-bar filled" style="animation-delay: 31.9s"></div>
+                <div class="skill-bar filled" style="animation-delay: 32s"></div>
+                <div class="skill-bar filled" style="animation-delay: 32.1s"></div>
               </div>
               <span class="skill-value">5</span>
             </div>
             <div class="skill-row">
               <span class="skill-name">인터뷰</span>
               <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 28.9s"></div>
-                <div class="skill-bar filled" style="animation-delay: 29.0s"></div>
-                <div class="skill-bar filled" style="animation-delay: 29.1s"></div>
-                <div class="skill-bar filled" style="animation-delay: 29.2s"></div>
+                <div class="skill-bar filled" style="animation-delay: 31.9s"></div>
+                <div class="skill-bar filled" style="animation-delay: 32s"></div>
+                <div class="skill-bar filled" style="animation-delay: 32.1s"></div>
+                <div class="skill-bar filled" style="animation-delay: 32.2s"></div>
                 <div class="skill-bar"></div>
               </div>
               <span class="skill-value">4</span>
@@ -3333,10 +3354,10 @@
             <div class="skill-row">
               <span class="skill-name">페르소나</span>
               <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 29.1s"></div>
-                <div class="skill-bar filled" style="animation-delay: 29.2s"></div>
-                <div class="skill-bar filled" style="animation-delay: 29.3s"></div>
-                <div class="skill-bar filled" style="animation-delay: 29.4s"></div>
+                <div class="skill-bar filled" style="animation-delay: 32.1s"></div>
+                <div class="skill-bar filled" style="animation-delay: 32.2s"></div>
+                <div class="skill-bar filled" style="animation-delay: 32.3s"></div>
+                <div class="skill-bar filled" style="animation-delay: 32.4s"></div>
                 <div class="skill-bar"></div>
               </div>
               <span class="skill-value">4</span>
@@ -3371,12 +3392,12 @@
     <div class="theme-location-marker" style="top: 50%; right: 5%; animation-delay: 2s;"></div>
     
     <div class="side-keywords">
-      <div class="side-keyword left" style="top: 24%; font-size: 38px; animation: sideKeywordLeft 7s ease-in-out 33s forwards;">GLOBAL</div>
-      <div class="side-keyword left" style="top: 40%; font-size: 28px; animation: sideKeywordLeft 7s ease-in-out 33.2s forwards;">NETWORK</div>
-      <div class="side-keyword left" style="top: 54%; font-size: 24px; animation: sideKeywordLeft 7s ease-in-out 33.4s forwards;">TRADE</div>
-      <div class="side-keyword right" style="top: 28%; font-size: 36px; animation: sideKeywordRight 7s ease-in-out 33.3s forwards;">BRIDGE</div>
-      <div class="side-keyword right" style="top: 44%; font-size: 26px; animation: sideKeywordRight 7s ease-in-out 33.5s forwards;">EXPAND</div>
-      <div class="side-keyword right" style="top: 58%; font-size: 24px; animation: sideKeywordRight 7s ease-in-out 33.7s forwards;">DEAL</div>
+      <div class="side-keyword left" style="top: 24%; font-size: 38px; animation: sideKeywordLeft 7s ease-in-out 36s forwards;">GLOBAL</div>
+      <div class="side-keyword left" style="top: 40%; font-size: 28px; animation: sideKeywordLeft 7s ease-in-out 36.2s forwards;">NETWORK</div>
+      <div class="side-keyword left" style="top: 54%; font-size: 24px; animation: sideKeywordLeft 7s ease-in-out 36.4s forwards;">TRADE</div>
+      <div class="side-keyword right" style="top: 28%; font-size: 36px; animation: sideKeywordRight 7s ease-in-out 36.3s forwards;">BRIDGE</div>
+      <div class="side-keyword right" style="top: 44%; font-size: 26px; animation: sideKeywordRight 7s ease-in-out 36.5s forwards;">EXPAND</div>
+      <div class="side-keyword right" style="top: 58%; font-size: 24px; animation: sideKeywordRight 7s ease-in-out 36.7s forwards;">DEAL</div>
     </div>
     
     <div class="hud-header">
@@ -3459,32 +3480,32 @@
             <div class="skill-row">
               <span class="skill-name">협상력</span>
               <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 35.5s"></div>
-                <div class="skill-bar filled" style="animation-delay: 35.6s"></div>
-                <div class="skill-bar filled" style="animation-delay: 35.7s"></div>
-                <div class="skill-bar filled" style="animation-delay: 35.8s"></div>
-                <div class="skill-bar filled" style="animation-delay: 35.9s"></div>
+                <div class="skill-bar filled" style="animation-delay: 38.5s"></div>
+                <div class="skill-bar filled" style="animation-delay: 38.6s"></div>
+                <div class="skill-bar filled" style="animation-delay: 38.7s"></div>
+                <div class="skill-bar filled" style="animation-delay: 38.8s"></div>
+                <div class="skill-bar filled" style="animation-delay: 38.9s"></div>
               </div>
               <span class="skill-value">5</span>
             </div>
             <div class="skill-row">
               <span class="skill-name">글로벌 감각</span>
               <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 35.7s"></div>
-                <div class="skill-bar filled" style="animation-delay: 35.8s"></div>
-                <div class="skill-bar filled" style="animation-delay: 35.9s"></div>
-                <div class="skill-bar filled" style="animation-delay: 36.0s"></div>
-                <div class="skill-bar filled" style="animation-delay: 36.1s"></div>
+                <div class="skill-bar filled" style="animation-delay: 38.7s"></div>
+                <div class="skill-bar filled" style="animation-delay: 38.8s"></div>
+                <div class="skill-bar filled" style="animation-delay: 38.9s"></div>
+                <div class="skill-bar filled" style="animation-delay: 39s"></div>
+                <div class="skill-bar filled" style="animation-delay: 39.1s"></div>
               </div>
               <span class="skill-value">5</span>
             </div>
             <div class="skill-row">
               <span class="skill-name">네트워킹</span>
               <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 35.9s"></div>
-                <div class="skill-bar filled" style="animation-delay: 36.0s"></div>
-                <div class="skill-bar filled" style="animation-delay: 36.1s"></div>
-                <div class="skill-bar filled" style="animation-delay: 36.2s"></div>
+                <div class="skill-bar filled" style="animation-delay: 38.9s"></div>
+                <div class="skill-bar filled" style="animation-delay: 39s"></div>
+                <div class="skill-bar filled" style="animation-delay: 39.1s"></div>
+                <div class="skill-bar filled" style="animation-delay: 39.2s"></div>
                 <div class="skill-bar"></div>
               </div>
               <span class="skill-value">4</span>
@@ -3492,10 +3513,10 @@
             <div class="skill-row">
               <span class="skill-name">언어 능력</span>
               <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 36.1s"></div>
-                <div class="skill-bar filled" style="animation-delay: 36.2s"></div>
-                <div class="skill-bar filled" style="animation-delay: 36.3s"></div>
-                <div class="skill-bar filled" style="animation-delay: 36.4s"></div>
+                <div class="skill-bar filled" style="animation-delay: 39.1s"></div>
+                <div class="skill-bar filled" style="animation-delay: 39.2s"></div>
+                <div class="skill-bar filled" style="animation-delay: 39.3s"></div>
+                <div class="skill-bar filled" style="animation-delay: 39.4s"></div>
                 <div class="skill-bar"></div>
               </div>
               <span class="skill-value">4</span>
@@ -3540,12 +3561,12 @@
       <div class="value">9.8</div>
     </div>
     <div class="side-keywords">
-      <div class="side-keyword left" style="top: 24%; font-size: 38px; animation: sideKeywordLeft 7s ease-in-out 40s forwards;">VIRAL</div>
-      <div class="side-keyword left" style="top: 40%; font-size: 28px; animation: sideKeywordLeft 7s ease-in-out 40.2s forwards;">CONTENT</div>
-      <div class="side-keyword left" style="top: 54%; font-size: 24px; animation: sideKeywordLeft 7s ease-in-out 40.4s forwards;">REACH</div>
-      <div class="side-keyword right" style="top: 28%; font-size: 36px; animation: sideKeywordRight 7s ease-in-out 40.3s forwards;">ENGAGE</div>
-      <div class="side-keyword right" style="top: 44%; font-size: 26px; animation: sideKeywordRight 7s ease-in-out 40.5s forwards;">TRENDING</div>
-      <div class="side-keyword right" style="top: 58%; font-size: 24px; animation: sideKeywordRight 7s ease-in-out 40.7s forwards;">CLICK</div>
+      <div class="side-keyword left" style="top: 24%; font-size: 38px; animation: sideKeywordLeft 7s ease-in-out 43s forwards;">VIRAL</div>
+      <div class="side-keyword left" style="top: 40%; font-size: 28px; animation: sideKeywordLeft 7s ease-in-out 43.2s forwards;">CONTENT</div>
+      <div class="side-keyword left" style="top: 54%; font-size: 24px; animation: sideKeywordLeft 7s ease-in-out 43.4s forwards;">REACH</div>
+      <div class="side-keyword right" style="top: 28%; font-size: 36px; animation: sideKeywordRight 7s ease-in-out 43.3s forwards;">ENGAGE</div>
+      <div class="side-keyword right" style="top: 44%; font-size: 26px; animation: sideKeywordRight 7s ease-in-out 43.5s forwards;">TRENDING</div>
+      <div class="side-keyword right" style="top: 58%; font-size: 24px; animation: sideKeywordRight 7s ease-in-out 43.7s forwards;">CLICK</div>
     </div>
     
     <div class="hud-header">
@@ -3628,32 +3649,32 @@
             <div class="skill-row">
               <span class="skill-name">콘텐츠 기획</span>
               <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 42.5s"></div>
-                <div class="skill-bar filled" style="animation-delay: 42.6s"></div>
-                <div class="skill-bar filled" style="animation-delay: 42.7s"></div>
-                <div class="skill-bar filled" style="animation-delay: 42.8s"></div>
-                <div class="skill-bar filled" style="animation-delay: 42.9s"></div>
+                <div class="skill-bar filled" style="animation-delay: 45.5s"></div>
+                <div class="skill-bar filled" style="animation-delay: 45.6s"></div>
+                <div class="skill-bar filled" style="animation-delay: 45.7s"></div>
+                <div class="skill-bar filled" style="animation-delay: 45.8s"></div>
+                <div class="skill-bar filled" style="animation-delay: 45.9s"></div>
               </div>
               <span class="skill-value">5</span>
             </div>
             <div class="skill-row">
               <span class="skill-name">디지털 채널</span>
               <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 42.7s"></div>
-                <div class="skill-bar filled" style="animation-delay: 42.8s"></div>
-                <div class="skill-bar filled" style="animation-delay: 42.9s"></div>
-                <div class="skill-bar filled" style="animation-delay: 43.0s"></div>
-                <div class="skill-bar filled" style="animation-delay: 43.1s"></div>
+                <div class="skill-bar filled" style="animation-delay: 45.7s"></div>
+                <div class="skill-bar filled" style="animation-delay: 45.8s"></div>
+                <div class="skill-bar filled" style="animation-delay: 45.9s"></div>
+                <div class="skill-bar filled" style="animation-delay: 46s"></div>
+                <div class="skill-bar filled" style="animation-delay: 46.1s"></div>
               </div>
               <span class="skill-value">5</span>
             </div>
             <div class="skill-row">
               <span class="skill-name">트렌드 감각</span>
               <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 42.9s"></div>
-                <div class="skill-bar filled" style="animation-delay: 43.0s"></div>
-                <div class="skill-bar filled" style="animation-delay: 43.1s"></div>
-                <div class="skill-bar filled" style="animation-delay: 43.2s"></div>
+                <div class="skill-bar filled" style="animation-delay: 45.9s"></div>
+                <div class="skill-bar filled" style="animation-delay: 46s"></div>
+                <div class="skill-bar filled" style="animation-delay: 46.1s"></div>
+                <div class="skill-bar filled" style="animation-delay: 46.2s"></div>
                 <div class="skill-bar"></div>
               </div>
               <span class="skill-value">4</span>
@@ -3661,10 +3682,10 @@
             <div class="skill-row">
               <span class="skill-name">광고 운영</span>
               <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 43.1s"></div>
-                <div class="skill-bar filled" style="animation-delay: 43.2s"></div>
-                <div class="skill-bar filled" style="animation-delay: 43.3s"></div>
-                <div class="skill-bar filled" style="animation-delay: 43.4s"></div>
+                <div class="skill-bar filled" style="animation-delay: 46.1s"></div>
+                <div class="skill-bar filled" style="animation-delay: 46.2s"></div>
+                <div class="skill-bar filled" style="animation-delay: 46.3s"></div>
+                <div class="skill-bar filled" style="animation-delay: 46.4s"></div>
                 <div class="skill-bar"></div>
               </div>
               <span class="skill-value">4</span>
@@ -3709,12 +3730,12 @@
       <path d="M 12 20 L 18 26 L 28 14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
     </svg>
     <div class="side-keywords">
-      <div class="side-keyword left" style="top: 24%; font-size: 34px; animation: sideKeywordLeft 7s ease-in-out 47s forwards;">COMPLIANCE</div>
-      <div class="side-keyword left" style="top: 40%; font-size: 28px; animation: sideKeywordLeft 7s ease-in-out 47.2s forwards;">SAFETY</div>
-      <div class="side-keyword left" style="top: 54%; font-size: 24px; animation: sideKeywordLeft 7s ease-in-out 47.4s forwards;">RULE</div>
-      <div class="side-keyword right" style="top: 28%; font-size: 36px; animation: sideKeywordRight 7s ease-in-out 47.3s forwards;">VERIFY</div>
-      <div class="side-keyword right" style="top: 44%; font-size: 26px; animation: sideKeywordRight 7s ease-in-out 47.5s forwards;">SECURE</div>
-      <div class="side-keyword right" style="top: 58%; font-size: 24px; animation: sideKeywordRight 7s ease-in-out 47.7s forwards;">TRUST</div>
+      <div class="side-keyword left" style="top: 24%; font-size: 34px; animation: sideKeywordLeft 7s ease-in-out 50s forwards;">COMPLIANCE</div>
+      <div class="side-keyword left" style="top: 40%; font-size: 28px; animation: sideKeywordLeft 7s ease-in-out 50.2s forwards;">SAFETY</div>
+      <div class="side-keyword left" style="top: 54%; font-size: 24px; animation: sideKeywordLeft 7s ease-in-out 50.4s forwards;">RULE</div>
+      <div class="side-keyword right" style="top: 28%; font-size: 36px; animation: sideKeywordRight 7s ease-in-out 50.3s forwards;">VERIFY</div>
+      <div class="side-keyword right" style="top: 44%; font-size: 26px; animation: sideKeywordRight 7s ease-in-out 50.5s forwards;">SECURE</div>
+      <div class="side-keyword right" style="top: 58%; font-size: 24px; animation: sideKeywordRight 7s ease-in-out 50.7s forwards;">TRUST</div>
     </div>
     
     <div class="hud-header">
@@ -3797,32 +3818,32 @@
             <div class="skill-row">
               <span class="skill-name">법규 분석</span>
               <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 49.5s"></div>
-                <div class="skill-bar filled" style="animation-delay: 49.6s"></div>
-                <div class="skill-bar filled" style="animation-delay: 49.7s"></div>
-                <div class="skill-bar filled" style="animation-delay: 49.8s"></div>
-                <div class="skill-bar filled" style="animation-delay: 49.9s"></div>
+                <div class="skill-bar filled" style="animation-delay: 52.5s"></div>
+                <div class="skill-bar filled" style="animation-delay: 52.6s"></div>
+                <div class="skill-bar filled" style="animation-delay: 52.7s"></div>
+                <div class="skill-bar filled" style="animation-delay: 52.8s"></div>
+                <div class="skill-bar filled" style="animation-delay: 52.9s"></div>
               </div>
               <span class="skill-value">5</span>
             </div>
             <div class="skill-row">
               <span class="skill-name">인증 관리</span>
               <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 49.7s"></div>
-                <div class="skill-bar filled" style="animation-delay: 49.8s"></div>
-                <div class="skill-bar filled" style="animation-delay: 49.9s"></div>
-                <div class="skill-bar filled" style="animation-delay: 50.0s"></div>
-                <div class="skill-bar filled" style="animation-delay: 50.1s"></div>
+                <div class="skill-bar filled" style="animation-delay: 52.7s"></div>
+                <div class="skill-bar filled" style="animation-delay: 52.8s"></div>
+                <div class="skill-bar filled" style="animation-delay: 52.9s"></div>
+                <div class="skill-bar filled" style="animation-delay: 53s"></div>
+                <div class="skill-bar filled" style="animation-delay: 53.1s"></div>
               </div>
               <span class="skill-value">5</span>
             </div>
             <div class="skill-row">
               <span class="skill-name">통관</span>
               <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 49.9s"></div>
-                <div class="skill-bar filled" style="animation-delay: 50.0s"></div>
-                <div class="skill-bar filled" style="animation-delay: 50.1s"></div>
-                <div class="skill-bar filled" style="animation-delay: 50.2s"></div>
+                <div class="skill-bar filled" style="animation-delay: 52.9s"></div>
+                <div class="skill-bar filled" style="animation-delay: 53s"></div>
+                <div class="skill-bar filled" style="animation-delay: 53.1s"></div>
+                <div class="skill-bar filled" style="animation-delay: 53.2s"></div>
                 <div class="skill-bar"></div>
               </div>
               <span class="skill-value">4</span>
@@ -3830,10 +3851,10 @@
             <div class="skill-row">
               <span class="skill-name">리스크 관리</span>
               <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 50.1s"></div>
-                <div class="skill-bar filled" style="animation-delay: 50.2s"></div>
-                <div class="skill-bar filled" style="animation-delay: 50.3s"></div>
-                <div class="skill-bar filled" style="animation-delay: 50.4s"></div>
+                <div class="skill-bar filled" style="animation-delay: 53.1s"></div>
+                <div class="skill-bar filled" style="animation-delay: 53.2s"></div>
+                <div class="skill-bar filled" style="animation-delay: 53.3s"></div>
+                <div class="skill-bar filled" style="animation-delay: 53.4s"></div>
                 <div class="skill-bar"></div>
               </div>
               <span class="skill-value">4</span>
@@ -3851,30 +3872,35 @@
   <!-- ========================================
        전환 효과 (씬 사이): 데이터 비 + 로딩 + 기대감
        ======================================== -->
+  <!-- 전환 t0: LEADER (CEO) - 인트로 후 첫 등장 -->
+  <div class="transition-fade t0"></div>
+  
+  <div class="data-rain t0">
+      <div class="rain-sweep s1"></div>
+      <div class="rain-centerline c1"></div>
+  </div>
+  
+  <div class="transition-scanline t0"></div>
+  
+  <div class="transition-loader t0">
+    <div class="loader-label">&gt; ANALYZING ROLE_01</div>
+    <div class="loader-role">LEADER</div>
+    <div class="loader-role-kr">팀을 이끄는 리더</div>
+    <div class="loader-bar-container">
+      <div class="loader-bar-fill t0"></div>
+    </div>
+    <div class="loader-status">
+      <span class="left">INITIALIZING...</span>
+      <span class="right">[TEAM-LEADER]</span>
+    </div>
+  </div>
+
   <!-- 전환 t1: ANALYST -->
   <div class="transition-fade t1"></div>
   
   <div class="data-rain t1">
-      <div class="rain-column" style="left: 0.00%; animation-delay: 0.00s;">1<br>0<br>0<br>1<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>0<br>1<br>1</div>
-      <div class="rain-column" style="left: 5.00%; animation-delay: 0.07s;">0<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>1</div>
-      <div class="rain-column" style="left: 10.00%; animation-delay: 0.14s;">1<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>0</div>
-      <div class="rain-column" style="left: 15.00%; animation-delay: 0.21s;">0<br>1<br>0<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>0<br>0<br>1<br>0<br>1</div>
-      <div class="rain-column" style="left: 20.00%; animation-delay: 0.28s;">0<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>0<br>1<br>1<br>0<br>1<br>0</div>
-      <div class="rain-column" style="left: 25.00%; animation-delay: 0.35s;">1<br>0<br>1<br>1<br>1<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>1</div>
-      <div class="rain-column" style="left: 30.00%; animation-delay: 0.42s;">1<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>1</div>
-      <div class="rain-column" style="left: 35.00%; animation-delay: 0.49s;">1<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>1<br>1</div>
-      <div class="rain-column" style="left: 40.00%; animation-delay: 0.56s;">0<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>1<br>1<br>1</div>
-      <div class="rain-column" style="left: 45.00%; animation-delay: 0.63s;">1<br>0<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>0<br>1</div>
-      <div class="rain-column" style="left: 50.00%; animation-delay: 0.70s;">1<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>0</div>
-      <div class="rain-column" style="left: 55.00%; animation-delay: 0.77s;">1<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>1</div>
-      <div class="rain-column" style="left: 60.00%; animation-delay: 0.84s;">0<br>0<br>0<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>0</div>
-      <div class="rain-column" style="left: 65.00%; animation-delay: 0.91s;">0<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>0<br>0<br>1<br>1<br>0</div>
-      <div class="rain-column" style="left: 70.00%; animation-delay: 0.98s;">1<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>1</div>
-      <div class="rain-column" style="left: 75.00%; animation-delay: 1.05s;">0<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>1</div>
-      <div class="rain-column" style="left: 80.00%; animation-delay: 1.12s;">0<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>1</div>
-      <div class="rain-column" style="left: 85.00%; animation-delay: 1.19s;">1<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>0</div>
-      <div class="rain-column" style="left: 90.00%; animation-delay: 1.26s;">0<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>1</div>
-      <div class="rain-column" style="left: 95.00%; animation-delay: 1.33s;">0<br>0<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>1</div>
+      <div class="rain-sweep s1"></div>
+      <div class="rain-centerline c1"></div>
   </div>
   
   <div class="transition-scanline t1"></div>
@@ -3896,26 +3922,8 @@
   <div class="transition-fade t2"></div>
   
   <div class="data-rain t2">
-      <div class="rain-column" style="left: 0.00%; animation-delay: 0.00s;">1<br>0<br>1<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>0</div>
-      <div class="rain-column" style="left: 5.00%; animation-delay: 0.07s;">1<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>0</div>
-      <div class="rain-column" style="left: 10.00%; animation-delay: 0.14s;">1<br>0<br>1<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>1</div>
-      <div class="rain-column" style="left: 15.00%; animation-delay: 0.21s;">0<br>0<br>1<br>1<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>1</div>
-      <div class="rain-column" style="left: 20.00%; animation-delay: 0.28s;">1<br>1<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>1</div>
-      <div class="rain-column" style="left: 25.00%; animation-delay: 0.35s;">0<br>0<br>1<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>0</div>
-      <div class="rain-column" style="left: 30.00%; animation-delay: 0.42s;">0<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>0</div>
-      <div class="rain-column" style="left: 35.00%; animation-delay: 0.49s;">1<br>1<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>1<br>0</div>
-      <div class="rain-column" style="left: 40.00%; animation-delay: 0.56s;">0<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>0<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>1<br>0<br>0</div>
-      <div class="rain-column" style="left: 45.00%; animation-delay: 0.63s;">0<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>1<br>1<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>0<br>1</div>
-      <div class="rain-column" style="left: 50.00%; animation-delay: 0.70s;">1<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>1<br>1</div>
-      <div class="rain-column" style="left: 55.00%; animation-delay: 0.77s;">0<br>1<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>1<br>1</div>
-      <div class="rain-column" style="left: 60.00%; animation-delay: 0.84s;">1<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>1</div>
-      <div class="rain-column" style="left: 65.00%; animation-delay: 0.91s;">1<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>1</div>
-      <div class="rain-column" style="left: 70.00%; animation-delay: 0.98s;">0<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>0<br>1</div>
-      <div class="rain-column" style="left: 75.00%; animation-delay: 1.05s;">0<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>0</div>
-      <div class="rain-column" style="left: 80.00%; animation-delay: 1.12s;">0<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>1</div>
-      <div class="rain-column" style="left: 85.00%; animation-delay: 1.19s;">1<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>0</div>
-      <div class="rain-column" style="left: 90.00%; animation-delay: 1.26s;">0<br>0<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>1</div>
-      <div class="rain-column" style="left: 95.00%; animation-delay: 1.33s;">0<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>1</div>
+      <div class="rain-sweep s1"></div>
+      <div class="rain-centerline c1"></div>
   </div>
   
   <div class="transition-scanline t2"></div>
@@ -3937,26 +3945,8 @@
   <div class="transition-fade t3"></div>
   
   <div class="data-rain t3">
-      <div class="rain-column" style="left: 0.00%; animation-delay: 0.00s;">0<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>1<br>0<br>0</div>
-      <div class="rain-column" style="left: 5.00%; animation-delay: 0.07s;">0<br>1<br>1<br>1<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>1</div>
-      <div class="rain-column" style="left: 10.00%; animation-delay: 0.14s;">1<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>1</div>
-      <div class="rain-column" style="left: 15.00%; animation-delay: 0.21s;">1<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>0</div>
-      <div class="rain-column" style="left: 20.00%; animation-delay: 0.28s;">0<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>0<br>1<br>1<br>1</div>
-      <div class="rain-column" style="left: 25.00%; animation-delay: 0.35s;">0<br>0<br>0<br>1<br>1<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>1</div>
-      <div class="rain-column" style="left: 30.00%; animation-delay: 0.42s;">1<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>1<br>1<br>0<br>0<br>0<br>0<br>1</div>
-      <div class="rain-column" style="left: 35.00%; animation-delay: 0.49s;">0<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>1</div>
-      <div class="rain-column" style="left: 40.00%; animation-delay: 0.56s;">1<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>1</div>
-      <div class="rain-column" style="left: 45.00%; animation-delay: 0.63s;">0<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>1<br>1<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>1</div>
-      <div class="rain-column" style="left: 50.00%; animation-delay: 0.70s;">0<br>0<br>1<br>1<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>1<br>0<br>0<br>1</div>
-      <div class="rain-column" style="left: 55.00%; animation-delay: 0.77s;">0<br>1<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>1</div>
-      <div class="rain-column" style="left: 60.00%; animation-delay: 0.84s;">1<br>1<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>0<br>0<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>1<br>0<br>0<br>0<br>1<br>1<br>1</div>
-      <div class="rain-column" style="left: 65.00%; animation-delay: 0.91s;">0<br>1<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>0<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>0<br>1</div>
-      <div class="rain-column" style="left: 70.00%; animation-delay: 0.98s;">1<br>0<br>1<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>0<br>0</div>
-      <div class="rain-column" style="left: 75.00%; animation-delay: 1.05s;">1<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>1</div>
-      <div class="rain-column" style="left: 80.00%; animation-delay: 1.12s;">0<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>1</div>
-      <div class="rain-column" style="left: 85.00%; animation-delay: 1.19s;">0<br>0<br>1<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>1</div>
-      <div class="rain-column" style="left: 90.00%; animation-delay: 1.26s;">0<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>0</div>
-      <div class="rain-column" style="left: 95.00%; animation-delay: 1.33s;">0<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>0<br>1<br>0<br>0</div>
+      <div class="rain-sweep s1"></div>
+      <div class="rain-centerline c1"></div>
   </div>
   
   <div class="transition-scanline t3"></div>
@@ -3978,26 +3968,8 @@
   <div class="transition-fade t4"></div>
   
   <div class="data-rain t4">
-      <div class="rain-column" style="left: 0.00%; animation-delay: 0.00s;">1<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>0<br>0<br>0<br>1<br>1<br>1</div>
-      <div class="rain-column" style="left: 5.00%; animation-delay: 0.07s;">0<br>1<br>0<br>0<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>0</div>
-      <div class="rain-column" style="left: 10.00%; animation-delay: 0.14s;">0<br>1<br>1<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>0</div>
-      <div class="rain-column" style="left: 15.00%; animation-delay: 0.21s;">0<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>1</div>
-      <div class="rain-column" style="left: 20.00%; animation-delay: 0.28s;">1<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>1<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>0<br>0<br>1<br>1<br>0</div>
-      <div class="rain-column" style="left: 25.00%; animation-delay: 0.35s;">1<br>0<br>1<br>0<br>1<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>1</div>
-      <div class="rain-column" style="left: 30.00%; animation-delay: 0.42s;">0<br>0<br>1<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>1</div>
-      <div class="rain-column" style="left: 35.00%; animation-delay: 0.49s;">0<br>0<br>0<br>0<br>1<br>1<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>0<br>1</div>
-      <div class="rain-column" style="left: 40.00%; animation-delay: 0.56s;">0<br>0<br>1<br>0<br>0<br>0<br>1<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>0</div>
-      <div class="rain-column" style="left: 45.00%; animation-delay: 0.63s;">1<br>1<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>1<br>0</div>
-      <div class="rain-column" style="left: 50.00%; animation-delay: 0.70s;">0<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>0<br>1<br>1<br>0<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>1</div>
-      <div class="rain-column" style="left: 55.00%; animation-delay: 0.77s;">1<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>0<br>1</div>
-      <div class="rain-column" style="left: 60.00%; animation-delay: 0.84s;">0<br>1<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>1</div>
-      <div class="rain-column" style="left: 65.00%; animation-delay: 0.91s;">0<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>0<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>0</div>
-      <div class="rain-column" style="left: 70.00%; animation-delay: 0.98s;">1<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>1</div>
-      <div class="rain-column" style="left: 75.00%; animation-delay: 1.05s;">0<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>0</div>
-      <div class="rain-column" style="left: 80.00%; animation-delay: 1.12s;">1<br>1<br>1<br>0<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>1<br>0<br>1<br>0</div>
-      <div class="rain-column" style="left: 85.00%; animation-delay: 1.19s;">1<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>0<br>1<br>1</div>
-      <div class="rain-column" style="left: 90.00%; animation-delay: 1.26s;">0<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>1<br>0<br>1</div>
-      <div class="rain-column" style="left: 95.00%; animation-delay: 1.33s;">0<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>1</div>
+      <div class="rain-sweep s1"></div>
+      <div class="rain-centerline c1"></div>
   </div>
   
   <div class="transition-scanline t4"></div>
@@ -4019,26 +3991,8 @@
   <div class="transition-fade t5"></div>
   
   <div class="data-rain t5">
-      <div class="rain-column" style="left: 0.00%; animation-delay: 0.00s;">0<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>1<br>1<br>0</div>
-      <div class="rain-column" style="left: 5.00%; animation-delay: 0.07s;">0<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>0</div>
-      <div class="rain-column" style="left: 10.00%; animation-delay: 0.14s;">0<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>0<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>1<br>1</div>
-      <div class="rain-column" style="left: 15.00%; animation-delay: 0.21s;">1<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>1<br>0<br>0<br>0<br>0</div>
-      <div class="rain-column" style="left: 20.00%; animation-delay: 0.28s;">0<br>1<br>1<br>0<br>1<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>0<br>1</div>
-      <div class="rain-column" style="left: 25.00%; animation-delay: 0.35s;">1<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>0</div>
-      <div class="rain-column" style="left: 30.00%; animation-delay: 0.42s;">1<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>1<br>0<br>0<br>1</div>
-      <div class="rain-column" style="left: 35.00%; animation-delay: 0.49s;">0<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>0</div>
-      <div class="rain-column" style="left: 40.00%; animation-delay: 0.56s;">1<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>1<br>1</div>
-      <div class="rain-column" style="left: 45.00%; animation-delay: 0.63s;">1<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>0</div>
-      <div class="rain-column" style="left: 50.00%; animation-delay: 0.70s;">0<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>1</div>
-      <div class="rain-column" style="left: 55.00%; animation-delay: 0.77s;">0<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>1</div>
-      <div class="rain-column" style="left: 60.00%; animation-delay: 0.84s;">1<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>0<br>0</div>
-      <div class="rain-column" style="left: 65.00%; animation-delay: 0.91s;">0<br>1<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>1<br>0<br>1<br>0</div>
-      <div class="rain-column" style="left: 70.00%; animation-delay: 0.98s;">1<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>0</div>
-      <div class="rain-column" style="left: 75.00%; animation-delay: 1.05s;">1<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>1</div>
-      <div class="rain-column" style="left: 80.00%; animation-delay: 1.12s;">0<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>0</div>
-      <div class="rain-column" style="left: 85.00%; animation-delay: 1.19s;">1<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>1<br>1<br>1<br>0</div>
-      <div class="rain-column" style="left: 90.00%; animation-delay: 1.26s;">1<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>0<br>1<br>0<br>0<br>1</div>
-      <div class="rain-column" style="left: 95.00%; animation-delay: 1.33s;">0<br>1<br>0<br>1<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>0<br>0<br>0<br>1</div>
+      <div class="rain-sweep s1"></div>
+      <div class="rain-centerline c1"></div>
   </div>
   
   <div class="transition-scanline t5"></div>
@@ -4060,26 +4014,8 @@
   <div class="transition-fade t6"></div>
   
   <div class="data-rain t6">
-      <div class="rain-column" style="left: 0.00%; animation-delay: 0.00s;">1<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>0<br>0<br>0</div>
-      <div class="rain-column" style="left: 5.00%; animation-delay: 0.07s;">1<br>1<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>1</div>
-      <div class="rain-column" style="left: 10.00%; animation-delay: 0.14s;">0<br>1<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>0</div>
-      <div class="rain-column" style="left: 15.00%; animation-delay: 0.21s;">1<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>1<br>1</div>
-      <div class="rain-column" style="left: 20.00%; animation-delay: 0.28s;">1<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>0</div>
-      <div class="rain-column" style="left: 25.00%; animation-delay: 0.35s;">1<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>1</div>
-      <div class="rain-column" style="left: 30.00%; animation-delay: 0.42s;">1<br>0<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>1</div>
-      <div class="rain-column" style="left: 35.00%; animation-delay: 0.49s;">1<br>1<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>1</div>
-      <div class="rain-column" style="left: 40.00%; animation-delay: 0.56s;">0<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>0</div>
-      <div class="rain-column" style="left: 45.00%; animation-delay: 0.63s;">1<br>1<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>1</div>
-      <div class="rain-column" style="left: 50.00%; animation-delay: 0.70s;">0<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>0</div>
-      <div class="rain-column" style="left: 55.00%; animation-delay: 0.77s;">0<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>1<br>1<br>1</div>
-      <div class="rain-column" style="left: 60.00%; animation-delay: 0.84s;">0<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>1</div>
-      <div class="rain-column" style="left: 65.00%; animation-delay: 0.91s;">1<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>0</div>
-      <div class="rain-column" style="left: 70.00%; animation-delay: 0.98s;">0<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>0<br>1<br>1</div>
-      <div class="rain-column" style="left: 75.00%; animation-delay: 1.05s;">0<br>0<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>0</div>
-      <div class="rain-column" style="left: 80.00%; animation-delay: 1.12s;">1<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>1<br>1<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>0</div>
-      <div class="rain-column" style="left: 85.00%; animation-delay: 1.19s;">0<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>1<br>0<br>1</div>
-      <div class="rain-column" style="left: 90.00%; animation-delay: 1.26s;">0<br>1<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>0</div>
-      <div class="rain-column" style="left: 95.00%; animation-delay: 1.33s;">0<br>1<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>1</div>
+      <div class="rain-sweep s1"></div>
+      <div class="rain-centerline c1"></div>
   </div>
   
   <div class="transition-scanline t6"></div>
@@ -4101,26 +4037,8 @@
   <div class="transition-fade t7"></div>
   
   <div class="data-rain t7">
-      <div class="rain-column" style="left: 0.00%; animation-delay: 0.00s;">1<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>0<br>0<br>1<br>1<br>1</div>
-      <div class="rain-column" style="left: 5.00%; animation-delay: 0.07s;">0<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>0<br>1</div>
-      <div class="rain-column" style="left: 10.00%; animation-delay: 0.14s;">1<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>1</div>
-      <div class="rain-column" style="left: 15.00%; animation-delay: 0.21s;">0<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>1<br>1</div>
-      <div class="rain-column" style="left: 20.00%; animation-delay: 0.28s;">0<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>0</div>
-      <div class="rain-column" style="left: 25.00%; animation-delay: 0.35s;">0<br>1<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>1</div>
-      <div class="rain-column" style="left: 30.00%; animation-delay: 0.42s;">1<br>1<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>0</div>
-      <div class="rain-column" style="left: 35.00%; animation-delay: 0.49s;">1<br>0<br>0<br>1<br>1<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>1<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>1</div>
-      <div class="rain-column" style="left: 40.00%; animation-delay: 0.56s;">1<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>0</div>
-      <div class="rain-column" style="left: 45.00%; animation-delay: 0.63s;">1<br>1<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>0<br>1</div>
-      <div class="rain-column" style="left: 50.00%; animation-delay: 0.70s;">0<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>0</div>
-      <div class="rain-column" style="left: 55.00%; animation-delay: 0.77s;">1<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>0<br>1<br>0<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>0<br>0</div>
-      <div class="rain-column" style="left: 60.00%; animation-delay: 0.84s;">1<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>0<br>0<br>0<br>1</div>
-      <div class="rain-column" style="left: 65.00%; animation-delay: 0.91s;">1<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>0<br>0<br>0<br>1<br>1<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>1</div>
-      <div class="rain-column" style="left: 70.00%; animation-delay: 0.98s;">1<br>1<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>1<br>1<br>1<br>0<br>0<br>0<br>1<br>1<br>0<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>1<br>1<br>0<br>0<br>1<br>0</div>
-      <div class="rain-column" style="left: 75.00%; animation-delay: 1.05s;">1<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>0<br>0<br>0<br>1</div>
-      <div class="rain-column" style="left: 80.00%; animation-delay: 1.12s;">1<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>1<br>0</div>
-      <div class="rain-column" style="left: 85.00%; animation-delay: 1.19s;">1<br>0<br>0<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>1<br>0<br>0<br>0<br>1<br>0<br>1<br>1<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>0<br>0<br>0<br>1<br>0<br>0<br>1<br>0</div>
-      <div class="rain-column" style="left: 90.00%; animation-delay: 1.26s;">0<br>0<br>1<br>0<br>0<br>1<br>0<br>1<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>1<br>1<br>0<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>0<br>1<br>1<br>1<br>0</div>
-      <div class="rain-column" style="left: 95.00%; animation-delay: 1.33s;">1<br>1<br>0<br>1<br>0<br>0<br>1<br>1<br>0<br>0<br>0<br>0<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>1<br>0<br>0<br>1<br>0<br>0<br>1<br>1<br>1<br>0<br>0<br>1<br>1<br>1<br>1<br>1</div>
+      <div class="rain-sweep s1"></div>
+      <div class="rain-centerline c1"></div>
   </div>
   
   <div class="transition-scanline t7"></div>
@@ -4147,6 +4065,7 @@
     
     <div class="closing-content">
       <p class="closing-eyebrow">▎ 7 ROLES · 1 TEAM ▎</p>
+      <h2 class="closing-headline">당신의 직무로<br>회사를 운영하세요</h2>
       
       <div class="closing-circle">
         <!-- 위 3개 -->
@@ -4207,7 +4126,7 @@
 <script>
   let videoStarted = false;
   let loopTimer = null;
-  const VIDEO_DURATION = 60000;
+  const VIDEO_DURATION = 63000;
 
   const IS_IPHONE = /iPhone|iPod/.test(navigator.userAgent);
   if (IS_IPHONE) {
@@ -4269,15 +4188,16 @@
   function restartAllAnimations() {
     const stage = document.getElementById('stage');
     if (!stage) return;
-    const parent = stage.parentNode;
-    const next = stage.nextSibling;
-    parent.removeChild(stage);
+    // 일단 playing 제거 (애니메이션 0초로 리셋)
+    stage.classList.remove('playing');
+    // 강제 reflow로 리셋 확정
     void stage.offsetHeight;
-    if (next) {
-      parent.insertBefore(stage, next);
-    } else {
-      parent.appendChild(stage);
-    }
+    // 다음 프레임에 playing 추가 → 0초부터 부드럽게 재생
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        stage.classList.add('playing');
+      });
+    });
   }
   
   function resetToStart() {
