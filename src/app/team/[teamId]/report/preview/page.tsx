@@ -32,7 +32,6 @@ const STAGES = [
   { name: 'Decision', label: 'Decision 결정', color: S.decisionStage },
 ];
 
-// v3: actionPlan 있으면 19페이지, 없으면 18페이지 (동적)
 const BASE_PAGES = 18;
 
 interface PolishedCard {
@@ -135,7 +134,8 @@ export default function TeamReportPreviewPage() {
   }, [loading, report, searchParams]);
 
   // ═══════════════════════════════════════════════════════
-  // ⭐ v4: PDF 다운로드 함수 — 19페이지 대기 강화 + 페이지별 try/catch + 상세 로깅
+  // ⭐ v5: PDF 다운로드 — 19페이지 대기 강화 + 페이지별 try/catch + 상세 로깅
+  //        + InvalidStateError 방지를 위해 ActionPlanPage 장식선에 minWidth 부여
   // ═══════════════════════════════════════════════════════
   async function handlePdfDownload(skipConfirm = false) {
     if (isPdfGenerating || !report) return;
@@ -170,17 +170,16 @@ export default function TeamReportPreviewPage() {
 
       for (let i = 0; i < totalPages; i++) {
         console.log(`[PDF] 페이지 ${i + 1}/${totalPages} 시작`);
-        failedPageIndex = i;  // 실패 시 여기 페이지 번호 남음
+        failedPageIndex = i;
 
         setPageIndex(i);
         setTransitioning(false);
 
-        // ⭐ 19페이지(ActionPlanPage)는 첫 마운트라 더 오래 대기
+        // 19페이지는 첫 마운트라 더 오래 대기
         const isActionPlanPage = (i === totalPages - 1 && totalPages === 19);
         const waitMs = isActionPlanPage ? 1500 : 800;
         await new Promise(r => setTimeout(r, waitMs));
 
-        // 폰트 한 번 더 보장
         if ((document as any).fonts?.ready) {
           await (document as any).fonts.ready;
         }
@@ -235,7 +234,7 @@ export default function TeamReportPreviewPage() {
         console.log(`[PDF] 페이지 ${i + 1} 완료`);
       }
 
-      failedPageIndex = -1; // 모두 성공
+      failedPageIndex = -1;
 
       const teamName = report.team.teamName || 'team';
       const date = new Date().toISOString().slice(0, 10);
@@ -349,12 +348,15 @@ export default function TeamReportPreviewPage() {
               잠시만 기다려주세요...
             </p>
             <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
-              <div className="h-full rounded-full transition-all duration-300"
-                style={{
-                  width: `${pdfProgress}%`,
-                  background: `linear-gradient(to right, ${S.gold}, ${S.green})`,
-                  boxShadow: `0 0 8px ${S.gold}80`,
-                }} />
+              <div style={{
+                width: `${pdfProgress}%`,
+                minWidth: pdfProgress > 0 ? '4px' : '0',
+                height: '100%',
+                borderRadius: '9999px',
+                transition: 'width 0.3s',
+                background: `linear-gradient(to right, ${S.gold}, ${S.green})`,
+                boxShadow: `0 0 8px ${S.gold}80`,
+              }} />
             </div>
             <p className="text-[10px] font-mono text-gray-500 mt-3 tracking-wider">{pdfProgress}%</p>
           </div>
@@ -528,12 +530,12 @@ function CoverPage({ report, polished }: { report: TeamReportData; polished: Pol
             letterSpacing: '-1px',
           }}>SIGNAL</h1>
         <div className="flex items-center gap-2 mb-4">
-          <div className="h-[1px] w-6 md:w-8" style={{ background: `linear-gradient(to right, transparent, ${S.gold})` }} />
+          <div style={{ width: '32px', minWidth: '20px', height: '1px', background: `linear-gradient(to right, transparent, ${S.gold})` }} />
           <p className="font-mono font-bold tracking-[2px]"
             style={{ fontSize: '10px', color: S.aqua, textShadow: `0 0 6px ${S.aqua}66` }}>
             DIGITAL TRADE CARDS
           </p>
-          <div className="h-[1px] w-6 md:w-8" style={{ background: `linear-gradient(to left, transparent, ${S.gold})` }} />
+          <div style={{ width: '32px', minWidth: '20px', height: '1px', background: `linear-gradient(to left, transparent, ${S.gold})` }} />
         </div>
         <p className="text-[10px] md:text-[11px] text-gray-500 font-mono tracking-wider">
           TEAM REPORT · 2026
@@ -668,15 +670,14 @@ function PolishedCardSpread({ card, pageIndex, polishedCard }: { card: ReportCar
           </div>
         )}
         <div className="mb-4 flex items-center gap-2">
-          <div className="flex-1 h-[1px]" style={{ background: `linear-gradient(to right, transparent, ${S.gold}40, transparent)` }} />
+          <div style={{ flex: 1, minWidth: '20px', height: '1px', background: `linear-gradient(to right, transparent, ${S.gold}40, transparent)` }} />
           <span className="font-mono font-bold" style={{ fontSize: '8px', color: S.gold, letterSpacing: '2px' }}>★</span>
-          <div className="flex-1 h-[1px]" style={{ background: `linear-gradient(to left, transparent, ${S.gold}40, transparent)` }} />
+          <div style={{ flex: 1, minWidth: '20px', height: '1px', background: `linear-gradient(to left, transparent, ${S.gold}40, transparent)` }} />
         </div>
         {card.oneSentenceStrategy && (
           <div className="rounded-xl p-4 mb-4 relative overflow-hidden"
             style={{ background: `linear-gradient(135deg, rgba(255, 215, 0, 0.06), rgba(231, 254, 85, 0.04))`, border: `0.5px solid rgba(255, 215, 0, 0.3)` }}>
-            <div className="absolute top-0 left-0 right-0 h-[1px]"
-              style={{ background: `linear-gradient(to right, transparent, ${S.gold}99, transparent)` }} />
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: `linear-gradient(to right, transparent, ${S.gold}99, transparent)` }} />
             <div className="flex items-center gap-2 mb-2">
               <span style={{ fontSize: '12px' }}>★</span>
               <span className="font-mono font-bold" style={{ fontSize: '9px', letterSpacing: '2px', color: S.gold }}>
@@ -749,9 +750,9 @@ function RawCardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: numbe
               <QuestionBlock qNum={idx + 1} q={q} cardColor={cardColor} />
               {idx < leftQuestions.length - 1 && (
                 <div className="my-3 flex items-center gap-2">
-                  <div className="flex-1 h-[1px]" style={{ background: `linear-gradient(to right, transparent, ${cardColor}33, transparent)` }} />
+                  <div style={{ flex: 1, minWidth: '20px', height: '1px', background: `linear-gradient(to right, transparent, ${cardColor}33, transparent)` }} />
                   <div className="w-1 h-1 rounded-full" style={{ background: `${cardColor}66` }} />
-                  <div className="flex-1 h-[1px]" style={{ background: `linear-gradient(to left, transparent, ${cardColor}33, transparent)` }} />
+                  <div style={{ flex: 1, minWidth: '20px', height: '1px', background: `linear-gradient(to left, transparent, ${cardColor}33, transparent)` }} />
                 </div>
               )}
             </div>
@@ -772,15 +773,14 @@ function RawCardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: numbe
           {rightQuestion && <QuestionBlock qNum={3} q={rightQuestion} cardColor={cardColor} />}
         </div>
         <div className="mb-5 flex items-center gap-2">
-          <div className="flex-1 h-[1px]" style={{ background: `linear-gradient(to right, transparent, ${S.gold}40, transparent)` }} />
+          <div style={{ flex: 1, minWidth: '20px', height: '1px', background: `linear-gradient(to right, transparent, ${S.gold}40, transparent)` }} />
           <span className="font-mono font-bold" style={{ fontSize: '8px', color: S.gold, letterSpacing: '2px' }}>★</span>
-          <div className="flex-1 h-[1px]" style={{ background: `linear-gradient(to left, transparent, ${S.gold}40, transparent)` }} />
+          <div style={{ flex: 1, minWidth: '20px', height: '1px', background: `linear-gradient(to left, transparent, ${S.gold}40, transparent)` }} />
         </div>
         {card.oneSentenceStrategy && (
           <div className="rounded-xl p-4 relative overflow-hidden"
             style={{ background: `linear-gradient(135deg, rgba(255, 215, 0, 0.06), rgba(231, 254, 85, 0.04))`, border: `0.5px solid rgba(255, 215, 0, 0.3)` }}>
-            <div className="absolute top-0 left-0 right-0 h-[1px]"
-              style={{ background: `linear-gradient(to right, transparent, ${S.gold}99, transparent)` }} />
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '1px', background: `linear-gradient(to right, transparent, ${S.gold}99, transparent)` }} />
             <div className="flex items-center gap-2 mb-2">
               <span style={{ fontSize: '12px' }}>★</span>
               <span className="font-mono font-bold" style={{ fontSize: '9px', letterSpacing: '2px', color: S.gold }}>
@@ -862,9 +862,8 @@ function ConclusionPage({ report, polished }: { report: TeamReportData; polished
 }
 
 // ═══════════════════════════════════════════════════════
-// ActionPlanPage (19번째 페이지 = 최종 액션 플랜)
-//   좌측: 한 편의 통합 보고서 글 (narrative)
-//   우측: 90일 로드맵 (시간축 3단계)
+// ⭐ v5: ActionPlanPage — 장식선들에 minWidth/명시 height 부여
+//        (html2canvas의 InvalidStateError 방지)
 // ═══════════════════════════════════════════════════════
 function ActionPlanPage({ report, actionPlan }: { report: TeamReportData; actionPlan: ActionPlanData }) {
   const { team } = report;
@@ -897,12 +896,13 @@ function ActionPlanPage({ report, actionPlan }: { report: TeamReportData; action
           </p>
         </div>
         
+        {/* ⭐ v5 fix: STRATEGIC NARRATIVE 헤더 옆 선 — flex/h-[] 대신 inline style + minWidth */}
         <div className="flex items-center gap-1.5 mb-3">
           <span style={{ fontSize: '10px', color: S.gold }}>◆</span>
           <p className="font-mono font-bold tracking-widest" style={{ fontSize: '8px', color: S.gold, letterSpacing: '2px' }}>
             STRATEGIC NARRATIVE
           </p>
-          <div className="flex-1 h-[0.5px]" style={{ background: `linear-gradient(to right, ${S.gold}40, transparent)` }} />
+          <div style={{ flex: 1, minWidth: '20px', height: '1px', background: `linear-gradient(to right, ${S.gold}40, transparent)` }} />
         </div>
         
         {paragraphs.length > 0 ? (
@@ -930,11 +930,12 @@ function ActionPlanPage({ report, actionPlan }: { report: TeamReportData; action
           </div>
         )}
         
+        {/* ⭐ v5 fix: 하단 · · · 장식선 — flex/h-[] 대신 inline style + minWidth */}
         {paragraphs.length > 0 && (
           <div className="mt-5 flex items-center gap-2">
-            <div className="flex-1 h-[1px]" style={{ background: `linear-gradient(to right, transparent, ${S.gold}30, transparent)` }} />
+            <div style={{ flex: 1, minWidth: '20px', height: '1px', background: `linear-gradient(to right, transparent, ${S.gold}30, transparent)` }} />
             <span className="font-mono" style={{ fontSize: '8px', color: `${S.gold}AA`, letterSpacing: '2px' }}>· · ·</span>
-            <div className="flex-1 h-[1px]" style={{ background: `linear-gradient(to left, transparent, ${S.gold}30, transparent)` }} />
+            <div style={{ flex: 1, minWidth: '20px', height: '1px', background: `linear-gradient(to left, transparent, ${S.gold}30, transparent)` }} />
           </div>
         )}
         
@@ -989,7 +990,6 @@ function ActionPlanPage({ report, actionPlan }: { report: TeamReportData; action
   );
 }
 
-// 90일 로드맵 한 단계 (⭐ phase undefined 방어)
 function RoadmapPhase({ phase, phaseNum, color }: { phase?: { title: string; tasks: string[] }; phaseNum: number; color: string }) {
   if (!phase) {
     return (
