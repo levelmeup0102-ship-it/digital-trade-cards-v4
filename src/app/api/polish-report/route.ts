@@ -1,6 +1,7 @@
 // src/app/api/polish-report/route.ts
 // AI 보고서 다듬기 API - 학생 답변을 책 분량 자연스러운 글로 변환
-// ⭐ v6: actionPlan 추가 (최종 결론 = 실전 액션 플랜 + 90일 로드맵)
+// ⭐ v7: actionPlan을 박스 4개 → 한 편의 보고서 글(narrative)로 통합
+//        WHAT/WHERE/WHO/HOW 4가지 정보가 자연스럽게 녹아든 컨설팅 보고서 본문 + roadmap
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
@@ -148,13 +149,15 @@ async function polishReportWithClaude(reportData: TeamReportData) {
     console.warn(`[AI 다듬기] 카드 ${cardCount}/16 만 생성됨`);
   }
 
-  // ⭐ actionPlan 검증
+  // ⭐ v7: actionPlan 검증 (narrative + roadmap 구조)
   if (!parsed?.actionPlan) {
     console.warn('[AI 다듬기] actionPlan 누락!');
   } else {
     const ap = parsed.actionPlan;
-    if (!ap.what || !ap.where || !ap.who || !ap.how || !ap.roadmap) {
-      console.warn('[AI 다듬기] actionPlan 필수 필드 누락:', Object.keys(ap));
+    if (!ap.narrative) {
+      console.warn('[AI 다듬기] actionPlan.narrative 누락!');
+    } else if (ap.narrative.length < 300) {
+      console.warn(`[AI 다듬기] narrative가 너무 짧음 (${ap.narrative.length}자, 권장 450~600자)`);
     }
     if (!ap.roadmap?.phase1 || !ap.roadmap?.phase2 || !ap.roadmap?.phase3) {
       console.warn('[AI 다듬기] roadmap 3단계 중 누락된 phase 있음');
@@ -165,7 +168,7 @@ async function polishReportWithClaude(reportData: TeamReportData) {
 }
 
 // ═══════════════════════════════════════════════════════
-// 다듬기 프롬프트 빌더 (⭐ v6: actionPlan 추가)
+// 다듬기 프롬프트 빌더 (⭐ v7: actionPlan을 한 편의 보고서 글로 통합)
 // ═══════════════════════════════════════════════════════
 function buildPolishPrompt(
   team: TeamReportData['team'],
@@ -200,12 +203,14 @@ ${JSON.stringify(studentAnswers, null, 2)}
 - narrative: 280~350자 (4~5문장)
 - strategy: 200~250자 (3~4문장)
 - bridge: 40~60자 (1문장)
-- actionPlan 각 필드: 아래 별도 가이드 참조
+- actionPlan.narrative: 500~700자 (3~4 문단, 본문 보고서 톤)
+- actionPlan.roadmap 각 task: 30~50자
 
 # 톤
 - narrative: 전문 컨설턴트 보고서 톤, ~다 종결형 ("~한다", "~된다")
 - strategy: AI 코치의 평가/조언 톤 ("이 팀은 ~", "다만 ~", "다음에는 ~")
-- actionPlan: 실전 행동 지시 톤 (학생이 내일부터 따라할 수 있는 구체적 행동)
+- actionPlan.narrative: 컨설팅 보고서 본문 톤 + 약간의 스토리텔링 (학생이 읽고 가슴 뛰게)
+- actionPlan.roadmap tasks: 실전 행동 지시 톤 (학생이 내일부터 따라할 수 있는 구체적 행동)
 - 학생이 짧게 쓴 답변을 의미 있게 확장하되, 가짜 숫자는 만들지 않기
 - 미작성 답변은 카드 주제와 ${team.item}에 맞춰 합리적으로 보완
 
@@ -223,6 +228,10 @@ strategy는 ONE SENTENCE STRATEGY를 반복하지 말고, 3요소를 자연스�
 actionPlan은 보고서의 가장 마지막 장이다.
 학생이 보고서를 덮자마자 "내일부터 뭘 해야 할지" 알 수 있게 해주는 실전 액션 플랜이다.
 
+actionPlan은 두 부분으로 구성된다:
+1. narrative (보고서 본문): 한 편의 통합된 글
+2. roadmap (90일 로드맵): 3단계 단계별 액션 (시간축)
+
 【가장 중요한 원칙】
 1. 16개 카드 답변을 모두 종합 판단해서 작성한다 (단순 요약·복붙 금지).
 2. "수출하세요", "잘 팔아보세요" 같은 막연한 조언은 절대 금지.
@@ -230,20 +239,40 @@ actionPlan은 보고서의 가장 마지막 장이다.
 4. ${team.item}의 실제 시장·바이어·인증 환경에 맞춰 작성한다.
 5. 학생이 고등학생임을 감안해 너무 추상적이지 않게, 그러나 진짜 비즈니스처럼 작성.
 
-【필드 가이드】
-- what (30~50자): 우리 제품을 한 줄로 정의 (스펙·특징·차별점 포함)
-- where (40~60자): 1차 진출 시장/도시 + 선택 이유 (단순 국가명 X)
-- who: 누구에게 팔지 (1차/2차 채널 또는 바이어, 구체적 이름)
-  - primary (40~60자): 가장 먼저 접촉할 곳 + 그 이유
-  - secondary (40~60자): 2차 옵션 + 그 이유
-- how (배열, 정확히 3개): 핵심 실행 방법 3가지 (각 30~50자)
-  - 동사로 시작, 구체적 행동
-- roadmap: 90일 로드맵 (3단계로 끊기)
-  - phase1 (1~30일 · 준비기): { title, tasks: 3~4개 }
-  - phase2 (31~60일 · 실행기): { title, tasks: 3~4개 }
-  - phase3 (61~90일 · 성과기): { title, tasks: 3~4개 }
-  - 각 task는 30~50자, 동사로 시작하는 구체적 행동
-  - 학생/고등학생이 실제로 수행 가능한 수준으로
+【narrative 작성법 — 한 편의 보고서 글】
+- 분량: 500~700자 (3~4 문단)
+- 톤: 컨설팅 보고서 본문 + 약간의 스토리텔링
+- 종결형: ~다, ~한다 (전문 보고서 톤)
+- 4가지 핵심 정보가 글 안에 자연스럽게 녹아 있어야 함:
+  ① 무엇을 (제품·서비스 정의)
+  ② 어디에 (1차 진출 시장/도시 + 선택 이유)
+  ③ 누구에게 (1차/2차 바이어 또는 채널 — 구체적 이름)
+  ④ 어떻게 (실행 방법 — 박람회·플랫폼·협업 등 구체)
+- 박스로 쪼개지 말고, 한 편의 글로 자연스럽게 흐르게.
+- 4문단 구성 권장:
+  1) 도입 — 제품과 시장의 만남이 왜 의미 있는지 (약간의 스토리텔링)
+  2) 1차 진입 채널 — 누구를 두드릴 것이며 왜
+  3) 실행 방법 — 박람회·인플루언서·플랫폼 등 구체적 액션
+  4) 다짐 — 90일 안에 달성할 목표 + 다음 페이지(로드맵) 연결
+- 단락 사이는 빈 줄 하나(\\n\\n)로 구분
+
+【narrative 예시 (분량·톤 참고용 — ${team.item}이 다른 경우 그에 맞게)】
+"K-뷰티 시트마스크가 베트남 호치민의 한 매장 진열대에 오르는 길은 생각보다 가깝다. 한류 영향으로 현지 K-뷰티 수요는 매년 두 자릿수로 성장 중이며, MZ세대 소비자는 한국산 보습·미백 제품에 강한 신뢰를 보이고 있다. 이 흐름을 정확히 읽어내는 것이 진출 전략의 출발점이다.
+
+가장 먼저 두드려야 할 문은 베트남 최대 H&B 체인 Watsons의 베트남 바이어다. Watsons는 K-뷰티 카테고리를 전략적으로 확대 중이라 신규 브랜드의 진입 장벽이 비교적 낮은 편이다. 만약 1차 접촉이 늦어진다면, Tiki나 Shopee 같은 온라인 마켓플레이스 셀러를 통한 우회 진입을 병행해야 한다.
+
+실행 측면에서는 베트남에서 매년 6월 열리는 Vietbeauty 박람회 참가가 가장 효율적이다. 박람회를 전후로 호치민의 마이크로 인플루언서 5명과 협업해 인지도를 쌓고, Shopee 공식 스토어를 오픈해 즉각적인 구매 전환을 만들어야 한다.
+
+목표는 90일 안에 첫 PO를 확보하는 것이다. 그 길은 옆 페이지의 로드맵에 단계별로 정리되어 있다."
+
+【roadmap 작성법 — 90일 단계별 액션】
+3단계로 끊기:
+- phase1 (1~30일 · 준비기): { title, tasks: 3~4개 }
+- phase2 (31~60일 · 실행기): { title, tasks: 3~4개 }
+- phase3 (61~90일 · 성과기): { title, tasks: 3~4개 }
+- 각 task는 30~50자, 동사로 시작하는 구체적 행동
+- 학생/고등학생이 실제로 수행 가능한 수준으로
+- title 예시: "1~30일 · 준비기 (Foundation)", "31~60일 · 실행기 (Outreach)", "61~90일 · 성과기 (Closing)"
 
 # 출력 형식 (JSON만, 다른 텍스트 절대 금지)
 \`\`\`json
@@ -254,24 +283,14 @@ actionPlan은 보고서의 가장 마지막 장이다.
       "cardId": "01",
       "titleKo": "시장 개요 및 산업 정의",
       "intro": "${team.item}는 어떤 산업에 속하며 그 분류의 전략적 의미는 무엇인가.",
-      "narrative": "280~350자 분량의 전문 보고서 톤 본문. 학생 답변을 토대로 카드 주제를 명확히 풀어쓴다. 핵심 개념과 구체적 사례를 포함하되 너무 길지 않게 한다.",
-      "strategy": "【강점】 이 팀은 HS코드 단위까지 산업 분류를 구체화한 점이 인상적이다. 시장 진입 시 관세 및 규제 대응에 도움이 된다. 【보완점】 다만 진출국별 규제(FDA, NMPA 등) 비교가 빠져있어 글로벌 확장 시 인증 비용을 간과할 위험이 있다. 【제안】 다음에는 진출 대상 2개국의 규제 체계를 표로 정리해 인증 기간과 비용을 산정해보길 권한다.",
+      "narrative": "280~350자 분량의 전문 보고서 톤 본문. 학생 답변을 토대로 카드 주제를 명확히 풀어쓴다.",
+      "strategy": "【강점】 ~ 【보완점】 ~ 【제안】 ~",
       "bridge": "이 산업 정의를 바탕으로 다음에는 시장 규모와 성장성을 분석한다."
     }
   },
   "conclusion": "150자 정도, 팀 전략 정리와 다음 액션",
   "actionPlan": {
-    "what": "제품 한 줄 정의 (예: K-뷰티 시트마스크 / 보습+미백 기능성 / MZ세대 타깃)",
-    "where": "1차 진출 시장 + 선택 이유 (예: 베트남 호치민 — 한류 영향으로 K-뷰티 수요 급증)",
-    "who": {
-      "primary": "1차 접촉 대상 (예: Watsons 베트남 바이어 — 현지 최대 H&B 체인)",
-      "secondary": "2차 접촉 대상 (예: Tiki·Shopee 셀러 — 온라인 마켓플레이스 진입)"
-    },
-    "how": [
-      "구체적 실행 방법 1 (예: Vietbeauty 박람회 참가 신청 및 부스 운영)",
-      "구체적 실행 방법 2 (예: 호치민 마이크로 인플루언서 5명과 협업)",
-      "구체적 실행 방법 3 (예: Shopee 공식 스토어 오픈 + 첫 프로모션)"
-    ],
+    "narrative": "500~700자의 통합 보고서 글. 4문단 구성 권장. 단락 사이는 빈 줄 하나로 구분. 4가지 핵심 정보(무엇/어디/누구/어떻게)가 자연스럽게 녹아 있어야 함. 위 예시의 톤과 분량 참고.",
     "roadmap": {
       "phase1": {
         "title": "1~30일 · 준비기 (Foundation)",
@@ -308,9 +327,11 @@ actionPlan은 보고서의 가장 마지막 장이다.
 2. JSON 외 텍스트 절대 금지 (설명, 주석, 인사말 모두 금지)
 3. 분량을 정확히 지키기 (특히 narrative 350자 이하, strategy 250자 이하)
 4. strategy는 반드시 【강점】【보완점】【제안】 3요소 포함
-5. ⭐ actionPlan은 반드시 포함하고 모든 필드 채우기 (what, where, who.primary, who.secondary, how 배열 3개, roadmap.phase1~3 각각 title+tasks)
-6. ⭐ actionPlan은 16카드를 종합 판단한 결과여야 함 (단순 복붙 금지)
-7. ⭐ actionPlan은 ${team.item} 맥락에 맞는 구체적 바이어·박람회·인증명을 사용 (막연한 표현 금지)
-8. ${team.item} 맥락 유지
-9. 응답을 } 로 깔끔하게 끝내기`;
+5. ⭐ actionPlan은 반드시 포함하고 narrative + roadmap 두 부분 모두 채우기
+6. ⭐ actionPlan.narrative는 박스로 쪼개지 말고 한 편의 글로 (4문단 권장, 500~700자)
+7. ⭐ actionPlan.narrative에 4가지 핵심(무엇/어디/누구/어떻게)이 자연스럽게 녹아 있어야 함
+8. ⭐ actionPlan은 16카드를 종합 판단한 결과여야 함 (단순 복붙 금지)
+9. ⭐ ${team.item} 맥락에 맞는 구체적 바이어·박람회·인증명을 사용 (막연한 표현 금지)
+10. ${team.item} 맥락 유지
+11. 응답을 } 로 깔끔하게 끝내기`;
 }
