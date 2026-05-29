@@ -32,7 +32,8 @@ const STAGES = [
   { name: 'Decision', label: 'Decision 결정', color: S.decisionStage },
 ];
 
-const TOTAL_PAGES = 18;
+// ⭐ v2: actionPlan 있으면 19페이지, 없으면 18페이지 (동적)
+const BASE_PAGES = 18;
 
 interface PolishedCard {
   cardId: string;
@@ -43,10 +44,27 @@ interface PolishedCard {
   bridge: string;
 }
 
+// ⭐ NEW: ActionPlan 타입
+interface ActionPlanData {
+  what: string;
+  where: string;
+  who: {
+    primary: string;
+    secondary: string;
+  };
+  how: string[];
+  roadmap: {
+    phase1: { title: string; tasks: string[] };
+    phase2: { title: string; tasks: string[] };
+    phase3: { title: string; tasks: string[] };
+  };
+}
+
 interface PolishedData {
   executiveSummary: string;
   cards: Record<string, PolishedCard>;
   conclusion: string;
+  actionPlan?: ActionPlanData; // ⭐ NEW
 }
 
 export default function TeamReportPreviewPage() {
@@ -64,6 +82,9 @@ export default function TeamReportPreviewPage() {
   const [isPdfGenerating, setIsPdfGenerating] = useState(false);
   const [pdfProgress, setPdfProgress] = useState(0);
   const autoPdfTriggeredRef = useRef(false);
+
+  // ⭐ 동적 페이지 수: actionPlan 있으면 19, 없으면 18
+  const totalPages = polished?.actionPlan ? BASE_PAGES + 1 : BASE_PAGES;
 
   useEffect(() => {
     if (!teamId) return;
@@ -101,7 +122,7 @@ export default function TeamReportPreviewPage() {
   }, [teamId]);
 
   const goToPage = useCallback((newIndex: number) => {
-    if (newIndex < 0 || newIndex >= TOTAL_PAGES) return;
+    if (newIndex < 0 || newIndex >= totalPages) return;
     if (newIndex === pageIndex) return;
     setTransitioning(true);
     setTimeout(() => {
@@ -109,7 +130,7 @@ export default function TeamReportPreviewPage() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       setTimeout(() => setTransitioning(false), 50);
     }, 200);
-  }, [pageIndex]);
+  }, [pageIndex, totalPages]);
 
   useEffect(() => {
     if (loading || !report) return;
@@ -121,14 +142,14 @@ export default function TeamReportPreviewPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, report, searchParams]);
 
-  // ⭐⭐⭐ 5월 8일 버전 그대로 ⭐⭐⭐
+  // ⭐⭐⭐ PDF 다운로드 (totalPages 동적) ⭐⭐⭐
   async function handlePdfDownload(skipConfirm = false) {
     if (isPdfGenerating || !report) return;
     
     if (!skipConfirm) {
       const ok = confirm(
         '📄 PDF 다운로드를 시작합니다.\n\n' +
-        '• 18페이지 책을 PDF로 변환합니다\n' +
+        `• ${totalPages}페이지 책을 PDF로 변환합니다\n` +
         '• 약 30초~1분 소요됩니다\n' +
         '• 진행 중 화면이 자동으로 넘어갑니다\n\n' +
         '계속하시겠어요?'
@@ -158,7 +179,7 @@ export default function TeamReportPreviewPage() {
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
 
-      for (let i = 0; i < TOTAL_PAGES; i++) {
+      for (let i = 0; i < totalPages; i++) {
         setPageIndex(i);
         setTransitioning(false);
 
@@ -197,7 +218,7 @@ export default function TeamReportPreviewPage() {
         if (i > 0) pdf.addPage();
         pdf.addImage(imgData, 'PNG', x, y, renderWidth, renderHeight, undefined, 'FAST');
 
-        setPdfProgress(Math.round(((i + 1) / TOTAL_PAGES) * 100));
+        setPdfProgress(Math.round(((i + 1) / totalPages) * 100));
       }
 
       const teamName = report.team.teamName || 'team';
@@ -294,7 +315,7 @@ export default function TeamReportPreviewPage() {
               style={{ border: `2.5px solid ${S.gold}33`, borderTop: `2.5px solid ${S.gold}` }} />
             <p className="text-[14px] font-bold text-white mb-2">📄 PDF 생성 중</p>
             <p className="text-[11px] text-gray-400 mb-4 leading-relaxed">
-              {pageIndex + 1} / {TOTAL_PAGES} 페이지 처리 중<br />
+              {pageIndex + 1} / {totalPages} 페이지 처리 중<br />
               잠시만 기다려주세요...
             </p>
             <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)' }}>
@@ -351,7 +372,7 @@ export default function TeamReportPreviewPage() {
             </button>
             <span className="font-mono tracking-wider text-gray-500 hidden md:inline"
               style={{ fontSize: '10px', letterSpacing: '1.5px' }}>
-              {String(pageIndex + 1).padStart(2, '0')} / {TOTAL_PAGES}
+              {String(pageIndex + 1).padStart(2, '0')} / {totalPages}
             </span>
           </div>
         </div>
@@ -365,7 +386,7 @@ export default function TeamReportPreviewPage() {
               opacity: (transitioning && !isPdfGenerating) ? 0 : 1,
               transition: 'opacity 0.2s ease-out',
             }}>
-            <PageContent pageIndex={pageIndex} report={report} polished={polished} />
+            <PageContent pageIndex={pageIndex} report={report} polished={polished} totalPages={totalPages} />
           </div>
         </div>
 
@@ -385,28 +406,28 @@ export default function TeamReportPreviewPage() {
             </span>
             <span className="text-gray-700">/</span>
             <span className="font-mono text-gray-500" style={{ fontSize: '11px', letterSpacing: '1.5px' }}>
-              {TOTAL_PAGES}
+              {totalPages}
             </span>
           </div>
-          <button onClick={() => goToPage(pageIndex + 1)} disabled={pageIndex === TOTAL_PAGES - 1 || isPdfGenerating}
+          <button onClick={() => goToPage(pageIndex + 1)} disabled={pageIndex === totalPages - 1 || isPdfGenerating}
             className="rounded-full flex items-center justify-center transition-all disabled:opacity-20 hover:scale-110"
             style={{
               width: '40px', height: '40px',
-              background: pageIndex === TOTAL_PAGES - 1
+              background: pageIndex === totalPages - 1
                 ? 'rgba(255,255,255,0.04)'
                 : `linear-gradient(135deg, ${S.gold} 0%, ${S.green} 100%)`,
-              border: pageIndex === TOTAL_PAGES - 1 ? '0.5px solid rgba(255,255,255,0.1)' : 'none',
-              color: pageIndex === TOTAL_PAGES - 1 ? 'rgba(255,255,255,0.6)' : S.navy,
+              border: pageIndex === totalPages - 1 ? '0.5px solid rgba(255,255,255,0.1)' : 'none',
+              color: pageIndex === totalPages - 1 ? 'rgba(255,255,255,0.6)' : S.navy,
               fontSize: '18px', fontWeight: 700,
-              boxShadow: pageIndex === TOTAL_PAGES - 1 ? 'none' : `0 0 16px rgba(255, 215, 0, 0.4)`,
+              boxShadow: pageIndex === totalPages - 1 ? 'none' : `0 0 16px rgba(255, 215, 0, 0.4)`,
             }}>›</button>
         </div>
 
         <div className="flex gap-[3px] md:gap-1 justify-center flex-wrap max-w-[280px] md:max-w-md mx-auto mb-2 md:mb-3">
-          {Array.from({ length: TOTAL_PAGES }).map((_, i) => {
+          {Array.from({ length: totalPages }).map((_, i) => {
             const isCurrent = i === pageIndex;
             const isCover = i === 0;
-            const isOutro = i === TOTAL_PAGES - 1;
+            const isOutro = i === totalPages - 1;
             return (
               <button key={i} onClick={() => goToPage(i)} disabled={isPdfGenerating}
                 aria-label={`페이지 ${i + 1}`}
@@ -430,15 +451,30 @@ export default function TeamReportPreviewPage() {
   );
 }
 
-function PageContent({ pageIndex, report, polished }: {
-  pageIndex: number; report: TeamReportData; polished: PolishedData | null;
+// ⭐ v2: totalPages prop 추가, actionPlan 페이지 분기
+function PageContent({ pageIndex, report, polished, totalPages }: {
+  pageIndex: number; report: TeamReportData; polished: PolishedData | null; totalPages: number;
 }) {
+  // 0: Cover
   if (pageIndex === 0) return <CoverPage report={report} polished={polished} />;
-  if (pageIndex === TOTAL_PAGES - 1) return <ConclusionPage report={report} polished={polished} />;
-  const card = report.cards[pageIndex - 1];
-  if (!card) return null;
-  const polishedCard = polished?.cards?.[card.cardId] || null;
-  return <CardSpread card={card} pageIndex={pageIndex} polishedCard={polishedCard} />;
+  
+  // 1~16: Cards
+  if (pageIndex >= 1 && pageIndex <= 16) {
+    const card = report.cards[pageIndex - 1];
+    if (!card) return null;
+    const polishedCard = polished?.cards?.[card.cardId] || null;
+    return <CardSpread card={card} pageIndex={pageIndex} polishedCard={polishedCard} />;
+  }
+  
+  // 17: Conclusion
+  if (pageIndex === 17) return <ConclusionPage report={report} polished={polished} />;
+  
+  // ⭐ 18: ActionPlan (NEW)
+  if (pageIndex === 18 && polished?.actionPlan) {
+    return <ActionPlanPage report={report} actionPlan={polished.actionPlan} />;
+  }
+  
+  return null;
 }
 
 function CoverPage({ report, polished }: { report: TeamReportData; polished: PolishedData | null; }) {
@@ -597,14 +633,12 @@ function PolishedCardSpread({ card, pageIndex, polishedCard }: { card: ReportCar
         </div>
         {polishedCard.strategy && (
           <div className="mb-5 md:mt-6">
-            {/* AI COACH FEEDBACK 헤더 */}
             <div className="flex items-center gap-1.5 mb-3">
               <span style={{ fontSize: '11px' }}>🎯</span>
               <p className="font-mono font-bold tracking-widest" style={{ fontSize: '8px', color: cardColor, letterSpacing: '2px' }}>
                 AI COACH FEEDBACK
               </p>
             </div>
-            {/* 3개 박스로 분리 */}
             <FeedbackBoxes strategy={polishedCard.strategy} />
           </div>
         )}
@@ -743,6 +777,7 @@ function RawCardSpread({ card, pageIndex }: { card: ReportCard; pageIndex: numbe
 function ConclusionPage({ report, polished }: { report: TeamReportData; polished: PolishedData | null; }) {
   const { team, cards, totalAnswers } = report;
   const filledStrategies = cards.filter(c => c.oneSentenceStrategy).length;
+  const hasActionPlan = !!polished?.actionPlan;
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 relative">
       <CornerDecoration position="tl" color={S.gold} />
@@ -774,13 +809,234 @@ function ConclusionPage({ report, polished }: { report: TeamReportData; polished
       <MobileSeparator color={S.gold} />
       <div className="p-6 md:p-10 flex flex-col items-center justify-center text-center">
         <p className="text-[14px] text-white mb-2 font-medium leading-relaxed">{team.teamName} 모두 수고하셨습니다.</p>
-        <p className="text-[12px] text-gray-500 mb-6 md:mb-8 leading-relaxed">
-          이 전략을 실제 비즈니스에<br />어떻게 적용할지 토론해보세요.
-        </p>
+        {/* ⭐ ActionPlan 있으면 다음 페이지 안내, 없으면 기존 문구 */}
+        {hasActionPlan ? (
+          <>
+            <p className="text-[12px] text-gray-500 mb-6 md:mb-8 leading-relaxed">
+              다음 장에서<br />
+              <span style={{ color: S.gold, fontWeight: 700 }}>실전 액션 플랜</span>을 확인하세요.
+            </p>
+            <div className="flex items-center gap-2 mb-4">
+              <span style={{ fontSize: '12px', color: S.gold }}>→</span>
+              <span className="font-mono font-bold" style={{ fontSize: '9px', color: S.gold, letterSpacing: '2px' }}>
+                NEXT PAGE · ACTION PLAN
+              </span>
+            </div>
+          </>
+        ) : (
+          <p className="text-[12px] text-gray-500 mb-6 md:mb-8 leading-relaxed">
+            이 전략을 실제 비즈니스에<br />어떻게 적용할지 토론해보세요.
+          </p>
+        )}
         <p className="font-mono text-gray-600" style={{ fontSize: '9px', letterSpacing: '2px' }}>
           REPORT GENERATED · {new Date(report.generatedAt).toLocaleDateString('ko-KR')}
         </p>
         <p className="text-[10px] font-mono text-gray-700 mt-4 tracking-widest">© 2026 SIGNAL · ConnectAI</p>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// ⭐ NEW: ActionPlanPage (19번째 페이지 = 최종 액션 플랜)
+// ═══════════════════════════════════════════════════════
+function ActionPlanPage({ report, actionPlan }: { report: TeamReportData; actionPlan: ActionPlanData }) {
+  const { team } = report;
+  
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 relative">
+      <CornerDecoration position="tl" color={S.gold} />
+      <CornerDecoration position="tr" color={S.gold} />
+      <CornerDecoration position="bl" color={S.gold} />
+      <CornerDecoration position="br" color={S.gold} />
+      
+      {/* ─── 좌측: 4개 핵심 (WHAT/WHERE/WHO/HOW) ─── */}
+      <div className="p-5 md:p-7 relative md:border-r" style={{ borderColor: 'rgba(255, 215, 0, 0.15)' }}>
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-2">
+            <span style={{ fontSize: '14px' }}>🎯</span>
+            <p className="font-mono font-bold tracking-[3px]" style={{ fontSize: '10px', color: S.gold, textShadow: `0 0 8px ${S.gold}66` }}>
+              ★ ACTION PLAN ★
+            </p>
+          </div>
+          <h2 className="font-bold text-white mb-1 leading-tight" style={{ fontSize: '20px' }}>
+            내일부터 뭘 할까?
+          </h2>
+          <p className="text-[11px] text-gray-500 leading-relaxed">
+            16개 카드를 종합한 실전 액션 플랜 · {team.item}
+          </p>
+        </div>
+        
+        <div className="space-y-2.5">
+          {/* WHAT */}
+          <ActionBox icon="📦" label="WHAT · 무엇을" content={actionPlan.what} color="#FFD700" />
+          
+          {/* WHERE */}
+          <ActionBox icon="🌍" label="WHERE · 어디에" content={actionPlan.where} color="#06B6D4" />
+          
+          {/* WHO (1차/2차 분리) */}
+          <div className="rounded-lg overflow-hidden relative"
+            style={{ background: 'rgba(255, 111, 181, 0.08)', border: '0.5px solid rgba(255, 111, 181, 0.4)' }}>
+            <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '3px', background: '#FF6FB5' }} />
+            <div className="p-3 pl-4">
+              <div className="flex items-center gap-1.5 mb-2">
+                <span style={{ fontSize: '11px' }}>👥</span>
+                <p className="font-mono font-bold tracking-wider" style={{ fontSize: '9px', color: '#FF6FB5', letterSpacing: '1.5px' }}>
+                  WHO · 누구에게
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex gap-2">
+                  <span className="font-mono font-bold flex-shrink-0 rounded px-1.5 py-0.5"
+                    style={{ fontSize: '9px', color: '#FF6FB5', background: 'rgba(255, 111, 181, 0.15)', letterSpacing: '0.5px', height: 'fit-content', marginTop: '1px' }}>
+                    1차
+                  </span>
+                  <span style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.92)', lineHeight: 1.55 }}>
+                    {actionPlan.who.primary}
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="font-mono font-bold flex-shrink-0 rounded px-1.5 py-0.5"
+                    style={{ fontSize: '9px', color: '#FF6FB5', background: 'rgba(255, 111, 181, 0.08)', letterSpacing: '0.5px', height: 'fit-content', marginTop: '1px', opacity: 0.85 }}>
+                    2차
+                  </span>
+                  <span style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.82)', lineHeight: 1.55 }}>
+                    {actionPlan.who.secondary}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* HOW (3단계 리스트) */}
+          <div className="rounded-lg overflow-hidden relative"
+            style={{ background: 'rgba(231, 254, 85, 0.08)', border: '0.5px solid rgba(231, 254, 85, 0.4)' }}>
+            <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '3px', background: S.green }} />
+            <div className="p-3 pl-4">
+              <div className="flex items-center gap-1.5 mb-2">
+                <span style={{ fontSize: '11px' }}>💰</span>
+                <p className="font-mono font-bold tracking-wider" style={{ fontSize: '9px', color: S.green, letterSpacing: '1.5px' }}>
+                  HOW · 어떻게
+                </p>
+              </div>
+              <ol className="space-y-1.5">
+                {actionPlan.how.map((step, i) => (
+                  <li key={i} className="flex gap-2">
+                    <span className="font-mono font-bold flex-shrink-0 rounded-full flex items-center justify-center"
+                      style={{ fontSize: '9px', color: '#111', background: S.green, width: '16px', height: '16px', marginTop: '1px' }}>
+                      {i + 1}
+                    </span>
+                    <span style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.92)', lineHeight: 1.55 }}>
+                      {step}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </div>
+        </div>
+        
+        <div className="absolute bottom-3 left-7 font-mono hidden md:block"
+          style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px' }}>
+          PAGE 19 · LEFT
+        </div>
+      </div>
+      
+      <MobileSeparator color={S.gold} label="90-DAY ROADMAP ↓" />
+      
+      {/* ─── 우측: 90일 로드맵 (3단계) ─── */}
+      <div className="p-5 md:p-7 relative">
+        <div className="absolute top-4 right-7 font-mono text-gray-600 hidden md:block"
+          style={{ fontSize: '9px', letterSpacing: '1.5px' }}>
+          ROADMAP →
+        </div>
+        
+        <div className="mb-4 md:mt-1">
+          <div className="flex items-center gap-2 mb-2">
+            <span style={{ fontSize: '14px' }}>🗓️</span>
+            <p className="font-mono font-bold tracking-[3px]" style={{ fontSize: '10px', color: S.gold, textShadow: `0 0 8px ${S.gold}66` }}>
+              ★ 90-DAY ROADMAP ★
+            </p>
+          </div>
+          <h3 className="font-bold text-white mb-1 leading-tight" style={{ fontSize: '18px' }}>
+            90일 로드맵
+          </h3>
+          <p className="text-[11px] text-gray-500">
+            준비 → 실행 → 성과
+          </p>
+        </div>
+        
+        <div className="space-y-2.5">
+          <RoadmapPhase phase={actionPlan.roadmap.phase1} phaseNum={1} color="#8B5CF6" />
+          <RoadmapPhase phase={actionPlan.roadmap.phase2} phaseNum={2} color="#06B6D4" />
+          <RoadmapPhase phase={actionPlan.roadmap.phase3} phaseNum={3} color="#78BE20" />
+        </div>
+        
+        {/* 마무리 한 줄 */}
+        <div className="mt-4 pt-3 border-t flex items-center justify-center gap-2"
+          style={{ borderColor: 'rgba(255, 215, 0, 0.15)' }}>
+          <span className="font-mono font-bold" style={{ fontSize: '9px', color: S.gold, letterSpacing: '2.5px', textShadow: `0 0 6px ${S.gold}66` }}>
+            ★ YOUR JOURNEY BEGINS ★
+          </span>
+        </div>
+        
+        <div className="mt-3 md:mt-0 md:absolute md:bottom-3 md:right-7 font-mono text-center md:text-left"
+          style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px' }}>
+          PAGE 19<span className="hidden md:inline"> · RIGHT</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ActionPlan용 박스 (WHAT, WHERE)
+function ActionBox({ icon, label, content, color }: { icon: string; label: string; content: string; color: string }) {
+  return (
+    <div className="rounded-lg overflow-hidden relative"
+      style={{ background: `${color}10`, border: `0.5px solid ${color}40` }}>
+      <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '3px', background: color }} />
+      <div className="p-3 pl-4">
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <span style={{ fontSize: '11px' }}>{icon}</span>
+          <p className="font-mono font-bold tracking-wider"
+            style={{ fontSize: '9px', color, letterSpacing: '1.5px' }}>
+            {label}
+          </p>
+        </div>
+        <p className="leading-relaxed" style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.92)', lineHeight: 1.55, wordBreak: 'keep-all' }}>
+          {content}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// 90일 로드맵 한 단계
+function RoadmapPhase({ phase, phaseNum, color }: { phase: { title: string; tasks: string[] }; phaseNum: number; color: string }) {
+  return (
+    <div className="rounded-lg overflow-hidden relative"
+      style={{ background: `${color}10`, border: `0.5px solid ${color}40` }}>
+      <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '3px', background: color }} />
+      <div className="p-3 pl-4">
+        <div className="flex items-center gap-2 mb-2">
+          <div className="rounded-full flex items-center justify-center font-mono font-black flex-shrink-0"
+            style={{ width: '22px', height: '22px', background: color, color: '#111', fontSize: '11px', boxShadow: `0 0 8px ${color}80` }}>
+            {phaseNum}
+          </div>
+          <p className="font-bold flex-1" style={{ fontSize: '11px', color, letterSpacing: '0.3px' }}>
+            {phase.title}
+          </p>
+        </div>
+        <ul className="space-y-1 pl-1">
+          {phase.tasks.map((task, i) => (
+            <li key={i} className="flex gap-1.5">
+              <span className="flex-shrink-0" style={{ fontSize: '10px', color, lineHeight: 1.7 }}>▸</span>
+              <span style={{ fontSize: '11.5px', color: 'rgba(255, 255, 255, 0.85)', lineHeight: 1.6, wordBreak: 'keep-all' }}>
+                {task}
+              </span>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );
@@ -795,25 +1051,21 @@ function MobileSeparator({ color, label = '' }: { color: string; label?: string 
   );
 }
 
-// ⭐ NEW: AI 코치 피드백을 강점/보완점/제안 3박스로 분리
+// AI 코치 피드백을 강점/보완점/제안 3박스로 분리
 function FeedbackBoxes({ strategy }: { strategy: string }) {
-  // 색상
   const COLORS = {
     strength: { main: '#78BE20', bg: 'rgba(120, 190, 32, 0.08)', border: 'rgba(120, 190, 32, 0.4)' },
     weakness: { main: '#FFA500', bg: 'rgba(255, 165, 0, 0.08)', border: 'rgba(255, 165, 0, 0.4)' },
     suggestion: { main: '#06B6D4', bg: 'rgba(6, 182, 212, 0.08)', border: 'rgba(6, 182, 212, 0.4)' },
   };
 
-  // 텍스트 파싱 (【강점】, 【보완점】, 【제안】 키워드로 분리)
   const parseSection = (text: string, label: string): string => {
-    // 다양한 변형 키워드 지원
     const patterns: Record<string, RegExp[]> = {
       strength: [/【강점】/, /\[강점\]/, /강점:/, /✅\s*강점/],
       weakness: [/【보완점】/, /\[보완점\]/, /보완점:/, /【약점】/, /약점:/, /⚠️?\s*보완점/],
       suggestion: [/【제안】/, /\[제안\]/, /제안:/, /【개선 제안】/, /💡\s*제안/],
     };
 
-    // 모든 섹션 시작 위치 찾기
     const allMarkers: { type: string; pos: number; len: number }[] = [];
     Object.entries(patterns).forEach(([type, regexes]) => {
       for (const regex of regexes) {
@@ -825,10 +1077,8 @@ function FeedbackBoxes({ strategy }: { strategy: string }) {
       }
     });
 
-    // 위치 순으로 정렬
     allMarkers.sort((a, b) => a.pos - b.pos);
 
-    // 해당 라벨의 마커 찾기
     const targetIdx = allMarkers.findIndex(m => m.type === label);
     if (targetIdx === -1) return '';
 
@@ -844,7 +1094,6 @@ function FeedbackBoxes({ strategy }: { strategy: string }) {
   const weaknessText = parseSection(strategy, 'weakness');
   const suggestionText = parseSection(strategy, 'suggestion');
 
-  // 파싱이 실패했으면 그냥 전체 텍스트로 표시
   if (!strengthText && !weaknessText && !suggestionText) {
     return (
       <div className="rounded-lg p-3"
@@ -859,11 +1108,9 @@ function FeedbackBoxes({ strategy }: { strategy: string }) {
 
   return (
     <div className="space-y-2.5">
-      {/* 강점 박스 */}
       {strengthText && (
         <div className="rounded-lg overflow-hidden relative"
           style={{ background: COLORS.strength.bg, border: `0.5px solid ${COLORS.strength.border}` }}>
-          {/* 왼쪽 색깔 띠 (진짜 div로 그림) */}
           <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '3px', background: COLORS.strength.main }} />
           <div className="p-3 pl-4">
             <div className="flex items-center gap-1.5 mb-1.5">
@@ -881,11 +1128,9 @@ function FeedbackBoxes({ strategy }: { strategy: string }) {
         </div>
       )}
 
-      {/* 보완점 박스 */}
       {weaknessText && (
         <div className="rounded-lg overflow-hidden relative"
           style={{ background: COLORS.weakness.bg, border: `0.5px solid ${COLORS.weakness.border}` }}>
-          {/* 왼쪽 색깔 띠 (진짜 div로 그림) */}
           <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '3px', background: COLORS.weakness.main }} />
           <div className="p-3 pl-4">
             <div className="flex items-center gap-1.5 mb-1.5">
@@ -903,11 +1148,9 @@ function FeedbackBoxes({ strategy }: { strategy: string }) {
         </div>
       )}
 
-      {/* 제안 박스 */}
       {suggestionText && (
         <div className="rounded-lg overflow-hidden relative"
           style={{ background: COLORS.suggestion.bg, border: `0.5px solid ${COLORS.suggestion.border}` }}>
-          {/* 왼쪽 색깔 띠 (진짜 div로 그림) */}
           <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '3px', background: COLORS.suggestion.main }} />
           <div className="p-3 pl-4">
             <div className="flex items-center gap-1.5 mb-1.5">
