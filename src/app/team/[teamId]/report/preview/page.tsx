@@ -32,7 +32,7 @@ const STAGES = [
   { name: 'Decision', label: 'Decision 결정', color: S.decisionStage },
 ];
 
-// ⭐ v2: actionPlan 있으면 19페이지, 없으면 18페이지 (동적)
+// ⭐ v3: actionPlan 있으면 19페이지, 없으면 18페이지 (동적)
 const BASE_PAGES = 18;
 
 interface PolishedCard {
@@ -44,15 +44,9 @@ interface PolishedCard {
   bridge: string;
 }
 
-// ⭐ NEW: ActionPlan 타입
+// ⭐ v3: ActionPlan 구조 — narrative(한 편의 보고서 글) + roadmap(90일 단계별)
 interface ActionPlanData {
-  what: string;
-  where: string;
-  who: {
-    primary: string;
-    secondary: string;
-  };
-  how: string[];
+  narrative: string;
   roadmap: {
     phase1: { title: string; tasks: string[] };
     phase2: { title: string; tasks: string[] };
@@ -64,7 +58,7 @@ interface PolishedData {
   executiveSummary: string;
   cards: Record<string, PolishedCard>;
   conclusion: string;
-  actionPlan?: ActionPlanData; // ⭐ NEW
+  actionPlan?: ActionPlanData;
 }
 
 export default function TeamReportPreviewPage() {
@@ -83,7 +77,7 @@ export default function TeamReportPreviewPage() {
   const [pdfProgress, setPdfProgress] = useState(0);
   const autoPdfTriggeredRef = useRef(false);
 
-  // ⭐ 동적 페이지 수: actionPlan 있으면 19, 없으면 18
+  // actionPlan 있으면 19페이지, 없으면 18페이지
   const totalPages = polished?.actionPlan ? BASE_PAGES + 1 : BASE_PAGES;
 
   useEffect(() => {
@@ -142,7 +136,6 @@ export default function TeamReportPreviewPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, report, searchParams]);
 
-  // ⭐⭐⭐ PDF 다운로드 (totalPages 동적) ⭐⭐⭐
   async function handlePdfDownload(skipConfirm = false) {
     if (isPdfGenerating || !report) return;
     
@@ -164,12 +157,10 @@ export default function TeamReportPreviewPage() {
       const { jsPDF } = await import('jspdf');
       const html2canvas = (await import('html2canvas')).default;
 
-      // 폰트 완전 로딩 대기
       if ((document as any).fonts?.ready) {
         await (document as any).fonts.ready;
       }
 
-      // A4 가로 (책 펼침면 형식)
       const pdf = new jsPDF({
         orientation: 'landscape',
         unit: 'mm',
@@ -183,7 +174,6 @@ export default function TeamReportPreviewPage() {
         setPageIndex(i);
         setTransitioning(false);
 
-        // React 렌더링 + 이미지 로딩 대기
         await new Promise(r => setTimeout(r, 600));
 
         const element = document.getElementById('book-page-content');
@@ -451,14 +441,11 @@ export default function TeamReportPreviewPage() {
   );
 }
 
-// ⭐ v2: totalPages prop 추가, actionPlan 페이지 분기
 function PageContent({ pageIndex, report, polished, totalPages }: {
   pageIndex: number; report: TeamReportData; polished: PolishedData | null; totalPages: number;
 }) {
-  // 0: Cover
   if (pageIndex === 0) return <CoverPage report={report} polished={polished} />;
   
-  // 1~16: Cards
   if (pageIndex >= 1 && pageIndex <= 16) {
     const card = report.cards[pageIndex - 1];
     if (!card) return null;
@@ -466,10 +453,8 @@ function PageContent({ pageIndex, report, polished, totalPages }: {
     return <CardSpread card={card} pageIndex={pageIndex} polishedCard={polishedCard} />;
   }
   
-  // 17: Conclusion
   if (pageIndex === 17) return <ConclusionPage report={report} polished={polished} />;
   
-  // ⭐ 18: ActionPlan (NEW)
   if (pageIndex === 18 && polished?.actionPlan) {
     return <ActionPlanPage report={report} actionPlan={polished.actionPlan} />;
   }
@@ -809,7 +794,6 @@ function ConclusionPage({ report, polished }: { report: TeamReportData; polished
       <MobileSeparator color={S.gold} />
       <div className="p-6 md:p-10 flex flex-col items-center justify-center text-center">
         <p className="text-[14px] text-white mb-2 font-medium leading-relaxed">{team.teamName} 모두 수고하셨습니다.</p>
-        {/* ⭐ ActionPlan 있으면 다음 페이지 안내, 없으면 기존 문구 */}
         {hasActionPlan ? (
           <>
             <p className="text-[12px] text-gray-500 mb-6 md:mb-8 leading-relaxed">
@@ -838,10 +822,18 @@ function ConclusionPage({ report, polished }: { report: TeamReportData; polished
 }
 
 // ═══════════════════════════════════════════════════════
-// ⭐ NEW: ActionPlanPage (19번째 페이지 = 최종 액션 플랜)
+// ⭐ v3: ActionPlanPage (19번째 페이지 = 최종 액션 플랜)
+//   좌측: 한 편의 통합 보고서 글 (narrative)
+//   우측: 90일 로드맵 (시간축 3단계)
 // ═══════════════════════════════════════════════════════
 function ActionPlanPage({ report, actionPlan }: { report: TeamReportData; actionPlan: ActionPlanData }) {
   const { team } = report;
+  
+  // narrative를 빈 줄(\n\n)로 분리해 단락별로 표시
+  const paragraphs = (actionPlan.narrative || '')
+    .split(/\n\s*\n/)
+    .map(p => p.trim())
+    .filter(p => p.length > 0);
   
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 relative">
@@ -850,91 +842,67 @@ function ActionPlanPage({ report, actionPlan }: { report: TeamReportData; action
       <CornerDecoration position="bl" color={S.gold} />
       <CornerDecoration position="br" color={S.gold} />
       
-      {/* ─── 좌측: 4개 핵심 (WHAT/WHERE/WHO/HOW) ─── */}
-      <div className="p-5 md:p-7 relative md:border-r" style={{ borderColor: 'rgba(255, 215, 0, 0.15)' }}>
-        <div className="mb-4">
+      {/* ─── 좌측: 한 편의 보고서 글 (narrative) ─── */}
+      <div className="p-5 md:p-8 relative md:border-r" style={{ borderColor: 'rgba(255, 215, 0, 0.15)' }}>
+        {/* 헤더 */}
+        <div className="mb-5">
           <div className="flex items-center gap-2 mb-2">
             <span style={{ fontSize: '14px' }}>🎯</span>
             <p className="font-mono font-bold tracking-[3px]" style={{ fontSize: '10px', color: S.gold, textShadow: `0 0 8px ${S.gold}66` }}>
               ★ ACTION PLAN ★
             </p>
           </div>
-          <h2 className="font-bold text-white mb-1 leading-tight" style={{ fontSize: '20px' }}>
+          <h2 className="font-bold text-white mb-1.5 leading-tight" style={{ fontSize: '22px' }}>
             내일부터 뭘 할까?
           </h2>
-          <p className="text-[11px] text-gray-500 leading-relaxed">
-            16개 카드를 종합한 실전 액션 플랜 · {team.item}
+          <p className="text-[11px] leading-relaxed" style={{ color: 'rgba(193, 232, 235, 0.7)' }}>
+            {team.item} · 16개 카드를 종합한 실전 진출 전략
           </p>
         </div>
         
-        <div className="space-y-2.5">
-          {/* WHAT */}
-          <ActionBox icon="📦" label="WHAT · 무엇을" content={actionPlan.what} color="#FFD700" />
-          
-          {/* WHERE */}
-          <ActionBox icon="🌍" label="WHERE · 어디에" content={actionPlan.where} color="#06B6D4" />
-          
-          {/* WHO (1차/2차 분리) */}
-          <div className="rounded-lg overflow-hidden relative"
-            style={{ background: 'rgba(255, 111, 181, 0.08)', border: '0.5px solid rgba(255, 111, 181, 0.4)' }}>
-            <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '3px', background: '#FF6FB5' }} />
-            <div className="p-3 pl-4">
-              <div className="flex items-center gap-1.5 mb-2">
-                <span style={{ fontSize: '11px' }}>👥</span>
-                <p className="font-mono font-bold tracking-wider" style={{ fontSize: '9px', color: '#FF6FB5', letterSpacing: '1.5px' }}>
-                  WHO · 누구에게
-                </p>
-              </div>
-              <div className="space-y-1.5">
-                <div className="flex gap-2">
-                  <span className="font-mono font-bold flex-shrink-0 rounded px-1.5 py-0.5"
-                    style={{ fontSize: '9px', color: '#FF6FB5', background: 'rgba(255, 111, 181, 0.15)', letterSpacing: '0.5px', height: 'fit-content', marginTop: '1px' }}>
-                    1차
-                  </span>
-                  <span style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.92)', lineHeight: 1.55 }}>
-                    {actionPlan.who.primary}
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  <span className="font-mono font-bold flex-shrink-0 rounded px-1.5 py-0.5"
-                    style={{ fontSize: '9px', color: '#FF6FB5', background: 'rgba(255, 111, 181, 0.08)', letterSpacing: '0.5px', height: 'fit-content', marginTop: '1px', opacity: 0.85 }}>
-                    2차
-                  </span>
-                  <span style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.82)', lineHeight: 1.55 }}>
-                    {actionPlan.who.secondary}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* HOW (3단계 리스트) */}
-          <div className="rounded-lg overflow-hidden relative"
-            style={{ background: 'rgba(231, 254, 85, 0.08)', border: '0.5px solid rgba(231, 254, 85, 0.4)' }}>
-            <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '3px', background: S.green }} />
-            <div className="p-3 pl-4">
-              <div className="flex items-center gap-1.5 mb-2">
-                <span style={{ fontSize: '11px' }}>💰</span>
-                <p className="font-mono font-bold tracking-wider" style={{ fontSize: '9px', color: S.green, letterSpacing: '1.5px' }}>
-                  HOW · 어떻게
-                </p>
-              </div>
-              <ol className="space-y-1.5">
-                {actionPlan.how.map((step, i) => (
-                  <li key={i} className="flex gap-2">
-                    <span className="font-mono font-bold flex-shrink-0 rounded-full flex items-center justify-center"
-                      style={{ fontSize: '9px', color: '#111', background: S.green, width: '16px', height: '16px', marginTop: '1px' }}>
-                      {i + 1}
-                    </span>
-                    <span style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.92)', lineHeight: 1.55 }}>
-                      {step}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          </div>
+        {/* 보고서 글 헤더 */}
+        <div className="flex items-center gap-1.5 mb-3">
+          <span style={{ fontSize: '10px', color: S.gold }}>◆</span>
+          <p className="font-mono font-bold tracking-widest" style={{ fontSize: '8px', color: S.gold, letterSpacing: '2px' }}>
+            STRATEGIC NARRATIVE
+          </p>
+          <div className="flex-1 h-[0.5px]" style={{ background: `linear-gradient(to right, ${S.gold}40, transparent)` }} />
         </div>
+        
+        {/* 본문 — 한 편의 글 (단락별로) */}
+        {paragraphs.length > 0 ? (
+          <div className="space-y-3.5">
+            {paragraphs.map((para, idx) => (
+              <p
+                key={idx}
+                className="leading-relaxed"
+                style={{
+                  fontSize: '12.5px',
+                  color: 'rgba(255, 255, 255, 0.92)',
+                  lineHeight: 1.85,
+                  letterSpacing: '-0.1px',
+                  wordBreak: 'keep-all',
+                  textIndent: idx === 0 ? '0' : '4px',
+                }}
+              >
+                {para}
+              </p>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-lg p-3" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '0.5px solid rgba(255, 255, 255, 0.08)' }}>
+            <p className="text-[11px] text-gray-500 italic text-center">실전 액션 플랜이 아직 작성되지 않았습니다.</p>
+          </div>
+        )}
+        
+        {/* 하단 장식 */}
+        {paragraphs.length > 0 && (
+          <div className="mt-5 flex items-center gap-2">
+            <div className="flex-1 h-[1px]" style={{ background: `linear-gradient(to right, transparent, ${S.gold}30, transparent)` }} />
+            <span className="font-mono" style={{ fontSize: '8px', color: `${S.gold}AA`, letterSpacing: '2px' }}>· · ·</span>
+            <div className="flex-1 h-[1px]" style={{ background: `linear-gradient(to left, transparent, ${S.gold}30, transparent)` }} />
+          </div>
+        )}
         
         <div className="absolute bottom-3 left-7 font-mono hidden md:block"
           style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px' }}>
@@ -944,7 +912,7 @@ function ActionPlanPage({ report, actionPlan }: { report: TeamReportData; action
       
       <MobileSeparator color={S.gold} label="90-DAY ROADMAP ↓" />
       
-      {/* ─── 우측: 90일 로드맵 (3단계) ─── */}
+      {/* ─── 우측: 90일 로드맵 (시간축 3단계) ─── */}
       <div className="p-5 md:p-7 relative">
         <div className="absolute top-4 right-7 font-mono text-gray-600 hidden md:block"
           style={{ fontSize: '9px', letterSpacing: '1.5px' }}>
@@ -984,28 +952,6 @@ function ActionPlanPage({ report, actionPlan }: { report: TeamReportData; action
           style={{ fontSize: '9px', color: 'rgba(255,255,255,0.2)', letterSpacing: '2px' }}>
           PAGE 19<span className="hidden md:inline"> · RIGHT</span>
         </div>
-      </div>
-    </div>
-  );
-}
-
-// ActionPlan용 박스 (WHAT, WHERE)
-function ActionBox({ icon, label, content, color }: { icon: string; label: string; content: string; color: string }) {
-  return (
-    <div className="rounded-lg overflow-hidden relative"
-      style={{ background: `${color}10`, border: `0.5px solid ${color}40` }}>
-      <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '3px', background: color }} />
-      <div className="p-3 pl-4">
-        <div className="flex items-center gap-1.5 mb-1.5">
-          <span style={{ fontSize: '11px' }}>{icon}</span>
-          <p className="font-mono font-bold tracking-wider"
-            style={{ fontSize: '9px', color, letterSpacing: '1.5px' }}>
-            {label}
-          </p>
-        </div>
-        <p className="leading-relaxed" style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.92)', lineHeight: 1.55, wordBreak: 'keep-all' }}>
-          {content}
-        </p>
       </div>
     </div>
   );
