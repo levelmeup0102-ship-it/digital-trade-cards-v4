@@ -32,7 +32,7 @@ const STAGES = [
   { name: 'Decision', label: 'Decision 결정', color: S.decisionStage },
 ];
 
-// ⭐ v3: actionPlan 있으면 19페이지, 없으면 18페이지 (동적)
+// v3: actionPlan 있으면 19페이지, 없으면 18페이지 (동적)
 const BASE_PAGES = 18;
 
 interface PolishedCard {
@@ -44,7 +44,6 @@ interface PolishedCard {
   bridge: string;
 }
 
-// ⭐ v3: ActionPlan 구조 — narrative(한 편의 보고서 글) + roadmap(90일 단계별)
 interface ActionPlanData {
   narrative: string;
   roadmap: {
@@ -77,7 +76,6 @@ export default function TeamReportPreviewPage() {
   const [pdfProgress, setPdfProgress] = useState(0);
   const autoPdfTriggeredRef = useRef(false);
 
-  // actionPlan 있으면 19페이지, 없으면 18페이지
   const totalPages = polished?.actionPlan ? BASE_PAGES + 1 : BASE_PAGES;
 
   useEffect(() => {
@@ -136,9 +134,12 @@ export default function TeamReportPreviewPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, report, searchParams]);
 
+  // ═══════════════════════════════════════════════════════
+  // ⭐ v4: PDF 다운로드 함수 — 19페이지 대기 강화 + 페이지별 try/catch + 상세 로깅
+  // ═══════════════════════════════════════════════════════
   async function handlePdfDownload(skipConfirm = false) {
     if (isPdfGenerating || !report) return;
-    
+
     if (!skipConfirm) {
       const ok = confirm(
         '📄 PDF 다운로드를 시작합니다.\n\n' +
@@ -153,6 +154,8 @@ export default function TeamReportPreviewPage() {
     setIsPdfGenerating(true);
     setPdfProgress(0);
 
+    let failedPageIndex = -1;
+
     try {
       const { jsPDF } = await import('jspdf');
       const html2canvas = (await import('html2canvas')).default;
@@ -161,35 +164,55 @@ export default function TeamReportPreviewPage() {
         await (document as any).fonts.ready;
       }
 
-      const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4',
-      });
-
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
 
       for (let i = 0; i < totalPages; i++) {
+        console.log(`[PDF] 페이지 ${i + 1}/${totalPages} 시작`);
+        failedPageIndex = i;  // 실패 시 여기 페이지 번호 남음
+
         setPageIndex(i);
         setTransitioning(false);
 
-        await new Promise(r => setTimeout(r, 600));
+        // ⭐ 19페이지(ActionPlanPage)는 첫 마운트라 더 오래 대기
+        const isActionPlanPage = (i === totalPages - 1 && totalPages === 19);
+        const waitMs = isActionPlanPage ? 1500 : 800;
+        await new Promise(r => setTimeout(r, waitMs));
+
+        // 폰트 한 번 더 보장
+        if ((document as any).fonts?.ready) {
+          await (document as any).fonts.ready;
+        }
 
         const element = document.getElementById('book-page-content');
-        if (!element) continue;
+        if (!element) {
+          console.warn(`[PDF] 페이지 ${i + 1}: element 못 찾음`);
+          continue;
+        }
 
-        const canvas = await html2canvas(element, {
-          scale: 2,
-          backgroundColor: '#050505',
-          useCORS: true,
-          logging: false,
-          windowWidth: element.scrollWidth,
-          windowHeight: element.scrollHeight,
-        });
+        console.log(`[PDF] 페이지 ${i + 1}: ${element.scrollWidth} x ${element.scrollHeight}`);
+
+        let canvas: HTMLCanvasElement;
+        try {
+          canvas = await html2canvas(element, {
+            scale: 2,
+            backgroundColor: '#050505',
+            useCORS: true,
+            allowTaint: true,
+            logging: false,
+            imageTimeout: 30000,
+            windowWidth: element.scrollWidth,
+            windowHeight: element.scrollHeight,
+          });
+        } catch (pageErr: any) {
+          console.error(`[PDF] ⛔ 페이지 ${i + 1} 캡처 실패:`, pageErr);
+          console.error('  message:', pageErr?.message);
+          console.error('  stack:', pageErr?.stack);
+          throw pageErr;
+        }
 
         const imgData = canvas.toDataURL('image/png');
-
         const canvasRatio = canvas.width / canvas.height;
         const pdfRatio = pdfWidth / pdfHeight;
 
@@ -209,15 +232,32 @@ export default function TeamReportPreviewPage() {
         pdf.addImage(imgData, 'PNG', x, y, renderWidth, renderHeight, undefined, 'FAST');
 
         setPdfProgress(Math.round(((i + 1) / totalPages) * 100));
+        console.log(`[PDF] 페이지 ${i + 1} 완료`);
       }
+
+      failedPageIndex = -1; // 모두 성공
 
       const teamName = report.team.teamName || 'team';
       const date = new Date().toISOString().slice(0, 10);
       const safeName = teamName.replace(/[^\w가-힣]/g, '_');
       pdf.save(`SIGNAL_${safeName}_${date}.pdf`);
     } catch (err: any) {
-      console.error('PDF 생성 실패:', err);
-      alert('❌ PDF 생성 실패\n' + (err?.message || '알 수 없는 오류'));
+      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.error('[PDF] 전체 실패');
+      console.error('  failed page:', failedPageIndex + 1, '/', totalPages);
+      console.error('  message:', err?.message);
+      console.error('  name:', err?.name);
+      console.error('  stack:', err?.stack);
+      console.error('  raw:', err);
+      console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+      alert(
+        '❌ PDF 생성 실패\n\n' +
+        (failedPageIndex >= 0 ? `실패한 페이지: ${failedPageIndex + 1} / ${totalPages}\n` : '') +
+        `타입: ${err?.name || '(없음)'}\n` +
+        `메시지: ${err?.message || '(없음)'}\n\n` +
+        `상세: ${String(err).slice(0, 300)}`
+      );
     } finally {
       setIsPdfGenerating(false);
       setPdfProgress(0);
@@ -822,14 +862,13 @@ function ConclusionPage({ report, polished }: { report: TeamReportData; polished
 }
 
 // ═══════════════════════════════════════════════════════
-// ⭐ v3: ActionPlanPage (19번째 페이지 = 최종 액션 플랜)
+// ActionPlanPage (19번째 페이지 = 최종 액션 플랜)
 //   좌측: 한 편의 통합 보고서 글 (narrative)
 //   우측: 90일 로드맵 (시간축 3단계)
 // ═══════════════════════════════════════════════════════
 function ActionPlanPage({ report, actionPlan }: { report: TeamReportData; actionPlan: ActionPlanData }) {
   const { team } = report;
   
-  // narrative를 빈 줄(\n\n)로 분리해 단락별로 표시
   const paragraphs = (actionPlan.narrative || '')
     .split(/\n\s*\n/)
     .map(p => p.trim())
@@ -842,9 +881,7 @@ function ActionPlanPage({ report, actionPlan }: { report: TeamReportData; action
       <CornerDecoration position="bl" color={S.gold} />
       <CornerDecoration position="br" color={S.gold} />
       
-      {/* ─── 좌측: 한 편의 보고서 글 (narrative) ─── */}
       <div className="p-5 md:p-8 relative md:border-r" style={{ borderColor: 'rgba(255, 215, 0, 0.15)' }}>
-        {/* 헤더 */}
         <div className="mb-5">
           <div className="flex items-center gap-2 mb-2">
             <span style={{ fontSize: '14px' }}>🎯</span>
@@ -860,7 +897,6 @@ function ActionPlanPage({ report, actionPlan }: { report: TeamReportData; action
           </p>
         </div>
         
-        {/* 보고서 글 헤더 */}
         <div className="flex items-center gap-1.5 mb-3">
           <span style={{ fontSize: '10px', color: S.gold }}>◆</span>
           <p className="font-mono font-bold tracking-widest" style={{ fontSize: '8px', color: S.gold, letterSpacing: '2px' }}>
@@ -869,7 +905,6 @@ function ActionPlanPage({ report, actionPlan }: { report: TeamReportData; action
           <div className="flex-1 h-[0.5px]" style={{ background: `linear-gradient(to right, ${S.gold}40, transparent)` }} />
         </div>
         
-        {/* 본문 — 한 편의 글 (단락별로) */}
         {paragraphs.length > 0 ? (
           <div className="space-y-3.5">
             {paragraphs.map((para, idx) => (
@@ -895,7 +930,6 @@ function ActionPlanPage({ report, actionPlan }: { report: TeamReportData; action
           </div>
         )}
         
-        {/* 하단 장식 */}
         {paragraphs.length > 0 && (
           <div className="mt-5 flex items-center gap-2">
             <div className="flex-1 h-[1px]" style={{ background: `linear-gradient(to right, transparent, ${S.gold}30, transparent)` }} />
@@ -912,7 +946,6 @@ function ActionPlanPage({ report, actionPlan }: { report: TeamReportData; action
       
       <MobileSeparator color={S.gold} label="90-DAY ROADMAP ↓" />
       
-      {/* ─── 우측: 90일 로드맵 (시간축 3단계) ─── */}
       <div className="p-5 md:p-7 relative">
         <div className="absolute top-4 right-7 font-mono text-gray-600 hidden md:block"
           style={{ fontSize: '9px', letterSpacing: '1.5px' }}>
@@ -935,12 +968,11 @@ function ActionPlanPage({ report, actionPlan }: { report: TeamReportData; action
         </div>
         
         <div className="space-y-2.5">
-          <RoadmapPhase phase={actionPlan.roadmap.phase1} phaseNum={1} color="#8B5CF6" />
-          <RoadmapPhase phase={actionPlan.roadmap.phase2} phaseNum={2} color="#06B6D4" />
-          <RoadmapPhase phase={actionPlan.roadmap.phase3} phaseNum={3} color="#78BE20" />
+          <RoadmapPhase phase={actionPlan.roadmap?.phase1} phaseNum={1} color="#8B5CF6" />
+          <RoadmapPhase phase={actionPlan.roadmap?.phase2} phaseNum={2} color="#06B6D4" />
+          <RoadmapPhase phase={actionPlan.roadmap?.phase3} phaseNum={3} color="#78BE20" />
         </div>
         
-        {/* 마무리 한 줄 */}
         <div className="mt-4 pt-3 border-t flex items-center justify-center gap-2"
           style={{ borderColor: 'rgba(255, 215, 0, 0.15)' }}>
           <span className="font-mono font-bold" style={{ fontSize: '9px', color: S.gold, letterSpacing: '2.5px', textShadow: `0 0 6px ${S.gold}66` }}>
@@ -957,8 +989,17 @@ function ActionPlanPage({ report, actionPlan }: { report: TeamReportData; action
   );
 }
 
-// 90일 로드맵 한 단계
-function RoadmapPhase({ phase, phaseNum, color }: { phase: { title: string; tasks: string[] }; phaseNum: number; color: string }) {
+// 90일 로드맵 한 단계 (⭐ phase undefined 방어)
+function RoadmapPhase({ phase, phaseNum, color }: { phase?: { title: string; tasks: string[] }; phaseNum: number; color: string }) {
+  if (!phase) {
+    return (
+      <div className="rounded-lg p-3"
+        style={{ background: 'rgba(255, 255, 255, 0.03)', border: '0.5px dashed rgba(255, 255, 255, 0.12)' }}>
+        <p className="text-[10px] text-gray-600 italic text-center">Phase {phaseNum} 데이터 누락</p>
+      </div>
+    );
+  }
+  const tasks = Array.isArray(phase.tasks) ? phase.tasks : [];
   return (
     <div className="rounded-lg overflow-hidden relative"
       style={{ background: `${color}10`, border: `0.5px solid ${color}40` }}>
@@ -970,11 +1011,11 @@ function RoadmapPhase({ phase, phaseNum, color }: { phase: { title: string; task
             {phaseNum}
           </div>
           <p className="font-bold flex-1" style={{ fontSize: '11px', color, letterSpacing: '0.3px' }}>
-            {phase.title}
+            {phase.title || `Phase ${phaseNum}`}
           </p>
         </div>
         <ul className="space-y-1 pl-1">
-          {phase.tasks.map((task, i) => (
+          {tasks.map((task, i) => (
             <li key={i} className="flex gap-1.5">
               <span className="flex-shrink-0" style={{ fontSize: '10px', color, lineHeight: 1.7 }}>▸</span>
               <span style={{ fontSize: '11.5px', color: 'rgba(255, 255, 255, 0.85)', lineHeight: 1.6, wordBreak: 'keep-all' }}>
@@ -997,7 +1038,6 @@ function MobileSeparator({ color, label = '' }: { color: string; label?: string 
   );
 }
 
-// AI 코치 피드백을 강점/보완점/제안 3박스로 분리
 function FeedbackBoxes({ strategy }: { strategy: string }) {
   const COLORS = {
     strength: { main: '#78BE20', bg: 'rgba(120, 190, 32, 0.08)', border: 'rgba(120, 190, 32, 0.4)' },
@@ -1147,15 +1187,6 @@ function DifficultyStars({ level, color }: { level: number; color: string }) {
       ))}
     </div>
   );
-}
-
-function StageIcon({ stage, color }: { stage: number; color: string }) {
-  const icons = [
-    <g key="fact"><circle cx="11" cy="11" r="6" stroke={color} strokeWidth="1.8" fill="none" /><path d="M20 20l-4-4" stroke={color} strokeWidth="1.8" strokeLinecap="round" /></g>,
-    <g key="insight"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.3.3.5.7.5 1.1V16a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-1c0-.4.2-.8.5-1.1A6 6 0 0 0 12 3z" stroke={color} strokeWidth="1.6" fill="none" strokeLinejoin="round" /></g>,
-    <g key="decision"><path d="M5 13l4 4L19 7" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none" /></g>,
-  ];
-  return <svg width="14" height="14" viewBox="0 0 24 24">{icons[stage - 1]}</svg>;
 }
 
 function QuestionBlock({ qNum, q, cardColor }: { qNum: number; q: { id: string; title: string; answer: string; interimBlanks: string[] }; cardColor: string; }) {
