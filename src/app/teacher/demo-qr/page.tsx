@@ -94,7 +94,7 @@ export default function DemoQRPage() {
       {/* 상단 바 (인쇄 시 숨김) */}
       <div className="w-full max-w-3xl mb-6 flex items-center justify-between print:hidden relative z-10">
         <button
-          onClick={() => router.push('/teacher')}
+          onClick={() => router.push('/teacher/dashboard')}
           className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition hover:scale-[1.02]"
           style={{
             background: 'rgba(255,255,255,0.06)',
