@@ -2061,8 +2061,8 @@
   
   /* 정보 영역 */
   .id-card-info {
-    padding: 18px 26px;
-    background: rgba(0, 0, 0, 0.25);
+    padding: 22px 28px;
+    background: rgba(0, 0, 0, 0.3);
     flex-shrink: 0;
     position: relative;
   }
@@ -2077,31 +2077,34 @@
     pointer-events: none;
   }
   
+  /* 영문 직무명 - 더 크고 또렷하게 */
   .id-card-role-en {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 38px;
-    font-weight: 800;
+    font-size: 48px;
+    font-weight: 900;
     color: currentColor;
     text-shadow: 
-      0 0 6px currentColor,
-      0 0 12px currentColor,
-      0 0 24px currentColor;
+      0 0 2px rgba(0, 0, 0, 0.95),
+      0 0 8px currentColor,
+      0 2px 4px rgba(0, 0, 0, 0.8);
+    filter: brightness(1.3);
     letter-spacing: 3px;
     line-height: 1;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
     position: relative;
     z-index: 2;
   }
   
+  /* 한글 직무명 - 키움 */
   .id-card-role-kr {
-    font-size: 22px;
+    font-size: 28px;
     font-weight: 900;
     color: white;
-    margin-bottom: 14px;
-    letter-spacing: 1.5px;
+    margin-bottom: 16px;
+    letter-spacing: 2px;
     text-shadow: 
-      0 0 4px currentColor,
-      0 2px 6px rgba(0, 0, 0, 0.8);
+      0 1px 2px rgba(0, 0, 0, 0.95),
+      0 2px 6px rgba(0, 0, 0, 0.7);
     position: relative;
     z-index: 2;
   }
@@ -2109,124 +2112,158 @@
   .id-card-divider {
     height: 1px;
     background: linear-gradient(90deg, transparent, currentColor, transparent);
-    margin-bottom: 14px;
+    margin-bottom: 16px;
     box-shadow: 0 0 8px currentColor;
     position: relative;
     z-index: 2;
   }
   
+  /* 직무 설명 - 크게 */
   .id-card-description {
-    font-size: 16px;
+    font-size: 22px;
     color: #FFFFFF;
-    line-height: 1.5;
-    margin-bottom: 14px;
+    line-height: 1.4;
+    margin-bottom: 18px;
     font-weight: 800;
     text-shadow: 
-      0 1px 2px rgba(0, 0, 0, 0.9),
-      0 2px 6px rgba(0, 0, 0, 0.7);
+      0 1px 2px rgba(0, 0, 0, 0.95),
+      0 2px 6px rgba(0, 0, 0, 0.75);
     letter-spacing: 0.3px;
     position: relative;
     z-index: 2;
   }
   
+  /* 인용구 - 크고 또렷하게 (테마색 유지) */
   .id-card-quote {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 14px;
-    /* 직무 테마색 글씨 + 검은 그림자만으로 또렷하게 (후광 X) */
+    font-size: 20px;
     color: currentColor;
     text-shadow: 
       0 0 1px rgba(0, 0, 0, 0.95),
       0 1px 2px rgba(0, 0, 0, 0.95),
       0 2px 4px rgba(0, 0, 0, 0.75);
     filter: brightness(1.45) saturate(1.1);
-    line-height: 1.55;
-    padding: 12px 16px;
-    border-left: 3px solid currentColor;
-    background: rgba(0, 0, 0, 0.45);
+    line-height: 1.45;
+    padding: 14px 18px;
+    border-left: 4px solid currentColor;
+    background: rgba(0, 0, 0, 0.5);
     font-style: italic;
     font-weight: 800;
     box-shadow: 
-      inset 0 0 8px rgba(0, 0, 0, 0.5),
-      0 0 4px rgba(0, 0, 0, 0.3);
+      inset 0 0 10px rgba(0, 0, 0, 0.5),
+      0 0 6px rgba(0, 0, 0, 0.4);
     position: relative;
     z-index: 2;
+    letter-spacing: 0.5px;
   }
   
-  /* 능력치 영역 */
-  .id-card-skills {
-    padding: 12px 24px 14px;
-    background: rgba(0, 0, 0, 0.3);
+  /* ⭐ 핵심 강점 영역 (능력치 4개 → 핵심 2개 + 등급) */
+  .id-card-strength {
+    padding: 16px 28px 18px;
+    background: rgba(0, 0, 0, 0.4);
     flex-shrink: 0;
+    position: relative;
   }
   
-  .id-card-skills-label {
+  .id-card-strength::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, currentColor, transparent);
+    box-shadow: 0 0 8px currentColor;
+    opacity: 0.6;
+  }
+  
+  .id-card-strength-label {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    color: rgba(255, 255, 255, 0.7);
-    letter-spacing: 3px;
-    margin-bottom: 8px;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.85);
+    letter-spacing: 4px;
+    margin-bottom: 10px;
     font-weight: 800;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
-  }
-  
-  .skill-row {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 5px;
+    gap: 10px;
   }
   
-  .skill-name {
-    font-family: 'JetBrains Mono', monospace;
+  .id-card-strength-label::before {
+    content: '◆';
+    color: currentColor;
     font-size: 12px;
-    color: rgba(255, 255, 255, 0.95);
+    text-shadow: 0 0 8px currentColor;
+  }
+  
+  .id-card-strength-keywords {
+    font-size: 20px;
+    font-weight: 900;
+    color: white;
+    margin-bottom: 10px;
     letter-spacing: 1px;
-    min-width: 100px;
-    text-align: left;
-    font-weight: 700;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+    text-shadow: 
+      0 1px 2px rgba(0, 0, 0, 0.95),
+      0 2px 6px rgba(0, 0, 0, 0.7);
   }
   
-  .skill-bars {
+  .id-card-strength-keywords .sep {
+    color: currentColor;
+    margin: 0 8px;
+    text-shadow: 0 0 6px currentColor;
+    font-weight: 400;
+  }
+  
+  /* 등급 표시 (ELITE/EXPERT/SKILLED 등) */
+  .id-card-grade {
     display: flex;
-    gap: 3px;
-    flex: 1;
+    align-items: center;
+    gap: 14px;
+    margin-top: 4px;
   }
   
-  .skill-bar {
+  .id-card-grade-bar {
     flex: 1;
-    height: 6px;
-    border-radius: 2px;
-    background: rgba(255, 255, 255, 0.1);
-    position: relative;
+    height: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
     overflow: hidden;
-  }
-  
-  .skill-bar.filled {
-    background: currentColor;
+    border: 1px solid currentColor;
     box-shadow: 
       0 0 6px currentColor,
-      0 0 12px currentColor;
-    animation: skillBarFill 0.4s ease-out forwards;
+      inset 0 0 4px rgba(0, 0, 0, 0.4);
+    position: relative;
+  }
+  
+  .id-card-grade-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, currentColor, white, currentColor);
+    box-shadow: 0 0 8px currentColor;
     transform: scaleX(0);
     transform-origin: left;
+    animation: skillBarFill 0.8s ease-out forwards;
+  }
+  
+  .id-card-grade-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    font-weight: 900;
+    color: currentColor;
+    letter-spacing: 3px;
+    text-shadow: 
+      0 0 1px rgba(0, 0, 0, 0.95),
+      0 0 8px currentColor,
+      0 1px 2px rgba(0, 0, 0, 0.85);
+    filter: brightness(1.4);
+    min-width: 90px;
+    text-align: right;
   }
   
   @keyframes skillBarFill {
     to { transform: scaleX(1); }
   }
   
-  .skill-value {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    font-weight: 700;
-    color: currentColor;
-    text-shadow: 
-      0 0 4px currentColor,
-      0 0 8px currentColor;
-    min-width: 24px;
-    text-align: right;
-  }
   
   /* 풋터 */
   .id-card-footer {
@@ -3615,53 +3652,18 @@ C</div>
             <div class="id-card-quote">"결단은 내가, 영광은 모두에게"</div>
           </div>
           
-          <div class="id-card-skills">
-            <div class="id-card-skills-label">ABILITIES</div>
-            <div class="skill-row">
-              <span class="skill-name">의사결정</span>
-              <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 10.5s"></div>
-                <div class="skill-bar filled" style="animation-delay: 10.6s"></div>
-                <div class="skill-bar filled" style="animation-delay: 10.7s"></div>
-                <div class="skill-bar filled" style="animation-delay: 10.8s"></div>
-                <div class="skill-bar filled" style="animation-delay: 10.9s"></div>
+          <div class="id-card-strength">
+            <div class="id-card-strength-label">CORE STRENGTH</div>
+            <div class="id-card-strength-keywords">의사결정<span class="sep">·</span>통솔력</div>
+            <div class="id-card-grade">
+              <div class="id-card-grade-bar">
+                <div class="id-card-grade-bar-fill" style="width: 100%; animation-delay: 11s;"></div>
               </div>
-              <span class="skill-value">5</span>
-            </div>
-            <div class="skill-row">
-              <span class="skill-name">통솔력</span>
-              <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 10.7s"></div>
-                <div class="skill-bar filled" style="animation-delay: 10.8s"></div>
-                <div class="skill-bar filled" style="animation-delay: 10.9s"></div>
-                <div class="skill-bar filled" style="animation-delay: 11s"></div>
-                <div class="skill-bar filled" style="animation-delay: 11.1s"></div>
-              </div>
-              <span class="skill-value">5</span>
-            </div>
-            <div class="skill-row">
-              <span class="skill-name">비전</span>
-              <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 10.9s"></div>
-                <div class="skill-bar filled" style="animation-delay: 11s"></div>
-                <div class="skill-bar filled" style="animation-delay: 11.1s"></div>
-                <div class="skill-bar filled" style="animation-delay: 11.2s"></div>
-                <div class="skill-bar"></div>
-              </div>
-              <span class="skill-value">4</span>
-            </div>
-            <div class="skill-row">
-              <span class="skill-name">협상력</span>
-              <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 11.1s"></div>
-                <div class="skill-bar filled" style="animation-delay: 11.2s"></div>
-                <div class="skill-bar filled" style="animation-delay: 11.3s"></div>
-                <div class="skill-bar filled" style="animation-delay: 11.4s"></div>
-                <div class="skill-bar"></div>
-              </div>
-              <span class="skill-value">4</span>
+              <span class="id-card-grade-text">ELITE</span>
             </div>
           </div>
+          
+          
           
           <div class="id-card-footer">
             <span>VALID · 2026</span>
@@ -3809,53 +3811,18 @@ C</div>
             <div class="id-card-quote">"숫자가 말해주는 진실을 읽습니다"</div>
           </div>
           
-          <div class="id-card-skills">
-            <div class="id-card-skills-label">ABILITIES</div>
-            <div class="skill-row">
-              <span class="skill-name">데이터 분석</span>
-              <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 17.5s"></div>
-                <div class="skill-bar filled" style="animation-delay: 17.6s"></div>
-                <div class="skill-bar filled" style="animation-delay: 17.7s"></div>
-                <div class="skill-bar filled" style="animation-delay: 17.8s"></div>
-                <div class="skill-bar filled" style="animation-delay: 17.9s"></div>
+          <div class="id-card-strength">
+            <div class="id-card-strength-label">CORE STRENGTH</div>
+            <div class="id-card-strength-keywords">데이터 분석<span class="sep">·</span>시장 조사</div>
+            <div class="id-card-grade">
+              <div class="id-card-grade-bar">
+                <div class="id-card-grade-bar-fill" style="width: 100%; animation-delay: 18s;"></div>
               </div>
-              <span class="skill-value">5</span>
-            </div>
-            <div class="skill-row">
-              <span class="skill-name">시장 조사</span>
-              <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 17.7s"></div>
-                <div class="skill-bar filled" style="animation-delay: 17.8s"></div>
-                <div class="skill-bar filled" style="animation-delay: 17.9s"></div>
-                <div class="skill-bar filled" style="animation-delay: 18s"></div>
-                <div class="skill-bar filled" style="animation-delay: 18.1s"></div>
-              </div>
-              <span class="skill-value">5</span>
-            </div>
-            <div class="skill-row">
-              <span class="skill-name">통계</span>
-              <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 17.9s"></div>
-                <div class="skill-bar filled" style="animation-delay: 18s"></div>
-                <div class="skill-bar filled" style="animation-delay: 18.1s"></div>
-                <div class="skill-bar filled" style="animation-delay: 18.2s"></div>
-                <div class="skill-bar"></div>
-              </div>
-              <span class="skill-value">4</span>
-            </div>
-            <div class="skill-row">
-              <span class="skill-name">예측력</span>
-              <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 18.1s"></div>
-                <div class="skill-bar filled" style="animation-delay: 18.2s"></div>
-                <div class="skill-bar filled" style="animation-delay: 18.3s"></div>
-                <div class="skill-bar filled" style="animation-delay: 18.4s"></div>
-                <div class="skill-bar"></div>
-              </div>
-              <span class="skill-value">4</span>
+              <span class="id-card-grade-text">ELITE</span>
             </div>
           </div>
+          
+          
           
           <div class="id-card-footer">
             <span>VALID · 2026</span>
@@ -3969,53 +3936,18 @@ C</div>
             <div class="id-card-quote">"브랜드는 고객과의 약속입니다"</div>
           </div>
           
-          <div class="id-card-skills">
-            <div class="id-card-skills-label">ABILITIES</div>
-            <div class="skill-row">
-              <span class="skill-name">브랜딩</span>
-              <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 24.5s"></div>
-                <div class="skill-bar filled" style="animation-delay: 24.6s"></div>
-                <div class="skill-bar filled" style="animation-delay: 24.7s"></div>
-                <div class="skill-bar filled" style="animation-delay: 24.8s"></div>
-                <div class="skill-bar filled" style="animation-delay: 24.9s"></div>
+          <div class="id-card-strength">
+            <div class="id-card-strength-label">CORE STRENGTH</div>
+            <div class="id-card-strength-keywords">브랜딩<span class="sep">·</span>차별화</div>
+            <div class="id-card-grade">
+              <div class="id-card-grade-bar">
+                <div class="id-card-grade-bar-fill" style="width: 100%; animation-delay: 25s;"></div>
               </div>
-              <span class="skill-value">5</span>
-            </div>
-            <div class="skill-row">
-              <span class="skill-name">차별화</span>
-              <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 24.7s"></div>
-                <div class="skill-bar filled" style="animation-delay: 24.8s"></div>
-                <div class="skill-bar filled" style="animation-delay: 24.9s"></div>
-                <div class="skill-bar filled" style="animation-delay: 25s"></div>
-                <div class="skill-bar filled" style="animation-delay: 25.1s"></div>
-              </div>
-              <span class="skill-value">5</span>
-            </div>
-            <div class="skill-row">
-              <span class="skill-name">디자인 감각</span>
-              <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 24.9s"></div>
-                <div class="skill-bar filled" style="animation-delay: 25s"></div>
-                <div class="skill-bar filled" style="animation-delay: 25.1s"></div>
-                <div class="skill-bar filled" style="animation-delay: 25.2s"></div>
-                <div class="skill-bar"></div>
-              </div>
-              <span class="skill-value">4</span>
-            </div>
-            <div class="skill-row">
-              <span class="skill-name">스토리텔링</span>
-              <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 25.1s"></div>
-                <div class="skill-bar filled" style="animation-delay: 25.2s"></div>
-                <div class="skill-bar filled" style="animation-delay: 25.3s"></div>
-                <div class="skill-bar filled" style="animation-delay: 25.4s"></div>
-                <div class="skill-bar"></div>
-              </div>
-              <span class="skill-value">4</span>
+              <span class="id-card-grade-text">ELITE</span>
             </div>
           </div>
+          
+          
           
           <div class="id-card-footer">
             <span>VALID · 2026</span>
@@ -4146,53 +4078,18 @@ C</div>
             <div class="id-card-quote">"고객의 마음을 읽는 것이 시작입니다"</div>
           </div>
           
-          <div class="id-card-skills">
-            <div class="id-card-skills-label">ABILITIES</div>
-            <div class="skill-row">
-              <span class="skill-name">공감력</span>
-              <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 31.5s"></div>
-                <div class="skill-bar filled" style="animation-delay: 31.6s"></div>
-                <div class="skill-bar filled" style="animation-delay: 31.7s"></div>
-                <div class="skill-bar filled" style="animation-delay: 31.8s"></div>
-                <div class="skill-bar filled" style="animation-delay: 31.9s"></div>
+          <div class="id-card-strength">
+            <div class="id-card-strength-label">CORE STRENGTH</div>
+            <div class="id-card-strength-keywords">공감력<span class="sep">·</span>행동 분석</div>
+            <div class="id-card-grade">
+              <div class="id-card-grade-bar">
+                <div class="id-card-grade-bar-fill" style="width: 100%; animation-delay: 32s;"></div>
               </div>
-              <span class="skill-value">5</span>
-            </div>
-            <div class="skill-row">
-              <span class="skill-name">행동 분석</span>
-              <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 31.7s"></div>
-                <div class="skill-bar filled" style="animation-delay: 31.8s"></div>
-                <div class="skill-bar filled" style="animation-delay: 31.9s"></div>
-                <div class="skill-bar filled" style="animation-delay: 32s"></div>
-                <div class="skill-bar filled" style="animation-delay: 32.1s"></div>
-              </div>
-              <span class="skill-value">5</span>
-            </div>
-            <div class="skill-row">
-              <span class="skill-name">인터뷰</span>
-              <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 31.9s"></div>
-                <div class="skill-bar filled" style="animation-delay: 32s"></div>
-                <div class="skill-bar filled" style="animation-delay: 32.1s"></div>
-                <div class="skill-bar filled" style="animation-delay: 32.2s"></div>
-                <div class="skill-bar"></div>
-              </div>
-              <span class="skill-value">4</span>
-            </div>
-            <div class="skill-row">
-              <span class="skill-name">페르소나</span>
-              <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 32.1s"></div>
-                <div class="skill-bar filled" style="animation-delay: 32.2s"></div>
-                <div class="skill-bar filled" style="animation-delay: 32.3s"></div>
-                <div class="skill-bar filled" style="animation-delay: 32.4s"></div>
-                <div class="skill-bar"></div>
-              </div>
-              <span class="skill-value">4</span>
+              <span class="id-card-grade-text">ELITE</span>
             </div>
           </div>
+          
+          
           
           <div class="id-card-footer">
             <span>VALID · 2026</span>
@@ -4306,53 +4203,18 @@ C</div>
             <div class="id-card-quote">"세계 어디든 다리를 놓습니다"</div>
           </div>
           
-          <div class="id-card-skills">
-            <div class="id-card-skills-label">ABILITIES</div>
-            <div class="skill-row">
-              <span class="skill-name">협상력</span>
-              <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 38.5s"></div>
-                <div class="skill-bar filled" style="animation-delay: 38.6s"></div>
-                <div class="skill-bar filled" style="animation-delay: 38.7s"></div>
-                <div class="skill-bar filled" style="animation-delay: 38.8s"></div>
-                <div class="skill-bar filled" style="animation-delay: 38.9s"></div>
+          <div class="id-card-strength">
+            <div class="id-card-strength-label">CORE STRENGTH</div>
+            <div class="id-card-strength-keywords">협상력<span class="sep">·</span>글로벌 감각</div>
+            <div class="id-card-grade">
+              <div class="id-card-grade-bar">
+                <div class="id-card-grade-bar-fill" style="width: 100%; animation-delay: 39s;"></div>
               </div>
-              <span class="skill-value">5</span>
-            </div>
-            <div class="skill-row">
-              <span class="skill-name">글로벌 감각</span>
-              <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 38.7s"></div>
-                <div class="skill-bar filled" style="animation-delay: 38.8s"></div>
-                <div class="skill-bar filled" style="animation-delay: 38.9s"></div>
-                <div class="skill-bar filled" style="animation-delay: 39s"></div>
-                <div class="skill-bar filled" style="animation-delay: 39.1s"></div>
-              </div>
-              <span class="skill-value">5</span>
-            </div>
-            <div class="skill-row">
-              <span class="skill-name">네트워킹</span>
-              <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 38.9s"></div>
-                <div class="skill-bar filled" style="animation-delay: 39s"></div>
-                <div class="skill-bar filled" style="animation-delay: 39.1s"></div>
-                <div class="skill-bar filled" style="animation-delay: 39.2s"></div>
-                <div class="skill-bar"></div>
-              </div>
-              <span class="skill-value">4</span>
-            </div>
-            <div class="skill-row">
-              <span class="skill-name">언어 능력</span>
-              <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 39.1s"></div>
-                <div class="skill-bar filled" style="animation-delay: 39.2s"></div>
-                <div class="skill-bar filled" style="animation-delay: 39.3s"></div>
-                <div class="skill-bar filled" style="animation-delay: 39.4s"></div>
-                <div class="skill-bar"></div>
-              </div>
-              <span class="skill-value">4</span>
+              <span class="id-card-grade-text">ELITE</span>
             </div>
           </div>
+          
+          
           
           <div class="id-card-footer">
             <span>VALID · 2026</span>
@@ -4476,53 +4338,18 @@ C</div>
             <div class="id-card-quote">"1초 안에 마음을 사로잡습니다"</div>
           </div>
           
-          <div class="id-card-skills">
-            <div class="id-card-skills-label">ABILITIES</div>
-            <div class="skill-row">
-              <span class="skill-name">콘텐츠 기획</span>
-              <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 45.5s"></div>
-                <div class="skill-bar filled" style="animation-delay: 45.6s"></div>
-                <div class="skill-bar filled" style="animation-delay: 45.7s"></div>
-                <div class="skill-bar filled" style="animation-delay: 45.8s"></div>
-                <div class="skill-bar filled" style="animation-delay: 45.9s"></div>
+          <div class="id-card-strength">
+            <div class="id-card-strength-label">CORE STRENGTH</div>
+            <div class="id-card-strength-keywords">콘텐츠 기획<span class="sep">·</span>디지털 채널</div>
+            <div class="id-card-grade">
+              <div class="id-card-grade-bar">
+                <div class="id-card-grade-bar-fill" style="width: 100%; animation-delay: 46s;"></div>
               </div>
-              <span class="skill-value">5</span>
-            </div>
-            <div class="skill-row">
-              <span class="skill-name">디지털 채널</span>
-              <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 45.7s"></div>
-                <div class="skill-bar filled" style="animation-delay: 45.8s"></div>
-                <div class="skill-bar filled" style="animation-delay: 45.9s"></div>
-                <div class="skill-bar filled" style="animation-delay: 46s"></div>
-                <div class="skill-bar filled" style="animation-delay: 46.1s"></div>
-              </div>
-              <span class="skill-value">5</span>
-            </div>
-            <div class="skill-row">
-              <span class="skill-name">트렌드 감각</span>
-              <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 45.9s"></div>
-                <div class="skill-bar filled" style="animation-delay: 46s"></div>
-                <div class="skill-bar filled" style="animation-delay: 46.1s"></div>
-                <div class="skill-bar filled" style="animation-delay: 46.2s"></div>
-                <div class="skill-bar"></div>
-              </div>
-              <span class="skill-value">4</span>
-            </div>
-            <div class="skill-row">
-              <span class="skill-name">광고 운영</span>
-              <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 46.1s"></div>
-                <div class="skill-bar filled" style="animation-delay: 46.2s"></div>
-                <div class="skill-bar filled" style="animation-delay: 46.3s"></div>
-                <div class="skill-bar filled" style="animation-delay: 46.4s"></div>
-                <div class="skill-bar"></div>
-              </div>
-              <span class="skill-value">4</span>
+              <span class="id-card-grade-text">ELITE</span>
             </div>
           </div>
+          
+          
           
           <div class="id-card-footer">
             <span>VALID · 2026</span>
@@ -4646,53 +4473,18 @@ C</div>
             <div class="id-card-quote">"안전이 곧 속도입니다"</div>
           </div>
           
-          <div class="id-card-skills">
-            <div class="id-card-skills-label">ABILITIES</div>
-            <div class="skill-row">
-              <span class="skill-name">법규 분석</span>
-              <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 52.5s"></div>
-                <div class="skill-bar filled" style="animation-delay: 52.6s"></div>
-                <div class="skill-bar filled" style="animation-delay: 52.7s"></div>
-                <div class="skill-bar filled" style="animation-delay: 52.8s"></div>
-                <div class="skill-bar filled" style="animation-delay: 52.9s"></div>
+          <div class="id-card-strength">
+            <div class="id-card-strength-label">CORE STRENGTH</div>
+            <div class="id-card-strength-keywords">법규 분석<span class="sep">·</span>인증 관리</div>
+            <div class="id-card-grade">
+              <div class="id-card-grade-bar">
+                <div class="id-card-grade-bar-fill" style="width: 100%; animation-delay: 53s;"></div>
               </div>
-              <span class="skill-value">5</span>
-            </div>
-            <div class="skill-row">
-              <span class="skill-name">인증 관리</span>
-              <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 52.7s"></div>
-                <div class="skill-bar filled" style="animation-delay: 52.8s"></div>
-                <div class="skill-bar filled" style="animation-delay: 52.9s"></div>
-                <div class="skill-bar filled" style="animation-delay: 53s"></div>
-                <div class="skill-bar filled" style="animation-delay: 53.1s"></div>
-              </div>
-              <span class="skill-value">5</span>
-            </div>
-            <div class="skill-row">
-              <span class="skill-name">통관</span>
-              <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 52.9s"></div>
-                <div class="skill-bar filled" style="animation-delay: 53s"></div>
-                <div class="skill-bar filled" style="animation-delay: 53.1s"></div>
-                <div class="skill-bar filled" style="animation-delay: 53.2s"></div>
-                <div class="skill-bar"></div>
-              </div>
-              <span class="skill-value">4</span>
-            </div>
-            <div class="skill-row">
-              <span class="skill-name">리스크 관리</span>
-              <div class="skill-bars">
-                <div class="skill-bar filled" style="animation-delay: 53.1s"></div>
-                <div class="skill-bar filled" style="animation-delay: 53.2s"></div>
-                <div class="skill-bar filled" style="animation-delay: 53.3s"></div>
-                <div class="skill-bar filled" style="animation-delay: 53.4s"></div>
-                <div class="skill-bar"></div>
-              </div>
-              <span class="skill-value">4</span>
+              <span class="id-card-grade-text">ELITE</span>
             </div>
           </div>
+          
+          
           
           <div class="id-card-footer">
             <span>VALID · 2026</span>
