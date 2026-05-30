@@ -2629,6 +2629,328 @@
     animation: introTextFade 1s ease-out 3.5s forwards;
   }
   
+  /* ═══════════════════════════════════════════
+     ⭐ 클로징 사이버틱 추가 요소 (v41+)
+     ═══════════════════════════════════════════ */
+  
+  /* 1. 회로(PCB) 격자 배경 - 클로징 전용 */
+  .closing-circuit {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0;
+    background-image:
+      linear-gradient(rgba(6, 182, 212, 0.12) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(6, 182, 212, 0.12) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 80%);
+    animation: closingCircuitFade 6s ease-out 0.2s forwards;
+  }
+  @keyframes closingCircuitFade {
+    0% { opacity: 0; }
+    20% { opacity: 1; }
+    100% { opacity: 1; }
+  }
+  
+  /* 회로 노드 점 (격자 교차점에 빛나는 점들) */
+  .closing-node {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 8px var(--cyan), 0 0 16px var(--cyan);
+    opacity: 0;
+    z-index: 2;
+    animation: nodeBlink 2.5s ease-in-out infinite;
+  }
+  @keyframes nodeBlink {
+    0%, 100% { opacity: 0.2; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1.2); }
+  }
+  
+  /* 2. 화면 4모서리 코너 마커 */
+  .closing-corner {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    pointer-events: none;
+    z-index: 3;
+    opacity: 0;
+    animation: cornerAppear 0.8s ease-out 0.3s forwards;
+  }
+  .closing-corner.tl { top: 40px; left: 40px; }
+  .closing-corner.tr { top: 40px; right: 40px; }
+  .closing-corner.bl { bottom: 40px; left: 40px; }
+  .closing-corner.br { bottom: 40px; right: 40px; }
+  
+  .closing-corner::before,
+  .closing-corner::after {
+    content: '';
+    position: absolute;
+    background: var(--cyan);
+    box-shadow: 0 0 8px var(--cyan), 0 0 16px var(--cyan);
+  }
+  /* TL */
+  .closing-corner.tl::before { top: 0; left: 0; width: 32px; height: 2px; }
+  .closing-corner.tl::after { top: 0; left: 0; width: 2px; height: 32px; }
+  /* TR */
+  .closing-corner.tr::before { top: 0; right: 0; width: 32px; height: 2px; }
+  .closing-corner.tr::after { top: 0; right: 0; width: 2px; height: 32px; }
+  /* BL */
+  .closing-corner.bl::before { bottom: 0; left: 0; width: 32px; height: 2px; }
+  .closing-corner.bl::after { bottom: 0; left: 0; width: 2px; height: 32px; }
+  /* BR */
+  .closing-corner.br::before { bottom: 0; right: 0; width: 32px; height: 2px; }
+  .closing-corner.br::after { bottom: 0; right: 0; width: 2px; height: 32px; }
+  
+  @keyframes cornerAppear {
+    0% { opacity: 0; transform: scale(0.5); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  
+  /* 3. 상단 HUD 라인 (SYSTEM STATUS) */
+  .closing-hud-top {
+    position: absolute;
+    top: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--cyan);
+    letter-spacing: 4px;
+    font-weight: 700;
+    z-index: 4;
+    opacity: 0;
+    animation: hudTopAppear 1s ease-out 0.8s forwards;
+    text-shadow: 0 0 6px var(--cyan);
+  }
+  .closing-hud-top .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: hudDotBlink 1.2s ease-in-out infinite;
+  }
+  @keyframes hudDotBlink {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+  @keyframes hudTopAppear {
+    0% { opacity: 0; transform: translate(-50%, -10px); }
+    100% { opacity: 1; transform: translate(-50%, 0); }
+  }
+  
+  /* 4. 하단 HUD 정보 (시스템 코드 / 좌표 / 타임스탬프) */
+  .closing-hud-bottom {
+    position: absolute;
+    bottom: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: rgba(193, 232, 235, 0.65);
+    letter-spacing: 3px;
+    z-index: 4;
+    opacity: 0;
+    animation: hudTopAppear 1s ease-out 1s forwards;
+  }
+  .closing-hud-bottom span {
+    text-shadow: 0 0 4px rgba(6, 182, 212, 0.5);
+  }
+  .closing-hud-bottom .accent {
+    color: var(--cyan);
+    text-shadow: 0 0 6px var(--cyan);
+  }
+  .closing-hud-bottom .sep {
+    color: rgba(255, 255, 255, 0.2);
+  }
+  
+  /* 5. 데이터 스트림 라인 (좌/우 측면에서 흐르는 사이버 신호) */
+  .closing-stream {
+    position: absolute;
+    height: 2px;
+    z-index: 2;
+    opacity: 0;
+    animation: closingStreamFlow 4s linear infinite;
+  }
+  .closing-stream.s1 {
+    top: 22%; left: -120px; width: 120px;
+    background: linear-gradient(90deg, transparent, var(--cyan));
+    box-shadow: 0 0 12px var(--cyan), 0 0 24px var(--cyan);
+    animation-delay: 0.5s;
+  }
+  .closing-stream.s2 {
+    top: 78%; right: -120px; width: 120px;
+    background: linear-gradient(90deg, var(--purple), transparent);
+    box-shadow: 0 0 12px var(--purple), 0 0 24px var(--purple);
+    animation: closingStreamFlowReverse 4.5s linear infinite;
+    animation-delay: 1.2s;
+  }
+  .closing-stream.s3 {
+    top: 38%; left: -100px; width: 100px;
+    background: linear-gradient(90deg, transparent, var(--pink));
+    box-shadow: 0 0 10px var(--pink), 0 0 20px var(--pink);
+    animation-delay: 2s;
+  }
+  .closing-stream.s4 {
+    top: 62%; right: -100px; width: 100px;
+    background: linear-gradient(90deg, var(--green), transparent);
+    box-shadow: 0 0 10px var(--green), 0 0 20px var(--green);
+    animation: closingStreamFlowReverse 5s linear infinite;
+    animation-delay: 2.8s;
+  }
+  @keyframes closingStreamFlow {
+    0% { transform: translateX(0); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateX(calc(100vw + 200px)); opacity: 0; }
+  }
+  @keyframes closingStreamFlowReverse {
+    0% { transform: translateX(0); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateX(calc(-100vw - 200px)); opacity: 0; }
+  }
+  
+  /* 6. 떠다니는 사이버 입자 */
+  .closing-particles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    overflow: hidden;
+  }
+  .closing-particle {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 6px currentColor, 0 0 12px currentColor;
+    opacity: 0;
+    bottom: -10px;
+    animation: closingParticleRise 7s linear infinite;
+  }
+  @keyframes closingParticleRise {
+    0% { 
+      transform: translateY(0) translateX(0); 
+      opacity: 0; 
+    }
+    10% { opacity: 0.9; }
+    90% { opacity: 0.9; }
+    100% { 
+      transform: translateY(-110vh) translateX(var(--drift, 30px)); 
+      opacity: 0; 
+    }
+  }
+  
+  /* 7. 카드 글로우 펄스 (등장 후 부드러운 호흡) */
+  .closing-role-card {
+    animation: roleCardAppear 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards,
+               roleCardPulse 3s ease-in-out 2s infinite !important;
+  }
+  @keyframes roleCardPulse {
+    0%, 100% { 
+      box-shadow: 0 0 20px color-mix(in srgb, currentColor 40%, transparent), 
+                  inset 0 0 16px rgba(255, 255, 255, 0.02); 
+    }
+    50% { 
+      box-shadow: 0 0 32px color-mix(in srgb, currentColor 70%, transparent), 
+                  inset 0 0 20px rgba(255, 255, 255, 0.06); 
+    }
+  }
+  
+  /* 8. CTA 타이핑 효과 (FIND YOUR ROLE) */
+  .closing-cta {
+    position: relative;
+    overflow: hidden;
+  }
+  .closing-cta::after {
+    content: '_';
+    color: var(--green);
+    margin-left: 4px;
+    animation: cursorBlink 0.8s ease-in-out infinite;
+    text-shadow: 0 0 8px var(--green);
+  }
+  @keyframes cursorBlink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+  }
+  
+  /* 9. URL 박스 (사이버틱 캡슐) */
+  .closing-url {
+    display: inline-block;
+    padding: 10px 24px;
+    border: 1.5px solid var(--cyan);
+    border-radius: 4px;
+    background: rgba(6, 182, 212, 0.08);
+    box-shadow: 
+      0 0 16px rgba(6, 182, 212, 0.4),
+      inset 0 0 12px rgba(6, 182, 212, 0.1);
+    position: relative;
+  }
+  .closing-url::before,
+  .closing-url::after {
+    content: '';
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-color: var(--cyan);
+  }
+  .closing-url::before {
+    top: -2px;
+    left: -2px;
+    border-top: 1.5px solid;
+    border-left: 1.5px solid;
+  }
+  .closing-url::after {
+    bottom: -2px;
+    right: -2px;
+    border-bottom: 1.5px solid;
+    border-right: 1.5px solid;
+  }
+  
+  /* 10. SIGNAL 로고 박스 강화 - 양옆 데코 라인 */
+  .closing-logo-box {
+    position: relative;
+  }
+  .closing-logo-wing {
+    position: absolute;
+    top: 50%;
+    height: 2px;
+    width: 90px;
+    transform: translateY(-50%);
+    opacity: 0;
+    animation: logoWingAppear 0.8s ease-out 2.3s forwards;
+  }
+  .closing-logo-wing.left {
+    right: 100%;
+    margin-right: 16px;
+    background: linear-gradient(90deg, transparent, var(--cyan));
+    box-shadow: 0 0 8px var(--cyan);
+  }
+  .closing-logo-wing.right {
+    left: 100%;
+    margin-left: 16px;
+    background: linear-gradient(90deg, var(--cyan), transparent);
+    box-shadow: 0 0 8px var(--cyan);
+  }
+  @keyframes logoWingAppear {
+    0% { opacity: 0; width: 0; }
+    100% { opacity: 1; width: 90px; }
+  }
+  
+  
   /* ========================================
      시작 화면
      ======================================== */
@@ -4576,6 +4898,65 @@ C</div>
        ======================================== -->
   <div class="scene scene-closing">
     <div class="closing-bg"></div>
+    <!-- 1. 회로 격자 배경 -->
+    <div class="closing-circuit"></div>
+    
+    <!-- 회로 노드 점들 (격자 교차점) -->
+    <div class="closing-node" style="top: 18%; left: 12%; animation-delay: 0s;"></div>
+    <div class="closing-node" style="top: 22%; right: 16%; animation-delay: 0.3s;"></div>
+    <div class="closing-node" style="top: 38%; left: 8%; animation-delay: 0.6s;"></div>
+    <div class="closing-node" style="top: 45%; right: 9%; animation-delay: 0.9s;"></div>
+    <div class="closing-node" style="bottom: 28%; left: 14%; animation-delay: 1.2s;"></div>
+    <div class="closing-node" style="bottom: 22%; right: 18%; animation-delay: 1.5s;"></div>
+    <div class="closing-node" style="bottom: 38%; left: 22%; animation-delay: 1.8s;"></div>
+    <div class="closing-node" style="top: 32%; right: 22%; animation-delay: 2.1s;"></div>
+    
+    <!-- 2. 화면 4모서리 코너 마커 -->
+    <div class="closing-corner tl"></div>
+    <div class="closing-corner tr"></div>
+    <div class="closing-corner bl"></div>
+    <div class="closing-corner br"></div>
+    
+    <!-- 3. 상단 HUD - SYSTEM STATUS -->
+    <div class="closing-hud-top">
+      <span class="dot"></span>
+      <span>SYSTEM · STATUS</span>
+      <span style="color: var(--green); text-shadow: 0 0 6px var(--green);">ACTIVE</span>
+    </div>
+    
+    <!-- 4. 하단 HUD - 시스템 정보 -->
+    <div class="closing-hud-bottom">
+      <span>&gt; SIGNAL_TX</span>
+      <span class="sep">|</span>
+      <span>ROLES: <span class="accent">07 / 07</span></span>
+      <span class="sep">|</span>
+      <span>SYNC: <span class="accent">COMPLETE</span></span>
+      <span class="sep">|</span>
+      <span>© CONNECTAI · 2026</span>
+    </div>
+    
+    <!-- 5. 데이터 스트림 라인 (좌우에서 흐름) -->
+    <div class="closing-stream s1"></div>
+    <div class="closing-stream s2"></div>
+    <div class="closing-stream s3"></div>
+    <div class="closing-stream s4"></div>
+    
+    <!-- 6. 떠다니는 사이버 입자 -->
+    <div class="closing-particles">
+      <div class="closing-particle" style="left: 8%; color: var(--cyan); animation-delay: 0s; --drift: 20px;"></div>
+      <div class="closing-particle" style="left: 18%; color: var(--green); animation-delay: 1.2s; --drift: -15px;"></div>
+      <div class="closing-particle" style="left: 28%; color: var(--purple); animation-delay: 0.5s; --drift: 25px;"></div>
+      <div class="closing-particle" style="left: 38%; color: var(--cyan); animation-delay: 2s; --drift: -20px;"></div>
+      <div class="closing-particle" style="left: 48%; color: var(--pink); animation-delay: 0.8s; --drift: 18px;"></div>
+      <div class="closing-particle" style="left: 58%; color: var(--cyan); animation-delay: 1.6s; --drift: -22px;"></div>
+      <div class="closing-particle" style="left: 68%; color: var(--yellow); animation-delay: 0.3s; --drift: 15px;"></div>
+      <div class="closing-particle" style="left: 78%; color: var(--blue); animation-delay: 1.9s; --drift: -25px;"></div>
+      <div class="closing-particle" style="left: 88%; color: var(--orange); animation-delay: 1s; --drift: 20px;"></div>
+      <div class="closing-particle" style="left: 14%; color: var(--green); animation-delay: 3s; --drift: -18px;"></div>
+      <div class="closing-particle" style="left: 44%; color: var(--cyan); animation-delay: 3.5s; --drift: 22px;"></div>
+      <div class="closing-particle" style="left: 74%; color: var(--purple); animation-delay: 2.5s; --drift: -16px;"></div>
+    </div>
+    
     
     <div class="closing-content">
       <p class="closing-eyebrow">▎ 7 ROLES · 1 TEAM ▎</p>
@@ -4598,8 +4979,10 @@ C</div>
           </div>
         </div>
         
-        <!-- 가운데 SIGNAL 로고 박스 -->
+        <!-- 가운데 SIGNAL 로고 박스 (양옆 wing 라인 추가) -->
         <div class="closing-logo-box">
+          <div class="closing-logo-wing left"></div>
+          <div class="closing-logo-wing right"></div>
           <div class="closing-logo-scan"></div>
           <div class="logo-text">SIGNAL</div>
         </div>
