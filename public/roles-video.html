@@ -33,6 +33,9 @@
     color: white;
     font-family: 'Pretendard', sans-serif;
     overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
   
   body {
@@ -48,27 +51,28 @@
     position: relative;
     overflow: hidden;
     background: var(--bg);
-    transform-origin: center center;
-    transform: scale(var(--video-scale, 1));
     flex-shrink: 0;
-  }
-
-  /* 시작 전: 무대 전체 애니메이션을 0초에 고정(일시정지).
-     레이아웃/페인트는 시작화면 뒤에서 미리 끝내두고, 타임라인만 멈춰둔다.
-     시작 버튼을 누르면 .paused 제거 → 인트로부터 모든 씬이 0초에서 한 번에 매끄럽게 재생. */
-  .stage.paused,
-  .stage.paused *,
-  .stage.paused *::before,
-  .stage.paused *::after {
-    animation-play-state: paused !important;
+    /* ⭐ transform: scale 제거 → zoom 사용 (비트맵 변환 X, 텍스트 네이티브 렌더링) */
+    zoom: var(--video-scale, 1);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: geometricPrecision;
   }
   
-  /* 시작 전에는 video-wrapper를 display:none으로 완전히 숨긴다.
-     숨겨진 동안에는 내부 CSS 애니메이션이 전혀 진행되지 않으므로,
-     시작 버튼을 누르는 순간 인트로부터 모든 애니메이션이 0초에서 동시에 깨끗하게 재생된다.
-     (이전엔 visibility:hidden이라 애니메이션이 백그라운드에서 미리 돌아 시작 시 어긋남 = 로딩 문제) */
+  /* Firefox는 zoom 미지원 → transform: scale로 fallback */
+  @-moz-document url-prefix() {
+    .stage {
+      zoom: 1;
+      transform: scale(var(--video-scale, 1));
+      transform-origin: center center;
+    }
+  }
+  
+  /* (promo-video와 동일: paused 방식 미사용 - 애니메이션은 처음부터 흐르고
+     시작 시 restartAllAnimations로 재시작. paused 한꺼번에 깨우기가 딜레이 원인이었음) */
+  
   .video-wrapper { visibility: visible; }
-  .video-wrapper.hidden { display: none; }
+  .video-wrapper.hidden { visibility: hidden; }
   
   .scene {
     position: absolute;
@@ -126,9 +130,7 @@
   }
   
   /* ========================================
-     [0-6s] 인트로 — 경량 버전 (transform/opacity만 사용)
-     매트릭스/부팅타이핑/글리치/CRT/blur/mask 애니메이션을 전부 제거.
-     시작 버튼을 눌렀을 때 첫 프레임 페인트 비용이 낮아 끊김이 없음.
+     [0-5s] 인트로
      ======================================== */
   .scene-intro {
     animation: scene1Fade 6s ease-in-out forwards;
@@ -137,99 +139,299 @@
     z-index: 20;
   }
   @keyframes scene1Fade {
-    0%, 85% { opacity: 1; }
+    0%, 88% { opacity: 1; }
     100% { opacity: 0; }
   }
 
-  .intro2 {
+  /* 그리드 매트릭스 (핑크 + 퍼플) */
+  .intro-grid-bg {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255, 111, 181, 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 111, 181, 0.08) 1px, transparent 1px);
+    background-size: 50px 50px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+    animation: intro-grid-pulse 4s ease-in-out infinite;
+    pointer-events: none;
+  }
+  .intro-grid-near {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(139, 92, 246, 0.12) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(139, 92, 246, 0.12) 1px, transparent 1px);
+    background-size: 100px 100px;
+    mask-image: radial-gradient(ellipse at center, black 20%, transparent 60%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 20%, transparent 60%);
+    pointer-events: none;
+  }
+  @keyframes intro-grid-pulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 0.8; }
+  }
+
+  /* 매트릭스 비 (양 사이드) */
+  .matrix-rain {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 80px;
+    overflow: hidden;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    pointer-events: none;
+  }
+  .matrix-rain.left {
+    left: 0;
+    mask-image: linear-gradient(to right, black, transparent);
+    -webkit-mask-image: linear-gradient(to right, black, transparent);
+  }
+  .matrix-rain.right {
+    right: 0;
+    mask-image: linear-gradient(to left, black, transparent);
+    -webkit-mask-image: linear-gradient(to left, black, transparent);
+  }
+  .matrix-col {
+    position: absolute;
+    top: -200px;
+    width: 16px;
+    text-align: center;
+    line-height: 16px;
+    white-space: pre-line;
+    text-shadow: 0 0 4px currentColor;
+    animation: matrixFall linear infinite;
+    color: rgba(255, 111, 181, 0.5);
+  }
+  .matrix-col.purple { color: rgba(139, 92, 246, 0.5); }
+  @keyframes matrixFall {
+    0% { transform: translateY(-200px); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateY(100vh); opacity: 0; }
+  }
+
+  /* CRT 스캔라인 */
+  .crt-lines {
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 2px,
+      rgba(255, 255, 255, 0.025) 2px,
+      rgba(255, 255, 255, 0.025) 3px
+    );
+    pointer-events: none;
+  }
+  .intro-scanline {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(to bottom, transparent, rgba(255, 111, 181, 0.8), transparent);
+    box-shadow: 0 0 20px rgba(255, 111, 181, 0.6);
+    animation: introScanMove 4s linear infinite;
+    pointer-events: none;
+  }
+  @keyframes introScanMove {
+    0% { transform: translateY(-10px); }
+    100% { transform: translateY(100vh); }
+  }
+
+  /* 부팅 시퀀스 */
+  .boot-log {
+    position: absolute;
+    top: 35%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Courier New', monospace;
+    font-size: 16px;
+    letter-spacing: 2px;
+    text-align: center;
+    line-height: 2;
+    width: 800px;
+    pointer-events: none;
+    animation: bootLogFade 0.4s ease-out 2.8s forwards;
+  }
+  @keyframes bootLogFade {
+    to { opacity: 0; transform: translate(-50%, -60%); }
+  }
+  .boot-line {
+    opacity: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    display: inline-block;
+    border-right: 2px solid transparent;
+  }
+  .boot-line-1 {
+    animation: typing 0.5s steps(35) 0.3s forwards;
+    color: rgba(255, 111, 181, 0.85);
+    text-shadow: 0 0 6px rgba(255, 111, 181, 0.5);
+  }
+  .boot-line-2 {
+    animation: typing 0.5s steps(35) 1s forwards;
+    color: rgba(139, 92, 246, 0.85);
+    text-shadow: 0 0 6px rgba(139, 92, 246, 0.5);
+  }
+  .boot-line-3 {
+    animation: typing 0.5s steps(40) 1.7s forwards;
+    color: rgba(255, 111, 181, 0.85);
+    text-shadow: 0 0 6px rgba(255, 111, 181, 0.5);
+  }
+  .boot-complete {
+    animation: bootComplete 0.4s ease-out 2.4s forwards;
+    color: rgba(193, 232, 235, 1);
+    font-weight: 700;
+    text-shadow: 0 0 10px rgba(255, 111, 181, 0.7);
+  }
+  @keyframes typing {
+    from { opacity: 1; width: 0; }
+    to { opacity: 1; width: 100%; }
+  }
+  @keyframes bootComplete {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  /* 화면 플래시 */
+  .intro-flash {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle, #FFB3DC, #FF6FB5);
+    opacity: 0;
+    pointer-events: none;
+    animation: introFlashOnce 0.25s ease-out 2.9s;
+  }
+  @keyframes introFlashOnce {
+    0% { opacity: 0; }
+    50% { opacity: 0.5; }
+    100% { opacity: 0; }
+  }
+
+  /* 동심원 펄스 */
+  .pulse-ring {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 200px; height: 200px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 111, 181, 0.7);
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .pulse-r1 { animation: pulseExpand 1.5s ease-out 2.4s 1; }
+  .pulse-r2 { animation: pulseExpand 1.5s ease-out 2.6s 1; border-color: rgba(139, 92, 246, 0.6); }
+  .pulse-r3 { animation: pulseExpand 1.5s ease-out 2.8s 1; border-color: rgba(255, 111, 181, 0.4); }
+  @keyframes pulseExpand {
+    0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(5); opacity: 0; }
+  }
+
+  /* SIGNAL 로고 */
+  .intro-logo-wrap {
     position: absolute;
     top: 50%; left: 50%;
     transform: translate(-50%, -50%);
     display: flex;
     flex-direction: column;
     align-items: center;
-    text-align: center;
+    opacity: 0;
+    animation: introLogoAppear 0.7s ease-out 3s forwards;
     pointer-events: none;
   }
+  @keyframes introLogoAppear {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.95); filter: blur(10px); }
+    100% { opacity: 1; transform: translate(-50%, -50%) scale(1); filter: blur(0); }
+  }
 
-  /* CONNECTAI 라벨 */
-  .intro2-eyebrow {
+  .intro-top-label {
     display: flex;
     align-items: center;
-    gap: 18px;
-    margin-bottom: 30px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 18px;
-    font-weight: 800;
-    letter-spacing: 10px;
-    color: #FF9BCE;
-    opacity: 0;
-    transform: translateY(12px);
-    animation: intro2In 0.6s ease-out 0.35s forwards;
-    will-change: transform, opacity;
+    gap: 16px;
+    margin-bottom: 20px;
   }
-  .intro2-eyebrow-text { text-shadow: 0 1px 6px rgba(0, 0, 0, 0.55); }
-  .intro2-bar {
-    width: 46px; height: 2px;
-    background: linear-gradient(90deg, transparent, #FF6FB5);
+  .intro-top-line {
+    width: 48px;
+    height: 1px;
+    background: linear-gradient(to right, transparent, #FF6FB5);
+    box-shadow: 0 0 6px #FF6FB5;
   }
-  .intro2-bar:last-child {
-    background: linear-gradient(90deg, #FF6FB5, transparent);
+  .intro-top-label .intro-top-line:last-child {
+    background: linear-gradient(to left, transparent, #FF6FB5);
+  }
+  .intro-top-text {
+    font-size: 14px;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 8px;
+    color: #FF6FB5;
+    text-shadow: 0 0 10px rgba(255, 111, 181, 0.8);
+    font-weight: 700;
   }
 
-  /* SIGNAL 로고 — 정적 그라데이션(페인트 1회), 애니메이션은 transform/opacity만 */
-  .intro2-logo {
-    margin: 0;
-    font-family: 'Pretendard', sans-serif;
-    font-size: 220px;
+  .intro-logo-stack {
+    position: relative;
+    padding: 12px 20px;
+  }
+  .intro-logo-main {
+    font-size: 200px;
     font-weight: 900;
-    line-height: 0.95;
     letter-spacing: -8px;
-    background: linear-gradient(120deg, #FF6FB5 0%, #FFB3DC 28%, #FFFFFF 50%, #C7A5FF 72%, #8B5CF6 100%);
+    background: linear-gradient(135deg, #FF6FB5 0%, #FFB3DC 30%, #FFFFFF 50%, #C7A5FF 70%, #8B5CF6 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    color: transparent;
-    opacity: 0;
-    transform: translateY(26px) scale(0.96);
-    animation: intro2LogoIn 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.55s forwards;
-    will-change: transform, opacity;
-  }
-
-  /* 가운데 라인 — scaleX 성장 */
-  .intro2-rule {
-    width: 360px;
-    height: 2px;
-    margin: 28px 0 22px;
-    background: linear-gradient(90deg, transparent, #C7A5FF, #FF6FB5, #C7A5FF, transparent);
-    transform: scaleX(0);
-    opacity: 0;
-    animation: intro2RuleIn 0.7s ease-out 1.05s forwards;
-    will-change: transform, opacity;
-  }
-
-  /* 서브 라벨 */
-  .intro2-sub {
+    text-shadow: 0 0 30px rgba(255, 111, 181, 0.5);
+    line-height: 1;
+    filter: drop-shadow(0 0 20px rgba(255, 111, 181, 0.3));
     margin: 0;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 20px;
-    font-weight: 700;
-    letter-spacing: 8px;
-    color: #C9B3FF;
+  }
+  .intro-logo-glitch-pink, .intro-logo-glitch-purple {
+    position: absolute;
+    top: 12px; left: 20px;
+    font-size: 200px;
+    font-weight: 900;
+    letter-spacing: -8px;
+    mix-blend-mode: screen;
+    pointer-events: none;
+    line-height: 1;
     opacity: 0;
-    transform: translateY(12px);
-    animation: intro2In 0.6s ease-out 1.35s forwards;
-    will-change: transform, opacity;
+  }
+  .intro-logo-glitch-pink { color: #ff1e8c; animation: glitchPinkOnce 0.4s ease-out 3.5s; }
+  .intro-logo-glitch-purple { color: #c084ff; animation: glitchPurpleOnce 0.4s ease-out 3.5s; }
+  @keyframes glitchPinkOnce {
+    0%, 100% { transform: translate(0, 0); opacity: 0; }
+    30% { transform: translate(-5px, 0); opacity: 0.7; }
+    60% { transform: translate(3px, 0); opacity: 0.5; }
+  }
+  @keyframes glitchPurpleOnce {
+    0%, 100% { transform: translate(0, 0); opacity: 0; }
+    30% { transform: translate(5px, 0); opacity: 0.7; }
+    60% { transform: translate(-3px, 0); opacity: 0.5; }
   }
 
-  @keyframes intro2In {
-    to { opacity: 1; transform: translateY(0); }
+  .intro-bottom-label {
+    font-size: 16px;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 6px;
+    color: #C7A5FF;
+    text-shadow: 0 0 8px rgba(139, 92, 246, 0.7);
+    margin: 24px 0 0 0;
+    opacity: 0;
+    animation: fadeInUp 0.6s ease-out 3.4s forwards;
+    font-weight: 700;
   }
-  @keyframes intro2LogoIn {
-    to { opacity: 1; transform: translateY(0) scale(1); }
+
+  /* 비네팅 */
+  .intro-vignette {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.85) 100%);
+    pointer-events: none;
   }
-  @keyframes intro2RuleIn {
-    to { opacity: 1; transform: scaleX(1); }
+
+  @keyframes fadeInUp {
+    0% { opacity: 0; transform: translateY(15px); }
+    100% { opacity: 1; transform: translateY(0); }
   }
 
 
@@ -969,120 +1171,96 @@
   }
   
   /* ===========================================
-     카드 컨테이너 (레이저 스캔)
-     =========================================== */
-  /* ===========================================
-     전환 효과 (씬 사이) - 데이터 비 + 로딩
+     전환 효과 (씬 사이) - v41: 측면 슬라이딩 카드 조립
+     - 영문 직무명이 왼쪽에서, 한글이 오른쪽에서 슬라이드 인
+     - 가운데에서 만나면서 ROLE_XX 라벨 + 프로그레스 바 등장
+     - 총 2.5초로 늘어나 가독성·여유 확보 (이전 1.5초 → 2.5초)
      =========================================== */
   
-  /* 1. 검은 페이드 백그라운드 */
+  /* 1. 검은 페이드 백그라운드 (살짝 길고 부드럽게) */
   .transition-fade {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.7);
+    background: rgba(0, 0, 0, 0.85);
     pointer-events: none;
     z-index: 175;
     opacity: 0;
   }
   
-  .transition-fade.t0 { animation: fadeBlink 1.5s ease-in-out 6s forwards; }
-  .transition-fade.t1 { animation: fadeBlink 1.5s ease-in-out 14s forwards; }
-  .transition-fade.t2 { animation: fadeBlink 1.5s ease-in-out 21s forwards; }
-  .transition-fade.t3 { animation: fadeBlink 1.5s ease-in-out 28s forwards; }
-  .transition-fade.t4 { animation: fadeBlink 1.5s ease-in-out 35s forwards; }
-  .transition-fade.t5 { animation: fadeBlink 1.5s ease-in-out 42s forwards; }
-  .transition-fade.t6 { animation: fadeBlink 1.5s ease-in-out 49s forwards; }
-  .transition-fade.t7 { animation: fadeBlink 1.5s ease-in-out 56s forwards; }
+  .transition-fade.t0 { animation: fadeBlink 2.5s ease-in-out 6s forwards; }
+  .transition-fade.t1 { animation: fadeBlink 2.5s ease-in-out 14s forwards; }
+  .transition-fade.t2 { animation: fadeBlink 2.5s ease-in-out 21s forwards; }
+  .transition-fade.t3 { animation: fadeBlink 2.5s ease-in-out 28s forwards; }
+  .transition-fade.t4 { animation: fadeBlink 2.5s ease-in-out 35s forwards; }
+  .transition-fade.t5 { animation: fadeBlink 2.5s ease-in-out 42s forwards; }
+  .transition-fade.t6 { animation: fadeBlink 2.5s ease-in-out 49s forwards; }
+  .transition-fade.t7 { animation: fadeBlink 2.5s ease-in-out 56s forwards; }
   
   @keyframes fadeBlink {
     0% { opacity: 0; }
-    30% { opacity: 0.85; }
-    70% { opacity: 0.85; }
+    18% { opacity: 0.92; }
+    82% { opacity: 0.92; }
     100% { opacity: 0; }
   }
   
-  /* 2. 데이터 비 (0/1 떨어짐) */
-  /* ===========================================
-     데이터 비 트랜지션
-     =========================================== */
-  /* ===========================================
-     트랜지션 (가벼운 스캔 스윕 - 데이터비 대체)
-     =========================================== */
-  .data-rain {
+  /* 2. 가로 라인 (좌우에서 늘어남 - sweep 대체) */
+  .transition-lines {
     position: absolute;
     inset: 0;
     pointer-events: none;
     z-index: 180;
-    overflow: hidden;
     opacity: 0;
   }
   
-  .data-rain.t0 { animation: rainAppear 1.5s ease-out 6s forwards; color: var(--green); }
-  .data-rain.t1 { animation: rainAppear 1.5s ease-out 14s forwards; color: var(--cyan); }
-  .data-rain.t2 { animation: rainAppear 1.5s ease-out 21s forwards; color: var(--purple); }
-  .data-rain.t3 { animation: rainAppear 1.5s ease-out 28s forwards; color: var(--pink); }
-  .data-rain.t4 { animation: rainAppear 1.5s ease-out 35s forwards; color: var(--blue); }
-  .data-rain.t5 { animation: rainAppear 1.5s ease-out 42s forwards; color: var(--yellow); }
-  .data-rain.t6 { animation: rainAppear 1.5s ease-out 49s forwards; color: var(--orange); }
-  .data-rain.t7 { animation: rainAppear 1.5s ease-out 56s forwards; color: var(--green); }
+  .transition-lines.t0 { animation: linesAppear 2.5s ease-out 6s forwards; color: var(--green); }
+  .transition-lines.t1 { animation: linesAppear 2.5s ease-out 14s forwards; color: var(--cyan); }
+  .transition-lines.t2 { animation: linesAppear 2.5s ease-out 21s forwards; color: var(--purple); }
+  .transition-lines.t3 { animation: linesAppear 2.5s ease-out 28s forwards; color: var(--pink); }
+  .transition-lines.t4 { animation: linesAppear 2.5s ease-out 35s forwards; color: var(--blue); }
+  .transition-lines.t5 { animation: linesAppear 2.5s ease-out 42s forwards; color: var(--yellow); }
+  .transition-lines.t6 { animation: linesAppear 2.5s ease-out 49s forwards; color: var(--orange); }
+  .transition-lines.t7 { animation: linesAppear 2.5s ease-out 56s forwards; color: var(--green); }
   
-  @keyframes rainAppear {
+  @keyframes linesAppear {
     0% { opacity: 0; }
-    20% { opacity: 1; }
-    80% { opacity: 1; }
+    15% { opacity: 1; }
+    85% { opacity: 1; }
     100% { opacity: 0; }
   }
   
-  /* 가로 스캔 라인 스윕 (위→아래, 가벼움 - transform/opacity만) */
-  .rain-sweep {
+  /* 위/아래 가로 라인 - 화면 양옆에서 가운데로 모이듯 scaleX */
+  .trans-line {
     position: absolute;
-    left: 0;
-    width: 100%;
-    height: 3px;
-    background: linear-gradient(90deg, transparent, currentColor, transparent);
+    left: 50%;
+    width: 70%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, currentColor 20%, currentColor 80%, transparent);
+    box-shadow: 0 0 12px currentColor;
+    transform: translateX(-50%) scaleX(0);
     opacity: 0;
     will-change: transform, opacity;
   }
-  .rain-sweep.s1 { top: 0; animation: rainSweepMove 1.5s ease-in-out forwards; }
+  .trans-line.top { top: 30%; }
+  .trans-line.bottom { bottom: 30%; }
   
-  @keyframes rainSweepMove {
-    0% { opacity: 0; transform: translateY(-10vh); }
-    20% { opacity: 1; }
-    80% { opacity: 1; }
-    100% { opacity: 0; transform: translateY(100vh); }
+  /* 각 트랜지션별 라인 애니메이션 */
+  .transition-lines.t0 .trans-line { animation: lineExpand 2.5s cubic-bezier(0.2, 0.8, 0.2, 1) 6s forwards; }
+  .transition-lines.t1 .trans-line { animation: lineExpand 2.5s cubic-bezier(0.2, 0.8, 0.2, 1) 14s forwards; }
+  .transition-lines.t2 .trans-line { animation: lineExpand 2.5s cubic-bezier(0.2, 0.8, 0.2, 1) 21s forwards; }
+  .transition-lines.t3 .trans-line { animation: lineExpand 2.5s cubic-bezier(0.2, 0.8, 0.2, 1) 28s forwards; }
+  .transition-lines.t4 .trans-line { animation: lineExpand 2.5s cubic-bezier(0.2, 0.8, 0.2, 1) 35s forwards; }
+  .transition-lines.t5 .trans-line { animation: lineExpand 2.5s cubic-bezier(0.2, 0.8, 0.2, 1) 42s forwards; }
+  .transition-lines.t6 .trans-line { animation: lineExpand 2.5s cubic-bezier(0.2, 0.8, 0.2, 1) 49s forwards; }
+  .transition-lines.t7 .trans-line { animation: lineExpand 2.5s cubic-bezier(0.2, 0.8, 0.2, 1) 56s forwards; }
+  
+  @keyframes lineExpand {
+    0% { opacity: 0; transform: translateX(-50%) scaleX(0); }
+    20% { opacity: 1; transform: translateX(-50%) scaleX(1); }
+    85% { opacity: 1; transform: translateX(-50%) scaleX(1); }
+    100% { opacity: 0; transform: translateX(-50%) scaleX(0.95); }
   }
   
-  /* 각 트랜지션별 sweep/centerline 딜레이 */
-  .data-rain.t0 .rain-sweep, .data-rain.t0 .rain-centerline { animation-delay: 6s; }
-  .data-rain.t1 .rain-sweep, .data-rain.t1 .rain-centerline { animation-delay: 14s; }
-  .data-rain.t2 .rain-sweep, .data-rain.t2 .rain-centerline { animation-delay: 21s; }
-  .data-rain.t3 .rain-sweep, .data-rain.t3 .rain-centerline { animation-delay: 28s; }
-  .data-rain.t4 .rain-sweep, .data-rain.t4 .rain-centerline { animation-delay: 35s; }
-  .data-rain.t5 .rain-sweep, .data-rain.t5 .rain-centerline { animation-delay: 42s; }
-  .data-rain.t6 .rain-sweep, .data-rain.t6 .rain-centerline { animation-delay: 49s; }
-  .data-rain.t7 .rain-sweep, .data-rain.t7 .rain-centerline { animation-delay: 56s; }
-  
-  /* 중앙 가로 라인 (브랜드 라인) */
-  .rain-centerline {
-    position: absolute;
-    top: 50%;
-    left: 0;
-    width: 100%;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, currentColor 30%, currentColor 70%, transparent);
-    opacity: 0;
-    will-change: transform, opacity;
-  }
-  .rain-centerline.c1 { animation: rainCenterPulse 1.5s ease-out forwards; }
-  
-  @keyframes rainCenterPulse {
-    0% { opacity: 0; transform: scaleX(0); }
-    25% { opacity: 0.8; transform: scaleX(1); }
-    75% { opacity: 0.8; transform: scaleX(1); }
-    100% { opacity: 0; transform: scaleX(0.6); }
-  }
-  
-  /* 3. 로딩 컨테이너 */
+  /* 3. 로딩 컨테이너 (중앙) */
   .transition-loader {
     position: absolute;
     top: 50%;
@@ -1091,85 +1269,231 @@
     pointer-events: none;
     z-index: 190;
     opacity: 0;
-    width: 600px;
+    width: 1200px;
+    max-width: 92vw;
     text-align: center;
   }
   
-  .transition-loader.t0 { animation: loaderShow 1.5s ease-out 6s forwards; color: var(--green); }
-  .transition-loader.t1 { animation: loaderShow 1.5s ease-out 14s forwards; color: var(--cyan); }
-  .transition-loader.t2 { animation: loaderShow 1.5s ease-out 21s forwards; color: var(--purple); }
-  .transition-loader.t3 { animation: loaderShow 1.5s ease-out 28s forwards; color: var(--pink); }
-  .transition-loader.t4 { animation: loaderShow 1.5s ease-out 35s forwards; color: var(--blue); }
-  .transition-loader.t5 { animation: loaderShow 1.5s ease-out 42s forwards; color: var(--yellow); }
-  .transition-loader.t6 { animation: loaderShow 1.5s ease-out 49s forwards; color: var(--orange); }
-  .transition-loader.t7 { animation: loaderShow 1.5s ease-out 56s forwards; color: var(--green); }
+  .transition-loader.t0 { animation: loaderShow 2.5s ease-out 6s forwards; color: var(--green); }
+  .transition-loader.t1 { animation: loaderShow 2.5s ease-out 14s forwards; color: var(--cyan); }
+  .transition-loader.t2 { animation: loaderShow 2.5s ease-out 21s forwards; color: var(--purple); }
+  .transition-loader.t3 { animation: loaderShow 2.5s ease-out 28s forwards; color: var(--pink); }
+  .transition-loader.t4 { animation: loaderShow 2.5s ease-out 35s forwards; color: var(--blue); }
+  .transition-loader.t5 { animation: loaderShow 2.5s ease-out 42s forwards; color: var(--yellow); }
+  .transition-loader.t6 { animation: loaderShow 2.5s ease-out 49s forwards; color: var(--orange); }
+  .transition-loader.t7 { animation: loaderShow 2.5s ease-out 56s forwards; color: var(--green); }
   
   @keyframes loaderShow {
-    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
-    20% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-    80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.05); }
+    0% { opacity: 0; }
+    15% { opacity: 1; }
+    85% { opacity: 1; }
+    100% { opacity: 0; }
   }
   
-  /* 로딩 라벨 (ANALYZING ROLE_02) */
+  /* 로딩 라벨 (ANALYZING ROLE_02) - 상단에 작게, 흐림 → 또렷 */
   .loader-label {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 18px;
+    font-size: 17px;
     font-weight: 800;
     color: currentColor;
     text-shadow: 
       0 0 8px currentColor,
       0 0 16px currentColor;
     letter-spacing: 6px;
-    margin-bottom: 16px;
+    margin-bottom: 32px;
+    opacity: 0;
+    transform: translateY(-8px);
+    will-change: transform, opacity;
+  }
+  .transition-loader.t0 .loader-label { animation: labelEnter 2.5s ease-out 6s forwards; }
+  .transition-loader.t1 .loader-label { animation: labelEnter 2.5s ease-out 14s forwards; }
+  .transition-loader.t2 .loader-label { animation: labelEnter 2.5s ease-out 21s forwards; }
+  .transition-loader.t3 .loader-label { animation: labelEnter 2.5s ease-out 28s forwards; }
+  .transition-loader.t4 .loader-label { animation: labelEnter 2.5s ease-out 35s forwards; }
+  .transition-loader.t5 .loader-label { animation: labelEnter 2.5s ease-out 42s forwards; }
+  .transition-loader.t6 .loader-label { animation: labelEnter 2.5s ease-out 49s forwards; }
+  .transition-loader.t7 .loader-label { animation: labelEnter 2.5s ease-out 56s forwards; }
+  
+  @keyframes labelEnter {
+    0% { opacity: 0; transform: translateY(-8px); }
+    20% { opacity: 1; transform: translateY(0); }
+    85% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-4px); }
   }
   
-  /* 로딩 직무명 (ANALYST) */
-  .loader-role {
+  /* ⭐ 측면 슬라이딩 카드 조립 영역 */
+  .loader-assembly {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: nowrap;
+    margin-bottom: 24px;
+    min-height: 96px;
+  }
+  
+  /* 영문 직무명 (왼쪽에서 슬라이드 인) */
+  .loader-role-en {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 64px;
+    font-size: 72px;
     font-weight: 900;
     color: #FFFFFF;
     text-shadow: 
-      0 0 4px #FFFFFF,
-      0 0 16px currentColor,
-      0 0 32px currentColor,
-      0 0 48px currentColor;
-    letter-spacing: 8px;
-    margin-bottom: 20px;
-    animation: roleGlitch 0.3s ease-in-out infinite;
+      0 0 8px currentColor,
+      0 0 20px currentColor,
+      0 0 40px currentColor;
+    letter-spacing: 10px;
+    line-height: 1;
+    padding: 0 14px;
+    opacity: 0;
+    transform: translateX(-180px);
+    white-space: nowrap;
+    flex-shrink: 0;
+    will-change: transform, opacity;
+  }
+  .transition-loader.t0 .loader-role-en { animation: roleEnEnter 2.5s cubic-bezier(0.2, 0.9, 0.25, 1.05) 6s forwards; }
+  .transition-loader.t1 .loader-role-en { animation: roleEnEnter 2.5s cubic-bezier(0.2, 0.9, 0.25, 1.05) 14s forwards; }
+  .transition-loader.t2 .loader-role-en { animation: roleEnEnter 2.5s cubic-bezier(0.2, 0.9, 0.25, 1.05) 21s forwards; }
+  .transition-loader.t3 .loader-role-en { animation: roleEnEnter 2.5s cubic-bezier(0.2, 0.9, 0.25, 1.05) 28s forwards; }
+  .transition-loader.t4 .loader-role-en { animation: roleEnEnter 2.5s cubic-bezier(0.2, 0.9, 0.25, 1.05) 35s forwards; }
+  .transition-loader.t5 .loader-role-en { animation: roleEnEnter 2.5s cubic-bezier(0.2, 0.9, 0.25, 1.05) 42s forwards; }
+  .transition-loader.t6 .loader-role-en { animation: roleEnEnter 2.5s cubic-bezier(0.2, 0.9, 0.25, 1.05) 49s forwards; }
+  .transition-loader.t7 .loader-role-en { animation: roleEnEnter 2.5s cubic-bezier(0.2, 0.9, 0.25, 1.05) 56s forwards; }
+  
+  @keyframes roleEnEnter {
+    0% { opacity: 0; transform: translateX(-180px); }
+    25% { opacity: 1; transform: translateX(12px); }
+    32% { transform: translateX(-3px); }
+    38% { transform: translateX(0); }
+    85% { opacity: 1; transform: translateX(0); }
+    100% { opacity: 0; transform: translateX(-30px); }
   }
   
-  @keyframes roleGlitch {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-2px); }
-    50% { transform: translateX(0); }
-    75% { transform: translateX(2px); }
-  }
-  
-  /* 로딩 직무 한글 */
-  .loader-role-kr {
-    font-size: 22px;
-    color: rgba(255, 255, 255, 0.85);
-    letter-spacing: 6px;
-    margin-bottom: 24px;
-    text-shadow: 
-      0 0 6px currentColor;
-    font-weight: 700;
-  }
-  
-  /* 로딩 바 */
-  .loader-bar-container {
-    width: 100%;
+  /* 가운데 구분 점 (조립 표시) */
+  .loader-divider {
+    width: 6px;
     height: 6px;
-    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 
+      0 0 8px currentColor,
+      0 0 16px currentColor;
+    margin: 0 18px;
+    opacity: 0;
+    transform: scale(0);
+    will-change: transform, opacity;
+  }
+  .transition-loader.t0 .loader-divider { animation: dividerPop 2.5s ease-out 6s forwards; }
+  .transition-loader.t1 .loader-divider { animation: dividerPop 2.5s ease-out 14s forwards; }
+  .transition-loader.t2 .loader-divider { animation: dividerPop 2.5s ease-out 21s forwards; }
+  .transition-loader.t3 .loader-divider { animation: dividerPop 2.5s ease-out 28s forwards; }
+  .transition-loader.t4 .loader-divider { animation: dividerPop 2.5s ease-out 35s forwards; }
+  .transition-loader.t5 .loader-divider { animation: dividerPop 2.5s ease-out 42s forwards; }
+  .transition-loader.t6 .loader-divider { animation: dividerPop 2.5s ease-out 49s forwards; }
+  .transition-loader.t7 .loader-divider { animation: dividerPop 2.5s ease-out 56s forwards; }
+  
+  @keyframes dividerPop {
+    0%, 32% { opacity: 0; transform: scale(0); }
+    38% { opacity: 1; transform: scale(1.6); }
+    45% { transform: scale(1); }
+    85% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(0.8); }
+  }
+  
+  /* 한글 직무명 (오른쪽에서 슬라이드 인) */
+  .loader-role-kr {
+    font-size: 32px;
+    color: currentColor;
+    letter-spacing: 3px;
+    font-weight: 800;
+    text-shadow: 
+      0 0 6px currentColor,
+      0 0 14px currentColor,
+      0 2px 4px rgba(0, 0, 0, 0.85);
+    padding: 0 14px;
+    opacity: 0;
+    transform: translateX(180px);
+    white-space: nowrap;
+    flex-shrink: 0;
+    will-change: transform, opacity;
+  }
+  .transition-loader.t0 .loader-role-kr { animation: roleKrEnter 2.5s cubic-bezier(0.2, 0.9, 0.25, 1.05) 6s forwards; }
+  .transition-loader.t1 .loader-role-kr { animation: roleKrEnter 2.5s cubic-bezier(0.2, 0.9, 0.25, 1.05) 14s forwards; }
+  .transition-loader.t2 .loader-role-kr { animation: roleKrEnter 2.5s cubic-bezier(0.2, 0.9, 0.25, 1.05) 21s forwards; }
+  .transition-loader.t3 .loader-role-kr { animation: roleKrEnter 2.5s cubic-bezier(0.2, 0.9, 0.25, 1.05) 28s forwards; }
+  .transition-loader.t4 .loader-role-kr { animation: roleKrEnter 2.5s cubic-bezier(0.2, 0.9, 0.25, 1.05) 35s forwards; }
+  .transition-loader.t5 .loader-role-kr { animation: roleKrEnter 2.5s cubic-bezier(0.2, 0.9, 0.25, 1.05) 42s forwards; }
+  .transition-loader.t6 .loader-role-kr { animation: roleKrEnter 2.5s cubic-bezier(0.2, 0.9, 0.25, 1.05) 49s forwards; }
+  .transition-loader.t7 .loader-role-kr { animation: roleKrEnter 2.5s cubic-bezier(0.2, 0.9, 0.25, 1.05) 56s forwards; }
+  
+  @keyframes roleKrEnter {
+    0% { opacity: 0; transform: translateX(180px); }
+    25% { opacity: 1; transform: translateX(-12px); }
+    32% { transform: translateX(3px); }
+    38% { transform: translateX(0); }
+    85% { opacity: 1; transform: translateX(0); }
+    100% { opacity: 0; transform: translateX(30px); }
+  }
+  
+  /* 가운데 만남 플래시 (조립 순간 번쩍) */
+  .loader-flash {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    width: 200px;
+    height: 200px;
+    border-radius: 50%;
+    background: radial-gradient(circle, currentColor 0%, transparent 60%);
+    opacity: 0;
+    pointer-events: none;
+    will-change: transform, opacity;
+  }
+  .transition-loader.t0 .loader-flash { animation: flashPop 2.5s ease-out 6s forwards; }
+  .transition-loader.t1 .loader-flash { animation: flashPop 2.5s ease-out 14s forwards; }
+  .transition-loader.t2 .loader-flash { animation: flashPop 2.5s ease-out 21s forwards; }
+  .transition-loader.t3 .loader-flash { animation: flashPop 2.5s ease-out 28s forwards; }
+  .transition-loader.t4 .loader-flash { animation: flashPop 2.5s ease-out 35s forwards; }
+  .transition-loader.t5 .loader-flash { animation: flashPop 2.5s ease-out 42s forwards; }
+  .transition-loader.t6 .loader-flash { animation: flashPop 2.5s ease-out 49s forwards; }
+  .transition-loader.t7 .loader-flash { animation: flashPop 2.5s ease-out 56s forwards; }
+  
+  @keyframes flashPop {
+    0%, 34% { opacity: 0; transform: translate(-50%, -50%) scale(0); }
+    38% { opacity: 0.8; transform: translate(-50%, -50%) scale(1); }
+    44% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
+  }
+  
+  /* 로딩 바 (얇아지고 직무명 뒤에 나타남) */
+  .loader-bar-container {
+    width: 480px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.08);
     border: 1px solid currentColor;
     border-radius: 3px;
     overflow: hidden;
-    margin-bottom: 14px;
+    margin: 24px auto 16px;
     box-shadow: 
       0 0 8px currentColor,
       inset 0 0 4px rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    will-change: opacity;
+  }
+  .transition-loader.t0 .loader-bar-container { animation: barShow 2.5s ease-out 6s forwards; }
+  .transition-loader.t1 .loader-bar-container { animation: barShow 2.5s ease-out 14s forwards; }
+  .transition-loader.t2 .loader-bar-container { animation: barShow 2.5s ease-out 21s forwards; }
+  .transition-loader.t3 .loader-bar-container { animation: barShow 2.5s ease-out 28s forwards; }
+  .transition-loader.t4 .loader-bar-container { animation: barShow 2.5s ease-out 35s forwards; }
+  .transition-loader.t5 .loader-bar-container { animation: barShow 2.5s ease-out 42s forwards; }
+  .transition-loader.t6 .loader-bar-container { animation: barShow 2.5s ease-out 49s forwards; }
+  .transition-loader.t7 .loader-bar-container { animation: barShow 2.5s ease-out 56s forwards; }
+  
+  @keyframes barShow {
+    0%, 38% { opacity: 0; }
+    45% { opacity: 1; }
+    85% { opacity: 1; }
+    100% { opacity: 0; }
   }
   
   .loader-bar-fill {
@@ -1182,80 +1506,52 @@
     transform-origin: left;
   }
   
-  .loader-bar-fill.t0 { animation: barFill 1.0s ease-out 6.2s forwards; }
-  .loader-bar-fill.t1 { animation: barFill 1.0s ease-out 14.2s forwards; }
-  .loader-bar-fill.t2 { animation: barFill 1.0s ease-out 21.2s forwards; }
-  .loader-bar-fill.t3 { animation: barFill 1.0s ease-out 28.2s forwards; }
-  .loader-bar-fill.t4 { animation: barFill 1.0s ease-out 35.2s forwards; }
-  .loader-bar-fill.t5 { animation: barFill 1.0s ease-out 42.2s forwards; }
-  .loader-bar-fill.t6 { animation: barFill 1.0s ease-out 49.2s forwards; }
-  .loader-bar-fill.t7 { animation: barFill 1.0s ease-out 56.2s forwards; }
+  .loader-bar-fill.t0 { animation: barFill 1.4s ease-out 6.95s forwards; }
+  .loader-bar-fill.t1 { animation: barFill 1.4s ease-out 14.95s forwards; }
+  .loader-bar-fill.t2 { animation: barFill 1.4s ease-out 21.95s forwards; }
+  .loader-bar-fill.t3 { animation: barFill 1.4s ease-out 28.95s forwards; }
+  .loader-bar-fill.t4 { animation: barFill 1.4s ease-out 35.95s forwards; }
+  .loader-bar-fill.t5 { animation: barFill 1.4s ease-out 42.95s forwards; }
+  .loader-bar-fill.t6 { animation: barFill 1.4s ease-out 49.95s forwards; }
+  .loader-bar-fill.t7 { animation: barFill 1.4s ease-out 56.95s forwards; }
   
   @keyframes barFill {
     to { transform: scaleX(1); }
   }
   
-  /* 로딩 상태 텍스트 */
+  /* 로딩 상태 텍스트 (DECRYPTING + 키워드) */
   .loader-status {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 14px;
+    font-size: 13px;
     color: currentColor;
     text-shadow: 0 0 6px currentColor;
     letter-spacing: 3px;
     font-weight: 600;
     display: flex;
     justify-content: space-between;
+    width: 480px;
+    margin: 0 auto;
+    opacity: 0;
+    will-change: opacity;
+  }
+  .transition-loader.t0 .loader-status { animation: statusShow 2.5s ease-out 6s forwards; }
+  .transition-loader.t1 .loader-status { animation: statusShow 2.5s ease-out 14s forwards; }
+  .transition-loader.t2 .loader-status { animation: statusShow 2.5s ease-out 21s forwards; }
+  .transition-loader.t3 .loader-status { animation: statusShow 2.5s ease-out 28s forwards; }
+  .transition-loader.t4 .loader-status { animation: statusShow 2.5s ease-out 35s forwards; }
+  .transition-loader.t5 .loader-status { animation: statusShow 2.5s ease-out 42s forwards; }
+  .transition-loader.t6 .loader-status { animation: statusShow 2.5s ease-out 49s forwards; }
+  .transition-loader.t7 .loader-status { animation: statusShow 2.5s ease-out 56s forwards; }
+  
+  @keyframes statusShow {
+    0%, 40% { opacity: 0; }
+    50% { opacity: 1; }
+    85% { opacity: 1; }
+    100% { opacity: 0; }
   }
   
   .loader-status .left {
-    opacity: 0.7;
-  }
-  
-  /* 키워드 (DATA-DRIVEN 등) */
-  .loader-keyword {
-    position: absolute;
-    bottom: 60px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
-    color: currentColor;
-    text-shadow: 0 0 8px currentColor;
-    letter-spacing: 5px;
-    font-weight: 700;
-    opacity: 0.8;
-  }
-  
-  /* 화면 가장자리 스캔라인 (위/아래로 빠르게) */
-  .transition-scanline {
-    position: absolute;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, transparent, currentColor, white, currentColor, transparent);
-    box-shadow: 0 0 20px currentColor, 0 0 40px currentColor;
-    pointer-events: none;
-    z-index: 195;
-    opacity: 0;
-    top: 0;
-  }
-  
-  .transition-scanline.t0 { animation: scanlineFlash 1.5s linear 6s forwards; color: var(--green); }
-  .transition-scanline.t1 { animation: scanlineFlash 1.5s linear 14s forwards; color: var(--cyan); }
-  .transition-scanline.t2 { animation: scanlineFlash 1.5s linear 21s forwards; color: var(--purple); }
-  .transition-scanline.t3 { animation: scanlineFlash 1.5s linear 28s forwards; color: var(--pink); }
-  .transition-scanline.t4 { animation: scanlineFlash 1.5s linear 35s forwards; color: var(--blue); }
-  .transition-scanline.t5 { animation: scanlineFlash 1.5s linear 42s forwards; color: var(--yellow); }
-  .transition-scanline.t6 { animation: scanlineFlash 1.5s linear 49s forwards; color: var(--orange); }
-  .transition-scanline.t7 { animation: scanlineFlash 1.5s linear 56s forwards; color: var(--green); }
-  
-  @keyframes scanlineFlash {
-    0% { opacity: 0; top: 0; }
-    10% { opacity: 1; }
-    50% { opacity: 1; top: 100%; }
-    51% { opacity: 0; top: 0; }
-    60% { opacity: 1; top: 0; }
-    100% { opacity: 0; top: 100%; }
+    opacity: 0.75;
   }
   
   /* 카드 글리치 효과 (각 카드에 추가) */
@@ -1820,33 +2116,38 @@
   }
   
   .id-card-description {
-    font-size: 15px;
+    font-size: 16px;
     color: #FFFFFF;
     line-height: 1.5;
     margin-bottom: 14px;
-    font-weight: 700;
-    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
-    letter-spacing: 0.5px;
+    font-weight: 800;
+    text-shadow: 
+      0 1px 2px rgba(0, 0, 0, 0.9),
+      0 2px 6px rgba(0, 0, 0, 0.7);
+    letter-spacing: 0.3px;
     position: relative;
     z-index: 2;
   }
   
   .id-card-quote {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
+    font-size: 14px;
+    /* 직무 테마색 글씨 + 검은 그림자만으로 또렷하게 (후광 X) */
     color: currentColor;
     text-shadow: 
-      0 0 4px currentColor,
-      0 0 10px currentColor;
-    line-height: 1.5;
+      0 0 1px rgba(0, 0, 0, 0.95),
+      0 1px 2px rgba(0, 0, 0, 0.95),
+      0 2px 4px rgba(0, 0, 0, 0.75);
+    filter: brightness(1.45) saturate(1.1);
+    line-height: 1.55;
     padding: 12px 16px;
     border-left: 3px solid currentColor;
-    background: rgba(255, 255, 255, 0.04);
+    background: rgba(0, 0, 0, 0.45);
     font-style: italic;
-    font-weight: 600;
+    font-weight: 800;
     box-shadow: 
-      inset 0 0 8px rgba(0, 0, 0, 0.3),
-      0 0 8px currentColor;
+      inset 0 0 8px rgba(0, 0, 0, 0.5),
+      0 0 4px rgba(0, 0, 0, 0.3);
     position: relative;
     z-index: 2;
   }
@@ -1860,11 +2161,12 @@
   
   .id-card-skills-label {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 9px;
-    color: rgba(255, 255, 255, 0.5);
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.7);
     letter-spacing: 3px;
     margin-bottom: 8px;
-    font-weight: 700;
+    font-weight: 800;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
   }
   
   .skill-row {
@@ -1876,12 +2178,13 @@
   
   .skill-name {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.85);
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.95);
     letter-spacing: 1px;
     min-width: 100px;
     text-align: left;
-    font-weight: 600;
+    font-weight: 700;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
   }
   
   .skill-bars {
@@ -2772,23 +3075,126 @@
   </defs>
 </svg>
 
-<div class="video-wrapper" id="videoWrapper">
-<div class="stage paused" id="stage">
+<div class="video-wrapper hidden" id="videoWrapper">
+<div class="stage" id="stage">
 
   <div class="global-grid"></div>
 
-  <!-- [0-6s] 인트로 (경량: transform/opacity만 → 시작 즉시 끊김 없음) -->
+  <!-- [0-5s] 인트로 -->
   <div class="scene scene-intro">
-    <div class="intro2">
-      <div class="intro2-eyebrow">
-        <span class="intro2-bar"></span>
-        <span class="intro2-eyebrow-text">CONNECTAI</span>
-        <span class="intro2-bar"></span>
-      </div>
-      <h1 class="intro2-logo">SIGNAL</h1>
-      <div class="intro2-rule"></div>
-      <p class="intro2-sub">DIGITAL · TRADE · CARDS</p>
+    <!-- 핑크/퍼플 그리드 매트릭스 -->
+    <div class="intro-grid-bg"></div>
+    <div class="intro-grid-near"></div>
+
+    <!-- 매트릭스 비 (좌측) -->
+    <div class="matrix-rain left">
+      <div class="matrix-col" style="left:4px; animation-duration:6s;">0
+1
+1
+0
+1
+0
+1
+1</div>
+      <div class="matrix-col" style="left:24px; animation-duration:8s; animation-delay:0.5s;">A
+F
+3
+2
+B
+1
+C
+8</div>
+      <div class="matrix-col purple" style="left:44px; animation-duration:5s; animation-delay:1s;">1
+0
+0
+1
+1
+0
+1
+0</div>
+      <div class="matrix-col" style="left:64px; animation-duration:7s; animation-delay:1.5s;">F
+9
+A
+2
+C
+0
+B
+1</div>
     </div>
+
+    <!-- 매트릭스 비 (우측) -->
+    <div class="matrix-rain right">
+      <div class="matrix-col" style="left:4px; animation-duration:7s; animation-delay:0.3s;">3
+F
+A
+1
+0
+B
+2
+C</div>
+      <div class="matrix-col purple" style="left:24px; animation-duration:6s; animation-delay:1s;">1
+1
+0
+1
+0
+0
+1
+1</div>
+      <div class="matrix-col" style="left:44px; animation-duration:9s; animation-delay:0.5s;">B
+2
+F
+0
+A
+1
+3
+C</div>
+      <div class="matrix-col" style="left:64px; animation-duration:5s; animation-delay:2s;">0
+1
+1
+0
+1
+1
+0
+0</div>
+    </div>
+
+    <!-- 스캔라인 + CRT -->
+    <div class="intro-scanline"></div>
+    <div class="crt-lines"></div>
+
+    <!-- 부팅 시퀀스 -->
+    <div class="boot-log">
+      <div class="boot-line boot-line-1">▸ INITIALIZING SIGNAL.NET PROTOCOL...</div><br>
+      <div class="boot-line boot-line-2">▸ AUTHENTICATING TEAM CREDENTIALS...</div><br>
+      <div class="boot-line boot-line-3">▸ LOADING DIGITAL TRADE CARDS...</div><br>
+      <div class="boot-line boot-complete">▸ CONNECTION ESTABLISHED ✓</div>
+    </div>
+
+    <!-- 동심원 펄스 -->
+    <div class="pulse-ring pulse-r1"></div>
+    <div class="pulse-ring pulse-r2"></div>
+    <div class="pulse-ring pulse-r3"></div>
+
+    <!-- 화면 플래시 -->
+    <div class="intro-flash"></div>
+
+    <!-- SIGNAL 로고 -->
+    <div class="intro-logo-wrap">
+      <div class="intro-top-label">
+        <span class="intro-top-line"></span>
+        <span class="intro-top-text">CONNECTAI</span>
+        <span class="intro-top-line"></span>
+      </div>
+      <div class="intro-logo-stack">
+        <span class="intro-logo-glitch-pink" aria-hidden>SIGNAL</span>
+        <span class="intro-logo-glitch-purple" aria-hidden>SIGNAL</span>
+        <h1 class="intro-logo-main">SIGNAL</h1>
+      </div>
+      <p class="intro-bottom-label">DIGITAL TRADE CARDS</p>
+    </div>
+
+    <!-- 비네팅 -->
+    <div class="intro-vignette"></div>
   </div>
 
   <!-- ========================================
@@ -3976,22 +4382,24 @@
   </div>
 
   <!-- ========================================
-       전환 효과 (씬 사이): 데이터 비 + 로딩 + 기대감
+       전환 효과 (v41): 측면 슬라이딩 카드 조립
+       영문 직무명(좌) + 한글(우) → 가운데서 만남
        ======================================== -->
-  <!-- 전환 t0: LEADER (CEO) - 인트로 후 첫 등장 -->
+  
+  <!-- 전환 t0: LEADER (CEO) -->
   <div class="transition-fade t0"></div>
-  
-  <div class="data-rain t0">
-      <div class="rain-sweep s1"></div>
-      <div class="rain-centerline c1"></div>
+  <div class="transition-lines t0">
+    <div class="trans-line top"></div>
+    <div class="trans-line bottom"></div>
   </div>
-  
-  <div class="transition-scanline t0"></div>
-  
   <div class="transition-loader t0">
     <div class="loader-label">&gt; ANALYZING ROLE_01</div>
-    <div class="loader-role">LEADER</div>
-    <div class="loader-role-kr">팀을 이끄는 리더</div>
+    <div class="loader-assembly">
+      <div class="loader-flash"></div>
+      <div class="loader-role-en">LEADER</div>
+      <div class="loader-divider"></div>
+      <div class="loader-role-kr">팀을 이끄는 리더</div>
+    </div>
     <div class="loader-bar-container">
       <div class="loader-bar-fill t0"></div>
     </div>
@@ -4003,18 +4411,18 @@
 
   <!-- 전환 t1: ANALYST -->
   <div class="transition-fade t1"></div>
-  
-  <div class="data-rain t1">
-      <div class="rain-sweep s1"></div>
-      <div class="rain-centerline c1"></div>
+  <div class="transition-lines t1">
+    <div class="trans-line top"></div>
+    <div class="trans-line bottom"></div>
   </div>
-  
-  <div class="transition-scanline t1"></div>
-  
   <div class="transition-loader t1">
     <div class="loader-label">&gt; ANALYZING ROLE_02</div>
-    <div class="loader-role">ANALYST</div>
-    <div class="loader-role-kr">시장 분석가</div>
+    <div class="loader-assembly">
+      <div class="loader-flash"></div>
+      <div class="loader-role-en">ANALYST</div>
+      <div class="loader-divider"></div>
+      <div class="loader-role-kr">시장 분석가</div>
+    </div>
     <div class="loader-bar-container">
       <div class="loader-bar-fill t1"></div>
     </div>
@@ -4026,18 +4434,18 @@
 
   <!-- 전환 t2: BRAND -->
   <div class="transition-fade t2"></div>
-  
-  <div class="data-rain t2">
-      <div class="rain-sweep s1"></div>
-      <div class="rain-centerline c1"></div>
+  <div class="transition-lines t2">
+    <div class="trans-line top"></div>
+    <div class="trans-line bottom"></div>
   </div>
-  
-  <div class="transition-scanline t2"></div>
-  
   <div class="transition-loader t2">
     <div class="loader-label">&gt; ANALYZING ROLE_03</div>
-    <div class="loader-role">BRAND</div>
-    <div class="loader-role-kr">브랜드 전략가</div>
+    <div class="loader-assembly">
+      <div class="loader-flash"></div>
+      <div class="loader-role-en">BRAND</div>
+      <div class="loader-divider"></div>
+      <div class="loader-role-kr">브랜드 전략가</div>
+    </div>
     <div class="loader-bar-container">
       <div class="loader-bar-fill t2"></div>
     </div>
@@ -4049,18 +4457,18 @@
 
   <!-- 전환 t3: CUSTOMER -->
   <div class="transition-fade t3"></div>
-  
-  <div class="data-rain t3">
-      <div class="rain-sweep s1"></div>
-      <div class="rain-centerline c1"></div>
+  <div class="transition-lines t3">
+    <div class="trans-line top"></div>
+    <div class="trans-line bottom"></div>
   </div>
-  
-  <div class="transition-scanline t3"></div>
-  
   <div class="transition-loader t3">
     <div class="loader-label">&gt; ANALYZING ROLE_04</div>
-    <div class="loader-role">CUSTOMER</div>
-    <div class="loader-role-kr">고객 인사이트 리드</div>
+    <div class="loader-assembly">
+      <div class="loader-flash"></div>
+      <div class="loader-role-en">CUSTOMER</div>
+      <div class="loader-divider"></div>
+      <div class="loader-role-kr">고객 인사이트 리드</div>
+    </div>
     <div class="loader-bar-container">
       <div class="loader-bar-fill t3"></div>
     </div>
@@ -4072,18 +4480,18 @@
 
   <!-- 전환 t4: GLOBAL -->
   <div class="transition-fade t4"></div>
-  
-  <div class="data-rain t4">
-      <div class="rain-sweep s1"></div>
-      <div class="rain-centerline c1"></div>
+  <div class="transition-lines t4">
+    <div class="trans-line top"></div>
+    <div class="trans-line bottom"></div>
   </div>
-  
-  <div class="transition-scanline t4"></div>
-  
   <div class="transition-loader t4">
     <div class="loader-label">&gt; ANALYZING ROLE_05</div>
-    <div class="loader-role">GLOBAL</div>
-    <div class="loader-role-kr">해외영업 매니저</div>
+    <div class="loader-assembly">
+      <div class="loader-flash"></div>
+      <div class="loader-role-en">GLOBAL</div>
+      <div class="loader-divider"></div>
+      <div class="loader-role-kr">해외영업 매니저</div>
+    </div>
     <div class="loader-bar-container">
       <div class="loader-bar-fill t4"></div>
     </div>
@@ -4095,18 +4503,18 @@
 
   <!-- 전환 t5: MARKETER -->
   <div class="transition-fade t5"></div>
-  
-  <div class="data-rain t5">
-      <div class="rain-sweep s1"></div>
-      <div class="rain-centerline c1"></div>
+  <div class="transition-lines t5">
+    <div class="trans-line top"></div>
+    <div class="trans-line bottom"></div>
   </div>
-  
-  <div class="transition-scanline t5"></div>
-  
   <div class="transition-loader t5">
     <div class="loader-label">&gt; ANALYZING ROLE_06</div>
-    <div class="loader-role">MARKETER</div>
-    <div class="loader-role-kr">디지털 마케터</div>
+    <div class="loader-assembly">
+      <div class="loader-flash"></div>
+      <div class="loader-role-en">MARKETER</div>
+      <div class="loader-divider"></div>
+      <div class="loader-role-kr">디지털 마케터</div>
+    </div>
     <div class="loader-bar-container">
       <div class="loader-bar-fill t5"></div>
     </div>
@@ -4118,18 +4526,18 @@
 
   <!-- 전환 t6: COMPLY -->
   <div class="transition-fade t6"></div>
-  
-  <div class="data-rain t6">
-      <div class="rain-sweep s1"></div>
-      <div class="rain-centerline c1"></div>
+  <div class="transition-lines t6">
+    <div class="trans-line top"></div>
+    <div class="trans-line bottom"></div>
   </div>
-  
-  <div class="transition-scanline t6"></div>
-  
   <div class="transition-loader t6">
     <div class="loader-label">&gt; ANALYZING ROLE_07</div>
-    <div class="loader-role">COMPLY</div>
-    <div class="loader-role-kr">무역 규제 전문가</div>
+    <div class="loader-assembly">
+      <div class="loader-flash"></div>
+      <div class="loader-role-en">COMPLY</div>
+      <div class="loader-divider"></div>
+      <div class="loader-role-kr">무역 규제 전문가</div>
+    </div>
     <div class="loader-bar-container">
       <div class="loader-bar-fill t6"></div>
     </div>
@@ -4141,18 +4549,18 @@
 
   <!-- 전환 t7: FINALE -->
   <div class="transition-fade t7"></div>
-  
-  <div class="data-rain t7">
-      <div class="rain-sweep s1"></div>
-      <div class="rain-centerline c1"></div>
+  <div class="transition-lines t7">
+    <div class="trans-line top"></div>
+    <div class="trans-line bottom"></div>
   </div>
-  
-  <div class="transition-scanline t7"></div>
-  
   <div class="transition-loader t7">
     <div class="loader-label">&gt; ANALYZING CLOSING</div>
-    <div class="loader-role">FINALE</div>
-    <div class="loader-role-kr">7 ROLES · 1 TEAM</div>
+    <div class="loader-assembly">
+      <div class="loader-flash"></div>
+      <div class="loader-role-en">FINALE</div>
+      <div class="loader-divider"></div>
+      <div class="loader-role-kr">7 ROLES · 1 TEAM</div>
+    </div>
     <div class="loader-bar-container">
       <div class="loader-bar-fill t7"></div>
     </div>
@@ -4280,19 +4688,16 @@
     function launchVideo() {
       if (videoLaunched) return;
       videoLaunched = true;
-      // 시작화면만 감춘다. 무대는 이미 렌더링되어 있고 애니메이션만 paused 상태.
+      // 화면 전환
       document.getElementById('startScreen').classList.add('hidden');
+      document.getElementById('videoWrapper').classList.remove('hidden');
       document.getElementById('muteToggle').classList.add('show');
-      // 전체화면 전환이 끝난 뒤, 프레임 경계에 맞춰 무대 애니메이션을 0초부터 한 번에 재생.
-      // 레이아웃/페인트가 이미 끝나 있으므로 버튼 누른 순간 끊김이 없다.
-      const stage = document.getElementById('stage');
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        stage.classList.remove('paused');
-      }));
+      // 애니메이션 시작 (전체화면 전환이 이미 끝났으므로 안 끊김)
+      restartAllAnimations();
       // BGM 재확인
       setTimeout(() => {
         if (bgm.paused && !bgm.muted) tryPlayBgm();
-      }, 120);
+      }, 100);
       // 루프 타이머
       if (loopTimer) clearTimeout(loopTimer);
       loopTimer = setTimeout(resetToStart, VIDEO_DURATION);
