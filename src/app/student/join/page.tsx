@@ -28,11 +28,29 @@ const S = {
   bg: '#0A0A0A',
 };
 
-const INDUSTRIES = ['💄 K-뷰티 (스킨케어)', '🍜 K-푸드 (라면·스낵)', '🧬 바이오/디지털 헬스케어', '🎮 디지털 콘텐츠 (웹툰·게임)', '📱 스마트 기기 (IoT)', '🔖 기타'];
+// ⭐⭐⭐ NEW (v41+): 산업군 데이터 - 고유 색상 테마 + 키워드 ⭐⭐⭐
+// value 값은 기존 호환성을 위해 그대로 유지
+// (DB의 team.item, placeholder 분기, 표시 등에서 그대로 문자열로 쓰임)
+const INDUSTRIES: Array<{
+  value: string;
+  emoji: string;
+  nameKr: string;
+  subEn: string;
+  color: string;
+  keywords: string[];
+}> = [
+  { value: '💄 K-뷰티 (스킨케어)',        emoji: '💄', nameKr: 'K-뷰티',         subEn: '스킨케어',     color: '#FF6FB5', keywords: ['GLOW', 'CARE', 'RITUAL'] },
+  { value: '🍜 K-푸드 (라면·스낵)',       emoji: '🍜', nameKr: 'K-푸드',         subEn: '라면 · 스낵',  color: '#FF8A4F', keywords: ['SPICY', 'UMAMI', 'CRUNCH'] },
+  { value: '🧬 바이오/디지털 헬스케어',     emoji: '🧬', nameKr: '바이오/헬스케어', subEn: '디지털 헬스',  color: '#06B6D4', keywords: ['VITAL', 'DATA', 'HEAL'] },
+  { value: '🎮 디지털 콘텐츠 (웹툰·게임)',  emoji: '🎮', nameKr: '디지털 콘텐츠',  subEn: '웹툰 · 게임',  color: '#C7A5FF', keywords: ['PLAY', 'STORY', 'VIRAL'] },
+  { value: '📱 스마트 기기 (IoT)',        emoji: '📱', nameKr: '스마트 기기',    subEn: 'IoT',          color: '#E7FE55', keywords: ['SMART', 'CONNECT', 'SYNC'] },
+  { value: '🔖 기타',                     emoji: '⚡', nameKr: '기타',          subEn: '자유 입력',    color: '#C1E8EB', keywords: ['CUSTOM', 'FREE'] },
+];
+
 const LEVELS: Record<string, { label: string; emoji: string; timer: number; minChars: number; color: string }> = {
-  basic:    { label: '초급', emoji: '🌱', timer: 1800, minChars: 20,  color: '#059669' },
-  standard: { label: '표준', emoji: '📘', timer: 1200, minChars: 50,  color: '#4FB0C6' },
-  advanced: { label: '심화', emoji: '🚀', timer: 900,  minChars: 100, color: '#582C83' },
+  basic:    { label: '초급', emoji: '🌱', timer: 3000, minChars: 20,  color: '#059669' },
+  standard: { label: '표준', emoji: '📘', timer: 2400, minChars: 50,  color: '#4FB0C6' },
+  advanced: { label: '심화', emoji: '🚀', timer: 1800, minChars: 100, color: '#582C83' },
 };
 
 // ⭐ 직무별 한 줄 소개 (CEO 제외, 팀원 6직무)
@@ -178,7 +196,6 @@ function StudentJoinInner() {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null);
 
-  // ⭐⭐⭐ NEW: 본인 확인 재확인 팝업 ⭐⭐⭐
   const [confirmIdentityMember, setConfirmIdentityMember] = useState<TeamMember | null>(null);
 
   const [item, setItem] = useState('');
@@ -455,9 +472,6 @@ function StudentJoinInner() {
         if (result.team.item) setItem(result.team.item);
         if (result.team.level) setLevel(result.team.level);
 
-        // ⭐⭐⭐ FIX v16: 게임 시작 여부에 따라 분기 ⭐⭐⭐
-        // - 게임 시작 안 됨 → confirm (이름 입력) ← 새로 들어오는 학생
-        // - 게임 시작됨 → select (이름 선택) ← 지각자 (보안용)
         if (result.team.game_started) {
           setStep('select');
         } else {
@@ -1083,7 +1097,6 @@ function StudentJoinInner() {
           </div>
         )}
 
-        {/* ⭐⭐⭐ MODIFIED: select 단계 — 본인 확인 경고 추가 ⭐⭐⭐ */}
         {step === 'select' && (
           <div>
             <div className="rounded-2xl p-5 mb-3" style={{ background: `${S.green}08`, border: `1px solid ${S.green}20` }}>
@@ -1092,14 +1105,12 @@ function StudentJoinInner() {
               <p className="text-[12px] text-white" style={{ opacity: 0.75 }}>명단에서 내 이름을 찾아 선택하세요</p>
             </div>
 
-            {/* ⭐⭐⭐ NEW: 강력한 본인 확인 경고 박스 ⭐⭐⭐ */}
             <div className="rounded-2xl p-4 mb-4 relative overflow-hidden identity-warning-pulse"
               style={{
                 background: 'linear-gradient(135deg, rgba(239,68,68,0.12) 0%, rgba(220,38,38,0.08) 100%)',
                 border: '2px solid rgba(239,68,68,0.5)',
                 boxShadow: '0 0 24px rgba(239,68,68,0.25), inset 0 0 16px rgba(239,68,68,0.08)',
               }}>
-              {/* 코너 장식 */}
               <div className="absolute top-2 left-2 w-3 h-3 pointer-events-none"
                 style={{ borderTop: '2px solid #EF4444', borderLeft: '2px solid #EF4444' }} />
               <div className="absolute top-2 right-2 w-3 h-3 pointer-events-none"
@@ -1158,12 +1169,9 @@ function StudentJoinInner() {
                     uniqueKey={`member-${m.id}`}
                     isSelected={selectedMember?.id === m.id}
                     onClick={() => {
-                      // ⭐⭐⭐ MODIFIED: 바로 선택하지 않고 재확인 팝업 띄우기 ⭐⭐⭐
                       if (selectedMember?.id === m.id) {
-                        // 이미 선택된 거 다시 누르면 해제
                         setSelectedMember(null);
                       } else {
-                        // 처음 누르거나 다른 학생 누르면 확인 팝업
                         setConfirmIdentityMember(m);
                       }
                     }}
@@ -1283,6 +1291,7 @@ function StudentJoinInner() {
               </p>
             </div>
 
+            {/* ⭐⭐⭐ NEW (v41+): 사이버틱 산업군 카드 - 고유 색상 테마 ⭐⭐⭐ */}
             <div className="mb-5">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
@@ -1298,24 +1307,109 @@ function StudentJoinInner() {
                 </div>
                 <p className="text-[10px] text-white" style={{ opacity: 0.6 }}>우리 팀이 다룰 큰 카테고리</p>
               </div>
+
               <div className="grid grid-cols-2 gap-2">
-                {INDUSTRIES.map(it => (
-                  <InteractiveButton key={it}
-                    uniqueKey={`industry-${it}`}
-                    isSelected={item === it}
-                    onClick={() => { setItem(it); setCustomItem(''); }}
-                    color={S.green}
-                    className="px-3 py-2.5 rounded-xl text-left text-[12px] transition relative"
-                    style={{
-                      background: item === it ? `${S.green}15` : 'rgba(255,255,255,0.04)',
-                      border: item === it ? `1.5px solid ${S.green}` : '1px solid rgba(255,255,255,0.08)',
-                      color: item === it ? S.green : '#9ca3af',
-                      fontWeight: item === it ? 700 : 400,
-                      boxShadow: item === it ? `0 0 16px ${S.green}33` : 'none',
-                    }}>
-                    {it}
-                  </InteractiveButton>
-                ))}
+                {INDUSTRIES.map(it => {
+                  const isSelected = item === it.value;
+                  return (
+                    <button key={it.value}
+                      onClick={() => { setItem(it.value); setCustomItem(''); }}
+                      className={`industry-card relative px-3 py-3 rounded-xl text-left transition-all overflow-hidden ${isSelected ? 'is-selected' : ''}`}
+                      style={{
+                        background: isSelected
+                          ? `linear-gradient(135deg, ${it.color}22, ${it.color}08)`
+                          : `linear-gradient(135deg, ${it.color}0F, ${it.color}04)`,
+                        border: isSelected
+                          ? `2.5px solid ${it.color}`
+                          : `1.5px solid ${it.color}55`,
+                        boxShadow: isSelected
+                          ? `0 0 24px ${it.color}55, inset 0 0 12px ${it.color}15`
+                          : `0 0 8px ${it.color}15`,
+                        transform: isSelected ? 'translateY(-2px)' : 'translateY(0)',
+                      }}>
+                      {/* 좌상 코너 마커 */}
+                      <span className="absolute top-1.5 left-1.5 pointer-events-none transition-all"
+                        style={{
+                          width: isSelected ? '10px' : '7px',
+                          height: isSelected ? '10px' : '7px',
+                          borderTop: `1.5px solid ${it.color}`,
+                          borderLeft: `1.5px solid ${it.color}`,
+                          boxShadow: isSelected ? `0 0 6px ${it.color}AA` : 'none',
+                        }} />
+                      {/* 우하 코너 마커 */}
+                      <span className="absolute bottom-1.5 right-1.5 pointer-events-none transition-all"
+                        style={{
+                          width: isSelected ? '10px' : '7px',
+                          height: isSelected ? '10px' : '7px',
+                          borderBottom: `1.5px solid ${it.color}`,
+                          borderRight: `1.5px solid ${it.color}`,
+                          boxShadow: isSelected ? `0 0 6px ${it.color}AA` : 'none',
+                        }} />
+                      {/* 선택 시 추가 코너 (우상, 좌하) */}
+                      {isSelected && (
+                        <>
+                          <span className="absolute top-1.5 right-1.5 pointer-events-none"
+                            style={{
+                              width: '10px', height: '10px',
+                              borderTop: `1.5px solid ${it.color}`,
+                              borderRight: `1.5px solid ${it.color}`,
+                              boxShadow: `0 0 6px ${it.color}AA`,
+                            }} />
+                          <span className="absolute bottom-1.5 left-1.5 pointer-events-none"
+                            style={{
+                              width: '10px', height: '10px',
+                              borderBottom: `1.5px solid ${it.color}`,
+                              borderLeft: `1.5px solid ${it.color}`,
+                              boxShadow: `0 0 6px ${it.color}AA`,
+                            }} />
+                        </>
+                      )}
+
+                      {/* 헤더: 이모지 + 이름 + 체크 */}
+                      <div className="flex items-center gap-2 mb-1 relative z-10">
+                        <span className="text-[20px] flex-shrink-0">{it.emoji}</span>
+                        <span className="text-[13px] font-black truncate"
+                          style={{
+                            color: isSelected ? '#fff' : 'rgba(255,255,255,0.95)',
+                            textShadow: isSelected ? `0 0 8px ${it.color}88` : 'none',
+                          }}>
+                          {it.nameKr}
+                        </span>
+                        {isSelected && (
+                          <span className="ml-auto text-[12px] font-black flex-shrink-0"
+                            style={{
+                              color: it.color,
+                              textShadow: `0 0 8px ${it.color}AA`,
+                            }}>
+                            ✓
+                          </span>
+                        )}
+                      </div>
+
+                      {/* 서브타이틀 (영문/카테고리) */}
+                      <p className="text-[10px] mb-1.5 ml-7 relative z-10"
+                        style={{ color: 'rgba(255,255,255,0.55)' }}>
+                        {it.subEn}
+                      </p>
+
+                      {/* 키워드 뱃지 */}
+                      <div className="flex flex-wrap gap-1 ml-7 relative z-10">
+                        {it.keywords.map(kw => (
+                          <span key={kw}
+                            className="text-[8.5px] px-1.5 py-0.5 rounded font-mono font-bold transition-all"
+                            style={{
+                              background: isSelected ? `${it.color}40` : `${it.color}20`,
+                              color: isSelected ? '#fff' : it.color,
+                              letterSpacing: '1px',
+                              textShadow: isSelected ? `0 0 6px ${it.color}` : 'none',
+                            }}>
+                            {kw}
+                          </span>
+                        ))}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -2244,7 +2338,6 @@ function StudentJoinInner() {
         </>
       )}
 
-      {/* ⭐⭐⭐ NEW: 본인 확인 재확인 팝업 ⭐⭐⭐ */}
       {confirmIdentityMember && (
         <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 identity-modal-bg"
           style={{ background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(8px)' }}
@@ -2257,7 +2350,6 @@ function StudentJoinInner() {
             }}
             onClick={(e) => e.stopPropagation()}>
 
-            {/* 코너 장식 */}
             <div className="absolute top-2 left-2 w-4 h-4 pointer-events-none"
               style={{ borderTop: '2px solid #EF4444', borderLeft: '2px solid #EF4444' }} />
             <div className="absolute top-2 right-2 w-4 h-4 pointer-events-none"
@@ -2267,7 +2359,6 @@ function StudentJoinInner() {
             <div className="absolute bottom-2 right-2 w-4 h-4 pointer-events-none"
               style={{ borderBottom: '2px solid #EF4444', borderRight: '2px solid #EF4444' }} />
 
-            {/* 헤더 */}
             <div className="text-center mb-4">
               <div className="inline-flex w-16 h-16 rounded-full items-center justify-center mb-3 identity-modal-icon"
                 style={{
@@ -2305,7 +2396,6 @@ function StudentJoinInner() {
               </div>
             </div>
 
-            {/* 경고 메시지 */}
             <div className="rounded-xl p-3 mb-4"
               style={{
                 background: 'rgba(239,68,68,0.08)',
@@ -2330,7 +2420,6 @@ function StudentJoinInner() {
               </ul>
             </div>
 
-            {/* 버튼 */}
             <div className="grid grid-cols-2 gap-2">
               <button onClick={() => setConfirmIdentityMember(null)}
                 className="py-3 rounded-xl text-[13px] font-bold transition hover:scale-[1.02]"
@@ -2359,7 +2448,26 @@ function StudentJoinInner() {
       )}
 
       <style jsx>{`
-        /* ⭐⭐⭐ NEW: 본인 확인 경고 박스 펄스 ⭐⭐⭐ */
+        /* ⭐⭐⭐ NEW (v41+): 산업군 카드 호버 + 선택 효과 ⭐⭐⭐ */
+        .industry-card {
+          outline: none;
+          -webkit-tap-highlight-color: transparent;
+        }
+        .industry-card:hover:not(.is-selected) {
+          transform: translateY(-1px) scale(1.01);
+          filter: brightness(1.1);
+        }
+        .industry-card:active {
+          transform: scale(0.98);
+        }
+        .industry-card.is-selected {
+          animation: industryCardSelectedPulse 2.5s ease-in-out infinite;
+        }
+        @keyframes industryCardSelectedPulse {
+          0%, 100% { filter: brightness(1); }
+          50% { filter: brightness(1.08); }
+        }
+
         .identity-warning-pulse {
           animation: identityWarningPulse 2.5s ease-in-out infinite;
         }
@@ -2381,7 +2489,6 @@ function StudentJoinInner() {
           75% { transform: rotate(8deg) scale(1.1); }
         }
 
-        /* ⭐⭐⭐ NEW: 본인 확인 모달 진입 애니메이션 ⭐⭐⭐ */
         .identity-modal-bg {
           animation: identityModalBgFade 0.3s ease-out forwards;
         }
