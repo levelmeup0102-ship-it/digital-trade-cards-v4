@@ -29,10 +29,11 @@ import {
 import { getTeamMembers, subscribeToTeamMembers } from '@/lib/teacher';
 import type { TeamMember } from '@/lib/teacher';
 
+// ⭐⭐⭐ 타이머 변경 (v41+): 초급 50분 / 표준 40분 / 심화 30분 ⭐⭐⭐
 const LEVELS: Record<string, { label: string; emoji: string; timer: number; minChars: number; color: string }> = {
-  basic:    { label: '초급', emoji: '🌱', timer: 1800, minChars: 20,  color: '#059669' },
-  standard: { label: '표준', emoji: '📘', timer: 1200, minChars: 50,  color: '#4FB0C6' },
-  advanced: { label: '심화', emoji: '🚀', timer: 900,  minChars: 100, color: '#582C83' },
+  basic:    { label: '초급', emoji: '🌱', timer: 3000, minChars: 20,  color: '#059669' },
+  standard: { label: '표준', emoji: '📘', timer: 2400, minChars: 50,  color: '#4FB0C6' },
+  advanced: { label: '심화', emoji: '🚀', timer: 1800, minChars: 100, color: '#582C83' },
 };
 
 const S = {
@@ -310,7 +311,8 @@ export default function Home() {
   // 모달 한 번 떴으면 다시 안 뜨게 가드
   const celebrationTriggeredRef = useRef(false);
 
-  const [timer, setTimer] = useState(1200);
+  // ⭐ 타이머 초기값을 표준(2400초 = 40분)으로 변경
+  const [timer, setTimer] = useState(2400);
   // ⭐⭐⭐ NEW: DB 시각 기반 동기화 (모든 팀원이 같은 시간) ⭐⭐⭐
   // game_started_at(서버 시각)을 기준으로 매초 (LEVELS.timer - 경과시간) 계산
   const [gameStartedAt, setGameStartedAt] = useState<string | null>(null);
@@ -415,7 +417,8 @@ export default function Home() {
             setSubCardLocks(locks);
             setInterimConclusions(interims);
             setLeaderConclusions(leaderConcs);
-            setTimer(LEVELS[v2Level]?.timer || 1200);
+            // ⭐ 타이머 초기값을 변경된 LEVELS 기준으로 (표준=2400초)
+            setTimer(LEVELS[v2Level]?.timer || 2400);
             // ⭐ NEW: 게임 시작 시각 설정 (DB 시각 기반 동기화용)
             const startedAt = teamRow?.data?.game_started_at;
             if (startedAt) setGameStartedAt(startedAt);
@@ -678,7 +681,8 @@ export default function Home() {
   useEffect(() => {
     if (screen !== 'game' || !gameStartedAt) return;
 
-    const totalSeconds = LEVELS[level]?.timer || 1200;
+    // ⭐ 변경된 LEVELS 기준 (표준=2400초)
+    const totalSeconds = LEVELS[level]?.timer || 2400;
     const startMs = new Date(gameStartedAt).getTime();
 
     const updateTimer = () => {
