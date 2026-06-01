@@ -14,11 +14,11 @@ const S = {
   bg: '#0A0A0A',
 };
 
-// ⭐ 난이도 옵션 (student/join에 있는 것과 동일)
+// ⭐⭐⭐ 타이머 변경 (v41+): 초급 50분 / 표준 40분 / 심화 30분 ⭐⭐⭐
 const LEVELS: Record<string, { label: string; emoji: string; timer: number; minChars: number; color: string; description: string }> = {
-  basic:    { label: '초급', emoji: '🌱', timer: 1800, minChars: 20,  color: '#059669', description: '30분 · 20자 이상 답변' },
-  standard: { label: '표준', emoji: '📘', timer: 1200, minChars: 50,  color: '#4FB0C6', description: '20분 · 50자 이상 답변' },
-  advanced: { label: '심화', emoji: '🚀', timer: 900,  minChars: 100, color: '#582C83', description: '15분 · 100자 이상 답변' },
+  basic:    { label: '초급', emoji: '🌱', timer: 3000, minChars: 20,  color: '#059669', description: '50분 · 20자 이상 답변' },
+  standard: { label: '표준', emoji: '📘', timer: 2400, minChars: 50,  color: '#4FB0C6', description: '40분 · 50자 이상 답변' },
+  advanced: { label: '심화', emoji: '🚀', timer: 1800, minChars: 100, color: '#582C83', description: '30분 · 100자 이상 답변' },
 };
 
 // ⭐ NEW: 팀 수 자주 쓰는 옵션 (3, 5, 8, 10, 15, 20)
