@@ -3200,6 +3200,57 @@
   }
   .mute-toggle.show { display: flex; }
 
+  /* v45: 자동 시작 로더 (시작 버튼 대체) */
+  .auto-start-loader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    margin: 36px 0;
+  }
+  .auto-start-spinner {
+    width: 48px;
+    height: 48px;
+    border: 3px solid rgba(231, 254, 85, 0.18);
+    border-top-color: #E7FE55;
+    border-radius: 50%;
+    animation: autoStartSpin 0.8s linear infinite;
+    box-shadow: 0 0 12px rgba(231, 254, 85, 0.4);
+  }
+  @keyframes autoStartSpin {
+    to { transform: rotate(360deg); }
+  }
+  .auto-start-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 4px;
+    color: #E7FE55;
+    text-shadow: 0 0 8px rgba(231, 254, 85, 0.6);
+    font-weight: 700;
+    margin: 0;
+    animation: autoStartTextPulse 1.4s ease-in-out infinite;
+  }
+  @keyframes autoStartTextPulse {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
+  }
+
+  /* v46: 초기 / 로딩 상태 토글 */
+  .start-loading-state {
+    display: none;  /* 초기에는 숨김 */
+  }
+  .start-screen.loading .start-btn-initial {
+    display: none;  /* 클릭 후 버튼 숨김 */
+  }
+  .start-screen.loading .start-loading-state {
+    display: flex;  /* 클릭 후 로딩 표시 */
+    animation: loadingFadeIn 0.3s ease-out;
+  }
+  @keyframes loadingFadeIn {
+    0% { opacity: 0; transform: scale(0.9); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+
   /* =================================================================
      ⭐⭐⭐ v43: 강력한 홀로그램 카드 효과 ⭐⭐⭐
      - 모든 7개 카드(.card-front)에 자동 적용
@@ -3544,11 +3595,12 @@
   .roster-card-corner.br { bottom: 8px; right: 8px; border-bottom: 2px solid; border-right: 2px solid; }
 
   /* 카드 안 실루엣 */
+  /* v46: drop-shadow 2겹 → 1겹 (페인트 비용 절감) */
   .roster-card-silhouette {
     width: 100px;
     height: 100px;
     color: currentColor;
-    filter: drop-shadow(0 0 8px currentColor) drop-shadow(0 0 16px currentColor);
+    filter: drop-shadow(0 0 10px currentColor);
     opacity: 0.95;
   }
 
@@ -3605,14 +3657,21 @@
     <p class="start-tagline">MEET YOUR TEAM</p>
     <p class="start-subtitle">7개 직무 소개 영상</p>
     
-    <button class="start-btn">
+    <!-- v46: 초기 - 시작 버튼 (클릭 시 .loading 클래스 추가됨) -->
+    <button class="start-btn start-btn-initial">
       <span>▶</span>
-      <span>시작 (소리 켜짐)</span>
+      <span>시작 (소리·전체화면 ON)</span>
     </button>
+    
+    <!-- v46: 클릭 후 - 로딩 인디케이터 (자동 시작 대기) -->
+    <div class="auto-start-loader start-loading-state">
+      <div class="auto-start-spinner"></div>
+      <p class="auto-start-text">준비 중...</p>
+    </div>
     
     <p class="start-info">
       <span style="color: var(--cyan);">●</span>
-      클릭하면 풀스크린으로 재생됩니다 · v2 (키워드+소개문구)
+      클릭하면 풀스크린 + 소리 켜진 상태로 자동 재생됩니다
     </p>
     
     <div class="ios-warning">
@@ -5198,8 +5257,11 @@
     videoStarted = true;
     
     const bgm = document.getElementById('bgm');
+    const startScreen = document.getElementById('startScreen');
     
-    // STEP 1: BGM 먼저 (사용자 클릭 직후 - 자동재생 정책상 클릭 컨텍스트에서 호출 필수)
+    // v46: 클릭 받자마자 즉시 처리 (사용자 제스처 컨텍스트 안에서)
+    
+    // 1단계: BGM 시작 (소리 켜진 상태로)
     bgm.volume = 0.5;
     bgm.currentTime = 0;
     bgm.muted = false;
@@ -5219,33 +5281,40 @@
     }
     tryPlayBgm();
     
-    // ⭐ 실제 영상 시작 (인트로 재생) - 전체화면 전환이 끝난 뒤 호출됨
-    // v44.3: 순서 변경 - restartAllAnimations를 startScreen 숨기기 전에 호출
-    //   → 사용자는 인트로 0초부터 깔끔하게 봄 (중간 단계 X)
+    // 2단계: 시작 화면을 "준비 중..." 로 변경 (즉시 시각적 피드백)
+    startScreen.classList.add('loading');
+    
+    // 3단계: 전체화면 요청 (사용자 제스처 컨텍스트 안에서 호출)
+    if (!IS_IPHONE) {
+      const elem = document.documentElement;
+      if (elem.requestFullscreen) {
+        elem.requestFullscreen().catch(() => {});
+      } else if (elem.webkitRequestFullscreen) {
+        elem.webkitRequestFullscreen();
+      }
+    }
+    
+    // ⭐ v46: 실제 영상 시작 (충분한 워밍업 시간)
     let videoLaunched = false;
     function launchVideo() {
       if (videoLaunched) return;
       videoLaunched = true;
       
-      const startScreen = document.getElementById('startScreen');
       const videoWrapper = document.getElementById('videoWrapper');
       const muteToggle = document.getElementById('muteToggle');
       
-      // 1단계: stage 보이게 (start-screen이 위에 덮고 있어서 시각적으로는 아직 안 보임)
-      // → 브라우저가 미리 페인트 워밍업
+      // 1단계: stage 보이게 (start-screen "준비 중" 화면이 위에 덮고 있음)
       videoWrapper.classList.remove('hidden');
       
-      // 2단계: 페인트 안정화 - RAF 2번 쉼
+      // 2단계: 페인트 안정화 - RAF 2번
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          // 3단계: ★ 핵심 변경 - start-screen이 아직 위에 있을 때 애니메이션 리셋
-          //   stage 안의 모든 CSS 애니메이션을 0초로 리셋
-          //   사용자는 못 봄 (start-screen이 가리고 있음)
+          // 3단계: start-screen 가린 상태에서 애니메이션 리셋
           restartAllAnimations();
           
-          // 4단계: DOM 재삽입 후 페인트 안정화 - RAF 한 번 더
+          // 4단계: DOM 재삽입 후 페인트 안정화
           requestAnimationFrame(() => {
-            // 5단계: start-screen 숨김 → 이제 사용자가 인트로 0초부터 봄!
+            // 5단계: start-screen 숨김 → 인트로 0초부터 깔끔하게!
             startScreen.classList.add('hidden');
             muteToggle.classList.add('show');
             
@@ -5262,39 +5331,13 @@
       });
     }
     
-    // STEP 2: ⭐ 전체화면 먼저 요청 (인트로 시작 전에!)
-    if (!IS_IPHONE) {
-      const elem = document.documentElement;
-      // 전체화면 전환 완료를 감지하면 그때 인트로 시작
-      const onFsChange = () => {
-        document.removeEventListener('fullscreenchange', onFsChange);
-        document.removeEventListener('webkitfullscreenchange', onFsChange);
-        // v44.2: 전환 직후 250ms 쉬고 인트로 시작 (브라우저 안정화 충분히)
-        setTimeout(launchVideo, 250);
-      };
-      document.addEventListener('fullscreenchange', onFsChange);
-      document.addEventListener('webkitfullscreenchange', onFsChange);
-      
-      let fsPromise;
-      if (elem.requestFullscreen) {
-        fsPromise = elem.requestFullscreen();
-      } else if (elem.webkitRequestFullscreen) {
-        elem.webkitRequestFullscreen();
-      }
-      // 전체화면이 지원 안 되거나 거부되면 그냥 바로 시작
-      if (fsPromise && fsPromise.catch) {
-        fsPromise.catch(() => {
-          document.removeEventListener('fullscreenchange', onFsChange);
-          document.removeEventListener('webkitfullscreenchange', onFsChange);
-          launchVideo();
-        });
-      }
-      // 안전장치: 600ms 내 전환 이벤트 없으면 그냥 시작
-      setTimeout(launchVideo, 600);
-    } else {
-      // iPhone: 전체화면 없이 바로 시작
-      launchVideo();
-    }
+    // v46: 충분한 워밍업 시간 (1.2초)
+    //   사용자가 "준비 중..." 화면을 보는 동안 백그라운드에서:
+    //   - 전체화면 전환 완료
+    //   - 모든 stage 요소의 페인트 워밍업
+    //   - GPU 레이어 생성 완료
+    //   → 영상 시작 시점에는 모든 게 준비됨 = 끊김 없음
+    setTimeout(launchVideo, 1200);
   }
   
   function restartAllAnimations() {
