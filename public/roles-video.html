@@ -3199,6 +3199,167 @@
     font-size: 20px;
   }
   .mute-toggle.show { display: flex; }
+
+  /* =================================================================
+     ⭐⭐⭐ v43: 강력한 홀로그램 카드 효과 ⭐⭐⭐
+     - 모든 7개 카드(.card-front)에 자동 적용
+     - 무지개 외곽 글로우 + 강한 빛 스윕 + iridescent shimmer + 스파클
+     ================================================================= */
+
+  /* ===== 1. (제거됨) 무지개 외곽 회전 글로우 ===== */
+  /* v43.3: 성능 위해 conic-gradient + blur 회전 효과 완전 제거 */
+  /* 무지개 색감은 박스섀도(2번)와 shimmer(4번)에서 충분히 표현됨 */
+
+  /* ===== 2. 카드 다중 색 박스섀도 (무지개 외광) ===== */
+  /* 기존 box-shadow를 덮어쓰면서 무지개 색감 추가 */
+  .card-front {
+    box-shadow:
+      /* 직무 테마색 */
+      0 0 12px currentColor,
+      0 0 30px currentColor,
+      0 0 60px currentColor,
+      /* 무지개 다중 색 글로우 (홀로그램!) */
+      0 0 24px rgba(255, 0, 255, 0.3),
+      0 0 48px rgba(0, 255, 255, 0.22),
+      0 0 80px rgba(255, 255, 0, 0.12),
+      /* 기본 그림자 */
+      0 24px 80px rgba(0, 0, 0, 0.6),
+      inset 0 0 40px rgba(0, 0, 0, 0.5),
+      inset 0 0 20px rgba(255, 255, 255, 0.04) !important;
+  }
+
+  /* ===== 3. (제거됨) 강한 빛 스윕 - 사용자 요청으로 삭제 ===== */
+  /* v43.1: holoSweep 제거 - 다른 효과는 그대로 유지 */
+
+  /* ===== 4. 카드 표면 무지개 iridescent shimmer (떠다니는 색감) ===== */
+  /* 분홍/파랑/노랑이 카드 위를 미세하게 일렁임 */
+  /* v43.2 최적화: background-size 250→150%, duration 5→8s */
+  /* v43.4: animation-delay 7s 추가 - 인트로 시점에 GPU 부담 제거 */
+  .card-front::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 5;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 0, 255, 0.08) 0%,
+      rgba(102, 153, 255, 0.06) 18%,
+      rgba(0, 255, 255, 0.10) 35%,
+      rgba(0, 255, 153, 0.05) 50%,
+      rgba(255, 255, 0, 0.08) 65%,
+      rgba(255, 102, 51, 0.05) 82%,
+      rgba(255, 0, 153, 0.08) 100%
+    );
+    background-size: 150% 150%;
+    mix-blend-mode: screen;
+    will-change: background-position, opacity;
+    animation: holoShimmer 8s ease-in-out 7s infinite alternate;
+  }
+  @keyframes holoShimmer {
+    0% {
+      background-position: 0% 0%;
+      opacity: 0.55;
+    }
+    100% {
+      background-position: 100% 100%;
+      opacity: 0.85;
+    }
+  }
+
+  /* ===== 5. 카드 안에 떠다니는 스파클 (홀로그램 가루) ===== */
+  /* card-side에 자식이 아닌 .id-card-silhouette ::after를 활용한 sparkle */
+  /* v43.2 최적화: transform: scale 제거 (opacity만) */
+  .id-card-silhouette::after {
+    content: '';
+    position: absolute;
+    inset: -20px;
+    pointer-events: none;
+    z-index: 10;
+    background-image:
+      radial-gradient(circle at 15% 25%, rgba(255, 255, 255, 0.8) 0%, transparent 1.5%),
+      radial-gradient(circle at 78% 18%, rgba(255, 200, 255, 0.7) 0%, transparent 1.2%),
+      radial-gradient(circle at 32% 65%, rgba(180, 230, 255, 0.7) 0%, transparent 1.2%),
+      radial-gradient(circle at 88% 75%, rgba(255, 255, 200, 0.7) 0%, transparent 1.5%),
+      radial-gradient(circle at 55% 42%, rgba(255, 200, 220, 0.6) 0%, transparent 1%),
+      radial-gradient(circle at 10% 88%, rgba(200, 255, 230, 0.7) 0%, transparent 1.2%),
+      radial-gradient(circle at 68% 92%, rgba(220, 200, 255, 0.6) 0%, transparent 1%),
+      radial-gradient(circle at 42% 8%, rgba(255, 240, 200, 0.6) 0%, transparent 1%);
+    will-change: opacity;
+    animation: holoSparkle 3s ease-in-out 7s infinite;
+  }
+  @keyframes holoSparkle {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+
+  /* ===== 6. 카드 보더 강화 (무지개 그라데이션 외곽선) ===== */
+  /* 기존 border 위에 추가 효과 - outline 사용 */
+  .card-front {
+    outline: 1px solid rgba(255, 255, 255, 0.12);
+    outline-offset: -4px;
+  }
+
+  /* ===== 7. 카드 헤더에 홀로그램 스트립 (위쪽 무지개 띠) ===== */
+  .id-card-header {
+    position: relative;
+    overflow: hidden;
+  }
+  .id-card-header::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1.5px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      #ff00ff 15%,
+      #00ffff 35%,
+      #00ff99 50%,
+      #ffff00 65%,
+      #ff3366 85%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    opacity: 0.85;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+    animation: holoStripFlow 4s linear 7s infinite;
+  }
+  @keyframes holoStripFlow {
+    0% { background-position: 0% 0%; }
+    100% { background-position: 200% 0%; }
+  }
+
+  /* ===== 8. 카드 푸터에도 홀로그램 스트립 ===== */
+  .id-card-footer {
+    position: relative;
+    overflow: hidden;
+  }
+  .id-card-footer::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1.5px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      #ffff00 15%,
+      #ff3366 35%,
+      #6699ff 50%,
+      #00ffff 65%,
+      #ff00ff 85%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    opacity: 0.85;
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+    animation: holoStripFlow 4s linear 7s infinite reverse;
+  }
+
 </style>
 </head>
 
