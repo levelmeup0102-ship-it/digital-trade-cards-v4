@@ -3486,10 +3486,10 @@
     justify-content: center;
     opacity: 0;
     transform: translateY(30px) scale(0.85);
+    /* v44.2: box-shadow 2겹 → 1겹 (페인트 비용 절감) */
     box-shadow:
-      0 0 12px currentColor,
-      0 0 28px currentColor,
-      inset 0 0 30px rgba(0, 0, 0, 0.5);
+      0 0 18px currentColor,
+      inset 0 0 20px rgba(0, 0, 0, 0.5);
     overflow: hidden;
     will-change: transform, opacity;
     /* 각 카드 0.18초 간격으로 등장 + 호버는 stagger로 분산 */
@@ -5220,23 +5220,46 @@
     tryPlayBgm();
     
     // ⭐ 실제 영상 시작 (인트로 재생) - 전체화면 전환이 끝난 뒤 호출됨
+    // v44.3: 순서 변경 - restartAllAnimations를 startScreen 숨기기 전에 호출
+    //   → 사용자는 인트로 0초부터 깔끔하게 봄 (중간 단계 X)
     let videoLaunched = false;
     function launchVideo() {
       if (videoLaunched) return;
       videoLaunched = true;
-      // 화면 전환
-      document.getElementById('startScreen').classList.add('hidden');
-      document.getElementById('videoWrapper').classList.remove('hidden');
-      document.getElementById('muteToggle').classList.add('show');
-      // 애니메이션 시작 (전체화면 전환이 이미 끝났으므로 안 끊김)
-      restartAllAnimations();
-      // BGM 재확인
-      setTimeout(() => {
-        if (bgm.paused && !bgm.muted) tryPlayBgm();
-      }, 100);
-      // 루프 타이머
-      if (loopTimer) clearTimeout(loopTimer);
-      loopTimer = setTimeout(resetToStart, VIDEO_DURATION);
+      
+      const startScreen = document.getElementById('startScreen');
+      const videoWrapper = document.getElementById('videoWrapper');
+      const muteToggle = document.getElementById('muteToggle');
+      
+      // 1단계: stage 보이게 (start-screen이 위에 덮고 있어서 시각적으로는 아직 안 보임)
+      // → 브라우저가 미리 페인트 워밍업
+      videoWrapper.classList.remove('hidden');
+      
+      // 2단계: 페인트 안정화 - RAF 2번 쉼
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          // 3단계: ★ 핵심 변경 - start-screen이 아직 위에 있을 때 애니메이션 리셋
+          //   stage 안의 모든 CSS 애니메이션을 0초로 리셋
+          //   사용자는 못 봄 (start-screen이 가리고 있음)
+          restartAllAnimations();
+          
+          // 4단계: DOM 재삽입 후 페인트 안정화 - RAF 한 번 더
+          requestAnimationFrame(() => {
+            // 5단계: start-screen 숨김 → 이제 사용자가 인트로 0초부터 봄!
+            startScreen.classList.add('hidden');
+            muteToggle.classList.add('show');
+            
+            // BGM 재확인
+            setTimeout(() => {
+              if (bgm.paused && !bgm.muted) tryPlayBgm();
+            }, 120);
+            
+            // 루프 타이머
+            if (loopTimer) clearTimeout(loopTimer);
+            loopTimer = setTimeout(resetToStart, VIDEO_DURATION);
+          });
+        });
+      });
     }
     
     // STEP 2: ⭐ 전체화면 먼저 요청 (인트로 시작 전에!)
@@ -5246,8 +5269,8 @@
       const onFsChange = () => {
         document.removeEventListener('fullscreenchange', onFsChange);
         document.removeEventListener('webkitfullscreenchange', onFsChange);
-        // 전환 직후 한 프레임 쉬고 인트로 시작 (렌더링 안정화)
-        setTimeout(launchVideo, 80);
+        // v44.2: 전환 직후 250ms 쉬고 인트로 시작 (브라우저 안정화 충분히)
+        setTimeout(launchVideo, 250);
       };
       document.addEventListener('fullscreenchange', onFsChange);
       document.addEventListener('webkitfullscreenchange', onFsChange);
