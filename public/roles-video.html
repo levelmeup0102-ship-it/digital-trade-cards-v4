@@ -3360,6 +3360,237 @@
     animation: holoStripFlow 4s linear 7s infinite reverse;
   }
 
+  /* =================================================================
+     ⭐⭐⭐ v44: 7-ROSTER 인트로 ⭐⭐⭐
+     - 매트릭스/부팅/CRT 등 모두 제거 (인트로 끊김 해결)
+     - 7개 카드 실루엣이 가로로 배치되어 순차 등장
+     ================================================================= */
+
+  /* 가벼운 배경 그리드 */
+  .roster-bg-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(231, 254, 85, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(6, 182, 212, 0.06) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 85%);
+    -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 85%);
+    opacity: 0;
+    animation: rosterGridFade 5s ease-out forwards;
+  }
+  @keyframes rosterGridFade {
+    0% { opacity: 0; }
+    20% { opacity: 1; }
+    75% { opacity: 0.9; }
+    100% { opacity: 0; }
+  }
+
+  /* 상단 라벨 */
+  .roster-top {
+    position: absolute;
+    top: 18%;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    opacity: 0;
+    animation: rosterTopShow 5s ease-out forwards;
+  }
+  @keyframes rosterTopShow {
+    0% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+    15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+    80% { opacity: 1; }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+  }
+  .roster-top-line {
+    width: 60px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #E7FE55);
+    box-shadow: 0 0 6px #E7FE55;
+  }
+  .roster-top-line:last-child {
+    background: linear-gradient(90deg, #E7FE55, transparent);
+  }
+  .roster-top-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 6px;
+    color: #E7FE55;
+    text-shadow: 0 0 10px #E7FE55, 0 0 20px rgba(231, 254, 85, 0.5);
+  }
+
+  /* 중앙 타이틀 */
+  .roster-title-wrap {
+    position: absolute;
+    top: 26%;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    opacity: 0;
+    animation: rosterTitleShow 5s ease-out 0.2s forwards;
+  }
+  @keyframes rosterTitleShow {
+    0% { opacity: 0; transform: translateX(-50%) scale(0.85); filter: blur(8px); }
+    18% { opacity: 1; transform: translateX(-50%) scale(1); filter: blur(0); }
+    78% { opacity: 1; }
+    100% { opacity: 0; transform: translateX(-50%) scale(1.05); filter: blur(4px); }
+  }
+  .roster-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 96px;
+    font-weight: 900;
+    letter-spacing: 16px;
+    color: #fff;
+    margin: 0;
+    text-shadow:
+      0 0 20px #E7FE55,
+      0 0 40px #E7FE55,
+      0 0 80px rgba(231, 254, 85, 0.5);
+    line-height: 1;
+  }
+  .roster-subtitle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 6px;
+    color: #C1E8EB;
+    margin-top: 12px;
+    text-shadow: 0 0 8px #C1E8EB;
+    font-weight: 600;
+  }
+
+  /* 7개 카드 컨테이너 */
+  .roster-cards {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -25%);
+    display: flex;
+    gap: 18px;
+    z-index: 10;
+  }
+
+  /* 미니 카드 (실루엣만) */
+  .roster-card {
+    position: relative;
+    width: 160px;
+    height: 224px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(10, 10, 15, 0.96), rgba(20, 20, 30, 0.96));
+    border: 2px solid currentColor;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transform: translateY(30px) scale(0.85);
+    box-shadow:
+      0 0 12px currentColor,
+      0 0 28px currentColor,
+      inset 0 0 30px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    will-change: transform, opacity;
+    /* 각 카드 0.18초 간격으로 등장 + 호버는 stagger로 분산 */
+    animation:
+      rosterCardEnter 5s ease-out forwards,
+      rosterCardHover 4s ease-in-out infinite;
+    animation-delay: calc(0.4s + var(--idx) * 0.18s), calc(2s + var(--idx) * 0.5s);
+  }
+  @keyframes rosterCardEnter {
+    0% {
+      opacity: 0;
+      transform: translateY(30px) scale(0.85);
+    }
+    14% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    80% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-20px) scale(0.92);
+    }
+  }
+  /* v44.1: scale 제거, translateY만 (GPU 가속 친화적) + delay stagger로 동시 페인트 분산 */
+  @keyframes rosterCardHover {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+
+  /* 직무별 카드 색상 */
+  .roster-card.r-ceo        { color: #E7FE55; }
+  .roster-card.r-analyst    { color: #06B6D4; }
+  .roster-card.r-brand      { color: #8B5CF6; }
+  .roster-card.r-customer   { color: #FF6FB5; }
+  .roster-card.r-global     { color: #3B82F6; }
+  .roster-card.r-marketer   { color: #FCD34D; }
+  .roster-card.r-compliance { color: #FB923C; }
+
+  /* 카드 코너 마커 */
+  .roster-card-corner {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    pointer-events: none;
+  }
+  .roster-card-corner.tl { top: 8px; left: 8px; border-top: 2px solid; border-left: 2px solid; }
+  .roster-card-corner.tr { top: 8px; right: 8px; border-top: 2px solid; border-right: 2px solid; }
+  .roster-card-corner.bl { bottom: 8px; left: 8px; border-bottom: 2px solid; border-left: 2px solid; }
+  .roster-card-corner.br { bottom: 8px; right: 8px; border-bottom: 2px solid; border-right: 2px solid; }
+
+  /* 카드 안 실루엣 */
+  .roster-card-silhouette {
+    width: 100px;
+    height: 100px;
+    color: currentColor;
+    filter: drop-shadow(0 0 8px currentColor) drop-shadow(0 0 16px currentColor);
+    opacity: 0.95;
+  }
+
+  /* 카드 하단 ID */
+  .roster-card-id {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 3px;
+    color: currentColor;
+    text-shadow: 0 0 6px currentColor;
+    opacity: 0.85;
+  }
+
+  /* v44.1: 빛 스윕(rosterCardShimmer) 제거됨 - 7개 동시 background-position 변경이 가장 큰 GPU 부담 원인 */
+
+  /* 하단 라벨 */
+  .roster-bottom {
+    position: absolute;
+    bottom: 14%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 8px;
+    color: #C1E8EB;
+    text-shadow: 0 0 10px #C1E8EB, 0 0 20px rgba(193, 232, 235, 0.4);
+    opacity: 0;
+    animation: rosterBottomShow 5s ease-out 1.5s forwards;
+  }
+  @keyframes rosterBottomShow {
+    0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+    20% { opacity: 1; transform: translateX(-50%) translateY(0); }
+    70% { opacity: 1; }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+  }
+
 </style>
 </head>
 
@@ -3602,116 +3833,85 @@
 
   <!-- [0-5s] 인트로 -->
   <div class="scene scene-intro">
-    <!-- 핑크/퍼플 그리드 매트릭스 -->
-    <div class="intro-grid-bg"></div>
-    <div class="intro-grid-near"></div>
+    <!-- ⭐⭐⭐ v44: 7-ROSTER 인트로 ⭐⭐⭐ -->
+    <!-- 가벼운 그리드 배경만 유지 -->
+    <div class="roster-bg-grid"></div>
 
-    <!-- 매트릭스 비 (좌측) -->
-    <div class="matrix-rain left">
-      <div class="matrix-col" style="left:4px; animation-duration:6s;">0
-1
-1
-0
-1
-0
-1
-1</div>
-      <div class="matrix-col" style="left:24px; animation-duration:8s; animation-delay:0.5s;">A
-F
-3
-2
-B
-1
-C
-8</div>
-      <div class="matrix-col purple" style="left:44px; animation-duration:5s; animation-delay:1s;">1
-0
-0
-1
-1
-0
-1
-0</div>
-      <div class="matrix-col" style="left:64px; animation-duration:7s; animation-delay:1.5s;">F
-9
-A
-2
-C
-0
-B
-1</div>
+    <!-- 상단 라벨 -->
+    <div class="roster-top">
+      <div class="roster-top-line"></div>
+      <div class="roster-top-text">CONNECTAI · SIGNAL</div>
+      <div class="roster-top-line"></div>
     </div>
 
-    <!-- 매트릭스 비 (우측) -->
-    <div class="matrix-rain right">
-      <div class="matrix-col" style="left:4px; animation-duration:7s; animation-delay:0.3s;">3
-F
-A
-1
-0
-B
-2
-C</div>
-      <div class="matrix-col purple" style="left:24px; animation-duration:6s; animation-delay:1s;">1
-1
-0
-1
-0
-0
-1
-1</div>
-      <div class="matrix-col" style="left:44px; animation-duration:9s; animation-delay:0.5s;">B
-2
-F
-0
-A
-1
-3
-C</div>
-      <div class="matrix-col" style="left:64px; animation-duration:5s; animation-delay:2s;">0
-1
-1
-0
-1
-1
-0
-0</div>
+    <!-- 중앙 타이틀 -->
+    <div class="roster-title-wrap">
+      <h1 class="roster-title">SIGNAL</h1>
+      <div class="roster-subtitle">SEVEN ROLES · ONE TEAM</div>
     </div>
 
-    <!-- 스캔라인 + CRT -->
-    <div class="intro-scanline"></div>
-    <div class="crt-lines"></div>
-
-    <!-- 부팅 시퀀스 -->
-    <div class="boot-log">
-      <div class="boot-line boot-line-1">▸ INITIALIZING SIGNAL.NET PROTOCOL...</div><br>
-      <div class="boot-line boot-line-2">▸ AUTHENTICATING TEAM CREDENTIALS...</div><br>
-      <div class="boot-line boot-line-3">▸ LOADING DIGITAL TRADE CARDS...</div><br>
-      <div class="boot-line boot-complete">▸ CONNECTION ESTABLISHED ✓</div>
-    </div>
-
-    <!-- 동심원 펄스 -->
-    <div class="pulse-ring pulse-r1"></div>
-    <div class="pulse-ring pulse-r2"></div>
-    <div class="pulse-ring pulse-r3"></div>
-
-    <!-- 화면 플래시 -->
-    <div class="intro-flash"></div>
-
-    <!-- SIGNAL 로고 -->
-    <div class="intro-logo-wrap">
-      <div class="intro-top-label">
-        <span class="intro-top-line"></span>
-        <span class="intro-top-text">CONNECTAI</span>
-        <span class="intro-top-line"></span>
+    <!-- 7개 카드 실루엣 (가로 배치) -->
+    <div class="roster-cards">
+      <div class="roster-card r-ceo" style="--idx:0;">
+        <div class="roster-card-corner tl"></div>
+        <div class="roster-card-corner tr"></div>
+        <div class="roster-card-corner bl"></div>
+        <div class="roster-card-corner br"></div>
+        <svg class="roster-card-silhouette" viewBox="0 0 200 200"><use href="#silhouette-ceo"/></svg>
+        <div class="roster-card-id">001</div>
       </div>
-      <div class="intro-logo-stack">
-        <span class="intro-logo-glitch-pink" aria-hidden>SIGNAL</span>
-        <span class="intro-logo-glitch-purple" aria-hidden>SIGNAL</span>
-        <h1 class="intro-logo-main">SIGNAL</h1>
+      <div class="roster-card r-analyst" style="--idx:1;">
+        <div class="roster-card-corner tl"></div>
+        <div class="roster-card-corner tr"></div>
+        <div class="roster-card-corner bl"></div>
+        <div class="roster-card-corner br"></div>
+        <svg class="roster-card-silhouette" viewBox="0 0 200 200"><use href="#silhouette-analyst"/></svg>
+        <div class="roster-card-id">002</div>
       </div>
-      <p class="intro-bottom-label">DIGITAL TRADE CARDS</p>
+      <div class="roster-card r-brand" style="--idx:2;">
+        <div class="roster-card-corner tl"></div>
+        <div class="roster-card-corner tr"></div>
+        <div class="roster-card-corner bl"></div>
+        <div class="roster-card-corner br"></div>
+        <svg class="roster-card-silhouette" viewBox="0 0 200 200"><use href="#silhouette-brand"/></svg>
+        <div class="roster-card-id">003</div>
+      </div>
+      <div class="roster-card r-customer" style="--idx:3;">
+        <div class="roster-card-corner tl"></div>
+        <div class="roster-card-corner tr"></div>
+        <div class="roster-card-corner bl"></div>
+        <div class="roster-card-corner br"></div>
+        <svg class="roster-card-silhouette" viewBox="0 0 200 200"><use href="#silhouette-customer"/></svg>
+        <div class="roster-card-id">004</div>
+      </div>
+      <div class="roster-card r-global" style="--idx:4;">
+        <div class="roster-card-corner tl"></div>
+        <div class="roster-card-corner tr"></div>
+        <div class="roster-card-corner bl"></div>
+        <div class="roster-card-corner br"></div>
+        <svg class="roster-card-silhouette" viewBox="0 0 200 200"><use href="#silhouette-global"/></svg>
+        <div class="roster-card-id">005</div>
+      </div>
+      <div class="roster-card r-marketer" style="--idx:5;">
+        <div class="roster-card-corner tl"></div>
+        <div class="roster-card-corner tr"></div>
+        <div class="roster-card-corner bl"></div>
+        <div class="roster-card-corner br"></div>
+        <svg class="roster-card-silhouette" viewBox="0 0 200 200"><use href="#silhouette-marketer"/></svg>
+        <div class="roster-card-id">006</div>
+      </div>
+      <div class="roster-card r-compliance" style="--idx:6;">
+        <div class="roster-card-corner tl"></div>
+        <div class="roster-card-corner tr"></div>
+        <div class="roster-card-corner bl"></div>
+        <div class="roster-card-corner br"></div>
+        <svg class="roster-card-silhouette" viewBox="0 0 200 200"><use href="#silhouette-compliance"/></svg>
+        <div class="roster-card-id">007</div>
+      </div>
     </div>
+
+    <!-- 하단 라벨 -->
+    <div class="roster-bottom">DIGITAL TRADE CARDS</div>
 
     <!-- 비네팅 -->
     <div class="intro-vignette"></div>
