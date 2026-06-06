@@ -125,12 +125,14 @@
     }
 
     /* ============= 공통: 직무 씬 (5초씩) ============= */
-    /* 직무 씬 페이드 - 5초 duration */
+    /* 직무 씬 페이드 - v5.9: visibility 추가로 자식 패널 잔상 제거 */
     @keyframes roleSceneFade {
-      0% { opacity: 0; }
-      8% { opacity: 1; }
-      90% { opacity: 1; }
-      100% { opacity: 0; }
+      0% { opacity: 0; visibility: hidden; }
+      4% { opacity: 0; visibility: visible; }
+      8% { opacity: 1; visibility: visible; }
+      90% { opacity: 1; visibility: visible; }
+      99% { opacity: 0; visibility: visible; }
+      100% { opacity: 0; visibility: hidden; }
     }
     /* v4: 각 직무 7초로 늘림 (속도 늦춤 + 직무이름 인트로 추가) */
     .scene-ceo        { animation: roleSceneFade 7s ease-in-out 2s forwards; }
@@ -1380,13 +1382,13 @@
       100% { opacity: 0; transform: translate(-50%, -300%) scale(0.2); filter: blur(4px); }
     }
     /* 직무별 인트로 timing - 씬 시작과 동시, 1.8초 duration */
-    .role-name-intro.r-ceo        { color: var(--green); text-shadow: 0 0 30px var(--green), 0 0 60px rgba(231,254,85,0.5); animation: roleNameIntro 1.8s ease-out 2s forwards; }
-    .role-name-intro.r-analyst    { color: var(--cyan); text-shadow: 0 0 30px var(--cyan), 0 0 60px rgba(6,182,212,0.5); animation: roleNameIntro 1.8s ease-out 9s forwards; }
-    .role-name-intro.r-brand      { color: var(--purple); text-shadow: 0 0 30px var(--purple), 0 0 60px rgba(199,165,255,0.5); animation: roleNameIntro 1.8s ease-out 16s forwards; }
-    .role-name-intro.r-customer   { color: var(--pink); text-shadow: 0 0 30px var(--pink), 0 0 60px rgba(255,111,181,0.5); animation: roleNameIntro 1.8s ease-out 23s forwards; }
-    .role-name-intro.r-global     { color: var(--blue); text-shadow: 0 0 30px var(--blue), 0 0 60px rgba(59,130,246,0.5); animation: roleNameIntro 1.8s ease-out 30s forwards; }
-    .role-name-intro.r-marketer   { color: var(--yellow); text-shadow: 0 0 30px var(--yellow), 0 0 60px rgba(252,211,77,0.5); animation: roleNameIntro 1.8s ease-out 37s forwards; }
-    .role-name-intro.r-compliance { color: var(--orange); text-shadow: 0 0 30px var(--orange), 0 0 60px rgba(251,146,60,0.5); animation: roleNameIntro 1.8s ease-out 44s forwards; }
+    .role-name-intro.r-ceo        { color: var(--green); text-shadow: 0 0 30px var(--green), 0 0 60px rgba(231,254,85,0.5); animation: roleNameIntro 2.8s ease-out 2s forwards; }
+    .role-name-intro.r-analyst    { color: var(--cyan); text-shadow: 0 0 30px var(--cyan), 0 0 60px rgba(6,182,212,0.5); animation: roleNameIntro 2.8s ease-out 9s forwards; }
+    .role-name-intro.r-brand      { color: var(--purple); text-shadow: 0 0 30px var(--purple), 0 0 60px rgba(199,165,255,0.5); animation: roleNameIntro 2.8s ease-out 16s forwards; }
+    .role-name-intro.r-customer   { color: var(--pink); text-shadow: 0 0 30px var(--pink), 0 0 60px rgba(255,111,181,0.5); animation: roleNameIntro 2.8s ease-out 23s forwards; }
+    .role-name-intro.r-global     { color: var(--blue); text-shadow: 0 0 30px var(--blue), 0 0 60px rgba(59,130,246,0.5); animation: roleNameIntro 2.8s ease-out 30s forwards; }
+    .role-name-intro.r-marketer   { color: var(--yellow); text-shadow: 0 0 30px var(--yellow), 0 0 60px rgba(252,211,77,0.5); animation: roleNameIntro 2.8s ease-out 37s forwards; }
+    .role-name-intro.r-compliance { color: var(--orange); text-shadow: 0 0 30px var(--orange), 0 0 60px rgba(251,146,60,0.5); animation: roleNameIntro 2.8s ease-out 44s forwards; }
 
     /* v4: 직무 색 전환 효과 (각 씬 시작 시 화면 가로지르는 빛) */
     .role-transition-flash {
@@ -1557,6 +1559,83 @@
     .closing-cta-label { font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 4px; color: var(--green); text-shadow: 0 0 6px var(--green); margin-bottom: 4px; }
     .closing-cta-main { font-family: 'Black Han Sans', sans-serif; font-size: 24px; color: #fff; line-height: 1.2; margin-bottom: 2px; }
     .closing-cta-sub { font-size: 11px; color: var(--aqua); letter-spacing: 1px; }
+
+    /* v5.9: 전체화면 안내 토스트 */
+    .fullscreen-hint {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 20px;
+      background: rgba(0, 0, 0, 0.85);
+      border: 1px solid var(--green);
+      color: var(--green);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 3px;
+      border-radius: 4px;
+      box-shadow: 0 0 14px rgba(231, 254, 85, 0.5);
+      text-shadow: 0 0 4px var(--green);
+      backdrop-filter: blur(8px);
+      z-index: 9999;
+      animation: hintFade 5s ease-in-out forwards;
+      pointer-events: none;
+    }
+    @keyframes hintFade {
+      0% { opacity: 0; transform: translate(-50%, -20px); }
+      10% { opacity: 1; transform: translate(-50%, 0); }
+      75% { opacity: 1; }
+      100% { opacity: 0; transform: translate(-50%, -10px); }
+    }
+    /* 클릭 후 (전체화면 활성화) 안내 제거 */
+    body.fullscreen-active .fullscreen-hint {
+      display: none;
+    }
+
+    /* v5.7: BGM 토글 버튼 (우측 하단, 사이버틱) */
+    .bgm-btn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: rgba(0, 0, 0, 0.85);
+      border: 1px solid var(--green);
+      color: var(--green);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      cursor: pointer;
+      border-radius: 4px;
+      z-index: 9999;
+      backdrop-filter: blur(8px);
+      text-shadow: 0 0 6px var(--green);
+      box-shadow: 0 0 10px rgba(231, 254, 85, 0.4);
+      transition: all 0.2s ease;
+    }
+    .bgm-btn:hover {
+      background: rgba(231, 254, 85, 0.15);
+      box-shadow: 0 0 16px rgba(231, 254, 85, 0.6);
+    }
+    .bgm-btn.playing {
+      background: rgba(231, 254, 85, 0.12);
+      box-shadow: 0 0 14px rgba(231, 254, 85, 0.7);
+      animation: bgmPulse 1.8s ease-in-out infinite;
+    }
+    @keyframes bgmPulse {
+      0%, 100% { box-shadow: 0 0 12px rgba(231, 254, 85, 0.4); }
+      50% { box-shadow: 0 0 20px rgba(231, 254, 85, 0.8); }
+    }
+    .bgm-icon {
+      font-size: 14px;
+      line-height: 1;
+    }
+    .bgm-label {
+      letter-spacing: 3px;
+    }
 
     /* 컨트롤 */
     .replay-btn {
@@ -2374,6 +2453,21 @@
 
 </div>
 
+<!-- 전체화면 안내 (첫 클릭 유도) -->
+<div class="fullscreen-hint" id="fullscreen-hint">▎ 화면을 클릭하면 전체화면으로 재생됩니다</div>
+
+<!-- BGM (사용자가 'bgm.mp3' 파일을 이 HTML과 같은 폴더에 두면 자동 재생) -->
+<audio id="bgm" loop preload="auto">
+  <source src="./bgm.mp3" type="audio/mpeg">
+  <source src="./bgm.ogg" type="audio/ogg">
+</audio>
+
+<!-- BGM 토글 버튼 -->
+<button class="bgm-btn" id="bgm-toggle" onclick="toggleBgm()" title="BGM 켜기/끄기">
+  <span class="bgm-icon" id="bgm-icon">🔇</span>
+  <span class="bgm-label">BGM</span>
+</button>
+
 <script>
   // v5.2: 페이지 로드 워밍업 - 첫 페인트 후 600ms 대기 → 애니메이션 시작
   // (리플레이 누른 것처럼 깔끔하게 시작되도록)
@@ -2386,6 +2480,58 @@
       });
     });
   });
+
+  // v5.7: BGM 토글 + 첫 클릭 시 자동 재생
+  const bgm = document.getElementById('bgm');
+  const bgmIcon = document.getElementById('bgm-icon');
+  const bgmBtn = document.getElementById('bgm-toggle');
+  let bgmPlaying = false;
+
+  function toggleBgm() {
+    if (bgmPlaying) {
+      bgm.pause();
+      bgmIcon.textContent = '🔇';
+      bgmBtn.classList.remove('playing');
+      bgmPlaying = false;
+    } else {
+      bgm.play().then(() => {
+        bgmIcon.textContent = '🔊';
+        bgmBtn.classList.add('playing');
+        bgmPlaying = true;
+      }).catch(e => {
+        console.log('BGM 파일이 없거나 재생 실패:', e);
+        alert('BGM 파일(bgm.mp3)을 이 HTML과 같은 폴더에 두세요!');
+      });
+    }
+  }
+
+  // v5.9: 페이지 첫 클릭 시 → 전체화면 + BGM 동시 시작
+  function requestFullscreenSafe() {
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen;
+    if (req) {
+      try { req.call(el); } catch (e) { console.log('전체화면 요청 실패:', e); }
+    }
+  }
+
+  // 사용자 첫 클릭/탭으로 전체화면 + BGM 자동 시작 (브라우저 자동재생 정책 우회)
+  document.body.addEventListener('click', function autoStart(e) {
+    if (e.target.closest('.bgm-btn')) return;
+    // 전체화면 요청
+    requestFullscreenSafe();
+    document.body.classList.add('fullscreen-active');
+    // 안내 즉시 제거
+    const hint = document.getElementById('fullscreen-hint');
+    if (hint) hint.style.display = 'none';
+    // BGM 재생
+    if (!bgmPlaying) {
+      bgm.play().then(() => {
+        bgmIcon.textContent = '🔊';
+        bgmBtn.classList.add('playing');
+        bgmPlaying = true;
+      }).catch(() => {});
+    }
+  }, { once: true });
 </script>
 
 </body>
