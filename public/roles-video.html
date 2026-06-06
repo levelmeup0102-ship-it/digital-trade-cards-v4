@@ -669,16 +669,20 @@
       font-family: 'JetBrains Mono', monospace;
     }
     @keyframes panelIn {
-      0% { opacity: 0; transform: translateX(-15px); }
+      0% { opacity: 0; visibility: hidden; transform: translateX(-15px); }
+      3% { opacity: 0; visibility: visible; transform: translateX(-15px); }
       14% { opacity: 1; transform: translateX(0); }
-      88% { opacity: 1; transform: translateX(0); }
-      100% { opacity: 0; }
+      82% { opacity: 1; visibility: visible; transform: translateX(0); }
+      96% { opacity: 0; visibility: visible; }
+      100% { opacity: 0; visibility: hidden; }
     }
     @keyframes panelInRight {
-      0% { opacity: 0; transform: translateX(15px); }
+      0% { opacity: 0; visibility: hidden; transform: translateX(15px); }
+      3% { opacity: 0; visibility: visible; transform: translateX(15px); }
       14% { opacity: 1; transform: translateX(0); }
-      88% { opacity: 1; transform: translateX(0); }
-      100% { opacity: 0; }
+      82% { opacity: 1; visibility: visible; transform: translateX(0); }
+      96% { opacity: 0; visibility: visible; }
+      100% { opacity: 0; visibility: hidden; }
     }
     .panel-title {
       font-size: 9px;
@@ -2456,10 +2460,10 @@
 <!-- 전체화면 안내 (첫 클릭 유도) -->
 <div class="fullscreen-hint" id="fullscreen-hint">▎ 화면을 클릭하면 전체화면으로 재생됩니다</div>
 
-<!-- BGM (사용자가 'bgm.mp3' 파일을 이 HTML과 같은 폴더에 두면 자동 재생) -->
-<audio id="bgm" loop preload="auto">
-  <source src="./bgm.mp3" type="audio/mpeg">
-  <source src="./bgm.ogg" type="audio/ogg">
+<!-- 🎵 BGM AUDIO (기존 영상 BGM 그대로 사용 + iOS Safari 호환) -->
+<audio id="bgm" loop preload="auto" playsinline webkit-playsinline x-webkit-airplay="allow">
+  <source src="/promo-bgm.mp3" type="audio/mpeg">
+  <source src="/promo-bgm.ogg" type="audio/ogg">
 </audio>
 
 <!-- BGM 토글 버튼 -->
@@ -2487,6 +2491,36 @@
   const bgmBtn = document.getElementById('bgm-toggle');
   let bgmPlaying = false;
 
+  // ⭐ v5.10: BGM 재생 함수 (사용자가 보낸 영상 패턴 그대로 - iOS 호환 + 안전한 재시도)
+  function playBgmSafe() {
+    bgm.volume = 0.5;
+    bgm.currentTime = 0;
+    bgm.muted = false;
+    
+    const playPromise = bgm.play();
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
+          console.log('✅ BGM 재생 시작');
+          bgmIcon.textContent = '🔊';
+          bgmBtn.classList.add('playing');
+          bgmPlaying = true;
+        })
+        .catch(err => {
+          console.log('BGM 자동 재생 차단됨, 음소거 후 재시도:', err);
+          bgm.muted = true;
+          bgm.play().then(() => {
+            console.log('🔇 BGM 음소거 상태로 재생');
+            bgmIcon.textContent = '🔇';
+            bgmBtn.classList.add('playing');
+            bgmPlaying = true;
+          }).catch(e => {
+            console.log('BGM 재생 완전 실패 (파일 경로 확인 필요):', e);
+          });
+        });
+    }
+  }
+
   function toggleBgm() {
     if (bgmPlaying) {
       bgm.pause();
@@ -2494,14 +2528,7 @@
       bgmBtn.classList.remove('playing');
       bgmPlaying = false;
     } else {
-      bgm.play().then(() => {
-        bgmIcon.textContent = '🔊';
-        bgmBtn.classList.add('playing');
-        bgmPlaying = true;
-      }).catch(e => {
-        console.log('BGM 파일이 없거나 재생 실패:', e);
-        alert('BGM 파일(bgm.mp3)을 이 HTML과 같은 폴더에 두세요!');
-      });
+      playBgmSafe();
     }
   }
 
@@ -2523,13 +2550,9 @@
     // 안내 즉시 제거
     const hint = document.getElementById('fullscreen-hint');
     if (hint) hint.style.display = 'none';
-    // BGM 재생
+    // BGM 재생 (강화된 로직)
     if (!bgmPlaying) {
-      bgm.play().then(() => {
-        bgmIcon.textContent = '🔊';
-        bgmBtn.classList.add('playing');
-        bgmPlaying = true;
-      }).catch(() => {});
+      playBgmSafe();
     }
   }, { once: true });
 </script>
