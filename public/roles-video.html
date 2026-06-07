@@ -135,13 +135,13 @@
       100% { opacity: 0; visibility: hidden; }
     }
     /* v4: 각 직무 7초로 늘림 (속도 늦춤 + 직무이름 인트로 추가) */
-    .scene-ceo        { animation: roleSceneFade 7s ease-in-out 2s forwards; }
-    .scene-analyst    { animation: roleSceneFade 7s ease-in-out 9s forwards; }
-    .scene-brand      { animation: roleSceneFade 7s ease-in-out 16s forwards; }
-    .scene-customer   { animation: roleSceneFade 7s ease-in-out 23s forwards; }
-    .scene-global     { animation: roleSceneFade 7s ease-in-out 30s forwards; }
-    .scene-marketer   { animation: roleSceneFade 7s ease-in-out 37s forwards; }
-    .scene-compliance { animation: roleSceneFade 7s ease-in-out 44s forwards; }
+    .scene-ceo        { animation: roleSceneFade 8s ease-in-out 2s forwards; }
+    .scene-analyst    { animation: roleSceneFade 7s ease-in-out 10s forwards; }
+    .scene-brand      { animation: roleSceneFade 7s ease-in-out 17s forwards; }
+    .scene-customer   { animation: roleSceneFade 7s ease-in-out 24s forwards; }
+    .scene-global     { animation: roleSceneFade 7s ease-in-out 31s forwards; }
+    .scene-marketer   { animation: roleSceneFade 7s ease-in-out 38s forwards; }
+    .scene-compliance { animation: roleSceneFade 7s ease-in-out 45s forwards; }
 
     /* 공통 배경 그리드 (직무 색) */
     .role-bg-grid {
@@ -174,24 +174,28 @@
       filter: blur(8px) brightness(0.15);
     }
     @keyframes cardEntry {
+      /* ⭐ v5.18: 3D Y축 회전 추가 (뒷면 → 앞면) */
       /* 실루엣 단계 */
-      0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.85); filter: blur(8px) brightness(0.15) contrast(1.5); }
-      8%   { opacity: 0.7; transform: translate(-50%, -50%) scale(0.92); filter: blur(6px) brightness(0.25) contrast(1.4); }
-      18%  { opacity: 0.9; transform: translate(-50%, -50%) scale(0.96); filter: blur(4px) brightness(0.45) contrast(1.2); }
-      32%  { opacity: 1; transform: translate(-50%, -50%) scale(0.99); filter: blur(1.5px) brightness(0.75) contrast(1.1); }
-      45%  { opacity: 1; transform: translate(-50%, -50%) scale(1); filter: blur(0) brightness(1) contrast(1); }
-      85%  { opacity: 1; transform: translate(-50%, -50%) scale(1); filter: blur(0) brightness(1) contrast(1); }
-      100% { opacity: 0; transform: translate(-50%, -50%) scale(1.04); filter: blur(2px) brightness(1) contrast(1); }
+      0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.85) rotateY(-180deg); filter: blur(8px) brightness(0.15) contrast(1.5); }
+      8%   { opacity: 0.7; transform: translate(-50%, -50%) scale(0.92) rotateY(-120deg); filter: blur(6px) brightness(0.25) contrast(1.4); }
+      18%  { opacity: 0.9; transform: translate(-50%, -50%) scale(0.96) rotateY(-60deg); filter: blur(4px) brightness(0.45) contrast(1.2); }
+      32%  { opacity: 1; transform: translate(-50%, -50%) scale(0.99) rotateY(-15deg); filter: blur(1.5px) brightness(0.75) contrast(1.1); }
+      45%  { opacity: 1; transform: translate(-50%, -50%) scale(1) rotateY(0deg); filter: blur(0) brightness(1) contrast(1); }
+      85%  { opacity: 1; transform: translate(-50%, -50%) scale(1) rotateY(0deg); filter: blur(0) brightness(1) contrast(1); }
+      100% { opacity: 0; transform: translate(-50%, -50%) scale(1.04) rotateY(0deg); filter: blur(2px) brightness(1) contrast(1); }
     }
+    /* ⭐ v5.18: 3D perspective 위해 stage에 perspective 적용 */
+    .stage { perspective: 1500px; }
+    .id-card { transform-style: preserve-3d; }
     /* 각 직무 카드 등장 시점 (씬 시작과 동시) - 5s duration */
     /* v4: 카드 등장 = 씬 시작 +1.5초 (직무 이름 인트로 후) · duration 5.5초 */
     .id-card.r-ceo        { animation: cardEntry 5.5s ease-out 3.5s forwards; }
-    .id-card.r-analyst    { animation: cardEntry 5.5s ease-out 10.5s forwards; }
-    .id-card.r-brand      { animation: cardEntry 5.5s ease-out 17.5s forwards; }
-    .id-card.r-customer   { animation: cardEntry 5.5s ease-out 24.5s forwards; }
-    .id-card.r-global     { animation: cardEntry 5.5s ease-out 31.5s forwards; }
-    .id-card.r-marketer   { animation: cardEntry 5.5s ease-out 38.5s forwards; }
-    .id-card.r-compliance { animation: cardEntry 5.5s ease-out 45.5s forwards; }
+    .id-card.r-analyst    { animation: cardEntry 5.5s ease-out 11.5s forwards; }
+    .id-card.r-brand      { animation: cardEntry 5.5s ease-out 18.5s forwards; }
+    .id-card.r-customer   { animation: cardEntry 5.5s ease-out 25.5s forwards; }
+    .id-card.r-global     { animation: cardEntry 5.5s ease-out 32.5s forwards; }
+    .id-card.r-marketer   { animation: cardEntry 5.5s ease-out 39.5s forwards; }
+    .id-card.r-compliance { animation: cardEntry 5.5s ease-out 46.5s forwards; }
 
     /* 카드 내부 */
     .id-card-inner {
@@ -552,9 +556,27 @@
       background: rgba(255, 255, 255, 0.08);
       border-radius: 1px;
     }
+    /* ⭐ v5.12: 능력치 바 차오름 애니메이션 (빈 상태 → 직무 색) */
     .ability-segment.filled {
-      background: currentColor;
-      box-shadow: 0 0 4px currentColor;
+      background: rgba(255, 255, 255, 0.08);
+      animation: segmentFill 0.4s cubic-bezier(0.34, 1.3, 0.5, 1) var(--fill-delay, 0s) forwards;
+    }
+    @keyframes segmentFill {
+      0% {
+        background: rgba(255, 255, 255, 0.08);
+        box-shadow: none;
+        transform: scaleY(1);
+      }
+      50% {
+        background: currentColor;
+        box-shadow: 0 0 8px currentColor, 0 0 16px currentColor;
+        transform: scaleY(1.4);
+      }
+      100% {
+        background: currentColor;
+        box-shadow: 0 0 4px currentColor;
+        transform: scaleY(1);
+      }
     }
     .ability-value {
       font-size: 10px;
@@ -563,6 +585,13 @@
       text-shadow: 0 0 4px currentColor;
       text-align: right;
       letter-spacing: 0.5px;
+      /* ⭐ v5.12: 숫자도 차오름과 함께 카운트업 (fade-in으로 처리) */
+      opacity: 0;
+      animation: valueFadeIn 0.5s ease-out var(--value-delay, 0s) forwards;
+    }
+    @keyframes valueFadeIn {
+      0% { opacity: 0; transform: translateY(-4px); }
+      100% { opacity: 1; transform: translateY(0); }
     }
 
     /* 키워드 배지 (하단에 컴팩트하게 유지하되 작게) */
@@ -638,24 +667,24 @@
     .impact-burst.r-ceo        .ring:nth-child(1) { animation: ringBurst 1.4s ease-out 5.4s forwards; color: var(--green); }
     .impact-burst.r-ceo        .ring:nth-child(2) { animation: ringBurst 1.4s ease-out 5.6s forwards; color: var(--green); }
     .impact-burst.r-ceo        .ring:nth-child(3) { animation: ringBurst 1.4s ease-out 5.8s forwards; color: var(--green); }
-    .impact-burst.r-analyst    .ring:nth-child(1) { animation: ringBurst 1.4s ease-out 17.9s forwards; color: var(--cyan); }
-    .impact-burst.r-analyst    .ring:nth-child(2) { animation: ringBurst 1.4s ease-out 18.1s forwards; color: var(--cyan); }
-    .impact-burst.r-analyst    .ring:nth-child(3) { animation: ringBurst 1.4s ease-out 18.3s forwards; color: var(--cyan); }
-    .impact-burst.r-brand      .ring:nth-child(1) { animation: ringBurst 1.4s ease-out 19.4s forwards; color: var(--purple); }
-    .impact-burst.r-brand      .ring:nth-child(2) { animation: ringBurst 1.4s ease-out 19.6s forwards; color: var(--purple); }
-    .impact-burst.r-brand      .ring:nth-child(3) { animation: ringBurst 1.4s ease-out 19.8s forwards; color: var(--purple); }
-    .impact-burst.r-customer   .ring:nth-child(1) { animation: ringBurst 1.4s ease-out 26.4s forwards; color: var(--pink); }
-    .impact-burst.r-customer   .ring:nth-child(2) { animation: ringBurst 1.4s ease-out 26.6s forwards; color: var(--pink); }
-    .impact-burst.r-customer   .ring:nth-child(3) { animation: ringBurst 1.4s ease-out 26.8s forwards; color: var(--pink); }
-    .impact-burst.r-global     .ring:nth-child(1) { animation: ringBurst 1.4s ease-out 33.4s forwards; color: var(--blue); }
-    .impact-burst.r-global     .ring:nth-child(2) { animation: ringBurst 1.4s ease-out 33.6s forwards; color: var(--blue); }
-    .impact-burst.r-global     .ring:nth-child(3) { animation: ringBurst 1.4s ease-out 31.8s forwards; color: var(--blue); }
-    .impact-burst.r-marketer   .ring:nth-child(1) { animation: ringBurst 1.4s ease-out 40.4s forwards; color: var(--yellow); }
-    .impact-burst.r-marketer   .ring:nth-child(2) { animation: ringBurst 1.4s ease-out 40.6s forwards; color: var(--yellow); }
-    .impact-burst.r-marketer   .ring:nth-child(3) { animation: ringBurst 1.4s ease-out 40.8s forwards; color: var(--yellow); }
-    .impact-burst.r-compliance .ring:nth-child(1) { animation: ringBurst 1.4s ease-out 47.4s forwards; color: var(--orange); }
-    .impact-burst.r-compliance .ring:nth-child(2) { animation: ringBurst 1.4s ease-out 47.6s forwards; color: var(--orange); }
-    .impact-burst.r-compliance .ring:nth-child(3) { animation: ringBurst 1.4s ease-out 47.8s forwards; color: var(--orange); }
+    .impact-burst.r-analyst    .ring:nth-child(1) { animation: ringBurst 1.4s ease-out 13.4s forwards; color: var(--cyan); }
+    .impact-burst.r-analyst    .ring:nth-child(2) { animation: ringBurst 1.4s ease-out 13.6s forwards; color: var(--cyan); }
+    .impact-burst.r-analyst    .ring:nth-child(3) { animation: ringBurst 1.4s ease-out 13.8s forwards; color: var(--cyan); }
+    .impact-burst.r-brand      .ring:nth-child(1) { animation: ringBurst 1.4s ease-out 20.4s forwards; color: var(--purple); }
+    .impact-burst.r-brand      .ring:nth-child(2) { animation: ringBurst 1.4s ease-out 20.6s forwards; color: var(--purple); }
+    .impact-burst.r-brand      .ring:nth-child(3) { animation: ringBurst 1.4s ease-out 20.8s forwards; color: var(--purple); }
+    .impact-burst.r-customer   .ring:nth-child(1) { animation: ringBurst 1.4s ease-out 27.4s forwards; color: var(--pink); }
+    .impact-burst.r-customer   .ring:nth-child(2) { animation: ringBurst 1.4s ease-out 27.6s forwards; color: var(--pink); }
+    .impact-burst.r-customer   .ring:nth-child(3) { animation: ringBurst 1.4s ease-out 27.8s forwards; color: var(--pink); }
+    .impact-burst.r-global     .ring:nth-child(1) { animation: ringBurst 1.4s ease-out 34.4s forwards; color: var(--blue); }
+    .impact-burst.r-global     .ring:nth-child(2) { animation: ringBurst 1.4s ease-out 34.6s forwards; color: var(--blue); }
+    .impact-burst.r-global     .ring:nth-child(3) { animation: ringBurst 1.4s ease-out 34.8s forwards; color: var(--blue); }
+    .impact-burst.r-marketer   .ring:nth-child(1) { animation: ringBurst 1.4s ease-out 41.4s forwards; color: var(--yellow); }
+    .impact-burst.r-marketer   .ring:nth-child(2) { animation: ringBurst 1.4s ease-out 41.6s forwards; color: var(--yellow); }
+    .impact-burst.r-marketer   .ring:nth-child(3) { animation: ringBurst 1.4s ease-out 41.8s forwards; color: var(--yellow); }
+    .impact-burst.r-compliance .ring:nth-child(1) { animation: ringBurst 1.4s ease-out 48.4s forwards; color: var(--orange); }
+    .impact-burst.r-compliance .ring:nth-child(2) { animation: ringBurst 1.4s ease-out 48.6s forwards; color: var(--orange); }
+    .impact-burst.r-compliance .ring:nth-child(3) { animation: ringBurst 1.4s ease-out 48.8s forwards; color: var(--orange); }
 
     /* ============= 공통: 배경 패널 등장 ============= */
     .side-panel {
@@ -795,7 +824,7 @@
       text-shadow: 0 0 4px var(--cyan);
       pointer-events: none;
       opacity: 0;
-      animation: panelIn 5s ease-out 10.9s forwards;
+      animation: panelIn 5s ease-out 11.9s forwards;
     }
     .data-stream.top { top: 12%; }
     .data-stream.bot { bottom: 16%; }
@@ -816,7 +845,7 @@
       width: 220px;
       height: 110px;
       color: var(--cyan);
-      animation: panelIn 5s ease-out 11.1s forwards;
+      animation: panelIn 5s ease-out 12.1s forwards;
     }
     .analyst-chart-line svg {
       width: 100%;
@@ -830,7 +859,7 @@
       width: 180px;
       color: var(--cyan);
       text-align: center;
-      animation: panelInRight 5s ease-out 11.3s forwards;
+      animation: panelInRight 5s ease-out 12.3s forwards;
     }
     .donut-svg { width: 80px; height: 80px; margin: 4px auto; display: block; }
 
@@ -848,7 +877,7 @@
       left: 4%;
       width: 220px;
       color: var(--purple);
-      animation: panelIn 5s ease-out 17.9s forwards;
+      animation: panelIn 5s ease-out 18.9s forwards;
     }
     .brand-palette-grid {
       display: grid;
@@ -869,7 +898,7 @@
       right: 4%;
       width: 220px;
       color: var(--purple);
-      animation: panelInRight 5s ease-out 18.1s forwards;
+      animation: panelInRight 5s ease-out 19.1s forwards;
     }
     .brand-moodboard-grid {
       display: grid;
@@ -895,7 +924,7 @@
       left: 4%;
       width: 240px;
       color: var(--purple);
-      animation: panelIn 5s ease-out 18.3s forwards;
+      animation: panelIn 5s ease-out 19.3s forwards;
     }
     /* TYPOGRAPHY (우측 하단) */
     .brand-typo {
@@ -904,7 +933,7 @@
       right: 4%;
       width: 220px;
       color: var(--purple);
-      animation: panelInRight 5s ease-out 18.5s forwards;
+      animation: panelInRight 5s ease-out 19.5s forwards;
     }
     .brand-typo-sample {
       font-family: 'Black Han Sans', sans-serif;
@@ -937,7 +966,7 @@
       left: 4%;
       width: 220px;
       color: var(--pink);
-      animation: panelIn 5s ease-out 24.9s forwards;
+      animation: panelIn 5s ease-out 25.9s forwards;
     }
     .personas-grid {
       display: grid;
@@ -980,7 +1009,7 @@
       right: 4%;
       width: 230px;
       color: var(--pink);
-      animation: panelInRight 5s ease-out 25.1s forwards;
+      animation: panelInRight 5s ease-out 26.1s forwards;
     }
     /* NPS 점수 (좌측 하단) */
     .customer-nps {
@@ -989,7 +1018,7 @@
       left: 4%;
       width: 230px;
       color: var(--pink);
-      animation: panelIn 5s ease-out 25.3s forwards;
+      animation: panelIn 5s ease-out 26.3s forwards;
     }
     .nps-big {
       font-family: 'JetBrains Mono', monospace;
@@ -1022,7 +1051,7 @@
       right: 4%;
       width: 230px;
       color: var(--pink);
-      animation: panelInRight 5s ease-out 25.5s forwards;
+      animation: panelInRight 5s ease-out 26.5s forwards;
     }
 
     /* ============= GLOBAL 고유 비주얼 ============= */
@@ -1091,7 +1120,7 @@
       width: 180px;
       height: 180px;
       opacity: 0;
-      animation: panelIn 5s ease-out 31.9s forwards;
+      animation: panelIn 5s ease-out 32.9s forwards;
       background: transparent !important;
       border: none !important;
       box-shadow: none !important;
@@ -1114,7 +1143,7 @@
       width: 240px;
       height: 180px;
       opacity: 0;
-      animation: panelInRight 5s ease-out 32.1s forwards;
+      animation: panelInRight 5s ease-out 33.1s forwards;
     }
     .flight-paths svg { width: 100%; height: 100%; }
     /* 좌측 하단: 라우트 */
@@ -1124,7 +1153,7 @@
       left: 4%;
       width: 230px;
       color: var(--blue);
-      animation: panelIn 5s ease-out 32.3s forwards;
+      animation: panelIn 5s ease-out 33.3s forwards;
     }
     /* 우측 하단: 마켓 */
     .global-markets {
@@ -1133,7 +1162,7 @@
       right: 4%;
       width: 230px;
       color: var(--blue);
-      animation: panelInRight 5s ease-out 32.5s forwards;
+      animation: panelInRight 5s ease-out 33.5s forwards;
     }
     .market-flag { font-size: 13px; margin-right: 4px; }
 
@@ -1151,7 +1180,7 @@
       left: 4%;
       width: 230px;
       color: var(--yellow);
-      animation: panelIn 5s ease-out 38.9s forwards;
+      animation: panelIn 5s ease-out 39.9s forwards;
     }
     .notif-item {
       display: flex;
@@ -1173,7 +1202,7 @@
       right: 4%;
       width: 220px;
       color: var(--yellow);
-      animation: panelInRight 5s ease-out 39.1s forwards;
+      animation: panelInRight 5s ease-out 40.1s forwards;
     }
     .engage-grid {
       display: grid;
@@ -1207,7 +1236,7 @@
       left: 4%;
       width: 230px;
       color: var(--yellow);
-      animation: panelIn 5s ease-out 39.3s forwards;
+      animation: panelIn 5s ease-out 40.3s forwards;
     }
     .hashtag-cloud {
       display: flex;
@@ -1233,7 +1262,7 @@
       right: 4%;
       width: 230px;
       color: var(--yellow);
-      animation: panelInRight 5s ease-out 39.5s forwards;
+      animation: panelInRight 5s ease-out 40.5s forwards;
     }
     .trend-item {
       display: flex;
@@ -1261,7 +1290,7 @@
       left: 4%;
       width: 230px;
       color: var(--orange);
-      animation: panelIn 5s ease-out 45.9s forwards;
+      animation: panelIn 5s ease-out 46.9s forwards;
     }
     .check-item {
       display: flex;
@@ -1292,7 +1321,7 @@
       right: 4%;
       width: 220px;
       color: var(--orange);
-      animation: panelInRight 5s ease-out 46.1s forwards;
+      animation: panelInRight 5s ease-out 47.1s forwards;
     }
     .stamps-grid {
       display: grid;
@@ -1327,7 +1356,7 @@
       left: 4%;
       width: 230px;
       color: var(--orange);
-      animation: panelIn 5s ease-out 46.3s forwards;
+      animation: panelIn 5s ease-out 47.3s forwards;
     }
     /* 법규/항목 (우측 하단) */
     .comply-regs {
@@ -1336,7 +1365,7 @@
       right: 4%;
       width: 230px;
       color: var(--orange);
-      animation: panelInRight 5s ease-out 46.5s forwards;
+      animation: panelInRight 5s ease-out 47.5s forwards;
     }
     .reg-item {
       display: flex;
@@ -1387,12 +1416,12 @@
     }
     /* 직무별 인트로 timing - 씬 시작과 동시, 1.8초 duration */
     .role-name-intro.r-ceo        { color: var(--green); text-shadow: 0 0 30px var(--green), 0 0 60px rgba(231,254,85,0.5); animation: roleNameIntro 2.8s ease-out 2s forwards; }
-    .role-name-intro.r-analyst    { color: var(--cyan); text-shadow: 0 0 30px var(--cyan), 0 0 60px rgba(6,182,212,0.5); animation: roleNameIntro 2.8s ease-out 9s forwards; }
-    .role-name-intro.r-brand      { color: var(--purple); text-shadow: 0 0 30px var(--purple), 0 0 60px rgba(199,165,255,0.5); animation: roleNameIntro 2.8s ease-out 16s forwards; }
-    .role-name-intro.r-customer   { color: var(--pink); text-shadow: 0 0 30px var(--pink), 0 0 60px rgba(255,111,181,0.5); animation: roleNameIntro 2.8s ease-out 23s forwards; }
-    .role-name-intro.r-global     { color: var(--blue); text-shadow: 0 0 30px var(--blue), 0 0 60px rgba(59,130,246,0.5); animation: roleNameIntro 2.8s ease-out 30s forwards; }
-    .role-name-intro.r-marketer   { color: var(--yellow); text-shadow: 0 0 30px var(--yellow), 0 0 60px rgba(252,211,77,0.5); animation: roleNameIntro 2.8s ease-out 37s forwards; }
-    .role-name-intro.r-compliance { color: var(--orange); text-shadow: 0 0 30px var(--orange), 0 0 60px rgba(251,146,60,0.5); animation: roleNameIntro 2.8s ease-out 44s forwards; }
+    .role-name-intro.r-analyst    { color: var(--cyan); text-shadow: 0 0 30px var(--cyan), 0 0 60px rgba(6,182,212,0.5); animation: roleNameIntro 2.8s ease-out 10s forwards; }
+    .role-name-intro.r-brand      { color: var(--purple); text-shadow: 0 0 30px var(--purple), 0 0 60px rgba(199,165,255,0.5); animation: roleNameIntro 2.8s ease-out 17s forwards; }
+    .role-name-intro.r-customer   { color: var(--pink); text-shadow: 0 0 30px var(--pink), 0 0 60px rgba(255,111,181,0.5); animation: roleNameIntro 2.8s ease-out 24s forwards; }
+    .role-name-intro.r-global     { color: var(--blue); text-shadow: 0 0 30px var(--blue), 0 0 60px rgba(59,130,246,0.5); animation: roleNameIntro 2.8s ease-out 31s forwards; }
+    .role-name-intro.r-marketer   { color: var(--yellow); text-shadow: 0 0 30px var(--yellow), 0 0 60px rgba(252,211,77,0.5); animation: roleNameIntro 2.8s ease-out 38s forwards; }
+    .role-name-intro.r-compliance { color: var(--orange); text-shadow: 0 0 30px var(--orange), 0 0 60px rgba(251,146,60,0.5); animation: roleNameIntro 2.8s ease-out 45s forwards; }
 
     /* v4: 직무 색 전환 효과 (각 씬 시작 시 화면 가로지르는 빛) */
     .role-transition-flash {
@@ -1409,16 +1438,693 @@
       100% { opacity: 0; transform: translateX(100%); }
     }
     .role-transition-flash.r-ceo        { color: rgba(231, 254, 85, 0.3); animation: flashSweep 1.2s ease-out 2s forwards; }
-    .role-transition-flash.r-analyst    { color: rgba(6, 182, 212, 0.3); animation: flashSweep 1.2s ease-out 9s forwards; }
-    .role-transition-flash.r-brand      { color: rgba(139, 92, 246, 0.35); animation: flashSweep 1.2s ease-out 16s forwards; }
-    .role-transition-flash.r-customer   { color: rgba(255, 111, 181, 0.3); animation: flashSweep 1.2s ease-out 23s forwards; }
-    .role-transition-flash.r-global     { color: rgba(59, 130, 246, 0.3); animation: flashSweep 1.2s ease-out 30s forwards; }
-    .role-transition-flash.r-marketer   { color: rgba(252, 211, 77, 0.3); animation: flashSweep 1.2s ease-out 37s forwards; }
-    .role-transition-flash.r-compliance { color: rgba(251, 146, 60, 0.3); animation: flashSweep 1.2s ease-out 44s forwards; }
+    .role-transition-flash.r-analyst    { color: rgba(6, 182, 212, 0.3); animation: flashSweep 1.2s ease-out 10s forwards; }
+    .role-transition-flash.r-brand      { color: rgba(139, 92, 246, 0.35); animation: flashSweep 1.2s ease-out 17s forwards; }
+    .role-transition-flash.r-customer   { color: rgba(255, 111, 181, 0.3); animation: flashSweep 1.2s ease-out 24s forwards; }
+    .role-transition-flash.r-global     { color: rgba(59, 130, 246, 0.3); animation: flashSweep 1.2s ease-out 31s forwards; }
+    .role-transition-flash.r-marketer   { color: rgba(252, 211, 77, 0.3); animation: flashSweep 1.2s ease-out 38s forwards; }
+    .role-transition-flash.r-compliance { color: rgba(251, 146, 60, 0.3); animation: flashSweep 1.2s ease-out 45s forwards; }
 
     /* ============= 클로징 (51~57s) ============= */
+    /* ========================================
+       ⭐ v5.16: 사이버틱 효과 풀세트
+       ======================================== */
+
+    /* ① CRT 스캔라인 (가로 라인 + 흐르는 스캔) */
+    .crt-scanlines {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 100;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent 0px,
+        transparent 2px,
+        rgba(0, 0, 0, 0.18) 3px,
+        rgba(0, 0, 0, 0.18) 4px
+      );
+      opacity: 0.5;
+      mix-blend-mode: multiply;
+    }
+    .crt-scan-line {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      pointer-events: none;
+      z-index: 101;
+      height: 80px;
+      background: linear-gradient(
+        180deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.025) 30%,
+        rgba(255, 255, 255, 0.05) 50%,
+        rgba(255, 255, 255, 0.025) 70%,
+        transparent 100%
+      );
+      animation: scanMove 7s linear infinite;
+    }
+    @keyframes scanMove {
+      0% { transform: translateY(-100px); }
+      100% { transform: translateY(110vh); }
+    }
+
+    /* ② 미니맵 네비게이션 (우하단) */
+    .minimap {
+      position: absolute;
+      bottom: 22px;
+      right: 22px;
+      z-index: 80;
+      font-family: 'JetBrains Mono', monospace;
+      color: rgba(255, 255, 255, 0.7);
+      text-align: right;
+      opacity: 0;
+      animation: minimapFadeIn 1s ease-out 2.5s forwards;
+    }
+    @keyframes minimapFadeIn {
+      0% { opacity: 0; transform: translateX(20px); }
+      100% { opacity: 1; transform: translateX(0); }
+    }
+    .minimap-label {
+      font-size: 8px;
+      letter-spacing: 2.5px;
+      color: rgba(255, 255, 255, 0.45);
+      margin-bottom: 5px;
+      text-shadow: 0 0 4px rgba(255, 255, 255, 0.3);
+    }
+    .minimap-dots {
+      display: flex;
+      gap: 7px;
+      justify-content: flex-end;
+      margin-bottom: 4px;
+    }
+    .minimap-dot {
+      width: 10px;
+      height: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.08);
+      transition: all 0.3s cubic-bezier(0.34, 1.3, 0.5, 1);
+      position: relative;
+    }
+    .minimap-dot.active {
+      transform: scale(1.5);
+      box-shadow: 0 0 12px currentColor, 0 0 24px currentColor;
+    }
+    .minimap-dot.active::before {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border: 1px solid currentColor;
+      animation: dotPulse 1.5s ease-out infinite;
+    }
+    @keyframes dotPulse {
+      0% { opacity: 1; transform: scale(1); }
+      100% { opacity: 0; transform: scale(1.8); }
+    }
+    .minimap-dot.passed {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.5);
+    }
+    .minimap-progress {
+      font-size: 9px;
+      letter-spacing: 1.5px;
+      color: rgba(255, 255, 255, 0.6);
+      margin-top: 4px;
+    }
+    .minimap-progress .current {
+      color: #fff;
+      font-weight: 800;
+      text-shadow: 0 0 6px rgba(255, 255, 255, 0.6);
+    }
+
+    /* ③ HUD 메타 데이터 (좌상단/우상단) */
+    .hud {
+      position: absolute;
+      top: 18px;
+      z-index: 80;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 1.5px;
+      color: rgba(255, 255, 255, 0.55);
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      opacity: 0;
+      animation: hudFadeIn 1s ease-out 2.3s forwards;
+    }
+    @keyframes hudFadeIn {
+      0% { opacity: 0; transform: translateY(-10px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    .hud-top-left {
+      left: 22px;
+    }
+    .hud-top-right {
+      right: 22px;
+    }
+    .hud-dot {
+      display: inline-block;
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+    .hud-dot.live {
+      background: #06D6A0;
+      box-shadow: 0 0 6px #06D6A0;
+      animation: hudDotBlink 1.5s ease-in-out infinite;
+    }
+    .hud-dot.rec {
+      background: #FF4D4D;
+      box-shadow: 0 0 6px #FF4D4D;
+      animation: hudDotBlink 1s ease-in-out infinite;
+    }
+    @keyframes hudDotBlink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .hud-value {
+      color: rgba(255, 255, 255, 0.85);
+      font-weight: 700;
+    }
+    .hud-separator {
+      color: rgba(255, 255, 255, 0.3);
+      margin: 0 2px;
+    }
+
+    /* ④ 카드 홀로그램 스캔 (위→아래 빛 흐름) */
+    .id-card-wrapper {
+      position: relative;
+    }
+    .hologram-scan {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 30;
+      overflow: hidden;
+      border-radius: 16px;
+    }
+    .hologram-scan::before {
+      content: '';
+      position: absolute;
+      top: -100%;
+      left: 0;
+      right: 0;
+      height: 30%;
+      background: linear-gradient(
+        180deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.04) 30%,
+        rgba(255, 255, 255, 0.18) 50%,
+        rgba(255, 255, 255, 0.04) 70%,
+        transparent 100%
+      );
+      animation: hologramScan 1.8s ease-out var(--scan-delay, 0s) forwards;
+      opacity: 0;
+    }
+    @keyframes hologramScan {
+      0% { transform: translateY(0%); opacity: 0; }
+      15% { opacity: 1; }
+      85% { opacity: 1; }
+      100% { transform: translateY(800%); opacity: 0; }
+    }
+
+    /* ⑤ 글리치 RGB 분리 효과 (직무 이름 인트로) */
+    .role-name-intro::before,
+    .role-name-intro::after {
+      content: attr(data-text);
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 100%;
+      pointer-events: none;
+      opacity: 0;
+    }
+    .role-name-intro::before {
+      color: #06B6D4;
+      mix-blend-mode: screen;
+      animation: glitchRGB1 0.3s ease-out var(--glitch-delay) 2;
+    }
+    .role-name-intro::after {
+      color: #FF6FB5;
+      mix-blend-mode: screen;
+      animation: glitchRGB2 0.3s ease-out var(--glitch-delay) 2;
+    }
+    @keyframes glitchRGB1 {
+      0% { opacity: 0; transform: translate(-50%, -50%); }
+      30% { opacity: 0.8; transform: translate(calc(-50% - 4px), -50%); }
+      70% { opacity: 0.8; transform: translate(calc(-50% + 3px), -50%); }
+      100% { opacity: 0; transform: translate(-50%, -50%); }
+    }
+    @keyframes glitchRGB2 {
+      0% { opacity: 0; transform: translate(-50%, -50%); }
+      30% { opacity: 0.8; transform: translate(calc(-50% + 4px), -50%); }
+      70% { opacity: 0.8; transform: translate(calc(-50% - 3px), -50%); }
+      100% { opacity: 0; transform: translate(-50%, -50%); }
+    }
+    .role-name-intro.r-ceo        { --glitch-delay: 2.4s; }
+    .role-name-intro.r-analyst    { --glitch-delay: 10.4s; }
+    .role-name-intro.r-brand      { --glitch-delay: 17.4s; }
+    .role-name-intro.r-customer   { --glitch-delay: 24.4s; }
+    .role-name-intro.r-global     { --glitch-delay: 31.4s; }
+    .role-name-intro.r-marketer   { --glitch-delay: 38.4s; }
+    .role-name-intro.r-compliance { --glitch-delay: 45.4s; }
+
+    /* ⑥ Ambient 직무색 글로우 (Vignette) */
+    .ambient-glow {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 2;
+      opacity: 0;
+    }
+    @keyframes ambientFade {
+      0% { opacity: 0; }
+      8% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    .ambient-glow.r-ceo {
+      background: radial-gradient(ellipse at center, transparent 35%, rgba(231, 254, 85, 0.06) 70%, rgba(231, 254, 85, 0.18) 100%);
+      animation: ambientFade 8s ease-in-out 2s forwards;
+    }
+    .ambient-glow.r-analyst {
+      background: radial-gradient(ellipse at center, transparent 35%, rgba(6, 182, 212, 0.06) 70%, rgba(6, 182, 212, 0.18) 100%);
+      animation: ambientFade 7s ease-in-out 10s forwards;
+    }
+    .ambient-glow.r-brand {
+      background: radial-gradient(ellipse at center, transparent 35%, rgba(139, 92, 246, 0.06) 70%, rgba(139, 92, 246, 0.22) 100%);
+      animation: ambientFade 7s ease-in-out 17s forwards;
+    }
+    .ambient-glow.r-customer {
+      background: radial-gradient(ellipse at center, transparent 35%, rgba(255, 111, 181, 0.06) 70%, rgba(255, 111, 181, 0.2) 100%);
+      animation: ambientFade 7s ease-in-out 24s forwards;
+    }
+    .ambient-glow.r-global {
+      background: radial-gradient(ellipse at center, transparent 35%, rgba(59, 130, 246, 0.06) 70%, rgba(59, 130, 246, 0.2) 100%);
+      animation: ambientFade 7s ease-in-out 31s forwards;
+    }
+    .ambient-glow.r-marketer {
+      background: radial-gradient(ellipse at center, transparent 35%, rgba(252, 211, 77, 0.06) 70%, rgba(252, 211, 77, 0.18) 100%);
+      animation: ambientFade 7s ease-in-out 38s forwards;
+    }
+    .ambient-glow.r-compliance {
+      background: radial-gradient(ellipse at center, transparent 35%, rgba(251, 146, 60, 0.06) 70%, rgba(251, 146, 60, 0.2) 100%);
+      animation: ambientFade 7s ease-in-out 45s forwards;
+    }
+
+    /* ========================================
+       ⭐ v5.17: 사이버틱 효과 시즌 2
+       ======================================== */
+
+    /* ① 인트로 부팅 시퀀스 (타이핑 텍스트) */
+    .boot-sequence {
+      position: absolute;
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: rgba(231, 254, 85, 0.8);
+      text-align: left;
+      line-height: 1.8;
+      white-space: nowrap;
+      z-index: 30;
+    }
+    .boot-line {
+      opacity: 0;
+      overflow: hidden;
+      width: 0;
+      animation: typeIn 0.4s steps(30) forwards;
+      text-shadow: 0 0 4px rgba(231, 254, 85, 0.6);
+    }
+    .boot-line:nth-child(1) { animation-delay: 0.2s; }
+    .boot-line:nth-child(2) { animation-delay: 0.6s; }
+    .boot-line:nth-child(3) { animation-delay: 1.0s; }
+    .boot-line:nth-child(4) { animation-delay: 1.4s; color: #06D6A0; }
+    .boot-line:nth-child(5) {
+      animation: typeIn 0.4s steps(30) forwards, blink 0.5s linear 2.2s 2;
+      animation-delay: 1.8s;
+      color: rgba(255, 255, 255, 0.9);
+    }
+    @keyframes typeIn {
+      0% { opacity: 0; width: 0; }
+      100% { opacity: 1; width: 100%; }
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+    /* 부팅 시퀀스는 인트로 끝나면 사라짐 */
+    .boot-sequence {
+      animation: bootFadeOut 0.4s ease-out 2s forwards;
+    }
+    @keyframes bootFadeOut {
+      0% { opacity: 1; }
+      100% { opacity: 0; transform: translate(-50%, -50%) translateY(-20px); }
+    }
+
+    /* ② 네 모서리 코너 마커 */
+    .corner-marker {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      z-index: 75;
+      opacity: 0;
+      animation: markerFadeIn 1s ease-out 2.3s forwards;
+    }
+    @keyframes markerFadeIn {
+      0% { opacity: 0; transform: scale(0.5); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    .corner-marker::before,
+    .corner-marker::after {
+      content: '';
+      position: absolute;
+      background: rgba(255, 255, 255, 0.5);
+    }
+    .corner-marker::before {
+      width: 24px;
+      height: 1px;
+    }
+    .corner-marker::after {
+      width: 1px;
+      height: 24px;
+    }
+    .corner-marker .marker-dot {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.7);
+      box-shadow: 0 0 6px rgba(255, 255, 255, 0.5);
+    }
+    /* 좌상단 (HUD 영역과 겹치지 않게 살짝 안쪽) */
+    .corner-marker.tl { top: 50px; left: 12px; }
+    .corner-marker.tl::before { top: 0; left: 0; }
+    .corner-marker.tl::after { top: 0; left: 0; }
+    .corner-marker.tl .marker-dot { top: -1px; left: -1px; }
+    /* 우상단 */
+    .corner-marker.tr { top: 50px; right: 12px; }
+    .corner-marker.tr::before { top: 0; right: 0; }
+    .corner-marker.tr::after { top: 0; right: 0; }
+    .corner-marker.tr .marker-dot { top: -1px; right: -1px; }
+    /* 좌하단 (미니맵 영역 피해서) */
+    .corner-marker.bl { bottom: 50px; left: 12px; }
+    .corner-marker.bl::before { bottom: 0; left: 0; }
+    .corner-marker.bl::after { bottom: 0; left: 0; }
+    .corner-marker.bl .marker-dot { bottom: -1px; left: -1px; }
+    /* 우하단 */
+    .corner-marker.br { bottom: 100px; right: 12px; }
+    .corner-marker.br::before { bottom: 0; right: 0; }
+    .corner-marker.br::after { bottom: 0; right: 0; }
+    .corner-marker.br .marker-dot { bottom: -1px; right: -1px; }
+
+    /* ③ 상/하단 레이저 가드 라인 */
+    .laser-guard {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.08) 20%,
+        rgba(255, 255, 255, 0.15) 50%,
+        rgba(255, 255, 255, 0.08) 80%,
+        transparent 100%);
+      z-index: 70;
+      opacity: 0;
+      animation: laserFadeIn 1s ease-out 2.5s forwards;
+    }
+    @keyframes laserFadeIn {
+      0% { opacity: 0; }
+      100% { opacity: 1; }
+    }
+    .laser-guard.top { top: 44px; }
+    .laser-guard.bottom { bottom: 44px; }
+    .laser-guard::after {
+      content: '';
+      position: absolute;
+      top: -1px;
+      width: 80px;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+      filter: blur(1px);
+    }
+    .laser-guard.top::after {
+      animation: laserMove 6s linear infinite;
+    }
+    .laser-guard.bottom::after {
+      animation: laserMoveReverse 7s linear infinite;
+    }
+    @keyframes laserMove {
+      0% { left: -80px; }
+      100% { left: 100%; }
+    }
+    @keyframes laserMoveReverse {
+      0% { right: -80px; left: auto; }
+      100% { right: 100%; left: auto; }
+    }
+
+    /* ④ 배경 데이터 파티클 */
+    .data-particle {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: rgba(255, 255, 255, 0.6);
+      border-radius: 50%;
+      box-shadow: 0 0 4px rgba(255, 255, 255, 0.4);
+      z-index: 3;
+      pointer-events: none;
+    }
+    @keyframes particleFloat1 {
+      0% { transform: translate(0, 0); opacity: 0; }
+      10% { opacity: 0.8; }
+      90% { opacity: 0.8; }
+      100% { transform: translate(120vw, -50px); opacity: 0; }
+    }
+    @keyframes particleFloat2 {
+      0% { transform: translate(0, 0); opacity: 0; }
+      10% { opacity: 0.6; }
+      90% { opacity: 0.6; }
+      100% { transform: translate(-120vw, 30px); opacity: 0; }
+    }
+    @keyframes particleFloat3 {
+      0% { transform: translate(0, 0); opacity: 0; }
+      10% { opacity: 0.5; }
+      90% { opacity: 0.5; }
+      100% { transform: translate(0, -110vh); opacity: 0; }
+    }
+    @keyframes particleFloat4 {
+      0% { transform: translate(0, 0); opacity: 0; }
+      10% { opacity: 0.7; }
+      90% { opacity: 0.7; }
+      100% { transform: translate(0, 110vh); opacity: 0; }
+    }
+
+    /* ⑤ 하단 progress bar */
+    .progress-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: rgba(255, 255, 255, 0.06);
+      z-index: 90;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg,
+        var(--green) 0%,
+        var(--cyan) 17%,
+        var(--purple) 34%,
+        var(--pink) 51%,
+        var(--blue) 68%,
+        var(--yellow) 85%,
+        var(--orange) 100%);
+      animation: progressFill 58s linear forwards;
+      box-shadow: 0 -2px 8px rgba(255, 255, 255, 0.4);
+    }
+    @keyframes progressFill {
+      0% { width: 0%; }
+      100% { width: 100%; }
+    }
+    .progress-bar-tip {
+      position: absolute;
+      top: -2px;
+      height: 6px;
+      width: 6px;
+      background: white;
+      border-radius: 50%;
+      box-shadow: 0 0 12px white, 0 0 24px white;
+      animation: progressTip 58s linear forwards;
+    }
+    @keyframes progressTip {
+      0% { left: 0%; }
+      100% { left: calc(100% - 6px); }
+    }
+
+    /* ⑥ 카드 등장 스파클 (별 폭발) */
+    .card-sparkles {
+      position: absolute;
+      inset: -40px;
+      pointer-events: none;
+      z-index: 25;
+    }
+    .sparkle {
+      position: absolute;
+      width: 3px;
+      height: 3px;
+      background: white;
+      border-radius: 50%;
+      box-shadow: 0 0 6px white, 0 0 12px currentColor;
+      opacity: 0;
+      animation: sparkleBurst 1.6s ease-out var(--sparkle-delay) forwards;
+    }
+    @keyframes sparkleBurst {
+      0% {
+        opacity: 0;
+        transform: translate(0, 0) scale(0);
+      }
+      20% {
+        opacity: 1;
+        transform: translate(var(--tx), var(--ty)) scale(1.5);
+      }
+      80% {
+        opacity: 0.8;
+        transform: translate(calc(var(--tx) * 1.4), calc(var(--ty) * 1.4)) scale(0.8);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(calc(var(--tx) * 1.6), calc(var(--ty) * 1.6)) scale(0);
+      }
+    }
+
+    /* ========================================
+       ⭐ v5.18: 카드 3D 회전 + Crosshair + Glitch Tear
+       ======================================== */
+
+    /* ② Crosshair 타겟 락온 마커 */
+    .crosshair {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 380px;
+      height: 480px;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 40;
+      opacity: 0;
+    }
+    @keyframes crosshairLockOn {
+      0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(2.5);
+        filter: blur(4px);
+      }
+      30% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.3);
+        filter: blur(1px);
+      }
+      55% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.05);
+        filter: blur(0);
+      }
+      75% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+        filter: blur(0);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.95);
+        filter: blur(0);
+      }
+    }
+    /* 4개 모서리 L자 마커 */
+    .ch-corner {
+      position: absolute;
+      width: 32px;
+      height: 32px;
+      color: currentColor;
+    }
+    .ch-corner::before,
+    .ch-corner::after {
+      content: '';
+      position: absolute;
+      background: currentColor;
+      box-shadow: 0 0 8px currentColor;
+    }
+    .ch-corner::before { width: 100%; height: 2px; }
+    .ch-corner::after { width: 2px; height: 100%; }
+    .ch-corner.tl { top: 0; left: 0; }
+    .ch-corner.tl::before { top: 0; left: 0; }
+    .ch-corner.tl::after { top: 0; left: 0; }
+    .ch-corner.tr { top: 0; right: 0; }
+    .ch-corner.tr::before { top: 0; right: 0; }
+    .ch-corner.tr::after { top: 0; right: 0; }
+    .ch-corner.bl { bottom: 0; left: 0; }
+    .ch-corner.bl::before { bottom: 0; left: 0; }
+    .ch-corner.bl::after { bottom: 0; left: 0; }
+    .ch-corner.br { bottom: 0; right: 0; }
+    .ch-corner.br::before { bottom: 0; right: 0; }
+    .ch-corner.br::after { bottom: 0; right: 0; }
+    /* 가운데 십자 */
+    .ch-center {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 20px;
+      height: 20px;
+      color: currentColor;
+    }
+    .ch-center::before,
+    .ch-center::after {
+      content: '';
+      position: absolute;
+      background: currentColor;
+      box-shadow: 0 0 4px currentColor;
+    }
+    .ch-center::before {
+      top: 50%; left: 0; right: 0;
+      height: 1px;
+      transform: translateY(-50%);
+    }
+    .ch-center::after {
+      left: 50%; top: 0; bottom: 0;
+      width: 1px;
+      transform: translateX(-50%);
+    }
+    /* 락온 라벨 (가운데 상단) */
+    .ch-label {
+      position: absolute;
+      top: -22px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: currentColor;
+      text-shadow: 0 0 6px currentColor;
+      white-space: nowrap;
+    }
+    /* 직무별 색 + timing (카드 등장 직전 0.5s 동안) */
+    .crosshair.r-ceo        { color: var(--green);  animation: crosshairLockOn 1.2s ease-out 2.8s forwards; }
+    .crosshair.r-analyst    { color: var(--cyan);   animation: crosshairLockOn 1.2s ease-out 10.8s forwards; }
+    .crosshair.r-brand      { color: var(--purple); animation: crosshairLockOn 1.2s ease-out 17.8s forwards; }
+    .crosshair.r-customer   { color: var(--pink);   animation: crosshairLockOn 1.2s ease-out 24.8s forwards; }
+    .crosshair.r-global     { color: var(--blue);   animation: crosshairLockOn 1.2s ease-out 31.8s forwards; }
+    .crosshair.r-marketer   { color: var(--yellow); animation: crosshairLockOn 1.2s ease-out 38.8s forwards; }
+    .crosshair.r-compliance { color: var(--orange); animation: crosshairLockOn 1.2s ease-out 45.8s forwards; }
+
     .scene-closing {
-      animation: closingFade 6s ease-in-out 51s forwards;
+      animation: closingFade 6s ease-in-out 52s forwards;
     }
     @keyframes closingFade {
       0% { opacity: 0; }
@@ -1464,7 +2170,7 @@
       gap: 8px;
       opacity: 0;
       animation: closingCardBurst 6s ease-out forwards, closingCardHover 3s ease-in-out infinite;
-      animation-delay: calc(51s + var(--idx) * 0.08s), calc(52s + var(--idx) * 0.3s);
+      animation-delay: calc(52s + var(--idx) * 0.08s), calc(53s + var(--idx) * 0.3s);
     }
     @keyframes closingCardBurst {
       0% { opacity: 0; transform: translateY(0) scale(0.3) rotate(-180deg); filter: blur(20px); }
@@ -1498,7 +2204,7 @@
       color: #fff;
       text-shadow: 0 0 30px var(--green), 0 0 60px rgba(231, 254, 85, 0.6), 4px 0 0 var(--pink), -4px 0 0 var(--cyan);
       opacity: 0;
-      animation: closingTitleIn 6s ease-out 51.3s forwards;
+      animation: closingTitleIn 6s ease-out 52.3s forwards;
     }
     @keyframes closingTitleIn {
       0% { opacity: 0; transform: translateX(-50%) scale(0.5); filter: blur(20px); }
@@ -1516,7 +2222,7 @@
       color: var(--green);
       text-shadow: 0 0 8px var(--green);
       opacity: 0;
-      animation: closingSubIn 6s ease-out 51.7s forwards;
+      animation: closingSubIn 6s ease-out 52.7s forwards;
     }
     @keyframes closingSubIn {
       0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
@@ -1538,7 +2244,7 @@
       border-radius: 14px;
       box-shadow: 0 0 20px var(--green), inset 0 0 20px rgba(0, 0, 0, 0.5);
       opacity: 0;
-      animation: closingCtaIn 6s ease-out 52.5s forwards;
+      animation: closingCtaIn 6s ease-out 53.5s forwards;
     }
     @keyframes closingCtaIn {
       0% { opacity: 0; transform: translateX(-50%) translateY(20px) scale(0.95); }
@@ -1664,8 +2370,69 @@
 
 <div class="stage" id="stage">
 
+  <!-- ⭐ v5.16: Ambient 직무색 글로우 (vignette) -->
+  <div class="ambient-glow r-ceo"></div>
+  <div class="ambient-glow r-analyst"></div>
+  <div class="ambient-glow r-brand"></div>
+  <div class="ambient-glow r-customer"></div>
+  <div class="ambient-glow r-global"></div>
+  <div class="ambient-glow r-marketer"></div>
+  <div class="ambient-glow r-compliance"></div>
+
+  <!-- ⭐ v5.18: 카드 락온 Crosshair (카드 등장 직전 발화) -->
+  <div class="crosshair r-ceo">
+    <div class="ch-label">▎ LOCK-ON · CEO</div>
+    <div class="ch-corner tl"></div><div class="ch-corner tr"></div>
+    <div class="ch-corner bl"></div><div class="ch-corner br"></div>
+    <div class="ch-center"></div>
+  </div>
+  <div class="crosshair r-analyst">
+    <div class="ch-label">▎ LOCK-ON · ANALYST</div>
+    <div class="ch-corner tl"></div><div class="ch-corner tr"></div>
+    <div class="ch-corner bl"></div><div class="ch-corner br"></div>
+    <div class="ch-center"></div>
+  </div>
+  <div class="crosshair r-brand">
+    <div class="ch-label">▎ LOCK-ON · BRAND</div>
+    <div class="ch-corner tl"></div><div class="ch-corner tr"></div>
+    <div class="ch-corner bl"></div><div class="ch-corner br"></div>
+    <div class="ch-center"></div>
+  </div>
+  <div class="crosshair r-customer">
+    <div class="ch-label">▎ LOCK-ON · CUSTOMER</div>
+    <div class="ch-corner tl"></div><div class="ch-corner tr"></div>
+    <div class="ch-corner bl"></div><div class="ch-corner br"></div>
+    <div class="ch-center"></div>
+  </div>
+  <div class="crosshair r-global">
+    <div class="ch-label">▎ LOCK-ON · GLOBAL</div>
+    <div class="ch-corner tl"></div><div class="ch-corner tr"></div>
+    <div class="ch-corner bl"></div><div class="ch-corner br"></div>
+    <div class="ch-center"></div>
+  </div>
+  <div class="crosshair r-marketer">
+    <div class="ch-label">▎ LOCK-ON · MARKETER</div>
+    <div class="ch-corner tl"></div><div class="ch-corner tr"></div>
+    <div class="ch-corner bl"></div><div class="ch-corner br"></div>
+    <div class="ch-center"></div>
+  </div>
+  <div class="crosshair r-compliance">
+    <div class="ch-label">▎ LOCK-ON · COMPLY</div>
+    <div class="ch-corner tl"></div><div class="ch-corner tr"></div>
+    <div class="ch-corner bl"></div><div class="ch-corner br"></div>
+    <div class="ch-center"></div>
+  </div>
+
   <!-- 0~2s: 인트로 -->
   <div class="scene scene-intro">
+    <!-- ⭐ v5.17: 부팅 시퀀스 (타이핑 텍스트) -->
+    <div class="boot-sequence">
+      <div class="boot-line">&gt; INITIALIZING SIGNAL_NET...</div>
+      <div class="boot-line">&gt; LOADING 7 CARDS...</div>
+      <div class="boot-line">&gt; VERIFYING DATA INTEGRITY...</div>
+      <div class="boot-line">&gt; SYSTEM READY ✓</div>
+      <div class="boot-line">&gt; LAUNCH SEQUENCE INITIATED_</div>
+    </div>
     <div class="intro-logo">SIGNAL</div>
     <div class="intro-sub">SEVEN ROLES · CYBER PROFILE</div>
   </div>
@@ -1674,7 +2441,7 @@
   <div class="scene scene-ceo">
     <div class="role-bg-grid"></div>
     <div class="role-transition-flash r-ceo"></div>
-    <div class="role-name-intro r-ceo">CEO<span class="name-kr">대표이사</span></div>
+    <div class="role-name-intro r-ceo" data-text="CEO">CEO<span class="name-kr">대표이사</span></div>
     <div class="role-bg-glow"></div>
 
     <!-- 의사결정 트리 -->
@@ -1739,7 +2506,21 @@
     </div>
 
     <!-- 카드 -->
-    <div class="id-card r-ceo">
+    <div class="id-card r-ceo" style="--scan-delay: 4.5s"><div class="hologram-scan"></div>
+    <div class="card-sparkles">
+      <div class="sparkle" style="top:50%;left:50%;color:#E7FE55;--tx:73px;--ty:11px;--sparkle-delay:5.0s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#E7FE55;--tx:56px;--ty:32px;--sparkle-delay:5.04s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#E7FE55;--tx:46px;--ty:55px;--sparkle-delay:5.08s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#E7FE55;--tx:6px;--ty:65px;--sparkle-delay:5.12s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#E7FE55;--tx:-22px;--ty:33px;--sparkle-delay:5.16s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#E7FE55;--tx:-52px;--ty:24px;--sparkle-delay:5.2s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#E7FE55;--tx:-66px;--ty:-2px;--sparkle-delay:5.24s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#E7FE55;--tx:-45px;--ty:-32px;--sparkle-delay:5.28s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#E7FE55;--tx:-19px;--ty:-44px;--sparkle-delay:5.32s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#E7FE55;--tx:-5px;--ty:-63px;--sparkle-delay:5.36s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#E7FE55;--tx:24px;--ty:-64px;--sparkle-delay:5.4s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#E7FE55;--tx:72px;--ty:-27px;--sparkle-delay:5.44s;"></div>
+    </div>
       <div class="id-card-inner">
         <div class="id-card-corner-bl"></div><div class="id-card-corner-br"></div>
         <div class="id-card-header">
@@ -1789,7 +2570,7 @@
   <div class="scene scene-analyst">
     <div class="role-bg-grid"></div>
     <div class="role-transition-flash r-analyst"></div>
-    <div class="role-name-intro r-analyst">ANALYST<span class="name-kr">시장 분석가</span></div>
+    <div class="role-name-intro r-analyst" data-text="ANALYST">ANALYST<span class="name-kr">시장 분석가</span></div>
     <div class="role-bg-glow"></div>
 
     <div class="data-stream top">
@@ -1824,7 +2605,7 @@
       <div style="font-family:'JetBrains Mono',monospace; font-size:9px; color:rgba(255,255,255,0.6); letter-spacing:1.5px;">TOP 3% · GLOBAL</div>
     </div>
 
-    <div class="side-panel" style="position:absolute; bottom:14%; left:4%; width:230px; color:var(--cyan); animation: panelIn 5s ease-out 11.5s forwards;">
+    <div class="side-panel" style="position:absolute; bottom:14%; left:4%; width:230px; color:var(--cyan); animation: panelIn 5s ease-out 12.5s forwards;">
       <div class="panel-title">▎ LIVE METRICS</div>
       <div class="panel-row"><span>Index</span><span style="color:var(--green)">▲ 2.45%</span></div>
       <div class="panel-row"><span>Volume</span><span>1.82M</span></div>
@@ -1832,7 +2613,7 @@
       <div class="panel-row"><span>Status</span><span>● LIVE</span></div>
     </div>
 
-    <div class="side-panel" style="position:absolute; bottom:14%; right:4%; width:230px; color:var(--cyan); animation: panelInRight 5s ease-out 11.7s forwards;">
+    <div class="side-panel" style="position:absolute; bottom:14%; right:4%; width:230px; color:var(--cyan); animation: panelInRight 5s ease-out 12.7s forwards;">
       <div class="panel-title">▎ TRENDING NOW</div>
       <div class="panel-row"><span style="color:var(--cyan); font-weight:800;">01 AI</span><span style="color:var(--green)">+147%</span></div>
       <div class="panel-row"><span style="color:var(--cyan); font-weight:800;">02 K-콘텐츠</span><span style="color:var(--green)">+92%</span></div>
@@ -1841,7 +2622,21 @@
 
     <div class="impact-burst r-analyst"><div class="ring"></div><div class="ring"></div><div class="ring"></div></div>
 
-    <div class="id-card r-analyst">
+    <div class="id-card r-analyst" style="--scan-delay: 12.5s"><div class="hologram-scan"></div>
+    <div class="card-sparkles">
+      <div class="sparkle" style="top:50%;left:50%;color:#06B6D4;--tx:63px;--ty:-10px;--sparkle-delay:13.0s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#06B6D4;--tx:32px;--ty:26px;--sparkle-delay:13.04s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#06B6D4;--tx:26px;--ty:33px;--sparkle-delay:13.08s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#06B6D4;--tx:-1px;--ty:77px;--sparkle-delay:13.12s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#06B6D4;--tx:-28px;--ty:42px;--sparkle-delay:13.16s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#06B6D4;--tx:-48px;--ty:27px;--sparkle-delay:13.2s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#06B6D4;--tx:-50px;--ty:8px;--sparkle-delay:13.24s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#06B6D4;--tx:-60px;--ty:-40px;--sparkle-delay:13.28s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#06B6D4;--tx:-29px;--ty:-52px;--sparkle-delay:13.32s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#06B6D4;--tx:-6px;--ty:-51px;--sparkle-delay:13.36s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#06B6D4;--tx:42px;--ty:-58px;--sparkle-delay:13.4s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#06B6D4;--tx:66px;--ty:-26px;--sparkle-delay:13.44s;"></div>
+    </div>
       <div class="id-card-inner">
         <div class="id-card-corner-bl"></div><div class="id-card-corner-br"></div>
         <div class="id-card-header">
@@ -1891,7 +2686,7 @@
   <div class="scene scene-brand">
     <div class="role-bg-grid"></div>
     <div class="role-transition-flash r-brand"></div>
-    <div class="role-name-intro r-brand">BRAND<span class="name-kr">브랜드 전략가</span></div>
+    <div class="role-name-intro r-brand" data-text="BRAND">BRAND<span class="name-kr">브랜드 전략가</span></div>
     <div class="role-bg-glow"></div>
 
     <div class="brand-palette side-panel">
@@ -1932,7 +2727,21 @@
 
     <div class="impact-burst r-brand"><div class="ring"></div><div class="ring"></div><div class="ring"></div></div>
 
-    <div class="id-card r-brand">
+    <div class="id-card r-brand" style="--scan-delay: 19.5s"><div class="hologram-scan"></div>
+    <div class="card-sparkles">
+      <div class="sparkle" style="top:50%;left:50%;color:#8B5CF6;--tx:49px;--ty:0px;--sparkle-delay:20.0s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#8B5CF6;--tx:45px;--ty:25px;--sparkle-delay:20.04s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#8B5CF6;--tx:31px;--ty:52px;--sparkle-delay:20.08s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#8B5CF6;--tx:-9px;--ty:60px;--sparkle-delay:20.12s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#8B5CF6;--tx:-45px;--ty:62px;--sparkle-delay:20.16s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#8B5CF6;--tx:-36px;--ty:29px;--sparkle-delay:20.2s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#8B5CF6;--tx:-39px;--ty:2px;--sparkle-delay:20.24s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#8B5CF6;--tx:-44px;--ty:-19px;--sparkle-delay:20.28s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#8B5CF6;--tx:-25px;--ty:-31px;--sparkle-delay:20.32s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#8B5CF6;--tx:1px;--ty:-63px;--sparkle-delay:20.36s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#8B5CF6;--tx:24px;--ty:-68px;--sparkle-delay:20.4s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#8B5CF6;--tx:74px;--ty:-28px;--sparkle-delay:20.44s;"></div>
+    </div>
       <div class="id-card-inner">
         <div class="id-card-corner-bl"></div><div class="id-card-corner-br"></div>
         <div class="id-card-header">
@@ -1982,7 +2791,7 @@
   <div class="scene scene-customer">
     <div class="role-bg-grid"></div>
     <div class="role-transition-flash r-customer"></div>
-    <div class="role-name-intro r-customer">CUSTOMER<span class="name-kr">고객 분석가</span></div>
+    <div class="role-name-intro r-customer" data-text="CUSTOMER">CUSTOMER<span class="name-kr">고객 분석가</span></div>
     <div class="role-bg-glow"></div>
 
     <!-- 하트 입자 -->
@@ -2034,7 +2843,21 @@
 
     <div class="impact-burst r-customer"><div class="ring"></div><div class="ring"></div><div class="ring"></div></div>
 
-    <div class="id-card r-customer">
+    <div class="id-card r-customer" style="--scan-delay: 26.5s"><div class="hologram-scan"></div>
+    <div class="card-sparkles">
+      <div class="sparkle" style="top:50%;left:50%;color:#FF6FB5;--tx:56px;--ty:-5px;--sparkle-delay:27.0s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FF6FB5;--tx:39px;--ty:32px;--sparkle-delay:27.04s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FF6FB5;--tx:34px;--ty:59px;--sparkle-delay:27.08s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FF6FB5;--tx:-4px;--ty:55px;--sparkle-delay:27.12s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FF6FB5;--tx:-36px;--ty:50px;--sparkle-delay:27.16s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FF6FB5;--tx:-58px;--ty:23px;--sparkle-delay:27.2s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FF6FB5;--tx:-40px;--ty:2px;--sparkle-delay:27.24s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FF6FB5;--tx:-54px;--ty:-44px;--sparkle-delay:27.28s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FF6FB5;--tx:-38px;--ty:-56px;--sparkle-delay:27.32s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FF6FB5;--tx:5px;--ty:-59px;--sparkle-delay:27.36s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FF6FB5;--tx:29px;--ty:-60px;--sparkle-delay:27.4s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FF6FB5;--tx:41px;--ty:-31px;--sparkle-delay:27.44s;"></div>
+    </div>
       <div class="id-card-inner">
         <div class="id-card-corner-bl"></div><div class="id-card-corner-br"></div>
         <div class="id-card-header">
@@ -2084,7 +2907,7 @@
   <div class="scene scene-global">
     <div class="role-bg-grid"></div>
     <div class="role-transition-flash r-global"></div>
-    <div class="role-name-intro r-global">GLOBAL<span class="name-kr">글로벌 영업</span></div>
+    <div class="role-name-intro r-global" data-text="GLOBAL">GLOBAL<span class="name-kr">글로벌 영업</span></div>
     <div class="role-bg-glow"></div>
 
     <div class="global-stars">
@@ -2178,7 +3001,21 @@
 
     <div class="impact-burst r-global"><div class="ring"></div><div class="ring"></div><div class="ring"></div></div>
 
-    <div class="id-card r-global">
+    <div class="id-card r-global" style="--scan-delay: 33.5s"><div class="hologram-scan"></div>
+    <div class="card-sparkles">
+      <div class="sparkle" style="top:50%;left:50%;color:#3B82F6;--tx:65px;--ty:10px;--sparkle-delay:34.0s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#3B82F6;--tx:54px;--ty:22px;--sparkle-delay:34.04s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#3B82F6;--tx:21px;--ty:48px;--sparkle-delay:34.08s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#3B82F6;--tx:7px;--ty:45px;--sparkle-delay:34.12s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#3B82F6;--tx:-40px;--ty:51px;--sparkle-delay:34.16s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#3B82F6;--tx:-58px;--ty:49px;--sparkle-delay:34.2s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#3B82F6;--tx:-51px;--ty:5px;--sparkle-delay:34.24s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#3B82F6;--tx:-55px;--ty:-32px;--sparkle-delay:34.28s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#3B82F6;--tx:-33px;--ty:-65px;--sparkle-delay:34.32s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#3B82F6;--tx:-2px;--ty:-60px;--sparkle-delay:34.36s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#3B82F6;--tx:22px;--ty:-44px;--sparkle-delay:34.4s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#3B82F6;--tx:55px;--ty:-42px;--sparkle-delay:34.44s;"></div>
+    </div>
       <div class="id-card-inner">
         <div class="id-card-corner-bl"></div><div class="id-card-corner-br"></div>
         <div class="id-card-header">
@@ -2228,7 +3065,7 @@
   <div class="scene scene-marketer">
     <div class="role-bg-grid"></div>
     <div class="role-transition-flash r-marketer"></div>
-    <div class="role-name-intro r-marketer">MARKETER<span class="name-kr">디지털 마케터</span></div>
+    <div class="role-name-intro r-marketer" data-text="MARKETER">MARKETER<span class="name-kr">디지털 마케터</span></div>
     <div class="role-bg-glow"></div>
 
     <div class="marketer-notifs side-panel">
@@ -2280,7 +3117,21 @@
 
     <div class="impact-burst r-marketer"><div class="ring"></div><div class="ring"></div><div class="ring"></div></div>
 
-    <div class="id-card r-marketer">
+    <div class="id-card r-marketer" style="--scan-delay: 40.5s"><div class="hologram-scan"></div>
+    <div class="card-sparkles">
+      <div class="sparkle" style="top:50%;left:50%;color:#FCD34D;--tx:68px;--ty:8px;--sparkle-delay:41.0s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FCD34D;--tx:50px;--ty:28px;--sparkle-delay:41.04s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FCD34D;--tx:29px;--ty:60px;--sparkle-delay:41.08s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FCD34D;--tx:0px;--ty:50px;--sparkle-delay:41.12s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FCD34D;--tx:-26px;--ty:50px;--sparkle-delay:41.16s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FCD34D;--tx:-36px;--ty:16px;--sparkle-delay:41.2s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FCD34D;--tx:-77px;--ty:9px;--sparkle-delay:41.24s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FCD34D;--tx:-65px;--ty:-42px;--sparkle-delay:41.28s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FCD34D;--tx:-30px;--ty:-44px;--sparkle-delay:41.32s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FCD34D;--tx:-9px;--ty:-52px;--sparkle-delay:41.36s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FCD34D;--tx:29px;--ty:-45px;--sparkle-delay:41.4s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FCD34D;--tx:61px;--ty:-31px;--sparkle-delay:41.44s;"></div>
+    </div>
       <div class="id-card-inner">
         <div class="id-card-corner-bl"></div><div class="id-card-corner-br"></div>
         <div class="id-card-header">
@@ -2330,7 +3181,7 @@
   <div class="scene scene-compliance">
     <div class="role-bg-grid"></div>
     <div class="role-transition-flash r-compliance"></div>
-    <div class="role-name-intro r-compliance">COMPLY<span class="name-kr">컴플라이언스</span></div>
+    <div class="role-name-intro r-compliance" data-text="COMPLY">COMPLY<span class="name-kr">컴플라이언스</span></div>
     <div class="role-bg-glow"></div>
 
     <div class="comply-checklist side-panel">
@@ -2372,7 +3223,21 @@
 
     <div class="impact-burst r-compliance"><div class="ring"></div><div class="ring"></div><div class="ring"></div></div>
 
-    <div class="id-card r-compliance">
+    <div class="id-card r-compliance" style="--scan-delay: 47.5s"><div class="hologram-scan"></div>
+    <div class="card-sparkles">
+      <div class="sparkle" style="top:50%;left:50%;color:#FB923C;--tx:39px;--ty:3px;--sparkle-delay:48.0s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FB923C;--tx:63px;--ty:31px;--sparkle-delay:48.04s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FB923C;--tx:20px;--ty:45px;--sparkle-delay:48.08s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FB923C;--tx:0px;--ty:79px;--sparkle-delay:48.12s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FB923C;--tx:-22px;--ty:59px;--sparkle-delay:48.16s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FB923C;--tx:-49px;--ty:25px;--sparkle-delay:48.2s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FB923C;--tx:-62px;--ty:2px;--sparkle-delay:48.24s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FB923C;--tx:-41px;--ty:-34px;--sparkle-delay:48.28s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FB923C;--tx:-18px;--ty:-45px;--sparkle-delay:48.32s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FB923C;--tx:-5px;--ty:-47px;--sparkle-delay:48.36s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FB923C;--tx:25px;--ty:-33px;--sparkle-delay:48.4s;"></div>
+      <div class="sparkle" style="top:50%;left:50%;color:#FB923C;--tx:32px;--ty:-23px;--sparkle-delay:48.44s;"></div>
+    </div>
       <div class="id-card-inner">
         <div class="id-card-corner-bl"></div><div class="id-card-corner-br"></div>
         <div class="id-card-header">
@@ -2454,6 +3319,71 @@
       </div>
     </div>
   </div>
+  <!-- ⭐ v5.17: 네 모서리 코너 마커 -->
+  <div class="corner-marker tl"><div class="marker-dot"></div></div>
+  <div class="corner-marker tr"><div class="marker-dot"></div></div>
+  <div class="corner-marker bl"><div class="marker-dot"></div></div>
+  <div class="corner-marker br"><div class="marker-dot"></div></div>
+
+  <!-- ⭐ v5.17: 상/하단 레이저 가드 라인 -->
+  <div class="laser-guard top"></div>
+  <div class="laser-guard bottom"></div>
+
+  <!-- ⭐ v5.17: 배경 데이터 파티클 (12개, 다양한 위치/방향) -->
+  <div class="data-particle" style="top: 15%; left: -20px; animation: particleFloat1 8s linear 3s infinite;"></div>
+  <div class="data-particle" style="top: 35%; left: -20px; animation: particleFloat1 11s linear 1.5s infinite;"></div>
+  <div class="data-particle" style="top: 65%; left: -20px; animation: particleFloat1 9s linear 4s infinite;"></div>
+  <div class="data-particle" style="top: 85%; left: -20px; animation: particleFloat1 13s linear 2s infinite;"></div>
+  <div class="data-particle" style="top: 25%; right: -20px; animation: particleFloat2 10s linear 0.5s infinite;"></div>
+  <div class="data-particle" style="top: 55%; right: -20px; animation: particleFloat2 12s linear 2.5s infinite;"></div>
+  <div class="data-particle" style="top: 75%; right: -20px; animation: particleFloat2 9s linear 5s infinite;"></div>
+  <div class="data-particle" style="left: 15%; bottom: -20px; animation: particleFloat3 14s linear 1s infinite;"></div>
+  <div class="data-particle" style="left: 45%; bottom: -20px; animation: particleFloat3 11s linear 6s infinite;"></div>
+  <div class="data-particle" style="left: 75%; bottom: -20px; animation: particleFloat3 13s linear 3.5s infinite;"></div>
+  <div class="data-particle" style="left: 30%; top: -20px; animation: particleFloat4 12s linear 2s infinite;"></div>
+  <div class="data-particle" style="left: 65%; top: -20px; animation: particleFloat4 10s linear 7s infinite;"></div>
+
+  <!-- ⭐ v5.17: 하단 progress bar -->
+  <div class="progress-bar">
+    <div class="progress-bar-fill"></div>
+    <div class="progress-bar-tip"></div>
+  </div>
+
+  <!-- ⭐ v5.16: HUD 메타데이터 (좌상단 / 우상단) -->
+  <div class="hud hud-top-left">
+    <span><span class="hud-dot live"></span>SIGNAL_NET v2.0</span>
+    <span class="hud-separator">·</span>
+    <span>FRAME <span class="hud-value" id="frame-counter">0001</span></span>
+    <span class="hud-separator">·</span>
+    <span class="hud-value">ACTIVE</span>
+  </div>
+
+  <div class="hud hud-top-right">
+    <span><span class="hud-dot rec"></span>REC <span class="hud-value" id="time-counter">00:00</span></span>
+    <span class="hud-separator">·</span>
+    <span>60FPS</span>
+    <span class="hud-separator">·</span>
+    <span>4K</span>
+  </div>
+
+  <!-- ⭐ v5.16: 미니맵 네비게이션 (우하단) -->
+  <div class="minimap">
+    <div class="minimap-label">DIGITAL TRADE CARDS</div>
+    <div class="minimap-dots" id="minimap-dots">
+      <div class="minimap-dot" data-role="ceo"></div>
+      <div class="minimap-dot" data-role="analyst"></div>
+      <div class="minimap-dot" data-role="brand"></div>
+      <div class="minimap-dot" data-role="customer"></div>
+      <div class="minimap-dot" data-role="global"></div>
+      <div class="minimap-dot" data-role="marketer"></div>
+      <div class="minimap-dot" data-role="compliance"></div>
+    </div>
+    <div class="minimap-progress"><span class="current" id="minimap-current">0</span> / 7</div>
+  </div>
+
+  <!-- ⭐ v5.16: CRT 스캔라인 (가로 라인 + 흐르는 스캔) -->
+  <div class="crt-scanlines"></div>
+  <div class="crt-scan-line"></div>
 
 </div>
 
@@ -2473,13 +3403,178 @@
 </button>
 
 <script>
+  // ⭐ v5.16: 사이버틱 효과 - 미니맵 진행 표시
+  const roleSchedule = [
+    { role: 'ceo',        time: 2000,  name: 'CEO',        color: '#E7FE55' },
+    { role: 'analyst',    time: 10000, name: 'ANALYST',    color: '#06B6D4' },
+    { role: 'brand',      time: 17000, name: 'BRAND',      color: '#8B5CF6' },
+    { role: 'customer',   time: 24000, name: 'CUSTOMER',   color: '#FF6FB5' },
+    { role: 'global',     time: 31000, name: 'GLOBAL',     color: '#3B82F6' },
+    { role: 'marketer',   time: 38000, name: 'MARKETER',   color: '#FCD34D' },
+    { role: 'compliance', time: 45000, name: 'COMPLIANCE', color: '#FB923C' }
+  ];
+
+  function setupMinimap() {
+    roleSchedule.forEach(({ role, time, color }, idx) => {
+      setTimeout(() => {
+        // 이전 모든 dots를 passed로
+        document.querySelectorAll('.minimap-dot').forEach((dot, i) => {
+          if (i < idx) {
+            dot.classList.add('passed');
+            dot.classList.remove('active');
+            dot.style.color = '';
+          }
+        });
+        // 현재 dot을 active로
+        const currentDot = document.querySelector(`.minimap-dot[data-role="${role}"]`);
+        if (currentDot) {
+          currentDot.classList.add('active');
+          currentDot.style.color = color;
+          currentDot.style.background = color;
+        }
+        // progress 카운터 업데이트
+        const currentNum = document.getElementById('minimap-current');
+        if (currentNum) currentNum.textContent = idx + 1;
+      }, time);
+    });
+
+    // 클로징 시점에 모든 dots passed로
+    setTimeout(() => {
+      document.querySelectorAll('.minimap-dot').forEach(dot => {
+        dot.classList.add('passed');
+        dot.classList.remove('active');
+      });
+    }, 52000);
+  }
+
+  // ⭐ v5.16: HUD - FRAME 카운터 + REC 시간 카운터
+  function setupHudCounters() {
+    let startTime = Date.now();
+    const frameCounter = document.getElementById('frame-counter');
+    const timeCounter = document.getElementById('time-counter');
+
+    function updateHud() {
+      const elapsedMs = Date.now() - startTime;
+      const elapsedSec = elapsedMs / 1000;
+
+      // FRAME (60FPS 가정)
+      const frame = Math.floor(elapsedSec * 60);
+      if (frameCounter) frameCounter.textContent = String(frame).padStart(4, '0');
+
+      // REC time (00:00 형식)
+      const min = Math.floor(elapsedSec / 60);
+      const sec = Math.floor(elapsedSec % 60);
+      if (timeCounter) timeCounter.textContent = `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+
+      // 영상 끝나면 정지 (58s)
+      if (elapsedSec < 60) {
+        requestAnimationFrame(updateHud);
+      }
+    }
+    updateHud();
+  }
+
+  // ⭐ v5.12: 능력치 바 차오름 timing 설정 (각 segment에 fill-delay 설정)
+  // 카드 등장 + 약 2초 후 (카드 선명해진 후) 능력치 바 차오르기 시작
+  const abilityBaseTimes = {
+    'r-ceo':        6.0,   // CEO 카드 3.5s 시작, +2.5s 후
+    'r-analyst':    14.0,  // ANALYST 10.5s + 2.5s
+    'r-brand':      21.0,
+    'r-customer':   28.0,
+    'r-global':     35.0,
+    'r-marketer':   42.0,
+    'r-compliance': 49.0
+  };
+
+  function setupAbilityBars() {
+    Object.entries(abilityBaseTimes).forEach(([roleClass, baseTime]) => {
+      const card = document.querySelector(`.id-card.${roleClass}`);
+      if (!card) return;
+
+      const rows = card.querySelectorAll('.ability-row');
+      rows.forEach((row, rowIdx) => {
+        // Row마다 0.3초씩 차이 (위에서 아래로 순서대로 차오름)
+        const rowDelay = baseTime + rowIdx * 0.3;
+
+        // filled segment만 차오름 (빈 segment는 그대로)
+        const filledSegs = row.querySelectorAll('.ability-segment.filled');
+        filledSegs.forEach((seg, segIdx) => {
+          // segment마다 0.04초씩 차이 (왼쪽 → 오른쪽 순서)
+          const delay = rowDelay + segIdx * 0.04;
+          seg.style.setProperty('--fill-delay', `${delay}s`);
+        });
+
+        // 능력치 숫자도 segment 다 차오른 후 등장
+        const valueEl = row.querySelector('.ability-value');
+        if (valueEl) {
+          const valueDelay = rowDelay + filledSegs.length * 0.04 + 0.1;
+          valueEl.style.setProperty('--value-delay', `${valueDelay}s`);
+        }
+      });
+    });
+  }
+
+  // ⭐ v5.13: 직무 씬 강제 hide - 가장 강력한 방법 (display:none + !important + setTimeout 백업)
+  const sceneClasses = ['scene-ceo', 'scene-analyst', 'scene-brand', 'scene-customer', 'scene-global', 'scene-marketer', 'scene-compliance'];
+
+  // 각 직무 종료 시점 (animation 시작 후 ms)
+  const sceneEndTimes = {
+    'scene-ceo':        10000,
+    'scene-analyst':    17000,
+    'scene-brand':      24000,
+    'scene-customer':   31000,
+    'scene-global':     38000,
+    'scene-marketer':   45000,
+    'scene-compliance': 52000
+  };
+
+  // 강력한 hide 함수 (display:none + !important)
+  function forceHideScene(sceneEl) {
+    if (!sceneEl) return;
+    // 가장 강력한 hide: display:none까지 적용 (DOM에서 완전히 안 보임)
+    sceneEl.style.setProperty('visibility', 'hidden', 'important');
+    sceneEl.style.setProperty('opacity', '0', 'important');
+    sceneEl.style.setProperty('display', 'none', 'important');
+    sceneEl.style.setProperty('pointer-events', 'none', 'important');
+    // 자식들도 명시적 hide (혹시 모를 상황 대비)
+    sceneEl.querySelectorAll('*').forEach(child => {
+      child.style.setProperty('visibility', 'hidden', 'important');
+      child.style.setProperty('opacity', '0', 'important');
+    });
+    console.log(`✅ scene 강제 hide 완료`);
+  }
+
+  function setupSceneHiding() {
+    // ⭐ 방법 1: setTimeout으로 정확한 시점에 hide (가장 확실)
+    Object.entries(sceneEndTimes).forEach(([cls, time]) => {
+      setTimeout(() => {
+        forceHideScene(document.querySelector('.' + cls));
+      }, time);
+    });
+
+    // ⭐ 방법 2: animationend 이벤트 백업 (브라우저별 호환성)
+    sceneClasses.forEach(cls => {
+      const sceneEl = document.querySelector('.' + cls);
+      if (!sceneEl) return;
+      sceneEl.addEventListener('animationend', (e) => {
+        if (e.target !== sceneEl) return;
+        if (e.animationName !== 'roleSceneFade') return;
+        forceHideScene(sceneEl);
+      });
+    });
+  }
+
   // v5.2: 페이지 로드 워밍업 - 첫 페인트 후 600ms 대기 → 애니메이션 시작
   // (리플레이 누른 것처럼 깔끔하게 시작되도록)
   window.addEventListener('load', () => {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         setTimeout(() => {
+          setupAbilityBars();
           document.getElementById('stage').classList.add('ready');
+          setupSceneHiding();
+          setupMinimap();         // ⭐ v5.16: 미니맵 시작
+          setupHudCounters();     // ⭐ v5.16: HUD 카운터 시작
         }, 600);
       });
     });
